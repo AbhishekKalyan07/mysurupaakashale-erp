@@ -4,13 +4,14 @@ import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { useStaffUsers } from '../hooks/useAdmin';
+import { useStaffUsers, useToggleStaffStatus } from '../hooks/useAdmin';
 import { Users, Plus, Shield, ChefHat, Truck, Receipt } from 'lucide-react';
 import { CreateStaffModal } from '../components/CreateStaffModal';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 
 export function StaffManagementPage() {
   const { data: staff, isLoading, isError } = useStaffUsers();
+  const toggleMutation = useToggleStaffStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (isLoading) return <LoadingScreen />;
@@ -52,6 +53,7 @@ export function StaffManagementPage() {
                   <th className="px-4 py-3">Contact</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Joined</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rice-100">
@@ -79,6 +81,23 @@ export function StaffManagementPage() {
                     </td>
                     <td className="px-4 py-3 text-ink-500">
                       {user.createdAt?.toDate ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system).format(user.createdAt.toDate()) : 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {user.role !== 'admin' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          isLoading={toggleMutation.isPending && toggleMutation.variables?.uid === user.id}
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} this user?`)) {
+                              toggleMutation.mutate({ uid: user.id, isActive: !user.isActive });
+                            }
+                          }}
+                          className={user.isActive ? 'text-danger hover:bg-danger-50' : 'text-emerald-600 hover:bg-emerald-50'}
+                        >
+                          {user.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}

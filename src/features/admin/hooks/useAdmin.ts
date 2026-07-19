@@ -3,7 +3,7 @@ import { db, firebaseApp } from '@/shared/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/shared/types';
 import type { Role } from '@/shared/constants/roles';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -81,5 +81,15 @@ export function useCreateStaffUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
+  });
+}
+
+export function useToggleStaffStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
+      await updateDoc(doc(db, 'users', uid), { isActive, updatedAt: serverTimestamp() });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.users.all }); },
   });
 }
