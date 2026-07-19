@@ -31,8 +31,22 @@ firestore-debug.log
 ui-debug.log
 *.emulator-data/
 
-# Service account keys — used only by the local seed script, never committed
+# Service account keys and strict credentials — never committed
 **/serviceAccountKey.json
+*-service-account.json
+firebase-adminsdk-*.json
+*.pem
+*.key
+*.cert
+*.p12
+
+# Common local secret stores
+secrets.json
+credentials.json
+github-token.txt
+smtp-config.json
+*.db
+*.sqlite
 
 # Editor directories and files
 .vscode/*
