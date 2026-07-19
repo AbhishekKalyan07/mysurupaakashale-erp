@@ -7,12 +7,15 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useStaffUsers, useToggleStaffStatus } from '../hooks/useAdmin';
 import { Users, Plus, Shield, ChefHat, Truck, Receipt } from 'lucide-react';
 import { CreateStaffModal } from '../components/CreateStaffModal';
+import { EditStaffModal } from '../components/EditStaffModal';
 import { APP_CONFIG } from '@/shared/config/appConfig';
+import type { UserProfile } from '@/shared/types';
 
 export function StaffManagementPage() {
   const { data: staff, isLoading, isError } = useStaffUsers();
   const toggleMutation = useToggleStaffStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
   if (isLoading) return <LoadingScreen />;
   if (isError) return <div className="p-8 text-danger">Failed to load staff data.</div>;
@@ -83,7 +86,18 @@ export function StaffManagementPage() {
                       {user.createdAt?.toDate ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system).format(user.createdAt.toDate()) : 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {user.role !== 'admin' && (
+                      <div className="flex justify-end gap-2">
+                        {user.role !== 'admin' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setEditingUser(user)}
+                            className="text-ink-600 hover:bg-rice-100"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {user.role !== 'admin' && (
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -98,6 +112,7 @@ export function StaffManagementPage() {
                           {user.isActive ? 'Deactivate' : 'Activate'}
                         </Button>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -113,6 +128,9 @@ export function StaffManagementPage() {
 
       {isModalOpen && (
         <CreateStaffModal onClose={() => setIsModalOpen(false)} />
+      )}
+      {editingUser && (
+        <EditStaffModal user={editingUser} onClose={() => setEditingUser(null)} />
       )}
     </div>
   );

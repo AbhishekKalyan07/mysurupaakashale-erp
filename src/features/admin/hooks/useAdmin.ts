@@ -93,3 +93,19 @@ export function useToggleStaffStatus() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.users.all }); },
   });
 }
+
+export function useUpdateStaffUser() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
+      await updateDoc(doc(db, 'users', uid), {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+}
