@@ -14,11 +14,17 @@ export function useStaffUsers() {
     queryFn: async () => {
       const q = query(
         collection(db, 'users'),
-        where('role', 'in', ['admin', 'kitchen', 'delivery_partner', 'accounts']),
-        orderBy('createdAt', 'desc')
+        where('role', 'in', ['admin', 'kitchen', 'delivery_partner', 'accounts'])
       );
       const snap = await getDocs(q);
-      return snap.docs.map(doc => doc.data() as UserProfile);
+      const users = snap.docs.map(doc => doc.data() as UserProfile);
+      
+      // Sort in memory to avoid requiring a composite index on the users collection
+      return users.sort((a, b) => {
+        const dateA = a.createdAt?.toMillis?.() || 0;
+        const dateB = b.createdAt?.toMillis?.() || 0;
+        return dateB - dateA; // Descending
+      });
     },
   });
 }
