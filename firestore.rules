@@ -58,7 +58,8 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin() || isAccounts();
 
       // Phase 2: Client-side user creation allowed for customers
-      allow create: if isOwner(userId) && request.resource.data.role == 'customer';
+      // Phase 9: Admin can create staff users directly from the client
+      allow create: if (isOwner(userId) && request.resource.data.role == 'customer') || isAdmin();
 
       // Owner may update their own profile, but never their own role or
       // id (that would be a privilege escalation) — role changes only
