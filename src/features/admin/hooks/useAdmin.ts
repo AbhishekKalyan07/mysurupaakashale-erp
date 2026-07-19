@@ -17,7 +17,7 @@ export function useStaffUsers() {
         where('role', 'in', ['admin', 'kitchen', 'delivery_partner', 'accounts'])
       );
       const snap = await getDocs(q);
-      const users = snap.docs.map(doc => doc.data() as UserProfile);
+      const users = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
       
       // Sort in memory to avoid requiring a composite index on the users collection
       return users.sort((a, b) => {
