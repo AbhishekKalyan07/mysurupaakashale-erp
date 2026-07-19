@@ -1,0 +1,231 @@
+rules_version = '2';
+
+// =============================================================================
+// Mysuru Paakashale — Firestore Security Rules
+//
+// Division of responsibility: these rules decide WHO can read/write WHAT —
+// authorization, plus a few high-value data checks (price integrity,
+// "which fields actually changed"). Full shape/format validation lives in
+// Zod schemas + Cloud Functions on the write path.
+//
+// Every collection below is either genuinely client-writable within tight
+// bounds, or intentionally `if false` because the only legitimate writer is
+// a Cloud Function using the Admin SDK — which is not subject to these
+// rules at all. `if false` here is documentation of intent, not a
+// functional gate against the Admin SDK.
+//
+// SPRINT 4 CHANGES:
+//   - payments: removed Razorpay comment; write = false (Admin SDK only,
+//     via submitPayment / verifyPayment Cloud Functions)
+//   - notifications: expanded to support the full Notification type;
+//     client can mark read (inAppStatus) and archive (inAppStatus = archived)
+//     — both are guarded by onlyChangedFields to prevent other tampering
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      // Phase 3: Read role from Firestore instead of Custom Claims
+      return isSignedIn() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role : null;
+    }
+
+    function isAdmin() { return role() == 'admin'; }
+    function isCustomer() { return role() == 'customer'; }
+    function isKitchen() { return role() == 'kitchen'; }
+    function isDeliveryPartner() { return role() == 'delivery_partner'; }
+    function isAccounts() { return role() == 'accounts'; }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function unchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    function onlyChangedFields(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    // ---------- users/{userId} ----------
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || isAccounts();
+
+      // Phase 2: Client-side user creation allowed for customers
+      allow create: if isOwner(userId) && request.resource.data.role == 'customer';
+
+      // Owner may update their own profile, but never their own role or
+      // id (that would be a privilege escalation) — role changes only
+      // ever happen through createStaffUser.
+      allow update: if (isOwner(userId) && unchanged('role') && unchanged('id')) || isAdmin();
+
+      // Staff are deactivated (isActive: false), never deleted — this
+      // preserves order/invoice/audit history that references their uid.
+      allow delete: if false;
+
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ---------- mealPlans/{planId} — public catalog ----------
+    match /mealPlans/{planId} {
+      // No auth required: prospective customers browse pricing before signing up.
+      allow read: if true;
+      allow write: if isAdmin() &&
+                      request.resource.data.pricePerDay is number &&
+                      request.resource.data.pricePerDay > 0;
+    }
+
+    // ---------- dailyMenus/{menuId} ----------
+    match /dailyMenus/{menuId} {
+      allow read: if true;
+
+      // Admin has full write access.
+      // Kitchen can create and edit draft menus directly.
+      // Publishing/archiving goes through the manageDailyMenu Cloud Function.
+      allow create: if isAdmin() || (isKitchen() && request.resource.data.status == 'draft');
+      allow update: if isAdmin() || (isKitchen() && resource.data.status == 'draft' && request.resource.data.status == 'draft');
+      allow delete: if isAdmin() || (isKitchen() && resource.data.status == 'draft');
+    }
+
+    // ---------- kitchens/{kitchenId} ----------
+    match /kitchens/{kitchenId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------- deliveryZones/{zoneId} ----------
+    match /deliveryZones/{zoneId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------- subscriptions/{subscriptionId} ----------
+    match /subscriptions/{subscriptionId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
+
+      // Phase 5: Admins can create/update subscriptions, customers can create pending drafts
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending');
+
+      // Phase 5: Admins have full access. Customers can update their own subscription's status (pause, cancel, resume)
+      allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid && onlyChangedFields(['status', 'updatedAt']));
+
+      allow delete: if false; // cancel via status update — preserves billing history
+
+      match /skips/{date} {
+        function parentSubscription() {
+          return get(/databases/$(database)/documents/subscriptions/$(subscriptionId)).data;
+        }
+
+        allow read: if isSignedIn() &&
+                       (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
+        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
+        allow update: if false; // a skip is added or removed, never edited in place
+        allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid; // "un-skip" a day
+      }
+    }
+
+    // ---------- orders/{orderId} ----------
+    match /orders/{orderId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.customerId == request.auth.uid ||
+                      resource.data.deliveryPartnerId == request.auth.uid ||
+                      isAdmin() || isAccounts() || isKitchen());
+
+      // Phase 4: Admins can generate orders
+      allow create: if isAdmin();
+
+      // Each role can move status forward within its own lane:
+      //  - Kitchen: scheduled → preparing → ready_for_pickup
+      //  - Delivery Partner (their own assigned order): → out_for_delivery → delivered / failed_delivery
+      //  - Customer (their own order, still 'scheduled'): → cancelled
+      //  - Admin: anything
+      allow update: if isAdmin() ||
+                      (isKitchen() && onlyChangedFields(['status', 'updatedAt'])) ||
+                      (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid &&
+                       onlyChangedFields(['status', 'updatedAt'])) ||
+                      (isSignedIn() && resource.data.customerId == request.auth.uid &&
+                       resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled' &&
+                       onlyChangedFields(['status', 'updatedAt']));
+
+      allow delete: if false;
+    }
+
+    // ---------- deliveries/{deliveryId} ----------
+    match /deliveries/{deliveryId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.customerId == request.auth.uid ||
+                      resource.data.deliveryPartnerId == request.auth.uid ||
+                      isAdmin() || isKitchen());
+
+      // Normally created by the same Cloud Function that confirms an
+      // order; Admin can also create one directly for manual overrides.
+      allow create: if isAdmin();
+
+      allow update: if isAdmin() || (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ---------- payments/{paymentId} ----------
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow write: if isAdmin(); // Phase 5: Admin handles manual payments
+    }
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow write: if isAdmin(); // Phase 6: Invoice generation by admin transactions
+    }
+
+    // ---------- notifications/{notificationId} ----------
+    // Created only by Cloud Functions (Admin SDK). Recipients may:
+    //   - read their own notifications
+    //   - mark as read (inAppStatus: unread → read, status: read, readAt)
+    //   - archive (inAppStatus: archived, status: archived)
+    // Admins may read all notifications (for history page).
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() &&
+                     (resource.data.recipientId == request.auth.uid || isAdmin());
+
+      allow create: if isAdmin(); // Phase 7: Notifications generated manually or by admin actions
+
+      // Recipient may only change inAppStatus, status, and readAt fields.
+      // Admins can't update via client either — management goes through Cloud Functions.
+      allow update: if isSignedIn() &&
+                       resource.data.recipientId == request.auth.uid &&
+                       onlyChangedFields(['inAppStatus', 'status', 'readAt', 'updatedAt']);
+
+      // Physical delete not allowed — archive instead for audit trail.
+      allow delete: if false;
+    }
+
+    match /orderGenerationRuns/{runId} {
+      allow read: if isKitchen() || isAdmin();
+      allow write: if isAdmin(); // Phase 4: Manual order generation via Admin UI
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin(); // Phase 1: Settings updated by admin
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin(); // Phase 7: Client-side audit logs
+    }
+
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin(); // Phase 8: Automations
+    }
+
+    // No catch-all rule: anything not matched above is denied by default.
+  }
+}

@@ -1,0 +1,162 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { notificationRepository } from '@/features/notifications/services/notificationRepository';
+import { Timestamp } from 'firebase/firestore';
+import type { Notification } from '@/shared/types';
+import { queryKeys } from '@/shared/lib/queryKeys';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { toast } from 'react-hot-toast';
+
+// ── Current user's notifications (notification bell) ──────────────────────────
+export function useNotifications() {
+  const { firebaseUser } = useAuth();
+
+  return useQuery({
+    queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+    queryFn: () => notificationRepository.getByRecipientId(firebaseUser!.uid),
+    enabled: !!firebaseUser,
+    staleTime: 30_000,
+    refetchInterval: 60_000, // Poll every minute for real-time feel without WebSocket cost
+  });
+}
+
+// ── Unread count for badge ─────────────────────────────────────────────────────
+export function useUnreadNotificationCount() {
+  const { firebaseUser } = useAuth();
+
+  return useQuery({
+    queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+    queryFn: () => notificationRepository.getUnreadCount(firebaseUser!.uid),
+    enabled: !!firebaseUser,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
+// ── Mark a notification as read ────────────────────────────────────────────────
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+  const { firebaseUser } = useAuth();
+
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      // Phase 7: Client-side update
+      await notificationRepository.update(notificationId, {
+        inAppStatus: 'read',
+        status: 'read',
+        readAt: Timestamp.now() as any,
+      });
+      return { success: true };
+    },
+    // Optimistic update — feel instant, reconcile on settle
+    onMutate: async (notificationId: string) => {
+      const key = queryKeys.notifications.byRecipient(firebaseUser?.uid ?? '');
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Notification[]>(key);
+
+      queryClient.setQueryData<Notification[]>(key, (old) =>
+        old?.map((n) =>
+          n.id === notificationId
+            ? { ...n, inAppStatus: 'read' as const, status: 'read' as const }
+            : n,
+        ) ?? [],
+      );
+
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+          context.previous,
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+      });
+    },
+  });
+}
+
+// ── Mark all as read ───────────────────────────────────────────────────────────
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  const { firebaseUser } = useAuth();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Phase 7: Fetch all unread and update them
+      const unread = await notificationRepository.getByRecipientId(firebaseUser!.uid);
+      const toUpdate = unread.filter((n) => n.inAppStatus === 'unread');
+      
+      await Promise.all(
+        toUpdate.map((n) => 
+          notificationRepository.update(n.id, {
+            inAppStatus: 'read',
+            status: 'read',
+            readAt: Timestamp.now() as any,
+          })
+        )
+      );
+      
+      return { success: true, count: toUpdate.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+      });
+      toast.success(`Marked ${data.count} notifications as read.`);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to mark all as read.');
+    },
+  });
+}
+
+// ── Archive a notification ─────────────────────────────────────────────────────
+export function useArchiveNotification() {
+  const queryClient = useQueryClient();
+  const { firebaseUser } = useAuth();
+
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      // Phase 7: Client-side archive update
+      await notificationRepository.update(notificationId, {
+        inAppStatus: 'archived',
+        status: 'archived',
+      });
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+      });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to archive notification.');
+    },
+  });
+}
+
+// ── Admin: all notification history paginated ──────────────────────────────────
+export function useNotificationHistory(page: number = 0) {
+  return useQuery({
+    queryKey: queryKeys.notifications.adminHistory(page),
+    queryFn: async (): Promise<Notification[]> => {
+      const { notifications } = await notificationRepository.getNotificationsPaginated({}, 30);
+      return notifications;
+    },
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+}

@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// =============================================================================
+// Mysuru Paakashale — Cloud Storage Security Rules
+//
+// Uses cross-service rules (firestore.get) to check delivery-proof upload
+// permission against the actual Firestore `deliveries` document. The first
+// deploy of rules using firestore.get()/firestore.exists() prompts you (in
+// the Firebase Console or CLI) to grant Storage permission to read
+// Firestore — see README.md "Deploying rules". Cross-service checks are
+// capped at 2 Firestore document reads per rules evaluation; every path
+// below uses at most one.
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isImageUnder(maxMb) {
+      return request.resource.size < maxMb * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
+
+    function isAdmin() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // /profile-photos/{userId}/{fileName}
+    match /profile-photos/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId && isImageUnder(5);
+    }
+
+    // /delivery-proof/{deliveryId}/{fileName}
+    match /delivery-proof/{deliveryId}/{fileName} {
+      function delivery() {
+        return firestore.get(/databases/(default)/documents/deliveries/$(deliveryId)).data;
+      }
+
+      allow read: if isSignedIn() &&
+                     (delivery().customerId == request.auth.uid ||
+                      delivery().deliveryPartnerId == request.auth.uid ||
+                      request.auth.token.role in ['admin', 'kitchen']);
+
+      allow write: if isSignedIn() && delivery().deliveryPartnerId == request.auth.uid && isImageUnder(5);
+    }
+
+    // /meal-plan-images/{planId}/{fileName} — marketing images for the public plan catalog
+    match /meal-plan-images/{planId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.token.role == 'admin' && isImageUnder(5);
+    }
+
+    // /backups/{fileName} — Automated database backups
+    match /backups/{fileName} {
+      allow read, write: if isSignedIn() && isAdmin();
+    }
+
+    // /reports/{fileName} — Automated Excel reports
+    match /reports/{fileName} {
+      allow read, write: if isSignedIn() && isAdmin();
+    }
+
+    // Everything else: denied by default.
+  }
+}

@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+functions/node_modules
+
+# Build output
+dist
+dist-ssr
+functions/lib
+*.tsbuildinfo
+
+# Env files — never commit real secrets/config (see .env.example)
+*.local
+.env
+.env.local
+.env.*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+*.emulator-data/
+
+# Service account keys — used only by the local seed script, never committed
+**/serviceAccountKey.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
