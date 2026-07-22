@@ -238,7 +238,7 @@ export function SubscriptionDetailsPage() {
   }
 
   const selectedPlan = plans?.find((p) => p.id === subscription.planId);
-  const selectedAddress = addresses.find((addr) => addr.id === subscription.deliveryAddressId);
+  const selectedAddress = addresses?.find((addr) => addr.id === subscription.deliveryAddressId);
   const latestPayment = payments?.find((p) => p.status === 'pending' && p.subscriptionId === subscription.id);
 
   const handleLifecycleAction = async (action: 'pause' | 'resume' | 'cancel' | 'renew') => {

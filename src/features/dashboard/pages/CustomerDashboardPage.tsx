@@ -86,7 +86,7 @@ export function CustomerDashboardPage() {
   }
 
   const selectedPlan = plans?.find((p) => p.id === subscription?.planId);
-  const activeAddress = addresses.find((a) => a.id === subscription?.deliveryAddressId);
+  const activeAddress = addresses?.find((a) => a.id === subscription?.deliveryAddressId);
 
   const onAddressSubmit = async (data: AddressFormValues) => {
     setAddressError(null);

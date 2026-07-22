@@ -99,7 +99,7 @@ export function SubscriptionWizardPage() {
 
   const handleSelectPlan = (id: string) => {
     setSelectedPlanId(id);
-    const newPlan = plans.find((p) => p.id === id);
+    const newPlan = plans?.find((p) => p.id === id);
     if (newPlan) {
       // Default to first option of the new plan
       const lunchSlot = newPlan.mealSlots.find((s) => s.mealType === 'lunch');
@@ -111,15 +111,15 @@ export function SubscriptionWizardPage() {
 
   // Initialize selected options once plan is loaded
   if (plan && !lunchOptionId && !dinnerOptionId) {
-    const lunchSlot = plan.mealSlots.find((s) => s.mealType === 'lunch');
-    const dinnerSlot = plan.mealSlots.find((s) => s.mealType === 'dinner');
+    const lunchSlot = plan?.mealSlots.find((s) => s.mealType === 'lunch');
+    const dinnerSlot = plan?.mealSlots.find((s) => s.mealType === 'dinner');
     if (lunchSlot?.options?.[0]) setLunchOptionId(lunchSlot.options[0].id);
     if (dinnerSlot?.options?.[0]) setDinnerOptionId(dinnerSlot.options[0].id);
   }
 
   // Set default selected address once addresses loaded
   if (addresses.length > 0 && !selectedAddressId) {
-    const defaultAddr = addresses.find((a) => a.isDefault);
+    const defaultAddr = addresses?.find((a) => a.isDefault);
     setSelectedAddressId(defaultAddr?.id || addresses[0].id);
   }
 
@@ -191,7 +191,7 @@ export function SubscriptionWizardPage() {
     }
   };
 
-  const currentAddress = addresses.find((a) => a.id === selectedAddressId);
+  const currentAddress = addresses?.find((a) => a.id === selectedAddressId);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -494,13 +494,13 @@ export function SubscriptionWizardPage() {
                   <div className="flex justify-between">
                     <span>Lunch:</span>
                     <span className="font-semibold text-stone-900">
-                      {plan.mealSlots.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
+                      {plan?.mealSlots.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dinner:</span>
                     <span className="font-semibold text-stone-900">
-                      {plan.mealSlots.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
+                      {plan?.mealSlots.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                 </div>
