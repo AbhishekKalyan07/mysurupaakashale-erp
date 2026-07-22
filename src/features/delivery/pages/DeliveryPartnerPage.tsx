@@ -10,6 +10,7 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { toast } from 'react-hot-toast';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { Truck, MapPin, Package, Phone, CheckCircle2, Navigation, AlertCircle } from 'lucide-react';
+import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser } = useAuth();
@@ -84,6 +85,8 @@ export function DeliveryPartnerPage() {
           {today} | {orders?.length || 0} stops
         </p>
       </div>
+
+      <StaffAttendanceCard />
 
       <div className="space-y-4">
         {orders?.length === 0 ? (

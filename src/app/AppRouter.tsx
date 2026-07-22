@@ -14,6 +14,7 @@ import { PaymentVerificationPage } from '@/features/admin/pages/PaymentVerificat
 import { NotificationCenter } from '@/features/notifications/pages/NotificationCenter';
 import { NotificationHistoryPage } from '@/features/notifications/pages/NotificationHistoryPage';
 import { AccountsDashboardPage } from '@/features/dashboard/pages/AccountsDashboardPage';
+import { BusinessAnalyticsPage } from '@/features/analytics/pages/BusinessAnalyticsPage';
 import { BrowsePlansPage } from '@/features/customer/pages/BrowsePlansPage';
 import { SubscriptionDetailsPage } from '@/features/customer/pages/SubscriptionDetailsPage';
 import { SubscriptionWizardPage } from '@/features/customer/pages/SubscriptionWizardPage';
@@ -23,6 +24,8 @@ import { DailyMenuListPage } from '@/features/kitchen/pages/DailyMenuListPage';
 import { DailyMenuEditorPage } from '@/features/kitchen/pages/DailyMenuEditorPage';
 import { DeliveryDashboardPage } from '@/features/delivery/pages/DeliveryDashboardPage';
 import { DeliveryPartnerPage } from '@/features/delivery/pages/DeliveryPartnerPage';
+import { AttendanceDashboardPage } from '@/features/hr/pages/AttendanceDashboardPage';
+import { PayrollDashboardPage } from '@/features/hr/pages/PayrollDashboardPage';
 import { ROLES, type Role } from '@/shared/constants/roles';
 import { RootRedirect } from './routes/RootRedirect';
 import { NotFoundPage } from './routes/NotFoundPage';
@@ -46,6 +49,7 @@ const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { path: '/admin', element: <AdminDashboardPage /> },
+          { path: '/admin/analytics', element: <BusinessAnalyticsPage /> },
           { path: '/admin/staff', element: <StaffManagementPage /> },
           { path: '/admin/settings', element: <BusinessSettingsPage /> },
           { path: '/admin/audit', element: <AuditLogsPage /> },
@@ -57,6 +61,9 @@ const router = createBrowserRouter([
           { path: '/admin/payments', element: <PaymentVerificationPage /> },
           { path: '/admin/notifications', element: <NotificationCenter /> },
           { path: '/admin/notifications/history', element: <NotificationHistoryPage /> },
+          // ── HR Module (Phase 2) ──────────────────────────────────────────────
+          { path: '/admin/attendance', element: <AttendanceDashboardPage /> },
+          { path: '/admin/payroll', element: <PayrollDashboardPage /> },
         ],
       },
     ],
@@ -105,6 +112,7 @@ const router = createBrowserRouter([
     ],
   },
   roleRoute(ROLES.ACCOUNTS, '/accounts', <AccountsDashboardPage />),
+  roleRoute(ROLES.ACCOUNTS, '/accounts/analytics', <BusinessAnalyticsPage />),
   // Rendered for truly unmatched paths. Wrong-role access to a route that
   // DOES exist is handled by ProtectedRoute's redirect, not this.
   { path: '*', element: <NotFoundPage /> },

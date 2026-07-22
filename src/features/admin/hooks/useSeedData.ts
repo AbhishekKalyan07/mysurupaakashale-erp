@@ -72,6 +72,12 @@ export function useSeedData() {
           },
           businessHolidays: [],
         },
+        payroll: {
+          standardWorkingDays: 22,
+          standardWorkingHours: 8,
+          taxPercentage: 0,
+          leaveDeductionMultiplier: 1,
+        },
         updatedAt: serverTimestamp(),
       });
 

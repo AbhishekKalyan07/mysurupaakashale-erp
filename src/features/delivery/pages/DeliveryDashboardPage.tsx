@@ -100,7 +100,11 @@ export function DeliveryDashboardPage() {
 
           <div className="bg-rice-25 p-4 rounded-xl border border-rice-200 min-h-[300px]">
             {unassignedOrders?.length === 0 ? (
-              <EmptyState title="All clear!" description="No unassigned orders at the moment." />
+              <EmptyState 
+                title="All clear!" 
+                description="No unassigned orders at the moment." 
+                icon={<AlertCircle size={32} className="text-ink-400" />}
+              />
             ) : (
               <div className="space-y-3">
                 {unassignedOrders?.map(order => (
@@ -164,7 +168,11 @@ export function DeliveryDashboardPage() {
 
           <div className="bg-rice-25 p-4 rounded-xl border border-rice-200 min-h-[300px]">
             {assignedOrders?.length === 0 ? (
-              <EmptyState title="No assigned orders" description="Assign orders to partners to see them here." />
+              <EmptyState 
+                title="No assigned orders" 
+                description="Assign orders to partners to see them here." 
+                icon={<Truck size={32} className="text-ink-400" />}
+              />
             ) : (
               <div className="space-y-3">
                 {assignedOrders?.map(order => (

@@ -1,4 +1,4 @@
-import { query, orderBy, getDocs, limit, startAfter, where, type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
+import { query, orderBy, getDocs, limit, startAfter, where, addDoc, serverTimestamp, type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { AuditLog } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
@@ -13,6 +13,29 @@ export interface AuditLogFilter {
 class AuditRepository extends BaseRepository<AuditLog> {
   constructor() {
     super(db, 'auditLogs', createConverter<AuditLog>());
+  }
+
+  /**
+   * Logs a new audit action.
+   */
+  async logAction(
+    action: string,
+    actorId: string,
+    actorName: string,
+    entityId: string,
+    entityType: string,
+    details?: any
+  ): Promise<void> {
+    await addDoc(this.collectionRef, {
+      action,
+      actorId,
+      actorName,
+      entityId,
+      entityType,
+      details: details || null,
+      timestamp: serverTimestamp(),
+      ipAddress: null, // Could be captured by functions, client-side it's not feasible reliably
+    } as any);
   }
 
   /**

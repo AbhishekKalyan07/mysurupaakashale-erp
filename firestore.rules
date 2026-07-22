@@ -227,6 +227,28 @@ service cloud.firestore {
       allow write: if isAdmin(); // Phase 8: Automations
     }
 
+    // ---------- HR Module (Phase 2) ----------
+    match /attendance/{recordId} {
+      allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow create: if isSignedIn() && (request.resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow update: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow delete: if isAdmin() || isAccounts();
+    }
+    match /leaves/{leaveId} {
+      allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow create: if isSignedIn() && (request.resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow update: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow delete: if isAdmin() || isAccounts();
+    }
+    match /payroll/{payrollId} {
+      allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      allow write: if isAdmin() || isAccounts();
+    }
+    match /salaryProfiles/{profileId} {
+      allow read: if isSignedIn() && (profileId == request.auth.uid || isAdmin() || isAccounts());
+      allow write: if isAdmin() || isAccounts();
+    }
+
     // No catch-all rule: anything not matched above is denied by default.
   }
 }

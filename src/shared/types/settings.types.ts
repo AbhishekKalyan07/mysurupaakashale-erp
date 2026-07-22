@@ -37,6 +37,12 @@ export interface BusinessSettings {
     };
     businessHolidays: string[]; // YYYY-MM-DD
   };
+  payroll: {
+    standardWorkingDays: number;
+    standardWorkingHours: number;
+    taxPercentage: number;
+    leaveDeductionMultiplier: number;
+  };
   notifications: {
     email: {
       enabled: boolean;

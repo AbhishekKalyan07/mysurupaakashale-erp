@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { X } from 'lucide-react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { STAFF_ROLES } from '@/shared/constants/roles';
 import { useUpdateStaffUser } from '../hooks/useAdmin';
 import { toast } from 'react-hot-toast';
 import type { UserProfile } from '@/shared/types';
@@ -16,8 +15,6 @@ const staffSchema = z.object({
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.string().optional(),
-}).superRefine((data, ctx) => {
-  // Add conditional validations based on role, if needed. (Role isn't editable here)
 });
 
 type StaffForm = z.infer<typeof staffSchema>;

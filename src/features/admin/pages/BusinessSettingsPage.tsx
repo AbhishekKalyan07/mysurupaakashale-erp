@@ -42,6 +42,12 @@ const settingsSchema = z.object({
       dinner: z.object({ start: z.string(), end: z.string() }),
     }),
     businessHolidays: z.string(), // We'll handle array conversion back and forth
+  }),
+  payroll: z.object({
+    standardWorkingDays: z.coerce.number().min(1).max(31),
+    standardWorkingHours: z.coerce.number().min(1).max(24),
+    taxPercentage: z.coerce.number().min(0).max(100),
+    leaveDeductionMultiplier: z.coerce.number().min(0),
   })
 });
 
@@ -66,6 +72,12 @@ export function BusinessSettingsPage() {
         operations: {
           ...settings.operations,
           businessHolidays: settings.operations.businessHolidays.join(', '),
+        },
+        payroll: settings.payroll || {
+          standardWorkingDays: 22,
+          standardWorkingHours: 8,
+          taxPercentage: 0,
+          leaveDeductionMultiplier: 1
         }
       });
     }
@@ -225,6 +237,31 @@ export function BusinessSettingsPage() {
                 <label className="text-xs text-ink-500">End</label>
                 <input type="time" {...register('operations.deliveryWindows.dinner.end')} className="w-full h-10 px-3 border rounded-lg" />
               </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Payroll Settings */}
+        <Card className="p-6 space-y-6">
+          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
+            <IndianRupee size={20} className="text-ink-500" /> Payroll Configuration
+          </h2>
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Standard Working Days / Mo</label>
+              <input type="number" {...register('payroll.standardWorkingDays')} className="w-full h-10 px-3 border rounded-lg" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Standard Working Hours / Day</label>
+              <input type="number" {...register('payroll.standardWorkingHours')} className="w-full h-10 px-3 border rounded-lg" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Tax Deduction (%)</label>
+              <input type="number" step="0.1" {...register('payroll.taxPercentage')} className="w-full h-10 px-3 border rounded-lg" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Leave Deduction Multiplier</label>
+              <input type="number" step="0.1" {...register('payroll.leaveDeductionMultiplier')} className="w-full h-10 px-3 border rounded-lg" />
             </div>
           </div>
         </Card>

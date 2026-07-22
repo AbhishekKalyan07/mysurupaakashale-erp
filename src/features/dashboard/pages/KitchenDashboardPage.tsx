@@ -23,6 +23,7 @@ import {
   type MealTypeSummary,
 } from '@/features/kitchen/hooks/useKitchenDashboard';
 import type { MealType } from '@/shared/types';
+import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KitchenDashboardPage
@@ -80,6 +81,8 @@ export function KitchenDashboardPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <PageHeader today={today} isFetching={isFetching} onRefresh={refetch} />
+
+      <StaffAttendanceCard />
 
       {/* ── Production Progress Bar ─────────────────────────────────────── */}
       <Card className="p-6">

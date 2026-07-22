@@ -4,6 +4,8 @@ import { settingsRepository } from '@/shared/services/firestore/settingsReposito
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { BusinessSettings } from '@/shared/types';
 import toast from 'react-hot-toast';
+import { getAuth } from 'firebase/auth';
+import { auditRepository } from '@/shared/services/firestore/auditRepository';
 
 export function useBusinessSettings() {
   return useQuery({
@@ -41,10 +43,26 @@ export function useUpdateBusinessSettings() {
     mutationFn: async (data: Partial<BusinessSettings>) => {
       // Phase 1: Client-side settings update
       await settingsRepository.update('business', data);
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction(
+          'settings_changed',
+          user.uid,
+          user.displayName || 'Admin',
+          'business',
+          'settings',
+          { updatedKeys: Object.keys(data) }
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.business });
       toast.success('Business settings updated successfully');
     },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update settings. Please try again.');
+    },
   });
 }
+

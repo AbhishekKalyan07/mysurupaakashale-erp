@@ -242,6 +242,8 @@ export function SubscriptionDetailsPage() {
   const latestPayment = payments?.find((p) => p.status === 'pending' && p.subscriptionId === subscription.id);
 
   const handleLifecycleAction = async (action: 'pause' | 'resume' | 'cancel' | 'renew') => {
+    if (action === 'cancel' && !confirm('Are you sure you want to cancel this subscription?')) return;
+    
     setUpdating(true);
     try {
       // Phase 5: Client-side subscription lifecycle update

@@ -2,8 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { dailyMenuRepository } from '@/shared/services/firestore/dailyMenuRepository';
 import type { DailyMenu } from '@/shared/types';
-import { queryKeys } from '@/shared/lib/queryKeys';
 import { Timestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { auditRepository } from '@/shared/services/firestore/auditRepository';
+import { queryKeys } from '@/shared/lib/queryKeys';
+import toast from 'react-hot-toast';
 
 export function useDailyMenus() {
   return useQuery({
@@ -40,10 +43,19 @@ export function useCreateDailyMenu() {
         publishedAt: null,
         publishedBy: null,
       }, id);
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('menu_created', user.uid, user.displayName || 'Admin', id, 'menu');
+      }
       return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+      toast.success('Menu created successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to create menu');
     },
   });
 }
@@ -57,11 +69,20 @@ export function useUpdateDailyMenu() {
         ...data,
         updatedAt: Timestamp.now(),
       });
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('menu_edited', user.uid, user.displayName || 'Admin', id, 'menu', { updatedKeys: Object.keys(data) });
+      }
       return id;
     },
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(id) });
+      toast.success('Menu updated successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update menu');
     },
   });
 }
@@ -72,9 +93,17 @@ export function useDeleteDailyMenu() {
   return useMutation({
     mutationFn: async (id: string) => {
       await dailyMenuRepository.delete(id);
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('menu_deleted', user.uid, user.displayName || 'Admin', id, 'menu');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+      toast.success('Menu deleted successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to delete menu');
     },
   });
 }
@@ -91,6 +120,11 @@ export function usePublishDailyMenu() {
         publishedBy: 'admin',
         updatedAt: Timestamp.now(),
       });
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('menu_published', user.uid, user.displayName || 'Admin', menuId, 'menu');
+      }
       return menuId;
     },
     onSuccess: (menuId) => {
@@ -99,6 +133,10 @@ export function usePublishDailyMenu() {
       // We don't have the exact date here easily, but since dailyMenuList is invalidated,
       // it covers most views. To be safe, we could invalidate all dailyMenu queries.
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
+      toast.success('Menu published successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to publish menu');
     },
   });
 }
@@ -113,12 +151,21 @@ export function useArchiveDailyMenu() {
         status: 'archived',
         updatedAt: Timestamp.now(),
       });
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('menu_archived', user.uid, user.displayName || 'Admin', menuId, 'menu');
+      }
       return menuId;
     },
     onSuccess: (menuId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(menuId) });
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
+      toast.success('Menu archived successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to archive menu');
     },
   });
 }

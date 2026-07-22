@@ -49,3 +49,14 @@ export type { AuditLog } from './audit.types';
 export type { BusinessSettings } from './settings.types';
 
 export type { DailySummary, OrderGenerationRun } from './analytics.types';
+
+export type {
+  AttendanceStatus,
+  AttendanceRecord,
+  LeaveStatus,
+  LeaveType,
+  LeaveRequest,
+  PayrollStatus,
+  PayrollRecord,
+  EmployeeSalaryProfile
+} from './hr.types';
