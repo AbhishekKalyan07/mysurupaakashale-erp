@@ -1,9 +1,14 @@
-import { collection, getDocs, runTransaction, serverTimestamp, where, doc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, writeBatch, runTransaction, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from './orderRepository';
 import { subscriptionRepository } from './subscriptionRepository';
 import { orderGenerationRunRepository, analyticsRepository } from './analyticsRepository';
 import { userRepository } from './userRepository';
+import {
+  notifyDailyOrdersGenerated,
+  notifySubscriptionRenewalReminder,
+  notifySubscriptionExpired,
+} from './notificationService';
 import type { Order, DailySummary } from '@/shared/types';
 import { format, addDays } from 'date-fns';
 
@@ -39,10 +44,11 @@ export class AutomationService {
         const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
         let skippedMeals: string[] = [];
         try {
-          // It's better to fetch skips as needed, or we could fetch all at once, but this is a background job so it's fine.
-          // Wait, doing an individual getDoc inside a loop can be slow if there are 1000 subs. Let's do it safely.
-          // For now, doing individual fetch for the skip document.
-          const skipDoc = await runTransaction(db, async (t) => t.get(skipRef));
+          // Bug #3 fix: use a plain getDoc — runTransaction is for atomic
+          // multi-step read-write operations, not single reads. Using it
+          // here opened (and immediately committed) an empty transaction per
+          // subscription, wasting quota and risking contention failures.
+          const skipDoc = await getDoc(skipRef);
           if (skipDoc.exists()) {
             skippedMeals = skipDoc.data().mealTypes || [];
           }
@@ -79,22 +85,26 @@ export class AutomationService {
         }
       }
 
-      // 3. Save to Firestore via batch or transaction
-      // Firestore transactions have a 500 write limit. We should use batches.
+      // 3. Save to Firestore via writeBatch
+      // Firestore transactions hold a server-side lock and retry on contention
+      // — that's the wrong tool for plain bulk inserts. writeBatch commits all
+      // writes atomically without the locking overhead. Max 500 ops per batch.
       const BATCH_SIZE = 400;
       for (let i = 0; i < ordersToCreate.length; i += BATCH_SIZE) {
         const batchOrders = ordersToCreate.slice(i, i + BATCH_SIZE);
-        await runTransaction(db, async (t) => {
-          batchOrders.forEach(order => {
-            const ref = doc(db, 'orders', order.id!);
-            // Only create if it doesn't exist
-            t.set(ref, {
-              ...order,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            }, { merge: true }); // Using merge just in case, but usually we don't overwrite manual edits
-          });
+        // Bug #4 fix: writeBatch instead of runTransaction for bulk writes.
+        const batch = writeBatch(db);
+        batchOrders.forEach(order => {
+          const ref = doc(db, 'orders', order.id!);
+          // set with merge:true so a manually-edited order isn't overwritten
+          // on a re-run (e.g. if generateDailyOrders is triggered twice).
+          batch.set(ref, {
+            ...order,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
         });
+        await batch.commit();
       }
 
       // 4. Save run status
@@ -104,6 +114,20 @@ export class AutomationService {
         ordersGenerated: ordersToCreate.length,
         runAt: serverTimestamp() as any,
       }, today);
+
+      // 5. Notify kitchen staff that today's orders are ready.
+      // Fire-and-forget — a notification failure must never fail the generation job.
+      if (ordersToCreate.length > 0) {
+        userRepository
+          .list(where('role', '==', 'kitchen'), where('isActive', '==', true))
+          .then((kitchenStaff) => {
+            const ids = kitchenStaff.map((s) => s.id);
+            if (ids.length > 0) {
+              return notifyDailyOrdersGenerated(ids, today, ordersToCreate.length);
+            }
+          })
+          .catch((err) => console.error('[automationService] kitchen notification failed:', err));
+      }
 
       return { success: true, message: `Successfully generated ${ordersToCreate.length} orders.`, ordersGenerated: ordersToCreate.length };
 
@@ -194,9 +218,20 @@ export class AutomationService {
       else if (sub.endDate === in7Days) reminderType = '7_days';
 
       if (reminderType) {
-        // Just an example, in real app we create a notification doc
         console.log(`Subscription ${sub.id} for customer ${sub.customerId} is expiring: ${reminderType}`);
-        // We can insert a notification document here using a generic notification repository.
+        // Notify the customer — fire-and-forget so expiry check loop isn't blocked.
+        if (reminderType === 'expired') {
+          notifySubscriptionExpired(sub.customerId, sub.id)
+            .catch((err) => console.error(`[automationService] expiry notification failed for ${sub.id}:`, err));
+        } else {
+          const daysMap: Record<string, number> = { tomorrow: 1, '3_days': 3, '7_days': 7 };
+          notifySubscriptionRenewalReminder(
+            sub.customerId,
+            sub.id,
+            daysMap[reminderType] ?? 1,
+            sub.endDate!,
+          ).catch((err) => console.error(`[automationService] renewal notification failed for ${sub.id}:`, err));
+        }
       }
     }
   }

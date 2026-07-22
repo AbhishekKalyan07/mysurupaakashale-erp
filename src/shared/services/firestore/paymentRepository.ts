@@ -1,7 +1,8 @@
 import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, ManualPaymentStatus } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
-import { where, orderBy, limit, startAfter, type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
+import { where, orderBy, limit, startAfter, getDocs, query, collection,
+         type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
 
 export interface PaymentFilter {
   status?: ManualPaymentStatus;
@@ -43,18 +44,25 @@ class PaymentRepository extends BaseRepository<ManualPayment> {
     constraints.push(limit(pageSize));
 
     if (lastDocSnap) {
+      // Bug #9 fix: startAfter must come AFTER orderBy + limit in the
+      // constraints array so Firestore builds the cursor query correctly.
       constraints.push(startAfter(lastDocSnap));
     }
 
-    const payments = await this.list(...constraints);
+    // Bug #9 fix: use getDocs directly instead of BaseRepository.list() so
+    // we retain access to the raw QueryDocumentSnapshot needed for the cursor.
+    // BaseRepository.list() maps snapshots to typed entities and discards them,
+    // making it impossible to return lastDoc to the caller.
+    const converter = createConverter<ManualPayment>();
+    const colRef = collection(db, 'payments').withConverter(converter);
+    const snapshot = await getDocs(query(colRef, ...constraints));
 
-    // We need doc snapshots for pagination — use the underlying collection
-    // through BaseRepository's list method which returns typed entities.
-    // The cursor is managed by the hook layer which caches lastDocSnap.
-    return {
-      payments,
-      lastDoc: null, // caller updates this from the raw snapshot cache
-    };
+    const payments = snapshot.docs.map(d => d.data());
+    const lastDoc = snapshot.docs.length === pageSize
+      ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<ManualPayment>)
+      : null;
+
+    return { payments, lastDoc };
   }
 
   /** Fetch a single payment by ID. */

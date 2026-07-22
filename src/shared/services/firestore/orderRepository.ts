@@ -1,4 +1,5 @@
 import { db } from '@/shared/lib/firebase';
+import { auth } from '@/shared/lib/firebase';
 import type { Order, OrderStatus, MealType, OrderWorkflowHistory } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
 import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe } from 'firebase/firestore';
@@ -140,7 +141,9 @@ class OrderRepository extends BaseRepository<Order> {
         toStatus: newStatus,
         notes: notes || null,
         changedAt: serverTimestamp(),
-        changedBy: 'user' // In real app, pull from Auth
+        // Bug #5 fix: record the real authenticated UID instead of the
+        // hardcoded 'user' placeholder that was committed to production.
+        changedBy: auth.currentUser?.uid ?? 'unknown',
       });
     });
   }
