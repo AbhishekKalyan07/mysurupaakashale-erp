@@ -1,11 +1,15 @@
 import { db } from '@/shared/lib/firebase';
-import type { Notification, NotificationInAppStatus } from '@/shared/types';
+import type { Notification, NotificationInAppStatus, CreateNotificationPayload } from '@/shared/types';
 import { BaseRepository, createConverter } from '@/shared/services/firestore/BaseRepository';
 import {
   where,
   orderBy,
   limit,
   startAfter,
+  getDocs,
+  query,
+  collection,
+  serverTimestamp,
   type QueryConstraint,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -19,6 +23,39 @@ export interface NotificationFilter {
 class NotificationRepository extends BaseRepository<Notification> {
   constructor() {
     super(db, 'notifications', createConverter<Notification>());
+  }
+
+  /**
+   * Creates a new notification document.
+   * Called by notificationService.ts — never call this directly from UI code;
+   * use the typed helpers in notificationService instead.
+   */
+  async createNotification(data: CreateNotificationPayload): Promise<string> {
+    const id = crypto.randomUUID();
+    const notification = {
+      ...data,
+      id,
+      // Required fields with server-set defaults
+      inAppStatus: 'unread' as const,
+      status: 'pending' as const,
+      channel: data.channel ?? 'in_app',
+      priority: data.priority ?? 'normal',
+      retryCount: 0,
+      maxRetries: 3,
+      lastRetryAt: null,
+      errorMessage: null,
+      // Timestamps — use serverTimestamp so Firestore records the authoritative time
+      createdAt: serverTimestamp(),
+      sentAt: null,
+      readAt: null,
+      deliveredAt: null,
+      expiresAt: data.expiresAt ?? null,
+      relatedEntityType: data.relatedEntityType ?? null,
+      relatedEntityId: data.relatedEntityId ?? null,
+      metadata: data.metadata ?? {},
+      createdBy: data.createdBy ?? 'system',
+    };
+    return this.create(notification as unknown as Notification, id);
   }
 
   /** All in-app notifications for a user, newest first. */
@@ -69,12 +106,18 @@ class NotificationRepository extends BaseRepository<Notification> {
       constraints.push(startAfter(lastDocSnap));
     }
 
-    const notifications = await this.list(...constraints);
+    // Use getDocs directly (same fix as paymentRepository) so we can
+    // return the raw QueryDocumentSnapshot needed for the pagination cursor.
+    const converter = createConverter<Notification>();
+    const colRef = collection(db, 'notifications').withConverter(converter);
+    const snapshot = await getDocs(query(colRef, ...constraints));
 
-    return {
-      notifications,
-      lastDoc: null,
-    };
+    const notifications = snapshot.docs.map(d => d.data());
+    const lastDoc = snapshot.docs.length === pageSize
+      ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<Notification>)
+      : null;
+
+    return { notifications, lastDoc };
   }
 }
 

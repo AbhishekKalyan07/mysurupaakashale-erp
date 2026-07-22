@@ -57,8 +57,8 @@ export type NotificationType =
 /**
  * Firestore: `notifications/{notificationId}`.
  *
- * Cloud Functions are the ONLY writer of this collection (Admin SDK, bypasses
- * security rules). The client may:
+ * Written by `notificationService.ts` (client-side, via Admin auth) and by
+ * automation scripts. The client may:
  *   - read their own notifications
  *   - mark a notification as read / archived (onlyChangedFields guard in rules)
  *
@@ -113,8 +113,9 @@ export interface Notification {
 }
 
 /**
- * Payload the Cloud Function sends to create a notification.
- * All fields here become the Notification document minus server-set fields.
+ * Payload passed to notificationService helpers (and ultimately to
+ * notificationRepository.createNotification). All fields here become the
+ * Notification document minus server-set fields (id, timestamps, retryCount, etc.).
  */
 export interface CreateNotificationPayload {
   recipientId: ID;
