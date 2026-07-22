@@ -95,9 +95,11 @@ export function useGeneratePayroll() {
         
         await notificationRepository.createNotification({
           recipientId: data.staffId,
+          recipientRole: 'staff',
+          channel: 'in_app',
           title: `Payroll Generated: ${data.month}`,
           message: `Your draft payroll for ${data.month} has been generated.`,
-          type: 'system',
+          type: 'payroll_generated',
           priority: 'normal',
           metadata: { payrollId: id, month: data.month }
         });
@@ -181,11 +183,13 @@ export function usePaySalary() {
         if (record) {
           await notificationRepository.createNotification({
             recipientId: record.staffId,
+            recipientRole: 'staff',
+            channel: 'in_app',
             title: `Salary Paid: ${record.month}`,
             message: `Your salary for ${record.month} (₹${record.netSalary}) has been transferred successfully.`,
-            type: 'system',
+            type: 'salary_paid',
             priority: 'high',
-            metadata: { payrollId: id, amount: record.netSalary }
+            metadata: { payrollId: id, amount: String(record.netSalary) }
           });
         }
       }

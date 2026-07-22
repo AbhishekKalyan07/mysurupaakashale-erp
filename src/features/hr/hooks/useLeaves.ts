@@ -80,9 +80,11 @@ export function useUpdateLeaveStatus() {
         if (leaveRecord && (status === 'approved' || status === 'rejected')) {
           await notificationRepository.createNotification({
             recipientId: leaveRecord.staffId,
+            recipientRole: 'staff',
+            channel: 'in_app',
             title: `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
             message: `Your leave request for ${leaveRecord.startDate} has been ${status}.`,
-            type: 'system',
+            type: 'leave_updated',
             priority: status === 'approved' ? 'normal' : 'high',
             metadata: { leaveId: id, status }
           });

@@ -50,6 +50,10 @@ export type NotificationType =
   | 'staff_disabled'
   | 'role_updated'
   | 'settings_updated'
+  // HR
+  | 'leave_updated'
+  | 'payroll_generated'
+  | 'salary_paid'
   // System
   | 'system_error'
   | 'backup_completed';

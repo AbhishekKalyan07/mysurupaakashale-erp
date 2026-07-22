@@ -1,4 +1,4 @@
-import { collection, getDocs, getDoc, writeBatch, runTransaction, serverTimestamp, where, doc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from './orderRepository';
 import { subscriptionRepository } from './subscriptionRepository';
