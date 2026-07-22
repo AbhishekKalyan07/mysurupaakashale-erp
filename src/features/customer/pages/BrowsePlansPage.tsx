@@ -99,7 +99,7 @@ export function BrowsePlansPage() {
                         <strong>Lunch Choices:</strong> Select from:
                         <ul className="list-disc list-inside mt-1 pl-2 text-stone-500 text-xs space-y-1">
                           {plan.mealSlots
-                            .find((s) => s.mealType === 'lunch')
+                            ?.find((s) => s.mealType === 'lunch')
                             ?.options.map((opt) => (
                               <li key={opt.id}>{opt.label}</li>
                             ))}
@@ -112,7 +112,7 @@ export function BrowsePlansPage() {
                         <strong>Dinner Choices:</strong> Select from:
                         <ul className="list-disc list-inside mt-1 pl-2 text-stone-500 text-xs space-y-1">
                           {plan.mealSlots
-                            .find((s) => s.mealType === 'dinner')
+                            ?.find((s) => s.mealType === 'dinner')
                             ?.options.map((opt) => (
                               <li key={opt.id}>{opt.label}</li>
                             ))}

@@ -102,8 +102,8 @@ export function SubscriptionWizardPage() {
     const newPlan = plans?.find((p) => p.id === id);
     if (newPlan) {
       // Default to first option of the new plan
-      const lunchSlot = newPlan.mealSlots.find((s) => s.mealType === 'lunch');
-      const dinnerSlot = newPlan.mealSlots.find((s) => s.mealType === 'dinner');
+      const lunchSlot = newPlan.mealSlots?.find((s) => s.mealType === 'lunch');
+      const dinnerSlot = newPlan.mealSlots?.find((s) => s.mealType === 'dinner');
       if (lunchSlot?.options?.[0]) setLunchOptionId(lunchSlot.options[0].id);
       if (dinnerSlot?.options?.[0]) setDinnerOptionId(dinnerSlot.options[0].id);
     }
@@ -111,8 +111,8 @@ export function SubscriptionWizardPage() {
 
   // Initialize selected options once plan is loaded
   if (plan && !lunchOptionId && !dinnerOptionId) {
-    const lunchSlot = plan?.mealSlots.find((s) => s.mealType === 'lunch');
-    const dinnerSlot = plan?.mealSlots.find((s) => s.mealType === 'dinner');
+    const lunchSlot = plan?.mealSlots?.find((s) => s.mealType === 'lunch');
+    const dinnerSlot = plan?.mealSlots?.find((s) => s.mealType === 'dinner');
     if (lunchSlot?.options?.[0]) setLunchOptionId(lunchSlot.options[0].id);
     if (dinnerSlot?.options?.[0]) setDinnerOptionId(dinnerSlot.options[0].id);
   }
@@ -261,7 +261,7 @@ export function SubscriptionWizardPage() {
             </Card>
 
             {/* Lunch Selection */}
-            {plan?.mealSlots.find((s) => s.mealType === 'lunch')?.options.map((option) => (
+            {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((option) => (
               <label
                 key={option.id}
                 className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -290,7 +290,7 @@ export function SubscriptionWizardPage() {
             <div className="border-t border-stone-200 pt-6">
               <h3 className="text-stone-900 font-bold font-sans text-sm mb-4">Choose Dinner Option:</h3>
               <div className="space-y-3">
-                {plan?.mealSlots.find((s) => s.mealType === 'dinner')?.options.map((option) => (
+                {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((option) => (
                   <label
                     key={option.id}
                     className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -494,13 +494,13 @@ export function SubscriptionWizardPage() {
                   <div className="flex justify-between">
                     <span>Lunch:</span>
                     <span className="font-semibold text-stone-900">
-                      {plan?.mealSlots.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
+                      {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dinner:</span>
                     <span className="font-semibold text-stone-900">
-                      {plan?.mealSlots.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
+                      {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                 </div>

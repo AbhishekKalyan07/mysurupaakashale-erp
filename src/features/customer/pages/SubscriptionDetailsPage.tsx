@@ -352,7 +352,7 @@ export function SubscriptionDetailsPage() {
             </h3>
             <div className="space-y-4">
               {subscription.mealPreferences.map((pref) => {
-                const slot = selectedPlan?.mealSlots.find((s) => s.mealType === pref.mealType);
+                const slot = selectedPlan?.mealSlots?.find((s) => s.mealType === pref.mealType);
                 const option = slot?.options.find((o) => o.id === pref.selectedOptionId);
 
                 return (
