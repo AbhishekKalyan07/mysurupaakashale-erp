@@ -6,6 +6,7 @@ import { useAdminDashboardMetrics } from '../hooks/useAdminDashboardMetrics';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
 import { toast } from 'react-hot-toast';
+import { serverTimestamp, type Timestamp } from 'firebase/firestore';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -87,6 +88,8 @@ export function AdminDashboardPage() {
             ],
           },
         ],
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
       });
 
       await mealPlanRepository.create({
@@ -143,6 +146,8 @@ export function AdminDashboardPage() {
             ],
           },
         ],
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
       });
 
       toast.success('Meal plans seeded successfully!', { id: 'seed' });
