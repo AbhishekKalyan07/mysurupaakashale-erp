@@ -4,12 +4,152 @@ import { Card } from '@/shared/components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import { useAdminDashboardMetrics } from '../hooks/useAdminDashboardMetrics';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
+import { toast } from 'react-hot-toast';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
   const { data: metrics, isLoading } = useAdminDashboardMetrics();
 
   if (isLoading) return <LoadingScreen />;
+
+  const handleSeedPlans = async () => {
+    try {
+      toast.loading('Seeding meal plans...', { id: 'seed' });
+      const existing = await mealPlanRepository.list();
+      for (const plan of existing) {
+        if (plan.isActive) {
+          await mealPlanRepository.update(plan.id, { isActive: false });
+        }
+      }
+
+      await mealPlanRepository.create({
+        tier: 'basic',
+        name: 'Basic Plan',
+        description: 'Including 3 times food with 3 times separate delivery.',
+        pricePerDay: 159,
+        currency: 'INR',
+        deliveryIncluded: true,
+        isActive: true,
+        sortOrder: 1,
+        mealSlots: [
+          {
+            mealType: 'breakfast',
+            isCustomerSelectable: false,
+            options: [
+              {
+                id: 'basic-breakfast-1',
+                label: 'As Per Breakfast Menu',
+                items: ['Breakfast Menu Item'],
+              },
+            ],
+          },
+          {
+            mealType: 'lunch',
+            isCustomerSelectable: true,
+            options: [
+              {
+                id: 'basic-lunch-1',
+                label: 'Rice & Sambar',
+                items: ['Pickle', 'Rice', 'Sambar'],
+              },
+              {
+                id: 'basic-lunch-2',
+                label: 'Ragi Ball',
+                items: ['1 Ragi Ball', 'Sambar', 'Buttermilk'],
+              },
+              {
+                id: 'basic-lunch-3',
+                label: 'Chapati & Sagu',
+                items: ['3 Chapati', 'Sagu', 'Buttermilk'],
+              },
+            ],
+          },
+          {
+            mealType: 'dinner',
+            isCustomerSelectable: true,
+            options: [
+              {
+                id: 'basic-dinner-1',
+                label: 'Rice & Sambar',
+                items: ['Rice', 'Sambar', 'Palya'],
+              },
+              {
+                id: 'basic-dinner-2',
+                label: 'Ragi Ball',
+                items: ['1 Ragi Ball', 'Sambar', 'Palya'],
+              },
+              {
+                id: 'basic-dinner-3',
+                label: 'Chapati & Palya',
+                items: ['3 Chapati', 'Palya'],
+              },
+            ],
+          },
+        ],
+      });
+
+      await mealPlanRepository.create({
+        tier: 'regular',
+        name: 'Regular Plan',
+        description: 'Including 3 times food with 3 times separate delivery.',
+        pricePerDay: 210,
+        currency: 'INR',
+        deliveryIncluded: true,
+        isActive: true,
+        sortOrder: 2,
+        mealSlots: [
+          {
+            mealType: 'breakfast',
+            isCustomerSelectable: false,
+            options: [
+              {
+                id: 'regular-breakfast-1',
+                label: 'As Per Breakfast Menu',
+                items: ['Breakfast Menu Item'],
+              },
+            ],
+          },
+          {
+            mealType: 'lunch',
+            isCustomerSelectable: true,
+            options: [
+              {
+                id: 'regular-lunch-1',
+                label: 'Ragi Ball Meal',
+                items: ['Pickle', 'Rice', 'Sambar', '1 Ragi Ball', 'Buttermilk'],
+              },
+              {
+                id: 'regular-lunch-2',
+                label: 'Chapati Meal',
+                items: ['Pickle', 'Rice', 'Sambar', '1 Chapati', 'Sagu/Palya', 'Buttermilk'],
+              },
+            ],
+          },
+          {
+            mealType: 'dinner',
+            isCustomerSelectable: true,
+            options: [
+              {
+                id: 'regular-dinner-1',
+                label: 'Chapati Meal',
+                items: ['Rice', 'Sambar', '1 Chapati', 'Palya', 'Curd'],
+              },
+              {
+                id: 'regular-dinner-2',
+                label: 'Ragi Ball Meal',
+                items: ['Rice', 'Sambar', '1 Ragi Ball', 'Curd'],
+              },
+            ],
+          },
+        ],
+      });
+
+      toast.success('Meal plans seeded successfully!', { id: 'seed' });
+    } catch (error: any) {
+      toast.error('Error seeding plans: ' + error.message, { id: 'seed' });
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -98,6 +238,19 @@ export function AdminDashboardPage() {
             <div>
               <h3 className="text-lg font-bold text-ink-900">Audit Logs</h3>
               <p className="text-sm text-ink-500 mt-1">Review operational actions, payments, and workflow transitions.</p>
+            </div>
+          </Card>
+
+          <Card 
+            className="p-6 cursor-pointer hover:shadow-card-hover transition-all flex flex-col gap-4 border-t-4 border-t-purple-600 bg-purple-50/50"
+            onClick={handleSeedPlans}
+          >
+            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg w-fit">
+              <Package size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-ink-900">Seed Meal Plans</h3>
+              <p className="text-sm text-ink-500 mt-1">Updates database with the exact Basic (159/day) and Regular (210/day) plans.</p>
             </div>
           </Card>
         </div>
