@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db, firebaseApp } from '@/shared/lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { auditRepository } from '@/shared/services/firestore/auditRepository';
+import toast from 'react-hot-toast';
 import type { UserProfile } from '@/shared/types';
 import type { Role } from '@/shared/constants/roles';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { notifyStaffAccountCreated } from '@/shared/services/firestore/notificationService';
 
 export function useStaffUsers() {
   return useQuery({
@@ -72,14 +75,34 @@ export function useCreateStaffUser() {
         }
 
         await setDoc(doc(db, 'users', credential.user.uid), profileData);
-        return { uid: credential.user.uid };
+        
+        const currentUser = getAuth().currentUser;
+        if (currentUser) {
+          await auditRepository.logAction(
+            'staff_created',
+            currentUser.uid,
+            currentUser.displayName || 'Admin',
+            credential.user.uid,
+            'user',
+            { role: data.role, email: data.email }
+          );
+        }
+        
+        return { uid: credential.user.uid, fullName: data.fullName, role: data.role };
       } finally {
         await tempAuth.signOut();
         await deleteApp(tempApp);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      toast.success('Staff user created successfully');
+      // Notify the new staff member — fire-and-forget.
+      notifyStaffAccountCreated(result.uid, result.role, result.fullName)
+        .catch((err) => console.error('[useCreateStaffUser] staff notification failed:', err));
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to create staff user');
     },
   });
 }
@@ -89,8 +112,24 @@ export function useToggleStaffStatus() {
   return useMutation({
     mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
       await updateDoc(doc(db, 'users', uid), { isActive, updatedAt: serverTimestamp() });
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        await auditRepository.logAction(
+          isActive ? 'staff_activated' : 'staff_deactivated',
+          currentUser.uid,
+          currentUser.displayName || 'Admin',
+          uid,
+          'user'
+        );
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.users.all }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      toast.success('Staff status updated');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update staff status');
+    },
   });
 }
 
@@ -103,9 +142,24 @@ export function useUpdateStaffUser() {
         ...data,
         updatedAt: serverTimestamp(),
       });
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        await auditRepository.logAction(
+          'staff_updated',
+          currentUser.uid,
+          currentUser.displayName || 'Admin',
+          uid,
+          'user',
+          { updatedKeys: Object.keys(data) }
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      toast.success('Staff user updated successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update staff user');
     },
   });
 }

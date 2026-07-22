@@ -90,7 +90,8 @@ class DeliveryRepository extends BaseRepository<Order> {
   }
 
   /**
-   * Advances the workflow status of an order via Cloud Function.
+   * Updates the delivery status of an order directly in Firestore.
+   * Moved from Cloud Function to client-side direct write (Spark plan — no Functions).
    */
   async updateDeliveryStatus(orderId: string, newStatus: string): Promise<void> {
     // Phase 7: Client-side delivery status update

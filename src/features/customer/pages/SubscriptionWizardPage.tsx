@@ -8,6 +8,7 @@ import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { db } from '@/shared/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { notifySubscriptionCreated } from '@/shared/services/firestore/notificationService';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { Button } from '@/shared/components/ui/Button';
@@ -170,6 +171,11 @@ export function SubscriptionWizardPage() {
         updatedAt: serverTimestamp(),
       });
 
+      // Notify the customer their subscription draft is created.
+      // Fire-and-forget — a failed notification must not block the redirect.
+      notifySubscriptionCreated(firebaseUser!.uid, subscriptionId, plan.tier)
+        .catch((err) => console.error('[SubscriptionWizard] notification failed:', err));
+
       // Invalidate queries so subscription pages refresh
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.all,
@@ -179,7 +185,6 @@ export function SubscriptionWizardPage() {
       navigate('/customer/subscription', { state: { justCreated: true } });
     } catch (err: any) {
       console.error('Error creating subscription draft:', err);
-      // Capture Cloud Function HttpsError message
       setSubmissionError(err.message || 'An unexpected error occurred. Please verify your address or pincode.');
     } finally {
       setSubmittingDraft(false);

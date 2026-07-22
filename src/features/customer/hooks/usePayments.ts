@@ -6,6 +6,13 @@ import type { ManualPayment, ManualPaymentStatus, SubmitPaymentInput } from '@/s
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'react-hot-toast';
+import { getAuth } from 'firebase/auth';
+import { auditRepository } from '@/shared/services/firestore/auditRepository';
+import {
+  notifyPaymentVerified,
+  notifySubscriptionActivated,
+  notifyPaymentRejected,
+} from '@/shared/services/firestore/notificationService';
 
 // ── Customer: my payment history ───────────────────────────────────────────────
 export function useMyPayments() {
@@ -91,6 +98,7 @@ export function useApprovePayment() {
   return useMutation({
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
       // Phase 5 & 6: Client-side payment approval and subscription activation
+      let capturedPayment!: ManualPayment;
       await runTransaction(db, async (t) => {
         const paymentRef = doc(db, 'payments', input.paymentId);
         const paymentSnap = await t.get(paymentRef);
@@ -101,15 +109,19 @@ export function useApprovePayment() {
         
         const subRef = doc(db, 'subscriptions', payment.subscriptionId);
         
+        // Fix: use real admin UID not hardcoded string
+        const adminUid = getAuth().currentUser?.uid ?? 'admin';
         t.update(paymentRef, {
           status: 'verified',
           verifiedAt: serverTimestamp(),
-          verifiedBy: 'admin', // Ideally pull from auth if available
+          verifiedBy: adminUid,
           updatedAt: serverTimestamp(),
+          verificationNotes: input.notes ?? null,
         });
         
         t.update(subRef, {
           status: 'active',
+          latestPaymentId: input.paymentId,
           updatedAt: serverTimestamp(),
         });
         
@@ -125,7 +137,27 @@ export function useApprovePayment() {
           paidAt: serverTimestamp(),
           paymentId: payment.id,
         });
+
+        // Capture payment data outside the transaction scope for notification use below
+        capturedPayment = payment;
       });
+      
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        await auditRepository.logAction('payment_approved', currentUser.uid, currentUser.displayName || 'Admin', input.paymentId, 'payment', { notes: input.notes });
+      }
+
+      // Notify customer — fire-and-forget so a notification failure never reverts the approval.
+      // `payment` captured above inside the transaction closure is safe to reference here.
+      notifyPaymentVerified(capturedPayment.customerId, input.paymentId, capturedPayment.amount)
+        .catch((err) => console.error('[useApprovePayment] verified notification failed:', err));
+      notifySubscriptionActivated(
+        capturedPayment.customerId,
+        capturedPayment.subscriptionId,
+        capturedPayment.subscriptionId, // planTier not on payment; subscription page shows it
+        new Date().toISOString().split('T')[0],
+      ).catch((err) => console.error('[useApprovePayment] activated notification failed:', err));
+
       return { success: true };
     },
     onSuccess: () => {
@@ -146,18 +178,37 @@ export function useRejectPayment() {
 
   return useMutation({
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
+      let capturedPayment!: ManualPayment;
       await runTransaction(db, async (t) => {
         const paymentRef = doc(db, 'payments', input.paymentId);
         const paymentSnap = await t.get(paymentRef);
         if (!paymentSnap.exists()) throw new Error('Payment not found');
-        
+        const payment = paymentSnap.data() as ManualPayment;
+
+        capturedPayment = payment;
+        const adminUid = getAuth().currentUser?.uid ?? 'admin';
         t.update(paymentRef, {
           status: 'rejected',
           verifiedAt: serverTimestamp(),
-          verifiedBy: 'admin',
+          verifiedBy: adminUid,
+          verificationNotes: input.notes ?? null,
           updatedAt: serverTimestamp(),
         });
       });
+      
+      const user = getAuth().currentUser;
+      if (user) {
+        await auditRepository.logAction('payment_rejected', user.uid, user.displayName || 'Admin', input.paymentId, 'payment', { notes: input.notes });
+      }
+
+      // Notify the customer — fire-and-forget.
+      notifyPaymentRejected(
+        capturedPayment.customerId,
+        input.paymentId,
+        capturedPayment.amount,
+        input.notes ?? null,
+      ).catch((err) => console.error('[useRejectPayment] rejected notification failed:', err));
+
       return { success: true };
     },
     onSuccess: () => {

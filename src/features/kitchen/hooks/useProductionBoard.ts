@@ -157,7 +157,7 @@ export interface UseProductionBoardReturn {
   allZones: string[];
   isAnyLoading: boolean;
   isAnyError: boolean;
-  /** Calls `updateOrderWorkflowStatus` Cloud Function. Never writes Firestore directly. */
+  /** Updates order status directly in Firestore. Moved from Cloud Function to client-side write (Spark plan). */
   advanceStatus: (orderId: string, newStatus: KitchenWorkflowStatus) => Promise<void>;
   isAdvancing: boolean;
 }
@@ -267,7 +267,7 @@ export function useProductionBoard(): UseProductionBoardReturn {
   const lunch     = buildSection('lunch',     lunchQuery);
   const dinner    = buildSection('dinner',    dinnerQuery);
 
-  // ── Cloud Function call — status advancement ──────────────────────────────
+  // ── Direct Firestore status update (moved from Cloud Function — Spark plan) ──
   const advanceStatus = async (
     orderId: string,
     newStatus: KitchenWorkflowStatus
