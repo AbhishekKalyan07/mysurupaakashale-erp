@@ -30,4 +30,4 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_AUTOMATION_EMAIL: ${{ secrets.VITE_AUTOMATION_EMAIL }}
           VITE_AUTOMATION_PASSWORD: ${{ secrets.VITE_AUTOMATION_PASSWORD }}
-        run: npx vite-node scripts/automation/weekly.ts
+        run: npx vite-node --config vite.config.ts scripts/automation/weekly.ts

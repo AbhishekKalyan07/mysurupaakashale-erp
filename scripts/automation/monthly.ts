@@ -1,3 +1,6 @@
+// env.ts MUST be first — maps process.env VITE_* into import.meta.env
+// before Firebase (or any module that reads import.meta.env) is imported.
+import './env';
 import { authenticateForAutomation } from './auth';
 import { automationService } from '@/shared/services/firestore/automationService';
 
