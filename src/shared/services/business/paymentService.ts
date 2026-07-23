@@ -135,6 +135,7 @@ class PaymentService {
           planName: meta.planName,
           planTier: meta.planTier,
           pricePerDay: meta.pricePerDay,
+          quantity: meta.quantity || 1,
           totalAmount: capturedPayment.amount,
           paymentMethod: capturedPayment.paymentMethod,
           referenceNumber: capturedPayment.referenceNumber,

@@ -94,6 +94,7 @@ export function useApprovePayment() {
         planTier: string;
         deliveryAddress: string;
         pricePerDay: number;
+        quantity?: number;
       };
     }) => {
       // Phase 5 & 6: Client-side payment approval and subscription activation
