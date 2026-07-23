@@ -63,6 +63,12 @@ service firebase.storage {
       allow read, write: if isSignedIn() && isAdmin();
     }
 
+    // /payment-screenshots/{userId}/{fileName}
+    match /payment-screenshots/{userId}/{fileName} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isSignedIn() && request.auth.uid == userId && isImageUnder(5);
+    }
+
     // Everything else: denied by default.
   }
 }
