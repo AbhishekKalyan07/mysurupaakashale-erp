@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, CalendarDays, Truck, TrendingUp, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, CalendarDays, Truck, TrendingUp, Users, Package, type LucideIcon } from 'lucide-react';
 import { ROLES, type Role } from '@/shared/constants/roles';
 
 export interface NavItem {
@@ -15,11 +15,14 @@ export interface NavItem {
 export const NAV_ITEMS_BY_ROLE: Record<Role, NavItem[]> = {
   [ROLES.ADMIN]: [
     { label: 'Dashboard', to: '/admin', icon: LayoutDashboard },
-    { label: 'Business Analytics', to: '/admin/analytics', icon: TrendingUp },
-    { label: 'Daily Menus', to: '/admin/menus', icon: CalendarDays },
-    { label: 'Dispatch Center', to: '/admin/delivery', icon: Truck },
-    { label: 'Attendance', to: '/admin/attendance', icon: CalendarDays },
-    { label: 'Payroll', to: '/admin/payroll', icon: ReceiptText },
+    { label: 'Customers', to: '/admin/customers', icon: Users },
+    { label: 'Subscriptions', to: '/admin/subscriptions', icon: Compass },
+    { label: 'Orders', to: '/admin/orders', icon: Package },
+    { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
+    { label: 'Delivery', to: '/admin/delivery', icon: Truck },
+    { label: 'Accounts', to: '/admin/accounts', icon: ReceiptText },
+    { label: 'Analytics', to: '/admin/analytics', icon: TrendingUp },
+    { label: 'Staff', to: '/admin/staff', icon: Users },
   ],
   [ROLES.CUSTOMER]: [
     { label: 'Dashboard', to: '/customer', icon: LayoutDashboard },

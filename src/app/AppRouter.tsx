@@ -11,6 +11,11 @@ import { StaffManagementPage } from '@/features/admin/pages/StaffManagementPage'
 import { BusinessSettingsPage } from '@/features/admin/pages/BusinessSettingsPage';
 import { AuditLogsPage } from '@/features/admin/pages/AuditLogsPage';
 import { PaymentVerificationPage } from '@/features/admin/pages/PaymentVerificationPage';
+import { AdminCustomersPage } from '@/features/admin/pages/AdminCustomersPage';
+import { AdminSubscriptionsPage } from '@/features/admin/pages/AdminSubscriptionsPage';
+import { AdminOrdersPage } from '@/features/admin/pages/AdminOrdersPage';
+import { AdminKitchenPage } from '@/features/admin/pages/AdminKitchenPage';
+import { AdminAccountsPage } from '@/features/admin/pages/AdminAccountsPage';
 import { NotificationCenter } from '@/features/notifications/pages/NotificationCenter';
 import { NotificationHistoryPage } from '@/features/notifications/pages/NotificationHistoryPage';
 import { AccountsDashboardPage } from '@/features/dashboard/pages/AccountsDashboardPage';
@@ -49,19 +54,24 @@ const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { path: '/admin', element: <AdminDashboardPage /> },
+          { path: '/admin/customers', element: <AdminCustomersPage /> },
+          { path: '/admin/subscriptions', element: <AdminSubscriptionsPage /> },
+          { path: '/admin/orders', element: <AdminOrdersPage /> },
+          { path: '/admin/kitchen', element: <AdminKitchenPage /> },
+          { path: '/admin/delivery', element: <DeliveryDashboardPage /> },
+          { path: '/admin/accounts', element: <AdminAccountsPage /> },
           { path: '/admin/analytics', element: <BusinessAnalyticsPage /> },
           { path: '/admin/staff', element: <StaffManagementPage /> },
+          
+          // ── Sub-module Routes ────────────────────────────────────────────────
           { path: '/admin/settings', element: <BusinessSettingsPage /> },
           { path: '/admin/audit', element: <AuditLogsPage /> },
           { path: '/admin/menus', element: <DailyMenuListPage /> },
           { path: '/admin/menus/new', element: <DailyMenuEditorPage /> },
           { path: '/admin/menus/:id/edit', element: <DailyMenuEditorPage /> },
-          { path: '/admin/delivery', element: <DeliveryDashboardPage /> },
-          // ── New: Payment Verification & Notifications ──────────────────────
           { path: '/admin/payments', element: <PaymentVerificationPage /> },
           { path: '/admin/notifications', element: <NotificationCenter /> },
           { path: '/admin/notifications/history', element: <NotificationHistoryPage /> },
-          // ── HR Module (Phase 2) ──────────────────────────────────────────────
           { path: '/admin/attendance', element: <AttendanceDashboardPage /> },
           { path: '/admin/payroll', element: <PayrollDashboardPage /> },
         ],
