@@ -18,7 +18,7 @@ export function useBusinessSettings() {
           id: 'business',
           companyProfile: { name: '', tagline: '', supportEmail: '', supportPhone: '', address: '' },
           financials: { gstPercentage: 0, currency: 'INR', invoicePrefix: 'INV' },
-          pricing: { mealPrices: { breakfast: 0, lunch: 0, dinner: 0 }, deliveryCharges: { standard: 0 } },
+          pricing: { mealPrices: { breakfast: 0, lunch: 0, dinner: 0 }, deliveryCharges: { standard: 0 }, securityDepositAmount: 1000 },
           operations: {
             orderCutoffTime: '20:00',
             kitchenTimings: { start: '06:00', end: '22:00' },

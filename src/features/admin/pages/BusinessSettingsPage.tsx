@@ -32,6 +32,7 @@ const settingsSchema = z.object({
     deliveryCharges: z.object({
       standard: z.coerce.number().min(0),
     }),
+    securityDepositAmount: z.coerce.number().min(0),
   }),
   operations: z.object({
     orderCutoffTime: z.string(),
@@ -160,6 +161,10 @@ export function BusinessSettingsPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Standard Delivery (₹)</label>
               <input type="number" {...register('pricing.deliveryCharges.standard')} className="w-full h-10 px-3 border rounded-lg" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Security Deposit (₹)</label>
+              <input type="number" {...register('pricing.securityDepositAmount')} className="w-full h-10 px-3 border rounded-lg" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">GST Percentage (%)</label>

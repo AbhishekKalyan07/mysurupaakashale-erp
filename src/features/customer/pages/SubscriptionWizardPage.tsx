@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 
 // Zod Schema for Address
 const addressFormSchema = z.object({
@@ -46,6 +47,7 @@ export function SubscriptionWizardPage() {
 
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch } = useMealPlans();
   const { addresses, addAddress, isAdding } = useCustomerAddresses();
+  const { data: settings, isLoading: isSettingsLoading } = useBusinessSettings();
 
   // Selected Plan ID
   const initialPlanId = location.state?.planId || plans?.[0]?.id || '';
@@ -83,7 +85,7 @@ export function SubscriptionWizardPage() {
     },
   });
 
-  if (isPlansLoading) {
+  if (isPlansLoading || isSettingsLoading) {
     return <LoadingScreen />;
   }
 
@@ -580,10 +582,13 @@ export function SubscriptionWizardPage() {
                     <span className="font-semibold text-ink-900">Monthly</span>
                   </div>
                 </div>
-                <div className="border-t border-rice-300 pt-3 flex justify-between items-center font-bold text-stone-950 text-sm mb-6">
-                  <span>Est. Monthly Total:</span>
-                  <span className="text-lg">₹{(plan.pricePerDay * quantity * 30).toLocaleString('en-IN')}</span>
+                <div className="border-t border-rice-300 pt-3 flex justify-between items-center font-bold text-stone-950 text-sm mb-2">
+                  <span>Initial Security Deposit:</span>
+                  <span className="text-lg">₹{settings?.pricing.securityDepositAmount || 1000}</span>
                 </div>
+                <p className="text-[10px] text-ink-500 font-sans mb-6">
+                  * Monthly bills will be generated pro-rata at the end of each month based on the days you were subscribed. This security deposit is held on your account and refunded upon cancellation.
+                </p>
 
                 <Button
                   onClick={handleConfirmSubscription}

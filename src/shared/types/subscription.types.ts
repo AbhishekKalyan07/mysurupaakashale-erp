@@ -40,6 +40,8 @@ export interface Subscription {
   latestPaymentId: ID | null;
   /** Accrued credit from paused/skipped days, in INR. Deducted from next month's bill. */
   creditBalance: number;
+  /** Initial security deposit paid during signup. Refunded on cancellation. */
+  depositAmount: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -1,6 +1,12 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
+// Optional: HTTP endpoint to seed data for testing
+export { seedOrderHistory } from './seed';
+
+// Billing logic
+export { generateMonthlyInvoices } from './billing';
+
 admin.initializeApp();
 const db = admin.firestore();
 

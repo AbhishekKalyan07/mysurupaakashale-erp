@@ -1,5 +1,6 @@
 import { serverTimestamp } from 'firebase/firestore';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
+import { settingsRepository } from '../firestore/settingsRepository';
 import type { MealPreference, PlanTier } from '@/shared/types';
 
 class SubscriptionService {
@@ -17,6 +18,8 @@ class SubscriptionService {
     deliveryAddressId: string,
   ): Promise<string> {
     const subscriptionId = crypto.randomUUID();
+    const settings = await settingsRepository.getBusinessSettings();
+    const depositAmount = settings?.pricing.securityDepositAmount || 1000;
     
     await subscriptionRepository.create({
       customerId,
@@ -34,6 +37,7 @@ class SubscriptionService {
       deliveryAddressId,
       latestPaymentId: null,
       creditBalance: 0,
+      depositAmount,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     }, subscriptionId);

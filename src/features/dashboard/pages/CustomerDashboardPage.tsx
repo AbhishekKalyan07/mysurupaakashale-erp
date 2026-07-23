@@ -176,7 +176,7 @@ export function CustomerDashboardPage() {
                       </span>
                     </h3>
                     <p className="text-ink-500 text-xs mt-1">
-                      Billed monthly • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day total
+                      Post-paid monthly billing • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day total
                     </p>
                   </div>
                   <div>

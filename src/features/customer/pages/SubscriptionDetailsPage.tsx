@@ -15,6 +15,7 @@ import { subscriptionRepository } from '@/shared/services/firestore/subscription
 import { toast } from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 import {
   Calendar,
   MapPin,
@@ -268,12 +269,13 @@ export function SubscriptionDetailsPage() {
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch: refetchPlans } = useMealPlans();
   const { addresses } = useCustomerAddresses();
   const { data: payments } = useMyPayments();
+  const { data: settings, isLoading: isSettingsLoading } = useBusinessSettings();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
 
-  const isLoading = isSubLoading || isPlansLoading;
+  const isLoading = isSubLoading || isPlansLoading || isSettingsLoading;
   const hasError = subError || plansError;
 
   if (isLoading) return <LoadingScreen />;
@@ -346,7 +348,8 @@ export function SubscriptionDetailsPage() {
     }
   };
 
-  const monthlyAmount = subscription.pricePerDaySnapshot * (subscription.quantity || 1) * 30;
+  const estimatedMonthly = subscription.pricePerDaySnapshot * (subscription.quantity || 1) * 30;
+  const securityDeposit = settings?.pricing.securityDepositAmount || 1000;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -388,9 +391,9 @@ export function SubscriptionDetailsPage() {
                 <div className="flex items-start gap-4">
                   <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={24} />
                   <div>
-                    <h2 className="text-ink-900 font-bold font-sans text-lg">Payment Pending</h2>
+                    <h2 className="text-ink-900 font-bold font-sans text-lg">Initial Security Deposit Pending</h2>
                     <p className="text-ink-600 font-sans text-sm mt-1">
-                      Your subscription is created. Pay via UPI, cash, or bank transfer and submit the details below to activate your meal deliveries.
+                      Your subscription is created. Please pay the initial security deposit of <strong>₹{securityDeposit}</strong> via UPI, cash, or bank transfer and submit the details below to activate your meal deliveries. Your monthly usage bills will be generated at the end of each month.
                     </p>
                   </div>
                 </div>
@@ -407,7 +410,7 @@ export function SubscriptionDetailsPage() {
           {showPaymentPanel && (
             <ManualPaymentPanel
               subscriptionId={subscription.id}
-              amount={monthlyAmount}
+              amount={securityDeposit}
               onClose={() => setShowPaymentPanel(false)}
             />
           )}
@@ -509,8 +512,12 @@ export function SubscriptionDetailsPage() {
                 </span>
               </div>
               <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-base">
-                <span>Total per month:</span>
-                <span>₹{monthlyAmount}</span>
+                <span>Estimated usage per month:</span>
+                <span>₹{estimatedMonthly}</span>
+              </div>
+              <div className="flex justify-between font-bold text-stone-950 text-base">
+                <span>Security Deposit Paid:</span>
+                <span>₹{securityDeposit}</span>
               </div>
             </div>
           </Card>

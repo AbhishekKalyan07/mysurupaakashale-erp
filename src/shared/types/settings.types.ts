@@ -23,6 +23,7 @@ export interface BusinessSettings {
     deliveryCharges: {
       standard: number;
     };
+    securityDepositAmount: number;
   };
   operations: {
     orderCutoffTime: string; // HH:mm format, e.g., '20:00'
