@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
-import { signUpCustomer, mapAuthError } from '../services/authService';
+import { signUpCustomer, signInWithGoogle, mapAuthError } from '../services/authService';
 import { AuthLayout } from '../components/AuthLayout';
 import type { SignupFormValues } from '../types/auth.types';
 
@@ -38,6 +38,16 @@ export function SignupPage() {
     setFormError(null);
     try {
       await signUpCustomer(values.email, values.password, values.fullName, values.phone);
+      navigate('/', { replace: true });
+    } catch (err) {
+      setFormError(mapAuthError(err));
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setFormError(null);
+    try {
+      await signInWithGoogle();
       navigate('/', { replace: true });
     } catch (err) {
       setFormError(mapAuthError(err));
@@ -96,6 +106,9 @@ export function SignupPage() {
         )}
         <Button type="submit" isLoading={isSubmitting} className="mt-2">
           Create account
+        </Button>
+        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
+          Continue with Google
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-600">
