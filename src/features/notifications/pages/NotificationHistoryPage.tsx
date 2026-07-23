@@ -23,7 +23,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function TypeIcon({ type }: { type: string }) {
-  const cls = 'shrink-0 text-stone-400';
+  const cls = 'shrink-0 text-ink-400';
   if (type.includes('payment')) return <CreditCard size={14} className={cls} />;
   if (type.includes('subscription')) return <ShoppingBag size={14} className={cls} />;
   if (type.includes('delivery') || type.includes('out_for') || type === 'delivered') return <Truck size={14} className={cls} />;
@@ -41,36 +41,36 @@ function NotificationRow({ n }: { n: Notification }) {
   return (
     <>
       <tr
-        className="hover:bg-stone-50/60 cursor-pointer border-b border-stone-100 transition-colors"
+        className="hover:bg-rice-50/60 cursor-pointer border-b border-rice-200 transition-colors"
         onClick={() => setExpanded((p) => !p)}
       >
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <TypeIcon type={n.type} />
-            <span className="text-xs font-mono text-stone-500">{n.type}</span>
+            <span className="text-xs font-mono text-ink-500">{n.type}</span>
           </div>
         </td>
         <td className="px-4 py-3">
-          <div className="font-semibold text-stone-900 text-sm">{n.title}</div>
-          <div className="text-stone-400 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
+          <div className="font-semibold text-ink-900 text-sm">{n.title}</div>
+          <div className="text-ink-400 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
         </td>
         <td className="px-4 py-3"><ChannelBadge channel={n.channel} /></td>
         <td className="px-4 py-3"><StatusBadge status={n.status} /></td>
-        <td className="px-4 py-3 text-xs text-stone-500 font-sans">{dateStr}</td>
-        <td className="px-4 py-3 text-center text-xs text-stone-500 font-data">{n.retryCount}</td>
+        <td className="px-4 py-3 text-xs text-ink-500 font-sans">{dateStr}</td>
+        <td className="px-4 py-3 text-center text-xs text-ink-500 font-data">{n.retryCount}</td>
       </tr>
       {expanded && (
-        <tr className="bg-stone-50/50 border-b border-stone-200">
+        <tr className="bg-rice-50/50 border-b border-rice-300">
           <td colSpan={6} className="px-6 py-4">
             <div className="grid grid-cols-2 gap-4 text-xs font-sans">
               <div>
-                <div className="text-stone-500 uppercase tracking-wider font-semibold mb-1">Message</div>
-                <div className="text-stone-800 leading-relaxed">{n.message}</div>
+                <div className="text-ink-500 uppercase tracking-wider font-semibold mb-1">Message</div>
+                <div className="text-ink-800 leading-relaxed">{n.message}</div>
               </div>
               <div className="space-y-2">
                 <div>
-                  <span className="text-stone-500 uppercase tracking-wider font-semibold">Related Entity: </span>
-                  <span className="font-mono text-stone-700">{n.relatedEntityType ?? '—'} / {n.relatedEntityId ?? '—'}</span>
+                  <span className="text-ink-500 uppercase tracking-wider font-semibold">Related Entity: </span>
+                  <span className="font-mono text-ink-700">{n.relatedEntityType ?? '—'} / {n.relatedEntityId ?? '—'}</span>
                 </div>
                 {n.errorMessage && (
                   <div>
@@ -80,8 +80,8 @@ function NotificationRow({ n }: { n: Notification }) {
                 )}
                 {n.sentAt && (
                   <div>
-                    <span className="text-stone-500">Sent: </span>
-                    <span className="text-stone-700 font-mono">
+                    <span className="text-ink-500">Sent: </span>
+                    <span className="text-ink-700 font-mono">
                       {(n.sentAt as any)?.toDate ? format((n.sentAt as any).toDate(), 'MMM dd, HH:mm') : '—'}
                     </span>
                   </div>
@@ -124,37 +124,37 @@ export function NotificationHistoryPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-stone-900 flex items-center gap-2">
-          <History className="text-stone-500" size={26} />
+        <h1 className="text-3xl font-serif font-bold text-ink-900 flex items-center gap-2">
+          <History className="text-ink-500" size={26} />
           Notification History
         </h1>
-        <p className="text-stone-500 font-sans text-sm mt-1">
+        <p className="text-ink-500 font-sans text-sm mt-1">
           Complete audit trail of all notifications across all channels.
         </p>
       </div>
 
       <div className="relative mb-5">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by type, title, recipient..."
-          className="w-full pl-9 pr-4 py-2.5 border border-stone-200 rounded-lg text-sm font-sans focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-full pl-9 pr-4 py-2.5 border border-rice-300 rounded-lg text-sm font-sans focus:outline-none focus:ring-2 focus:ring-turmeric-400"
         />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
-          icon={<Bell size={36} className="text-stone-300" />}
+          icon={<Bell size={36} className="text-ink-300" />}
           title="No notification history"
           description="No notifications have been sent yet."
         />
       ) : (
-        <Card className="border-stone-200 overflow-hidden">
+        <Card className="border-rice-300 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs font-semibold uppercase tracking-wider">
+              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 text-left">Type</th>
                   <th className="px-4 py-3 text-left">Title / Recipient</th>
@@ -171,7 +171,7 @@ export function NotificationHistoryPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-stone-100 bg-stone-50/50 text-xs text-stone-500 font-sans">
+          <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans">
             Showing {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
           </div>
         </Card>

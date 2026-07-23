@@ -96,19 +96,19 @@ function ManualPaymentPanel({
       <div className="flex items-start gap-3 mb-5">
         <CreditCard className="text-amber-600 shrink-0 mt-0.5" size={22} />
         <div>
-          <h3 className="font-bold text-stone-900 font-sans text-base">Submit Payment Details</h3>
-          <p className="text-stone-600 font-sans text-sm mt-1">
+          <h3 className="font-bold text-ink-900 font-sans text-base">Submit Payment Details</h3>
+          <p className="text-ink-600 font-sans text-sm mt-1">
             Amount Due: <span className="font-bold text-stone-950">₹{amount}</span> for 30 days
           </p>
         </div>
       </div>
 
       {/* Bank details */}
-      <div className="bg-white border border-stone-200 rounded-lg p-4 mb-5 text-sm font-sans">
-        <h4 className="font-bold text-stone-800 mb-2 text-xs uppercase tracking-wider">
+      <div className="bg-white border border-rice-300 rounded-lg p-4 mb-5 text-sm font-sans">
+        <h4 className="font-bold text-ink-800 mb-2 text-xs uppercase tracking-wider">
           Our Payment Details
         </h4>
-        <div className="grid grid-cols-2 gap-y-1 text-stone-600 text-xs">
+        <div className="grid grid-cols-2 gap-y-1 text-ink-600 text-xs">
           <span className="font-semibold">UPI ID:</span>
           <span className="font-mono">mysuru.paakashale@upi</span>
           <span className="font-semibold">Account Name:</span>
@@ -125,7 +125,7 @@ function ManualPaymentPanel({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Payment method selector */}
         <div>
-          <label className="block text-xs font-semibold text-stone-700 mb-2 font-sans uppercase tracking-wider">
+          <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans uppercase tracking-wider">
             Payment Method
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -137,7 +137,7 @@ function ManualPaymentPanel({
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 text-xs font-semibold font-sans transition-all ${
                   form.paymentMethod === method
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                    : 'border-stone-200 text-stone-600 hover:border-stone-300'
+                    : 'border-rice-300 text-ink-600 hover:border-ink-400'
                 }`}
               >
                 {methodConfig[method].icon}
@@ -157,7 +157,7 @@ function ManualPaymentPanel({
 
         {/* Payment date */}
         <div>
-          <label className="block text-xs font-semibold text-stone-700 mb-1.5 font-sans uppercase tracking-wider">
+          <label className="block text-xs font-semibold text-ink-700 mb-1.5 font-sans uppercase tracking-wider">
             Date of Payment
           </label>
           <input
@@ -165,7 +165,7 @@ function ManualPaymentPanel({
             value={form.paymentDate}
             max={new Date().toISOString().split('T')[0]}
             onChange={(e) => setForm((f) => ({ ...f, paymentDate: e.target.value }))}
-            className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm font-sans text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-turmeric-400"
           />
         </div>
 
@@ -221,7 +221,7 @@ export function SubscriptionDetailsPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <EmptyState
-          icon={<Compass size={40} className="text-stone-400" />}
+          icon={<Compass size={40} className="text-ink-400" />}
           title="No Active Subscription"
           description="You don't have an active or pending meal plan subscription right now."
           action={
@@ -281,10 +281,10 @@ export function SubscriptionDetailsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <span className="text-xs uppercase font-sans tracking-widest text-stone-500 font-semibold">
+          <span className="text-xs uppercase font-sans tracking-widest text-ink-500 font-semibold">
             Manage Subscription
           </span>
-          <h1 className="text-3xl font-serif font-bold text-stone-900 mt-1">
+          <h1 className="text-3xl font-serif font-bold text-ink-900 mt-1">
             {selectedPlan?.name || 'Meal Plan Subscription'}
           </h1>
         </div>
@@ -301,8 +301,8 @@ export function SubscriptionDetailsPage() {
               <div className="flex items-start gap-4">
                 <Clock className="text-blue-600 shrink-0 mt-1" size={22} />
                 <div>
-                  <h2 className="text-stone-900 font-bold font-sans text-base">Payment Under Verification</h2>
-                  <p className="text-stone-600 font-sans text-sm mt-1">
+                  <h2 className="text-ink-900 font-bold font-sans text-base">Payment Under Verification</h2>
+                  <p className="text-ink-600 font-sans text-sm mt-1">
                     Your payment of <strong>₹{latestPayment.amount}</strong> via{' '}
                     <strong className="capitalize">{latestPayment.paymentMethod.replace('_', ' ')}</strong> is
                     being verified by our team. This usually takes up to 24 hours.
@@ -317,8 +317,8 @@ export function SubscriptionDetailsPage() {
                 <div className="flex items-start gap-4">
                   <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={24} />
                   <div>
-                    <h2 className="text-stone-900 font-bold font-sans text-lg">Payment Pending</h2>
-                    <p className="text-stone-600 font-sans text-sm mt-1">
+                    <h2 className="text-ink-900 font-bold font-sans text-lg">Payment Pending</h2>
+                    <p className="text-ink-600 font-sans text-sm mt-1">
                       Your subscription is created. Pay via UPI, cash, or bank transfer and submit the details below to activate your meal deliveries.
                     </p>
                   </div>
@@ -346,8 +346,8 @@ export function SubscriptionDetailsPage() {
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-6">
           {/* Meal Choices */}
-          <Card className="p-6 border-stone-200">
-            <h3 className="text-stone-900 font-bold font-sans text-lg border-b border-stone-100 pb-3 mb-4 flex items-center gap-2">
+          <Card className="p-6 border-rice-300">
+            <h3 className="text-ink-900 font-bold font-sans text-lg border-b border-rice-200 pb-3 mb-4 flex items-center gap-2">
               <Utensils className="text-emerald-600" size={20} /> Chosen Meal Preferences
             </h3>
             <div className="space-y-4">
@@ -356,16 +356,16 @@ export function SubscriptionDetailsPage() {
                 const option = slot?.options.find((o) => o.id === pref.selectedOptionId);
 
                 return (
-                  <div key={pref.mealType} className="flex gap-4 p-3 bg-stone-50 rounded-lg">
-                    <span className="capitalize font-sans font-bold text-stone-700 min-w-[100px]">
+                  <div key={pref.mealType} className="flex gap-4 p-3 bg-rice-50 rounded-lg">
+                    <span className="capitalize font-sans font-bold text-ink-700 min-w-[100px]">
                       {pref.mealType}
                     </span>
-                    <div className="font-sans text-stone-600 text-sm">
+                    <div className="font-sans text-ink-600 text-sm">
                       {slot?.isCustomerSelectable ? (
                         option ? (
                           <div>
-                            <span className="font-semibold text-stone-900">{option.label}</span>
-                            <div className="text-stone-500 text-xs mt-1">
+                            <span className="font-semibold text-ink-900">{option.label}</span>
+                            <div className="text-ink-500 text-xs mt-1">
                               Includes: {option.items.join(', ')}
                             </div>
                           </div>
@@ -375,7 +375,7 @@ export function SubscriptionDetailsPage() {
                       ) : (
                         <div>
                           <span className="font-semibold text-stone-950">Daily Rotating Menu</span>
-                          <p className="text-stone-500 text-xs mt-1">
+                          <p className="text-ink-500 text-xs mt-1">
                             Different traditional dish published daily by the kitchen.
                           </p>
                         </div>
@@ -388,28 +388,28 @@ export function SubscriptionDetailsPage() {
           </Card>
 
           {/* Delivery Address */}
-          <Card className="p-6 border-stone-200">
-            <h3 className="text-stone-900 font-bold font-sans text-lg border-b border-stone-100 pb-3 mb-4 flex items-center gap-2">
+          <Card className="p-6 border-rice-300">
+            <h3 className="text-ink-900 font-bold font-sans text-lg border-b border-rice-200 pb-3 mb-4 flex items-center gap-2">
               <MapPin className="text-emerald-600" size={20} /> Delivery Address
             </h3>
             {selectedAddress ? (
               <div className="font-sans">
-                <span className="font-semibold text-stone-900 px-2 py-0.5 bg-stone-100 rounded text-xs">
+                <span className="font-semibold text-ink-900 px-2 py-0.5 bg-rice-100 rounded text-xs">
                   {selectedAddress.label}
                 </span>
-                <p className="text-stone-700 mt-2 text-sm">
+                <p className="text-ink-700 mt-2 text-sm">
                   {selectedAddress.line1}
                   {selectedAddress.line2 && `, ${selectedAddress.line2}`}
                 </p>
-                <p className="text-stone-700 text-sm">
+                <p className="text-ink-700 text-sm">
                   {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
                 </p>
-                <p className="text-xs text-stone-400 mt-3 flex items-center gap-1.5">
+                <p className="text-xs text-ink-400 mt-3 flex items-center gap-1.5">
                   <Clock size={12} /> Zone Code: {subscription.zoneId || 'Unassigned'}
                 </p>
               </div>
             ) : (
-              <p className="text-stone-500 text-sm font-sans italic">
+              <p className="text-ink-500 text-sm font-sans italic">
                 Address details unavailable. Address ID: {subscription.deliveryAddressId}
               </p>
             )}
@@ -418,26 +418,26 @@ export function SubscriptionDetailsPage() {
 
         {/* Right column: Billing + Actions */}
         <div className="space-y-6">
-          <Card className="p-6 border-stone-200 bg-stone-50/50">
-            <h3 className="text-stone-900 font-bold font-sans text-lg border-b border-stone-100 pb-3 mb-4">
+          <Card className="p-6 border-rice-300 bg-rice-50/50">
+            <h3 className="text-ink-900 font-bold font-sans text-lg border-b border-rice-200 pb-3 mb-4">
               Billing Summary
             </h3>
             <div className="space-y-3 font-sans text-sm">
-              <div className="flex justify-between text-stone-600">
+              <div className="flex justify-between text-ink-600">
                 <span>Plan price per day:</span>
-                <span className="font-semibold text-stone-900">₹{subscription.pricePerDaySnapshot}</span>
+                <span className="font-semibold text-ink-900">₹{subscription.pricePerDaySnapshot}</span>
               </div>
-              <div className="flex justify-between text-stone-600">
+              <div className="flex justify-between text-ink-600">
                 <span>Billing cycle:</span>
-                <span className="capitalize text-stone-900 font-semibold">{subscription.billingCycle}</span>
+                <span className="capitalize text-ink-900 font-semibold">{subscription.billingCycle}</span>
               </div>
-              <div className="flex justify-between text-stone-600 items-center">
+              <div className="flex justify-between text-ink-600 items-center">
                 <span>Start Date:</span>
                 <span className="text-stone-950 font-semibold flex items-center gap-1">
-                  <Calendar size={14} className="text-stone-400" /> {subscription.startDate}
+                  <Calendar size={14} className="text-ink-400" /> {subscription.startDate}
                 </span>
               </div>
-              <div className="border-t border-stone-200 pt-3 flex justify-between font-bold text-stone-950 text-base">
+              <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-base">
                 <span>Total per month:</span>
                 <span>₹{monthlyAmount}</span>
               </div>
@@ -446,8 +446,8 @@ export function SubscriptionDetailsPage() {
 
           {/* Actions */}
           {subscription.status !== 'pending_payment' && (
-            <Card className="p-6 border-stone-200">
-              <h3 className="text-stone-900 font-bold font-sans text-sm uppercase tracking-wider mb-4 text-stone-500">
+            <Card className="p-6 border-rice-300">
+              <h3 className="text-ink-900 font-bold font-sans text-sm uppercase tracking-wider mb-4 text-ink-500">
                 Actions
               </h3>
               <div className="space-y-3">

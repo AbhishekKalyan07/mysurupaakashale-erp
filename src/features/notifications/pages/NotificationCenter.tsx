@@ -33,9 +33,9 @@ function NotificationIcon({ type }: { type: string }) {
   if (type.includes('subscription')) return <ShoppingBag size={16} className={`text-blue-600 ${iconClass}`} />;
   if (type.includes('delivery') || type.includes('out_for') || type === 'delivered') return <Truck size={16} className={`text-emerald-600 ${iconClass}`} />;
   if (type.includes('staff') || type.includes('role')) return <User size={16} className={`text-purple-600 ${iconClass}`} />;
-  if (type.includes('settings') || type.includes('backup')) return <Settings size={16} className={`text-stone-600 ${iconClass}`} />;
+  if (type.includes('settings') || type.includes('backup')) return <Settings size={16} className={`text-ink-600 ${iconClass}`} />;
   if (type.includes('error')) return <AlertCircle size={16} className={`text-red-600 ${iconClass}`} />;
-  return <Info size={16} className={`text-stone-500 ${iconClass}`} />;
+  return <Info size={16} className={`text-ink-500 ${iconClass}`} />;
 }
 
 function priorityBadge(priority: string) {
@@ -66,35 +66,35 @@ function NotificationCard({
       className={`flex gap-3 p-4 rounded-xl border transition-all ${
         isUnread
           ? 'bg-blue-50/40 border-blue-200/70'
-          : 'bg-white border-stone-100'
+          : 'bg-white border-rice-200'
       }`}
     >
       {/* Unread dot */}
       <div className="flex flex-col items-center pt-1">
-        {isUnread && <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mb-2" />}
+        {isUnread && <div className="w-2 h-2 rounded-full bg-info shrink-0 mb-2" />}
         <NotificationIcon type={notification.type} />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className={`text-sm font-sans ${isUnread ? 'font-bold text-stone-900' : 'font-semibold text-stone-700'}`}>
+            <h4 className={`text-sm font-sans ${isUnread ? 'font-bold text-ink-900' : 'font-semibold text-ink-700'}`}>
               {notification.title}
             </h4>
             {priorityBadge(notification.priority)}
           </div>
-          <span className="text-[10px] text-stone-400 font-sans shrink-0 flex items-center gap-1">
+          <span className="text-[10px] text-ink-400 font-sans shrink-0 flex items-center gap-1">
             <Clock size={9} /> {timeAgo}
           </span>
         </div>
-        <p className="text-stone-600 text-xs font-sans mt-1 leading-relaxed">{notification.message}</p>
+        <p className="text-ink-600 text-xs font-sans mt-1 leading-relaxed">{notification.message}</p>
       </div>
 
       <div className="flex flex-col gap-1.5 shrink-0">
         {isUnread && (
           <button
             onClick={onRead}
-            className="p-1.5 rounded-md hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition-colors"
+            className="p-1.5 rounded-md hover:bg-rice-100 text-ink-400 hover:text-ink-700 transition-colors"
             title="Mark as read"
           >
             <CheckCheck size={14} />
@@ -102,7 +102,7 @@ function NotificationCard({
         )}
         <button
           onClick={onArchive}
-          className="p-1.5 rounded-md hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors"
+          className="p-1.5 rounded-md hover:bg-rice-100 text-ink-400 hover:text-ink-600 transition-colors"
           title="Archive"
         >
           <Archive size={14} />
@@ -156,14 +156,14 @@ export function NotificationCenter() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-stone-900 flex items-center gap-2">
+          <h1 className="text-3xl font-serif font-bold text-ink-900 flex items-center gap-2">
             <Bell className="text-amber-600" size={28} />
             Notification Center
           </h1>
           {unreadCount > 0 && (
-            <p className="text-stone-500 font-sans text-sm mt-1">
+            <p className="text-ink-500 font-sans text-sm mt-1">
               You have{' '}
-              <span className="font-bold text-stone-900">{unreadCount}</span> unread notification
+              <span className="font-bold text-ink-900">{unreadCount}</span> unread notification
               {unreadCount !== 1 ? 's' : ''}.
             </p>
           )}
@@ -188,12 +188,12 @@ export function NotificationCenter() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search notifications..."
-          className="w-full pl-4 pr-4 py-2.5 border border-stone-200 rounded-lg text-sm font-sans focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-full pl-4 pr-4 py-2.5 border border-rice-300 rounded-lg text-sm font-sans focus:outline-none focus:ring-2 focus:ring-turmeric-400"
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-stone-200">
+      <div className="flex gap-1 mb-5 border-b border-rice-300">
         {TABS.map((tab) => {
           const count =
             tab.value === 'all'
@@ -206,12 +206,12 @@ export function NotificationCenter() {
               className={`px-3 py-2 text-xs font-semibold font-sans rounded-t transition-all flex items-center gap-1 ${
                 activeTab === tab.value
                   ? 'border-b-2 border-emerald-600 text-emerald-700'
-                  : 'text-stone-500 hover:text-stone-700'
+                  : 'text-ink-500 hover:text-ink-700'
               }`}
             >
               {tab.label}
               {count > 0 && (
-                <span className="bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
+                <span className="bg-rice-200 text-ink-600 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
                   {count}
                 </span>
               )}
@@ -223,7 +223,7 @@ export function NotificationCenter() {
       {/* List */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon={<BellOff size={36} className="text-stone-300" />}
+          icon={<BellOff size={36} className="text-ink-300" />}
           title="No notifications"
           description={
             activeTab === 'unread'

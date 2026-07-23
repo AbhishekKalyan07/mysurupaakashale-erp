@@ -196,17 +196,17 @@ export function SubscriptionWizardPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       {/* Stepper Header */}
-      <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
+      <div className="flex justify-between items-center mb-8 border-b border-rice-300 pb-4">
         <div>
           <h1 className="text-2xl font-serif text-amber-950 font-bold">Subscribe to {plan?.name}</h1>
-          <p className="text-stone-500 text-xs font-sans mt-0.5">Step {step} of 3</p>
+          <p className="text-ink-500 text-xs font-sans mt-0.5">Step {step} of 3</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 1 ? 'bg-emerald-600 text-stone-50' : 'bg-stone-200 text-stone-600'}`}>1</div>
-          <div className="w-8 h-0.5 bg-stone-200"></div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 2 ? 'bg-emerald-600 text-stone-50' : 'bg-stone-200 text-stone-600'}`}>2</div>
-          <div className="w-8 h-0.5 bg-stone-200"></div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 3 ? 'bg-emerald-600 text-stone-50' : 'bg-stone-200 text-stone-600'}`}>3</div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 1 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>1</div>
+          <div className="w-8 h-0.5 bg-rice-200"></div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 2 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>2</div>
+          <div className="w-8 h-0.5 bg-rice-200"></div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 3 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>3</div>
         </div>
       </div>
 
@@ -223,8 +223,8 @@ export function SubscriptionWizardPage() {
       {/* STEP 1: Meal Slots preferences */}
       {step === 1 && (
         <div className="space-y-6">
-          <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/80 mb-6">
-            <h3 className="text-sm font-sans font-bold text-stone-800 mb-2">Switch Plan Tier:</h3>
+          <div className="bg-rice-50 p-4 rounded-xl border border-rice-300/80 mb-6">
+            <h3 className="text-sm font-sans font-bold text-ink-800 mb-2">Switch Plan Tier:</h3>
             <div className="flex gap-3">
               {plans.map((p) => (
                 <button
@@ -234,7 +234,7 @@ export function SubscriptionWizardPage() {
                   className={`px-4 py-2 text-xs font-sans font-semibold rounded-lg border transition-all ${
                     p.id === selectedPlanId
                       ? 'bg-emerald-600 text-stone-50 border-emerald-600'
-                      : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
+                      : 'bg-rice-100 text-ink-600 border-rice-300 hover:bg-rice-200'
                   }`}
                 >
                   {p.name} (₹{p.pricePerDay}/day)
@@ -243,21 +243,21 @@ export function SubscriptionWizardPage() {
             </div>
           </div>
 
-          <h2 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+          <h2 className="text-lg font-serif font-bold text-ink-900 flex items-center gap-2">
             <Utensils className="text-emerald-600" size={20} /> Choose your daily meal preferences
           </h2>
-          <p className="text-stone-500 text-xs font-sans -mt-3 mb-6">
+          <p className="text-ink-500 text-xs font-sans -mt-3 mb-6">
             Choose what you'd like to receive for lunch and dinner. You can swap this weekly. Breakfast is fixed to the daily rotating menu.
           </p>
 
           <div className="space-y-6">
             {/* Breakfast: Fixed */}
-            <Card className="p-4 border-stone-200 bg-stone-50/50 flex justify-between items-center opacity-85">
+            <Card className="p-4 border-rice-300 bg-rice-50/50 flex justify-between items-center opacity-85">
               <div>
-                <h4 className="font-sans font-bold text-stone-800 text-sm">Breakfast Slot</h4>
-                <p className="text-stone-500 text-xs mt-1">Daily rotating menu (Idli, Shavige Bath, Khara Bath, etc.)</p>
+                <h4 className="font-sans font-bold text-ink-800 text-sm">Breakfast Slot</h4>
+                <p className="text-ink-500 text-xs mt-1">Daily rotating menu (Idli, Shavige Bath, Khara Bath, etc.)</p>
               </div>
-              <span className="text-stone-400 font-sans text-xs italic">Fixed menu</span>
+              <span className="text-ink-400 font-sans text-xs italic">Fixed menu</span>
             </Card>
 
             {/* Lunch Selection */}
@@ -267,7 +267,7 @@ export function SubscriptionWizardPage() {
                 className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   lunchOptionId === option.id
                     ? 'border-emerald-600 bg-emerald-50/20'
-                    : 'border-stone-200 hover:border-stone-300'
+                    : 'border-rice-300 hover:border-ink-400'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -279,16 +279,16 @@ export function SubscriptionWizardPage() {
                     className="mt-1 accent-emerald-600"
                   />
                   <div>
-                    <h4 className="font-sans font-bold text-stone-900 text-sm">Lunch: {option.label}</h4>
-                    <p className="text-stone-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
+                    <h4 className="font-sans font-bold text-ink-900 text-sm">Lunch: {option.label}</h4>
+                    <p className="text-ink-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
                   </div>
                 </div>
               </label>
             ))}
 
             {/* Dinner Selection */}
-            <div className="border-t border-stone-200 pt-6">
-              <h3 className="text-stone-900 font-bold font-sans text-sm mb-4">Choose Dinner Option:</h3>
+            <div className="border-t border-rice-300 pt-6">
+              <h3 className="text-ink-900 font-bold font-sans text-sm mb-4">Choose Dinner Option:</h3>
               <div className="space-y-3">
                 {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((option) => (
                   <label
@@ -296,7 +296,7 @@ export function SubscriptionWizardPage() {
                     className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       dinnerOptionId === option.id
                         ? 'border-emerald-600 bg-emerald-50/20'
-                        : 'border-stone-200 hover:border-stone-300'
+                        : 'border-rice-300 hover:border-ink-400'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -308,8 +308,8 @@ export function SubscriptionWizardPage() {
                         className="mt-1 accent-emerald-600"
                       />
                       <div>
-                        <h4 className="font-sans font-bold text-stone-900 text-sm">Dinner: {option.label}</h4>
-                        <p className="text-stone-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
+                        <h4 className="font-sans font-bold text-ink-900 text-sm">Dinner: {option.label}</h4>
+                        <p className="text-ink-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
                       </div>
                     </div>
                   </label>
@@ -318,7 +318,7 @@ export function SubscriptionWizardPage() {
             </div>
           </div>
 
-          <div className="flex justify-end pt-6 border-t border-stone-200 mt-8">
+          <div className="flex justify-end pt-6 border-t border-rice-300 mt-8">
             <Button onClick={() => setStep(2)} className="flex items-center gap-2 font-sans font-semibold">
               Continue to Address <ArrowRight size={16} />
             </Button>
@@ -329,10 +329,10 @@ export function SubscriptionWizardPage() {
       {/* STEP 2: Address Selection */}
       {step === 2 && (
         <div className="space-y-6">
-          <h2 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+          <h2 className="text-lg font-serif font-bold text-ink-900 flex items-center gap-2">
             <MapPin className="text-emerald-600" size={20} /> Choose Delivery Address
           </h2>
-          <p className="text-stone-500 text-xs font-sans -mt-3 mb-6">
+          <p className="text-ink-500 text-xs font-sans -mt-3 mb-6">
             We deliver three times daily. Choose where you want your meals dropped off. Pincode must be in our coverage zone.
           </p>
 
@@ -346,21 +346,21 @@ export function SubscriptionWizardPage() {
                     className={`p-4 cursor-pointer border-2 transition-all hover:border-emerald-500/70 flex flex-col justify-between ${
                       selectedAddressId === addr.id
                         ? 'border-emerald-600 bg-emerald-50/10'
-                        : 'border-stone-200'
+                        : 'border-rice-300'
                     }`}
                   >
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="font-sans font-bold text-stone-800 text-sm">{addr.label}</span>
+                        <span className="font-sans font-bold text-ink-800 text-sm">{addr.label}</span>
                         {addr.isDefault && (
-                          <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded font-sans uppercase font-bold">
+                          <span className="text-[10px] bg-rice-100 text-ink-500 px-1.5 py-0.5 rounded font-sans uppercase font-bold">
                             Default
                           </span>
                         )}
                       </div>
-                      <p className="text-stone-600 text-xs font-sans line-clamp-2">{addr.line1}</p>
-                      {addr.line2 && <p className="text-stone-600 text-xs font-sans line-clamp-1">{addr.line2}</p>}
-                      <p className="text-stone-700 text-xs font-semibold font-sans mt-2">
+                      <p className="text-ink-600 text-xs font-sans line-clamp-2">{addr.line1}</p>
+                      {addr.line2 && <p className="text-ink-600 text-xs font-sans line-clamp-1">{addr.line2}</p>}
+                      <p className="text-ink-700 text-xs font-semibold font-sans mt-2">
                         {addr.city}, {addr.pincode}
                       </p>
                     </div>
@@ -370,7 +370,7 @@ export function SubscriptionWizardPage() {
                 {/* Add new address button */}
                 <Card
                   onClick={() => setShowAddressForm(true)}
-                  className="p-4 cursor-pointer border-dashed border-2 border-stone-300 hover:border-emerald-600 bg-stone-50/50 flex flex-col items-center justify-center text-stone-500 hover:text-emerald-600 gap-2 h-full min-h-[120px]"
+                  className="p-4 cursor-pointer border-dashed border-2 border-ink-400 hover:border-emerald-600 bg-rice-50/50 flex flex-col items-center justify-center text-ink-500 hover:text-emerald-600 gap-2 h-full min-h-[120px]"
                 >
                   <Plus size={24} />
                   <span className="font-sans font-semibold text-xs uppercase tracking-wider">Add New Address</span>
@@ -385,8 +385,8 @@ export function SubscriptionWizardPage() {
             </div>
           ) : (
             /* Add Address Form */
-            <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 bg-stone-50 p-6 rounded-xl border border-stone-200">
-              <h3 className="font-serif font-bold text-stone-900 text-base mb-2">Add New Address</h3>
+            <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 bg-rice-50 p-6 rounded-xl border border-rice-300">
+              <h3 className="font-serif font-bold text-ink-900 text-base mb-2">Add New Address</h3>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input
@@ -432,7 +432,7 @@ export function SubscriptionWizardPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-stone-200">
+              <div className="flex justify-end gap-3 pt-4 border-t border-rice-300">
                 <Button
                   type="button"
                   variant="secondary"
@@ -451,7 +451,7 @@ export function SubscriptionWizardPage() {
             </form>
           )}
 
-          <div className="flex justify-between pt-6 border-t border-stone-200 mt-8">
+          <div className="flex justify-between pt-6 border-t border-rice-300 mt-8">
             <Button variant="secondary" onClick={() => setStep(1)} className="flex items-center gap-2 font-sans font-semibold">
               <ArrowLeft size={16} /> Back to Preferences
             </Button>
@@ -469,10 +469,10 @@ export function SubscriptionWizardPage() {
       {/* STEP 3: Review and Confirm */}
       {step === 3 && plan && (
         <div className="space-y-6">
-          <h2 className="text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+          <h2 className="text-lg font-serif font-bold text-ink-900 flex items-center gap-2">
             <CheckCircle className="text-emerald-600" size={20} /> Review your Subscription Details
           </h2>
-          <p className="text-stone-500 text-xs font-sans -mt-3 mb-6">
+          <p className="text-ink-500 text-xs font-sans -mt-3 mb-6">
             Verify your choices. You are creating a recurring monthly subscription draft. Price is locked in.
           </p>
 
@@ -480,26 +480,26 @@ export function SubscriptionWizardPage() {
             {/* Left 2 Columns: Summary */}
             <div className="md:col-span-2 space-y-4">
               {/* Preferences Summary */}
-              <Card className="p-4 border-stone-200">
-                <h3 className="font-sans font-bold text-stone-800 text-sm mb-3">Selected Preferences</h3>
-                <div className="space-y-2 text-stone-600 text-xs font-sans">
+              <Card className="p-4 border-rice-300">
+                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Selected Preferences</h3>
+                <div className="space-y-2 text-ink-600 text-xs font-sans">
                   <div className="flex justify-between">
                     <span>Plan Tier:</span>
-                    <span className="font-semibold text-stone-900 capitalize">{plan.tier}</span>
+                    <span className="font-semibold text-ink-900 capitalize">{plan.tier}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Breakfast:</span>
-                    <span className="font-semibold text-stone-900">Fixed rotating menu</span>
+                    <span className="font-semibold text-ink-900">Fixed rotating menu</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Lunch:</span>
-                    <span className="font-semibold text-stone-900">
+                    <span className="font-semibold text-ink-900">
                       {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dinner:</span>
-                    <span className="font-semibold text-stone-900">
+                    <span className="font-semibold text-ink-900">
                       {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
@@ -507,16 +507,16 @@ export function SubscriptionWizardPage() {
               </Card>
 
               {/* Delivery Address Summary */}
-              <Card className="p-4 border-stone-200">
-                <h3 className="font-sans font-bold text-stone-800 text-sm mb-3">Delivery Address</h3>
+              <Card className="p-4 border-rice-300">
+                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Delivery Address</h3>
                 {currentAddress ? (
-                  <div className="text-xs text-stone-600 font-sans">
-                    <span className="font-bold text-stone-900 px-1.5 py-0.5 bg-stone-100 rounded text-[10px] uppercase">
+                  <div className="text-xs text-ink-600 font-sans">
+                    <span className="font-bold text-ink-900 px-1.5 py-0.5 bg-rice-100 rounded text-[10px] uppercase">
                       {currentAddress.label}
                     </span>
-                    <p className="mt-2 text-stone-800 font-medium">{currentAddress.line1}</p>
-                    {currentAddress.line2 && <p className="text-stone-700">{currentAddress.line2}</p>}
-                    <p className="text-stone-700">
+                    <p className="mt-2 text-ink-800 font-medium">{currentAddress.line1}</p>
+                    {currentAddress.line2 && <p className="text-ink-700">{currentAddress.line2}</p>}
+                    <p className="text-ink-700">
                       {currentAddress.city}, {currentAddress.state} - {currentAddress.pincode}
                     </p>
                   </div>
@@ -526,19 +526,19 @@ export function SubscriptionWizardPage() {
               </Card>
 
               {/* Start Date */}
-              <Card className="p-4 border-stone-200">
-                <h3 className="font-sans font-bold text-stone-800 text-sm mb-3">Select Start Date</h3>
+              <Card className="p-4 border-rice-300">
+                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Select Start Date</h3>
                 <div className="flex items-center gap-3">
-                  <Calendar className="text-stone-400" size={18} />
+                  <Calendar className="text-ink-400" size={18} />
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} // tomorrow
-                    className="border border-stone-300 rounded-md p-1.5 text-xs font-sans"
+                    className="border border-ink-400 rounded-md p-1.5 text-xs font-sans"
                   />
                 </div>
-                <p className="text-[10px] text-stone-400 font-sans mt-2">
+                <p className="text-[10px] text-ink-400 font-sans mt-2">
                   First delivery will occur on the morning of the selected date.
                 </p>
               </Card>
@@ -546,25 +546,25 @@ export function SubscriptionWizardPage() {
 
             {/* Right Column: Price summary */}
             <div>
-              <Card className="p-5 border-stone-200 bg-stone-50/50">
-                <h3 className="font-sans font-bold text-stone-900 text-sm mb-3 border-b border-stone-200 pb-2">
+              <Card className="p-5 border-rice-300 bg-rice-50/50">
+                <h3 className="font-sans font-bold text-ink-900 text-sm mb-3 border-b border-rice-300 pb-2">
                   Pricing Summary
                 </h3>
-                <div className="space-y-2 text-stone-600 text-xs font-sans mb-4">
+                <div className="space-y-2 text-ink-600 text-xs font-sans mb-4">
                   <div className="flex justify-between">
                     <span>Daily rate:</span>
-                    <span className="font-semibold text-stone-900">₹{plan.pricePerDay}</span>
+                    <span className="font-semibold text-ink-900">₹{plan.pricePerDay}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Deliveries per day:</span>
-                    <span className="font-semibold text-stone-900">3 deliveries</span>
+                    <span className="font-semibold text-ink-900">3 deliveries</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Billing terms:</span>
-                    <span className="font-semibold text-stone-900">Monthly</span>
+                    <span className="font-semibold text-ink-900">Monthly</span>
                   </div>
                 </div>
-                <div className="border-t border-stone-200 pt-3 flex justify-between font-bold text-stone-950 text-sm mb-6">
+                <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-sm mb-6">
                   <span>Est. Monthly Total:</span>
                   <span>₹{plan.pricePerDay * 30}</span>
                 </div>
@@ -580,7 +580,7 @@ export function SubscriptionWizardPage() {
             </div>
           </div>
 
-          <div className="flex justify-between pt-6 border-t border-stone-200 mt-8">
+          <div className="flex justify-between pt-6 border-t border-rice-300 mt-8">
             <Button variant="secondary" onClick={() => setStep(2)} className="flex items-center gap-2 font-sans font-semibold">
               <ArrowLeft size={16} /> Back to Address
             </Button>

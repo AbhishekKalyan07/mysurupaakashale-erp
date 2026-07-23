@@ -78,12 +78,12 @@ export function CreateStaffModal({ onClose }: Props) {
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Full Name</label>
               <input {...register('fullName')} placeholder="John Doe" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
-              {errors.fullName && <p className="text-sm text-red-500">{errors.fullName.message}</p>}
+              {errors.fullName && <p className="text-sm text-danger">{errors.fullName.message}</p>}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Staff ID / U_ID</label>
               <input {...register('staffId')} placeholder="EMP-001" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 uppercase font-data" />
-              {errors.staffId && <p className="text-sm text-red-500">{errors.staffId.message}</p>}
+              {errors.staffId && <p className="text-sm text-danger">{errors.staffId.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

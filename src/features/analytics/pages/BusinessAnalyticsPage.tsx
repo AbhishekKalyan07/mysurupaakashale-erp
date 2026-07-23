@@ -240,11 +240,11 @@ export function BusinessAnalyticsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-white rounded-lg shadow-sm border border-black/5">
-                <p className="text-sm text-ink-500 flex items-center gap-1"><CheckCircle size={14} className="text-emerald-500" /> Success</p>
+                <p className="text-sm text-ink-500 flex items-center gap-1"><CheckCircle size={14} className="text-success" /> Success</p>
                 <p className="text-2xl font-bold text-ink-900">{data?.delivery.success || 0}</p>
               </div>
               <div className="p-4 bg-white rounded-lg shadow-sm border border-black/5">
-                <p className="text-sm text-ink-500 flex items-center gap-1"><XCircle size={14} className="text-red-500" /> Failed</p>
+                <p className="text-sm text-ink-500 flex items-center gap-1"><XCircle size={14} className="text-danger" /> Failed</p>
                 <p className="text-2xl font-bold text-ink-900">{data?.delivery.failed || 0}</p>
               </div>
               <div className="p-4 bg-white rounded-lg shadow-sm border border-black/5">

@@ -125,7 +125,7 @@ export function CustomerDashboardPage() {
       {/* Welcome & Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-serif text-amber-950 font-bold">Customer Dashboard</h1>
-        <p className="text-stone-600 font-sans text-sm mt-1">
+        <p className="text-ink-600 font-sans text-sm mt-1">
           Manage your daily meals, subscription plans, and delivery options here.
         </p>
       </div>
@@ -134,22 +134,22 @@ export function CustomerDashboardPage() {
         {/* Left 2 Columns: Subscription Status & Summary */}
         <div className="md:col-span-2 space-y-8">
           {/* Live Subscription Card */}
-          <Card className="p-6 md:p-8 border-stone-200 shadow-sm relative overflow-hidden bg-stone-50/20">
+          <Card className="p-6 md:p-8 border-rice-300 shadow-sm relative overflow-hidden bg-rice-50/20">
             {subscription && (
               <div className="absolute top-0 right-0 left-0 bg-emerald-700/5 h-1"></div>
             )}
-            <h2 className="text-xl font-serif font-bold text-stone-900 mb-6 flex items-center gap-2.5">
+            <h2 className="text-xl font-serif font-bold text-ink-900 mb-6 flex items-center gap-2.5">
               <UtensilsCrossed size={20} className="text-emerald-700" /> Live Meal Subscription
             </h2>
 
             {subscription ? (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-stone-50 p-4 rounded-xl border border-stone-100">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-rice-50 p-4 rounded-xl border border-rice-200">
                   <div>
-                    <h3 className="font-sans font-bold text-stone-900 text-base">
+                    <h3 className="font-sans font-bold text-ink-900 text-base">
                       {selectedPlan?.name || 'Loading plan details...'}
                     </h3>
-                    <p className="text-stone-500 text-xs mt-0.5">
+                    <p className="text-ink-500 text-xs mt-0.5">
                       Billed monthly • ₹{subscription.pricePerDaySnapshot}/day
                     </p>
                   </div>
@@ -163,30 +163,30 @@ export function CustomerDashboardPage() {
                 <div className="grid sm:grid-cols-2 gap-6 font-sans text-xs">
                   {/* Next Delivery info */}
                   <div className="space-y-2">
-                    <span className="text-stone-400 font-bold uppercase tracking-wider block text-[10px]">
+                    <span className="text-ink-400 font-bold uppercase tracking-wider block text-[10px]">
                       Delivery Schedule
                     </span>
-                    <div className="flex items-start gap-2.5 text-stone-700">
-                      <Calendar size={16} className="text-stone-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 text-ink-700">
+                      <Calendar size={16} className="text-ink-400 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-stone-900">Starts: {subscription.startDate}</p>
-                        <p className="text-stone-500 mt-0.5">3 deliveries daily (Breakfast, Lunch, Dinner)</p>
+                        <p className="font-semibold text-ink-900">Starts: {subscription.startDate}</p>
+                        <p className="text-ink-500 mt-0.5">3 deliveries daily (Breakfast, Lunch, Dinner)</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Drop-off Address info */}
                   <div className="space-y-2">
-                    <span className="text-stone-400 font-bold uppercase tracking-wider block text-[10px]">
+                    <span className="text-ink-400 font-bold uppercase tracking-wider block text-[10px]">
                       Drop-off Address
                     </span>
-                    <div className="flex items-start gap-2.5 text-stone-700">
-                      <MapPin size={16} className="text-stone-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 text-ink-700">
+                      <MapPin size={16} className="text-ink-400 shrink-0 mt-0.5" />
                       <div>
                         {activeAddress ? (
                           <>
-                            <p className="font-semibold text-stone-900">{activeAddress.label}</p>
-                            <p className="text-stone-500 mt-0.5 line-clamp-1">{activeAddress.line1}</p>
+                            <p className="font-semibold text-ink-900">{activeAddress.label}</p>
+                            <p className="text-ink-500 mt-0.5 line-clamp-1">{activeAddress.line1}</p>
                           </>
                         ) : (
                           <p className="text-rose-600 font-medium">Address details missing</p>
@@ -196,7 +196,7 @@ export function CustomerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-stone-100 pt-5 flex justify-end">
+                <div className="border-t border-rice-200 pt-5 flex justify-end">
                   <Button
                     onClick={() => navigate('/customer/subscription')}
                     className="font-sans font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
@@ -208,7 +208,7 @@ export function CustomerDashboardPage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-stone-500 font-sans text-sm mb-5">
+                <p className="text-ink-500 font-sans text-sm mb-5">
                   You do not have an active breakfast, lunch, or dinner meal subscription yet.
                 </p>
                 <Button
@@ -222,16 +222,16 @@ export function CustomerDashboardPage() {
           </Card>
 
           {/* Quick info panel */}
-          <Card className="p-5 border-stone-200 bg-amber-50/20 flex gap-3.5 items-start">
+          <Card className="p-5 border-rice-300 bg-amber-50/20 flex gap-3.5 items-start">
             <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
-            <div className="font-sans text-stone-700 text-xs">
+            <div className="font-sans text-ink-700 text-xs">
               <h4 className="font-bold text-amber-950">Daily Delivery Times:</h4>
-              <ul className="list-disc list-inside mt-2 space-y-1 pl-1 text-stone-600">
+              <ul className="list-disc list-inside mt-2 space-y-1 pl-1 text-ink-600">
                 <li><strong>Breakfast:</strong> 07:00 AM - 09:00 AM</li>
                 <li><strong>Lunch:</strong> 12:30 PM - 02:30 PM</li>
                 <li><strong>Dinner:</strong> 07:00 PM - 09:00 PM</li>
               </ul>
-              <p className="text-stone-400 mt-3 text-[10px]">
+              <p className="text-ink-400 mt-3 text-[10px]">
                 To pause or skip deliveries for a single day, please visit your subscription details page before 10:00 PM the night prior.
               </p>
             </div>
@@ -240,8 +240,8 @@ export function CustomerDashboardPage() {
 
         {/* Right 1 Column: Saved Addresses */}
         <div className="space-y-6">
-          <Card className="p-6 border-stone-200">
-            <h2 className="text-lg font-serif font-bold text-stone-900 mb-4 flex items-center justify-between">
+          <Card className="p-6 border-rice-300">
+            <h2 className="text-lg font-serif font-bold text-ink-900 mb-4 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <MapPin size={18} className="text-emerald-700" /> Saved Addresses
               </span>
@@ -263,8 +263,8 @@ export function CustomerDashboardPage() {
 
             {showAddressForm ? (
               /* Inline Address Form */
-              <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
-                <h3 className="font-sans font-bold text-stone-800 text-xs uppercase tracking-wider mb-2">New Address</h3>
+              <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-3 bg-rice-50 p-4 rounded-xl border border-rice-300">
+                <h3 className="font-sans font-bold text-ink-800 text-xs uppercase tracking-wider mb-2">New Address</h3>
 
                 <Input
                   label="Label (e.g. Home, Office)"
@@ -303,11 +303,11 @@ export function CustomerDashboardPage() {
                     {...register('city')}
                     error={errors.city?.message}
                     disabled
-                    className="py-1 text-xs bg-stone-100"
+                    className="py-1 text-xs bg-rice-100"
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-stone-200 mt-4">
+                <div className="flex justify-end gap-2 pt-3 border-t border-rice-300 mt-4">
                   <Button
                     type="button"
                     variant="secondary"
@@ -332,7 +332,7 @@ export function CustomerDashboardPage() {
               /* Saved Address Cards */
               <div className="space-y-3.5">
                 {addresses.length === 0 ? (
-                  <p className="text-stone-400 font-sans text-xs italic py-4 text-center">
+                  <p className="text-ink-400 font-sans text-xs italic py-4 text-center">
                     No saved addresses found. Add one to get started.
                   </p>
                 ) : (
@@ -342,12 +342,12 @@ export function CustomerDashboardPage() {
                       <div
                         key={addr.id}
                         className={`p-3 rounded-lg border font-sans text-xs flex justify-between items-start ${
-                          isDefault ? 'border-emerald-600 bg-emerald-50/5' : 'border-stone-200'
+                          isDefault ? 'border-emerald-600 bg-emerald-50/5' : 'border-rice-300'
                         }`}
                       >
                         <div className="space-y-1 select-none pr-2">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-stone-800">{addr.label}</span>
+                            <span className="font-bold text-ink-800">{addr.label}</span>
                             {isDefault ? (
                               <span className="text-[9px] bg-emerald-600 text-stone-50 px-1 py-0.2 rounded font-sans font-bold uppercase tracking-wider">
                                 Default
@@ -356,15 +356,15 @@ export function CustomerDashboardPage() {
                               <button
                                 onClick={() => setDefaultAddress(addr.id)}
                                 disabled={isSettingDefault}
-                                className="text-stone-400 hover:text-emerald-700 text-[10px] underline"
+                                className="text-ink-400 hover:text-emerald-700 text-[10px] underline"
                               >
                                 Set Default
                               </button>
                             )}
                           </div>
-                          <p className="text-stone-600 line-clamp-1">{addr.line1}</p>
-                          {addr.line2 && <p className="text-stone-500 line-clamp-1">{addr.line2}</p>}
-                          <p className="text-stone-700 font-medium">
+                          <p className="text-ink-600 line-clamp-1">{addr.line1}</p>
+                          {addr.line2 && <p className="text-ink-500 line-clamp-1">{addr.line2}</p>}
+                          <p className="text-ink-700 font-medium">
                             {addr.city} - {addr.pincode}
                           </p>
                         </div>
@@ -372,7 +372,7 @@ export function CustomerDashboardPage() {
                         <button
                           onClick={() => deleteAddress(addr.id)}
                           disabled={isDeleting}
-                          className="text-stone-400 hover:text-rose-600 p-1 shrink-0 transition-colors"
+                          className="text-ink-400 hover:text-rose-600 p-1 shrink-0 transition-colors"
                           title="Delete address"
                         >
                           <Trash2 size={14} />

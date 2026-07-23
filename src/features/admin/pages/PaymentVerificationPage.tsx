@@ -54,15 +54,15 @@ function PaymentDetailDialog({
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-stone-200">
+        <div className="p-6 border-b border-rice-300">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold text-stone-900 font-sans">Payment Details</h2>
-              <p className="text-stone-500 text-xs font-mono mt-1">{payment.id}</p>
+              <h2 className="text-xl font-bold text-ink-900 font-sans">Payment Details</h2>
+              <p className="text-ink-500 text-xs font-mono mt-1">{payment.id}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-600 p-1"
+              className="text-ink-400 hover:text-ink-600 p-1"
             >
               <XCircle size={20} />
             </button>
@@ -72,55 +72,55 @@ function PaymentDetailDialog({
         {/* Details */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm font-sans">
-            <div className="bg-stone-50 rounded-lg p-3">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Customer</div>
-              <div className="font-semibold text-stone-900">{payment.customerName}</div>
-              <div className="text-stone-400 text-xs font-mono">{payment.customerId}</div>
+            <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Customer</div>
+              <div className="font-semibold text-ink-900">{payment.customerName}</div>
+              <div className="text-ink-400 text-xs font-mono">{payment.customerId}</div>
             </div>
-            <div className="bg-stone-50 rounded-lg p-3">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Amount</div>
-              <div className="font-bold text-stone-900 text-xl font-data">₹{payment.amount.toLocaleString('en-IN')}</div>
+            <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Amount</div>
+              <div className="font-bold text-ink-900 text-xl font-data">₹{payment.amount.toLocaleString('en-IN')}</div>
             </div>
-            <div className="bg-stone-50 rounded-lg p-3">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Method</div>
-              <div className="font-semibold text-stone-900 capitalize">{payment.paymentMethod.replace('_', ' ')}</div>
+            <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Method</div>
+              <div className="font-semibold text-ink-900 capitalize">{payment.paymentMethod.replace('_', ' ')}</div>
             </div>
-            <div className="bg-stone-50 rounded-lg p-3">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Payment Date</div>
-              <div className="font-semibold text-stone-900">{payment.paymentDate}</div>
+            <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Payment Date</div>
+              <div className="font-semibold text-ink-900">{payment.paymentDate}</div>
             </div>
-            <div className="bg-stone-50 rounded-lg p-3 col-span-2">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Reference / Transaction ID</div>
-              <div className="font-mono text-stone-900 text-sm break-all">
-                {payment.referenceNumber || <span className="text-stone-400 italic font-sans">Not provided</span>}
+            <div className="bg-rice-50 rounded-lg p-3 col-span-2">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Reference / Transaction ID</div>
+              <div className="font-mono text-ink-900 text-sm break-all">
+                {payment.referenceNumber || <span className="text-ink-400 italic font-sans">Not provided</span>}
               </div>
             </div>
-            <div className="bg-stone-50 rounded-lg p-3 col-span-2">
-              <div className="text-stone-500 text-xs uppercase tracking-wider mb-1">Submitted On</div>
-              <div className="font-semibold text-stone-900">{submittedDate}</div>
+            <div className="bg-rice-50 rounded-lg p-3 col-span-2">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Submitted On</div>
+              <div className="font-semibold text-ink-900">{submittedDate}</div>
             </div>
           </div>
 
           {payment.status !== 'pending' && (
             <div className={`rounded-lg p-4 border ${payment.status === 'verified' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-              <div className="text-xs uppercase tracking-wider font-semibold mb-1.5 text-stone-600">
+              <div className="text-xs uppercase tracking-wider font-semibold mb-1.5 text-ink-600">
                 Verification Outcome
               </div>
               <Badge tone={payment.status === 'verified' ? 'success' : 'danger'} className="mb-2">
                 {payment.status}
               </Badge>
               {payment.verificationNotes && (
-                <p className="text-stone-700 text-sm font-sans mt-2">{payment.verificationNotes}</p>
+                <p className="text-ink-700 text-sm font-sans mt-2">{payment.verificationNotes}</p>
               )}
             </div>
           )}
 
           {/* Action area */}
           {payment.status === 'pending' && (
-            <div className="border-t border-stone-200 pt-4">
+            <div className="border-t border-rice-300 pt-4">
               {!confirmAction ? (
                 <>
-                  <label className="block text-xs font-semibold text-stone-700 mb-2 font-sans uppercase tracking-wider">
+                  <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans uppercase tracking-wider">
                     Verification Notes (optional)
                   </label>
                   <textarea
@@ -128,7 +128,7 @@ function PaymentDetailDialog({
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add any notes about this payment verification..."
                     rows={3}
-                    className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm font-sans text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none mb-4"
+                    className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-turmeric-400 resize-none mb-4"
                   />
                   <div className="flex gap-3">
                     <Button
@@ -156,7 +156,7 @@ function PaymentDetailDialog({
                         : 'Confirm Payment Rejection'}
                     </span>
                   </div>
-                  <p className="text-stone-600 text-xs font-sans mb-4">
+                  <p className="text-ink-600 text-xs font-sans mb-4">
                     {confirmAction === 'approve'
                       ? 'This will verify the payment and automatically activate the customer\'s subscription. This action cannot be undone.'
                       : 'This will reject the payment. The customer\'s subscription will remain in "Pending Payment" status and they will be notified.'}
@@ -204,27 +204,27 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
 
   return (
     <tr
-      className="hover:bg-stone-50/70 cursor-pointer transition-colors border-b border-stone-100 last:border-0"
+      className="hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
       onClick={onSelect}
     >
       <td className="px-4 py-4 text-sm font-sans">
-        <div className="font-semibold text-stone-900">{payment.customerName}</div>
-        <div className="text-stone-400 text-xs font-mono truncate max-w-[140px]">{payment.customerId}</div>
+        <div className="font-semibold text-ink-900">{payment.customerName}</div>
+        <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{payment.customerId}</div>
       </td>
       <td className="px-4 py-4">
-        <span className="font-bold text-stone-900 font-data">₹{payment.amount.toLocaleString('en-IN')}</span>
+        <span className="font-bold text-ink-900 font-data">₹{payment.amount.toLocaleString('en-IN')}</span>
       </td>
       <td className="px-4 py-4">
-        <div className="flex items-center gap-1.5 text-stone-600 font-sans text-xs capitalize">
+        <div className="flex items-center gap-1.5 text-ink-600 font-sans text-xs capitalize">
           {methodIcon}
           {payment.paymentMethod.replace('_', ' ')}
         </div>
         {payment.referenceNumber && (
-          <div className="text-stone-400 text-xs font-mono truncate max-w-[130px] mt-0.5">{payment.referenceNumber}</div>
+          <div className="text-ink-400 text-xs font-mono truncate max-w-[130px] mt-0.5">{payment.referenceNumber}</div>
         )}
       </td>
       <td className="px-4 py-4">
-        <div className="text-stone-600 font-sans text-xs">{dateStr}</div>
+        <div className="text-ink-600 font-sans text-xs">{dateStr}</div>
       </td>
       <td className="px-4 py-4">
         <Badge tone={statusTone} className="text-[10px] uppercase">{payment.status}</Badge>
@@ -300,22 +300,22 @@ export function PaymentVerificationPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-stone-900">Payment Verification</h1>
-        <p className="text-stone-500 font-sans text-sm mt-1">
+        <h1 className="text-3xl font-serif font-bold text-ink-900">Payment Verification</h1>
+        <p className="text-ink-500 font-sans text-sm mt-1">
           Review, approve, and reject customer payment submissions.
         </p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-2 mb-6 border-b border-stone-200 pb-1">
+      <div className="flex gap-2 mb-6 border-b border-rice-300 pb-1">
         {TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold font-sans rounded-t-lg transition-all ${
               activeTab === tab.value
-                ? 'bg-white border border-b-white border-stone-200 text-stone-900 -mb-px'
-                : 'text-stone-500 hover:text-stone-700'
+                ? 'bg-white border border-b-white border-rice-300 text-ink-900 -mb-px'
+                : 'text-ink-500 hover:text-ink-700'
             }`}
           >
             {tab.icon} {tab.label}
@@ -325,38 +325,38 @@ export function PaymentVerificationPage() {
 
       {/* Search */}
       <div className="relative mb-5">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by customer name, ID, or reference number..."
-          className="w-full pl-9 pr-4 py-2.5 border border-stone-300 rounded-lg text-sm font-sans text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-full pl-9 pr-4 py-2.5 border border-ink-400 rounded-lg text-sm font-sans text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-turmeric-400"
         />
       </div>
 
       {sorted.length === 0 ? (
         <EmptyState
-          icon={<Receipt size={40} className="text-stone-300" />}
+          icon={<Receipt size={40} className="text-ink-300" />}
           title="No payments found"
           description={search ? 'No payments match your search.' : `No ${activeTab === 'all' ? '' : activeTab + ' '}payments at this time.`}
         />
       ) : (
-        <Card className="border-stone-200 overflow-hidden">
+        <Card className="border-rice-300 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs font-semibold uppercase tracking-wider">
+              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Customer</th>
                   <th
-                    className="px-4 py-3 cursor-pointer select-none hover:text-stone-700"
+                    className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
                     onClick={() => toggleSort('amount')}
                   >
                     <div className="flex items-center gap-1">Amount <SortIcon field="amount" /></div>
                   </th>
                   <th className="px-4 py-3">Method</th>
                   <th
-                    className="px-4 py-3 cursor-pointer select-none hover:text-stone-700"
+                    className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
                     onClick={() => toggleSort('createdAt')}
                   >
                     <div className="flex items-center gap-1">Submitted <SortIcon field="createdAt" /></div>
@@ -376,7 +376,7 @@ export function PaymentVerificationPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-stone-100 bg-stone-50/50 text-xs text-stone-500 font-sans">
+          <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans">
             Showing {sorted.length} payment{sorted.length !== 1 ? 's' : ''}
           </div>
         </Card>
