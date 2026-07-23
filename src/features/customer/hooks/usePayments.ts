@@ -84,12 +84,24 @@ export function useApprovePayment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { paymentId: string; notes?: string }) => {
+    mutationFn: async (input: { 
+      paymentId: string; 
+      notes?: string;
+      meta?: {
+        customerEmail: string;
+        customerName: string;
+        planName: string;
+        planTier: string;
+        deliveryAddress: string;
+        pricePerDay: number;
+      };
+    }) => {
       // Phase 5 & 6: Client-side payment approval and subscription activation
       const capturedPayment = await paymentService.approvePayment(
         input.paymentId, 
         getAuth().currentUser?.uid ?? 'admin', 
-        input.notes
+        input.notes,
+        input.meta
       );
       
       const currentUser = getAuth().currentUser;

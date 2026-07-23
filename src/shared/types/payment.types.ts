@@ -50,6 +50,12 @@ export interface ManualPayment {
   verificationDate: Timestamp | null;
   verificationNotes: string | null;
 
+  // ── Proof of payment ────────────────────────────────────────────────────────
+  /** Firebase Storage URL of the uploaded screenshot (null for cash payments). */
+  screenshotUrl: string | null;
+  /** The month this payment covers, e.g. "2025-07". Used for monthly billing. */
+  billingMonth: string;
+
   // ── Audit ───────────────────────────────────────────────────────────────────
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -65,6 +71,10 @@ export interface SubmitPaymentInput {
   paymentMethod: PaymentMethod;
   referenceNumber: string | null;
   paymentDate: ISODateString;
+  /** Firebase Storage URL of the payment proof screenshot (optional for cash). */
+  screenshotUrl?: string | null;
+  /** Billing month this advance covers, e.g. "2025-07". */
+  billingMonth: string;
 }
 
 /** Payload the admin sends to approve or reject a payment. */

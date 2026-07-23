@@ -24,6 +24,8 @@ export interface Subscription {
   customerId: ID;
   planId: ID;
   planTier: PlanTier;
+  /** Number of people this subscription covers. Multiplies the daily price. */
+  quantity: number;
   /** Price locked in at subscription time — later plan price changes never retroactively change what an existing subscriber owes. */
   pricePerDaySnapshot: number;
   deliveryAddressId: ID;
@@ -36,6 +38,8 @@ export interface Subscription {
   autoRenew: boolean;
   /** Set once the admin approves a payment — links to the verified payment record. */
   latestPaymentId: ID | null;
+  /** Accrued credit from paused/skipped days, in INR. Deducted from next month's bill. */
+  creditBalance: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

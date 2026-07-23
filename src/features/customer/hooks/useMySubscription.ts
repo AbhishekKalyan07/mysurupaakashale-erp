@@ -16,3 +16,41 @@ export function useMySubscription() {
     enabled: !!customerId,
   });
 }
+
+export function useSkipDay() {
+  const { firebaseUser } = useAuth();
+  const { useMutation, useQueryClient } = require('@tanstack/react-query');
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      subscriptionId,
+      date,
+      mealTypes,
+      reason,
+      creditAmount
+    }: {
+      subscriptionId: string;
+      date: string;
+      mealTypes: ('breakfast' | 'lunch' | 'dinner')[];
+      reason: string;
+      creditAmount: number;
+    }) => {
+      if (!firebaseUser?.uid) throw new Error('Not authenticated');
+      await subscriptionRepository.addSkip(
+        subscriptionId,
+        date,
+        mealTypes,
+        reason,
+        firebaseUser.uid,
+        creditAmount
+      );
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ''),
+      });
+      // Also invalidate the skips subcollection if we ever fetch it explicitly
+    },
+  });
+}

@@ -35,12 +35,50 @@ function PaymentDetailDialog({
   const approvePayment = useApprovePayment();
   const rejectPayment = useRejectPayment();
 
+  // Fetch extra details needed for PDF / Email
+  // These hooks are from `@tanstack/react-query` and standard for this project pattern
+  const { useQuery } = require('@tanstack/react-query');
+  const { userRepository } = require('@/shared/services/firestore/userRepository');
+  const { subscriptionRepository } = require('@/shared/services/firestore/subscriptionRepository');
+  const { mealPlanRepository } = require('@/shared/services/firestore/mealPlanRepository');
+  const { ExternalLink, Image: ImageIcon } = require('lucide-react');
+
+  const { data: user } = useQuery({
+    queryKey: ['user', payment.customerId],
+    queryFn: () => userRepository.getById(payment.customerId),
+    enabled: !!payment.customerId,
+  });
+
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription', payment.subscriptionId],
+    queryFn: () => subscriptionRepository.getById(payment.subscriptionId),
+    enabled: !!payment.subscriptionId,
+  });
+
+  const { data: plan } = useQuery({
+    queryKey: ['plan', subscription?.planId],
+    queryFn: () => mealPlanRepository.getById(subscription!.planId),
+    enabled: !!subscription?.planId,
+  });
+
   const isLoading = approvePayment.isPending || rejectPayment.isPending;
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
     if (confirmAction === 'approve') {
-      await approvePayment.mutateAsync({ paymentId: payment.id, notes });
+      let meta;
+      if (user && subscription && plan) {
+        meta = {
+          customerEmail: user.email,
+          customerName: user.fullName,
+          planName: plan.name,
+          planTier: plan.tier,
+          deliveryAddress: `Address ID: ${subscription.deliveryAddressId}`,
+          pricePerDay: subscription.pricePerDaySnapshot,
+          quantity: subscription.quantity || 1,
+        };
+      }
+      await approvePayment.mutateAsync({ paymentId: payment.id, notes, meta });
     } else {
       await rejectPayment.mutateAsync({ paymentId: payment.id, notes });
     }
@@ -86,8 +124,18 @@ function PaymentDetailDialog({
               <div className="font-semibold text-ink-900 capitalize">{payment.paymentMethod.replace('_', ' ')}</div>
             </div>
             <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Billing Month</div>
+              <div className="font-semibold text-ink-900">
+                {payment.billingMonth ? payment.billingMonth : 'N/A'}
+              </div>
+            </div>
+            <div className="bg-rice-50 rounded-lg p-3">
               <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Payment Date</div>
               <div className="font-semibold text-ink-900">{payment.paymentDate}</div>
+            </div>
+            <div className="bg-rice-50 rounded-lg p-3">
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Submitted On</div>
+              <div className="font-semibold text-ink-900">{submittedDate}</div>
             </div>
             <div className="bg-rice-50 rounded-lg p-3 col-span-2">
               <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Reference / Transaction ID</div>
@@ -95,11 +143,33 @@ function PaymentDetailDialog({
                 {payment.referenceNumber || <span className="text-ink-400 italic font-sans">Not provided</span>}
               </div>
             </div>
-            <div className="bg-rice-50 rounded-lg p-3 col-span-2">
-              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Submitted On</div>
-              <div className="font-semibold text-ink-900">{submittedDate}</div>
-            </div>
           </div>
+
+          {/* Screenshot */}
+          {payment.screenshotUrl && (
+            <div className="border border-rice-300 rounded-lg overflow-hidden mt-4">
+              <div className="bg-rice-50 px-3 py-2 border-b border-rice-300 flex justify-between items-center">
+                <span className="text-xs uppercase tracking-wider font-semibold text-ink-600 flex items-center gap-1.5">
+                  <ImageIcon size={14} /> Proof of Payment
+                </span>
+                <a
+                  href={payment.screenshotUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-600 hover:text-emerald-700 text-xs flex items-center gap-1 font-semibold"
+                >
+                  Open Original <ExternalLink size={12} />
+                </a>
+              </div>
+              <div className="bg-rice-100 p-2 flex justify-center">
+                <img
+                  src={payment.screenshotUrl}
+                  alt="Payment Screenshot"
+                  className="max-h-64 object-contain rounded border border-rice-200"
+                />
+              </div>
+            </div>
+          )}
 
           {payment.status !== 'pending' && (
             <div className={`rounded-lg p-4 border ${payment.status === 'verified' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
@@ -158,8 +228,8 @@ function PaymentDetailDialog({
                   </div>
                   <p className="text-ink-600 text-xs font-sans mb-4">
                     {confirmAction === 'approve'
-                      ? 'This will verify the payment and automatically activate the customer\'s subscription. This action cannot be undone.'
-                      : 'This will reject the payment. The customer\'s subscription will remain in "Pending Payment" status and they will be notified.'}
+                      ? 'This will verify the payment, activate the subscription, generate a PDF invoice, and email the customer.'
+                      : 'This will reject the payment. The customer\'s subscription will remain pending and they will be notified.'}
                   </p>
                   <div className="flex gap-2">
                     <Button

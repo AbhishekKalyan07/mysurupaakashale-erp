@@ -22,6 +22,33 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     if (active) return active;
     return subs.length > 0 ? subs[0] : null;
   }
+
+  async addSkip(
+    subscriptionId: string, 
+    date: string, 
+    mealTypes: ('breakfast' | 'lunch' | 'dinner')[], 
+    reason: string,
+    uid: string,
+    creditAmount: number
+  ) {
+    const { doc, setDoc, updateDoc, increment, serverTimestamp } = require('firebase/firestore');
+    
+    // Create the skip subcollection document
+    const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
+    await setDoc(skipRef, {
+      date,
+      mealTypes,
+      reason,
+      createdAt: serverTimestamp(),
+      createdBy: uid
+    });
+
+    // Increment the credit balance on the subscription
+    const subRef = doc(db, 'subscriptions', subscriptionId);
+    await updateDoc(subRef, {
+      creditBalance: increment(creditAmount)
+    });
+  }
 }
 
 export const subscriptionRepository = new SubscriptionRepository();

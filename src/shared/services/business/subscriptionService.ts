@@ -10,6 +10,7 @@ class SubscriptionService {
     customerId: string,
     planId: string,
     planTier: PlanTier,
+    quantity: number,
     pricePerDaySnapshot: number,
     mealPreferences: MealPreference[],
     startDate: string,
@@ -22,6 +23,7 @@ class SubscriptionService {
       planId,
       status: 'pending_payment',
       planTier,
+      quantity,
       pricePerDaySnapshot,
       zoneId: null,
       mealPreferences,
@@ -31,6 +33,7 @@ class SubscriptionService {
       autoRenew: true,
       deliveryAddressId,
       latestPaymentId: null,
+      creditBalance: 0,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     }, subscriptionId);

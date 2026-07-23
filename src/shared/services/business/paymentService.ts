@@ -2,12 +2,22 @@ import { runTransaction, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, SubmitPaymentInput } from '@/shared/types';
 import { paymentRepository } from '../firestore/paymentRepository';
+import { generateInvoicePdf, type InvoiceData } from '@/shared/utils/generateInvoicePdf';
+import { sendInvoiceEmail } from '@/shared/services/email/sendInvoiceEmail';
 
 class PaymentService {
   /**
    * Submit a new payment for a subscription.
+   * Stores screenshotUrl and billingMonth alongside the payment.
    */
-  async submitPayment(input: SubmitPaymentInput, customerId: string, customerName: string): Promise<string> {
+  async submitPayment(
+    input: SubmitPaymentInput,
+    customerId: string,
+    customerName: string,
+  ): Promise<string> {
+    const billingMonth =
+      input.billingMonth ?? new Date().toISOString().slice(0, 7); // fallback: "YYYY-MM"
+
     return paymentRepository.create({
       subscriptionId: input.subscriptionId,
       customerId,
@@ -16,7 +26,9 @@ class PaymentService {
       currency: 'INR',
       paymentMethod: input.paymentMethod,
       referenceNumber: input.referenceNumber,
-      paymentDate: new Date().toISOString().split('T')[0],
+      paymentDate: input.paymentDate || new Date().toISOString().split('T')[0],
+      screenshotUrl: input.screenshotUrl ?? null,
+      billingMonth,
       status: 'pending',
       verificationDate: null,
       verifiedBy: null,
@@ -27,21 +39,39 @@ class PaymentService {
   }
 
   /**
-   * Approve a pending payment, activating the subscription and generating an invoice.
+   * Approve a pending payment:
+   *  1. Mark payment verified in a Firestore transaction
+   *  2. Activate the subscription
+   *  3. Create an invoice record
+   *  4. Generate a PDF bill (browser-side, jsPDF)
+   *  5. Email the invoice to the customer (EmailJS)
    */
-  async approvePayment(paymentId: string, adminUid: string, notes?: string): Promise<ManualPayment> {
+  async approvePayment(
+    paymentId: string,
+    adminUid: string,
+    notes?: string,
+    /** Extra data needed for the PDF / email — pass from the admin UI */
+    meta?: {
+      customerEmail: string;
+      customerName: string;
+      planName: string;
+      planTier: string;
+      deliveryAddress: string;
+      pricePerDay: number;
+    },
+  ): Promise<ManualPayment> {
     let capturedPayment!: ManualPayment;
-    
+
     await runTransaction(db, async (t) => {
       const paymentRef = doc(db, 'payments', paymentId);
       const paymentSnap = await t.get(paymentRef);
       if (!paymentSnap.exists()) throw new Error('Payment not found');
-      
+
       const payment = paymentSnap.data() as ManualPayment;
       if (payment.status !== 'pending') throw new Error('Payment already processed');
-      
+
       const subRef = doc(db, 'subscriptions', payment.subscriptionId);
-      
+
       t.update(paymentRef, {
         status: 'verified',
         verificationDate: serverTimestamp(),
@@ -49,19 +79,21 @@ class PaymentService {
         updatedAt: serverTimestamp(),
         verificationNotes: notes ?? null,
       });
-      
+
       t.update(subRef, {
         status: 'active',
         latestPaymentId: paymentId,
         updatedAt: serverTimestamp(),
       });
-      
-      const invoiceRef = doc(db, 'invoices', crypto.randomUUID());
+
+      const invoiceId = crypto.randomUUID();
+      const invoiceRef = doc(db, 'invoices', invoiceId);
       t.set(invoiceRef, {
-        id: invoiceRef.id,
+        id: invoiceId,
         subscriptionId: payment.subscriptionId,
         customerId: payment.customerId,
         amount: payment.amount,
+        billingMonth: payment.billingMonth ?? new Date().toISOString().slice(0, 7),
         status: 'paid',
         issuedAt: serverTimestamp(),
         paidAt: serverTimestamp(),
@@ -71,23 +103,71 @@ class PaymentService {
       capturedPayment = payment;
     });
 
+    // ── PDF + Email (fire-and-forget, non-blocking) ──────────────────────────
+    if (meta) {
+      try {
+        const invoiceNumber = `INV-${Date.now()}`;
+        const today = new Date().toISOString().split('T')[0];
+        const billingMonth = capturedPayment.billingMonth ?? today.slice(0, 7);
+
+        const invoiceData: InvoiceData = {
+          invoiceNumber,
+          billingMonth,
+          customerName: meta.customerName || capturedPayment.customerName,
+          customerEmail: meta.customerEmail,
+          deliveryAddress: meta.deliveryAddress,
+          planName: meta.planName,
+          planTier: meta.planTier,
+          pricePerDay: meta.pricePerDay,
+          totalAmount: capturedPayment.amount,
+          paymentMethod: capturedPayment.paymentMethod,
+          referenceNumber: capturedPayment.referenceNumber,
+          paymentDate: capturedPayment.paymentDate,
+          approvedDate: today,
+        };
+
+        const pdf = generateInvoicePdf(invoiceData);
+
+        // Auto-download the PDF in the admin's browser
+        pdf.save(`Invoice-${invoiceNumber}.pdf`);
+
+        // Send email to customer (gracefully skips if EmailJS not configured)
+        sendInvoiceEmail({
+          toEmail: meta.customerEmail,
+          toName: meta.customerName || capturedPayment.customerName,
+          planName: meta.planName,
+          billingMonth: formatBillingMonthLong(billingMonth),
+          totalAmount: capturedPayment.amount,
+          invoiceNumber,
+          paymentMethod: capturedPayment.paymentMethod.replace('_', ' '),
+          pdfBase64: pdf.output('datauristring').split(',')[1],
+        }).catch((e) => console.warn('[paymentService] email send failed:', e));
+      } catch (e) {
+        console.warn('[paymentService] PDF/email generation failed (non-critical):', e);
+      }
+    }
+
     return capturedPayment;
   }
 
   /**
    * Reject a pending payment.
    */
-  async rejectPayment(paymentId: string, adminUid: string, notes?: string): Promise<ManualPayment> {
+  async rejectPayment(
+    paymentId: string,
+    adminUid: string,
+    notes?: string,
+  ): Promise<ManualPayment> {
     let capturedPayment!: ManualPayment;
 
     await runTransaction(db, async (t) => {
       const paymentRef = doc(db, 'payments', paymentId);
       const paymentSnap = await t.get(paymentRef);
       if (!paymentSnap.exists()) throw new Error('Payment not found');
-      
+
       const payment = paymentSnap.data() as ManualPayment;
       capturedPayment = payment;
-      
+
       t.update(paymentRef, {
         status: 'rejected',
         verificationDate: serverTimestamp(),
@@ -98,6 +178,18 @@ class PaymentService {
     });
 
     return capturedPayment;
+  }
+}
+
+function formatBillingMonthLong(month: string): string {
+  try {
+    const [year, mo] = month.split('-');
+    return new Date(parseInt(year), parseInt(mo) - 1, 1).toLocaleString('en-IN', {
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return month;
   }
 }
 

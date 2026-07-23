@@ -53,7 +53,12 @@ export function CustomerDashboardPage() {
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showTrialModal, setShowTrialModal] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
+
+  const skipDay = require('@/features/customer/hooks/useMySubscription').useSkipDay();
+  const { firebaseUser } = require('@/features/auth/hooks/useAuth').useAuth();
 
   const {
     register,
@@ -224,6 +229,13 @@ export function CustomerDashboardPage() {
                   </Button>
                   <Button
                     variant="secondary"
+                    onClick={() => setShowPauseModal(true)}
+                    className="text-ink-700 border-rice-300 hover:bg-rice-100"
+                  >
+                    Pause Delivery <Calendar size={16} className="ml-2" />
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => navigate('/customer/subscription')}
                   >
                     Manage Subscription <ExternalLink size={16} className="ml-2" />
@@ -235,12 +247,21 @@ export function CustomerDashboardPage() {
                 <p className="text-ink-500 font-sans text-sm mb-5">
                   You do not have an active breakfast, lunch, or dinner meal subscription yet.
                 </p>
-                <Button
-                  onClick={() => navigate('/customer/plans')}
-                  className="font-sans font-semibold uppercase tracking-wider text-xs px-6"
-                >
-                  Browse Meal Plans
-                </Button>
+                <div className="flex gap-4 justify-center items-center">
+                  <Button
+                    onClick={() => navigate('/customer/plans')}
+                    className="font-sans font-semibold uppercase tracking-wider text-xs px-6"
+                  >
+                    Browse Meal Plans
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowTrialModal(true)}
+                    className="font-sans font-semibold uppercase tracking-wider text-xs px-6 bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
+                  >
+                    Book a Trial Meal
+                  </Button>
+                </div>
               </div>
             )}
           </Card>
@@ -416,12 +437,187 @@ export function CustomerDashboardPage() {
                       </div>
                     );
                   })
+                  </Card>
                 )}
               </div>
             )}
           </Card>
         </div>
-        <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+        <FeedbackModal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          context={{ source: 'dashboard', subscriptionId: subscription?.id }}
+        />
+
+        {showPauseModal && subscription && (
+          <PauseDeliveryModal 
+            subscription={subscription} 
+            onClose={() => setShowPauseModal(false)} 
+            skipDay={skipDay}
+          />
+        )}
+
+        {showTrialModal && (
+          <TrialMealModal
+            onClose={() => setShowTrialModal(false)}
+            uid={firebaseUser?.uid}
+            addresses={addresses}
+            plans={plans}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TrialMealModal({ onClose, uid, addresses, plans }: any) {
+  const [addressId, setAddressId] = useState(addresses?.[0]?.id || '');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleBook = async () => {
+    if (!addressId || !uid) return;
+    setLoading(true);
+    try {
+      const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
+      const { db } = require('@/shared/lib/firebase');
+      
+      const orderId = crypto.randomUUID();
+      const plan = plans?.[0]; // Default to first plan for trial pricing
+
+      await setDoc(doc(db, 'orders', orderId), {
+        id: orderId,
+        source: 'one_time',
+        customerId: uid,
+        subscriptionId: null,
+        planTier: plan?.tier || 'basic',
+        mealType: 'lunch', // Default trial is lunch
+        date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+        itemsLabel: 'Trial Meal (Lunch)',
+        selectedOptionId: null,
+        price: plan?.pricePerDay ? Math.round(plan.pricePerDay / 3) : 100, // Roughly 1/3rd of daily price
+        currency: 'INR',
+        status: 'scheduled',
+        deliveryAddressId: addressId,
+        zoneId: null,
+        kitchenId: null,
+        deliveryPartnerId: null,
+        deliveryWindow: null,
+        paymentId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      setSuccess(true);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to book trial meal.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+        <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Book Trial Meal</h2>
+        
+        {success ? (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-600 font-bold text-xl">✓</div>
+            <p className="text-sm font-sans text-ink-700 font-medium">Trial meal booked for tomorrow!</p>
+            <p className="text-xs text-ink-500 mt-2 mb-6">Our team will contact you for payment (Cash on delivery available).</p>
+            <Button className="w-full" onClick={onClose}>Close</Button>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm font-sans text-ink-600 mb-4">
+              Not sure yet? Try a single lunch delivery tomorrow to experience our food quality.
+            </p>
+
+            <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans">Select Delivery Address</label>
+            {addresses?.length > 0 ? (
+              <select 
+                value={addressId} 
+                onChange={e => setAddressId(e.target.value)}
+                className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans mb-6"
+              >
+                {addresses.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.label} - {a.line1}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-xs text-rose-600 mb-6 bg-rose-50 p-2 rounded">Please add an address first before booking a trial.</p>
+            )}
+
+            <div className="flex gap-3">
+              <Button variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+              <Button className="flex-1" onClick={handleBook} isLoading={loading} disabled={!addressId || addresses?.length === 0}>
+                Confirm Booking
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
+  const [date, setDate] = useState('');
+  const [reason, setReason] = useState('');
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+  const handlePause = async () => {
+    if (!date) return;
+    try {
+      // Calculate credit amount based on total daily value
+      const dailyValue = subscription.pricePerDaySnapshot * (subscription.quantity || 1);
+      
+      await skipDay.mutateAsync({
+        subscriptionId: subscription.id,
+        date,
+        mealTypes: ['breakfast', 'lunch', 'dinner'], // pausing the whole day
+        reason: reason || 'Customer requested pause',
+        creditAmount: dailyValue
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to pause delivery:', err);
+      alert('Failed to pause delivery.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+        <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Pause Delivery</h2>
+        <p className="text-sm font-sans text-ink-600 mb-4">
+          Select a date to pause your delivery. You will receive a credit of ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)} on your next month's bill.
+        </p>
+
+        <label className="block text-xs font-semibold text-ink-700 mb-1 font-sans">Select Date</label>
+        <input 
+          type="date" 
+          value={date} 
+          min={tomorrow}
+          onChange={e => setDate(e.target.value)}
+          className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans mb-4"
+        />
+
+        <label className="block text-xs font-semibold text-ink-700 mb-1 font-sans">Reason (Optional)</label>
+        <input 
+          type="text" 
+          value={reason} 
+          placeholder="e.g. Out of town"
+          onChange={e => setReason(e.target.value)}
+          className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans mb-6"
+        />
+
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1" onClick={handlePause} isLoading={skipDay.isPending} disabled={!date}>Confirm Pause</Button>
+        </div>
       </div>
     </div>
   );

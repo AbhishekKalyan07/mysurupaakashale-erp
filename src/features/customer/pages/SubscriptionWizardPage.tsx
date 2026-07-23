@@ -59,6 +59,7 @@ export function SubscriptionWizardPage() {
   const [lunchOptionId, setLunchOptionId] = useState<string>('');
   const [dinnerOptionId, setDinnerOptionId] = useState<string>('');
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [quantity, setQuantity] = useState<number>(1);
   const [startDate, setStartDate] = useState<string>(
     new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow as default
   );
@@ -158,6 +159,7 @@ export function SubscriptionWizardPage() {
         firebaseUser!.uid,
         plan.id,
         plan.tier,
+        quantity,
         plan.pricePerDay,
         mealPreferences,
         startDate,
@@ -474,7 +476,20 @@ export function SubscriptionWizardPage() {
             <div className="md:col-span-2 space-y-4">
               {/* Preferences Summary */}
               <Card className="p-4 border-rice-300">
-                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Selected Preferences</h3>
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-sans font-bold text-ink-800 text-sm">Selected Preferences</h3>
+                  <div className="flex items-center gap-2 bg-rice-100 rounded-lg p-1 border border-rice-300">
+                    <button
+                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
+                    >-</button>
+                    <span className="text-xs font-bold w-12 text-center">{quantity} {quantity === 1 ? 'Person' : 'People'}</span>
+                    <button
+                      onClick={() => setQuantity(q => Math.min(10, q + 1))}
+                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
+                    >+</button>
+                  </div>
+                </div>
                 <div className="space-y-2 text-ink-600 text-xs font-sans">
                   <div className="flex justify-between">
                     <span>Plan Tier:</span>
@@ -545,10 +560,18 @@ export function SubscriptionWizardPage() {
                 </h3>
                 <div className="space-y-2 text-ink-600 text-xs font-sans mb-4">
                   <div className="flex justify-between">
-                    <span>Daily rate:</span>
+                    <span>Base daily rate:</span>
                     <span className="font-semibold text-ink-900">₹{plan.pricePerDay}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Quantity:</span>
+                    <span className="font-semibold text-ink-900">{quantity}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total daily rate:</span>
+                    <span className="font-semibold text-ink-900">₹{plan.pricePerDay * quantity}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-rice-300/60">
                     <span>Deliveries per day:</span>
                     <span className="font-semibold text-ink-900">3 deliveries</span>
                   </div>
@@ -557,9 +580,9 @@ export function SubscriptionWizardPage() {
                     <span className="font-semibold text-ink-900">Monthly</span>
                   </div>
                 </div>
-                <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-sm mb-6">
+                <div className="border-t border-rice-300 pt-3 flex justify-between items-center font-bold text-stone-950 text-sm mb-6">
                   <span>Est. Monthly Total:</span>
-                  <span>₹{plan.pricePerDay * 30}</span>
+                  <span className="text-lg">₹{(plan.pricePerDay * quantity * 30).toLocaleString('en-IN')}</span>
                 </div>
 
                 <Button
