@@ -178,7 +178,9 @@ service cloud.firestore {
     // ---------- payments/{paymentId} ----------
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow write: if isAdmin(); // Phase 5: Admin handles manual payments
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending');
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
     match /invoices/{invoiceId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
@@ -196,9 +198,8 @@ service cloud.firestore {
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
       allow create: if isAdmin() || 
-                       // Customer-initiated notifications (e.g. subscription created) — 
-                       // only allowed to notify themselves, not other users.
-                       (isSignedIn() && request.resource.data.recipientId == request.auth.uid);
+                       // Customers can trigger notifications (e.g., to admins for payments)
+                       isSignedIn();
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.
