@@ -15,6 +15,10 @@ export function AdminDashboardPage() {
   if (isLoading) return <LoadingScreen />;
 
   const handleSeedPlans = async () => {
+    if (!window.confirm('Are you sure you want to seed the default meal plans? This will deactivate any currently active plans.')) {
+      return;
+    }
+    
     try {
       toast.loading('Seeding meal plans...', { id: 'seed' });
       const existing = await mealPlanRepository.list();
