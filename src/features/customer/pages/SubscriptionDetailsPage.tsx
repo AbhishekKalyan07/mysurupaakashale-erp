@@ -83,9 +83,9 @@ function ManualPaymentPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const methodConfig: Record<PaymentMethod, { label: string; icon: React.ReactNode; placeholder: string; needsScreenshot: boolean }> = {
-    upi: { label: 'UPI', icon: <Smartphone size={16} />, placeholder: 'UPI Transaction ID (e.g. 3109876543210)', needsScreenshot: true },
+    upi: { label: 'UPI', icon: <Smartphone size={16} />, placeholder: 'UPI Transaction ID (e.g. 3109876543210)', needsScreenshot: false },
     cash: { label: 'Cash', icon: <Banknote size={16} />, placeholder: 'Cash receipt number (optional)', needsScreenshot: false },
-    bank_transfer: { label: 'Bank Transfer', icon: <Building2 size={16} />, placeholder: 'UTR / Reference number', needsScreenshot: true },
+    bank_transfer: { label: 'Bank Transfer', icon: <Building2 size={16} />, placeholder: 'UTR / Reference number', needsScreenshot: false },
   };
 
   const needsScreenshot = methodConfig[form.paymentMethod].needsScreenshot;
