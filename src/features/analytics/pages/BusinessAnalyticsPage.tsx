@@ -4,7 +4,7 @@ import { useAnalyticsData, type DateRangeFilter } from '../hooks/useAnalyticsDat
 import { RevenueTrendChart, OrderDistributionChart, PlanDistributionChart, PaymentMethodChart } from '../components/AnalyticsCharts';
 import { TrendingUp, Users, CreditCard, Package, Download, Clock, Truck, ChefHat, CheckCircle, XCircle } from 'lucide-react';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import { toast } from 'react-hot-toast';
 
@@ -22,10 +22,10 @@ export function BusinessAnalyticsPage() {
     if (!dashboardRef.current) return;
     const toastId = toast.loading('Generating PNG export...');
     try {
-      const canvas = await html2canvas(dashboardRef.current, { scale: 2 });
+      const dataUrl = await toPng(dashboardRef.current, { pixelRatio: 2 });
       const link = document.createElement('a');
       link.download = `analytics-dashboard-${new Date().toISOString().split('T')[0]}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
       toast.success('Dashboard exported to PNG', { id: toastId });
     } catch (err) {
@@ -37,11 +37,15 @@ export function BusinessAnalyticsPage() {
     if (!dashboardRef.current) return;
     const toastId = toast.loading('Generating PDF report...');
     try {
-      const canvas = await html2canvas(dashboardRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = await toPng(dashboardRef.current, { pixelRatio: 2 });
+      
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve) => { img.onload = resolve; });
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = (img.height * pdfWidth) / img.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success('Dashboard exported to PDF', { id: toastId });
