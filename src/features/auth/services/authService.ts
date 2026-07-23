@@ -29,7 +29,11 @@ const ERROR_MESSAGES: Record<string, string> = {
 /** Turns a raw Firebase Auth error into copy that's safe and useful to show a user. */
 export function mapAuthError(error: unknown): string {
   const code = (error as { code?: string } | undefined)?.code;
-  return (code && ERROR_MESSAGES[code]) || 'Something went wrong. Please try again.';
+  const msg = (error as { message?: string } | undefined)?.message;
+  
+  if (code === 'auth/popup-closed-by-user') return 'Sign-in cancelled.';
+  
+  return (code && ERROR_MESSAGES[code]) || msg || 'Something went wrong. Please try again.';
 }
 
 export async function signIn(email: string, password: string): Promise<UserCredential> {
