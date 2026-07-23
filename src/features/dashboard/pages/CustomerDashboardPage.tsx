@@ -440,7 +440,6 @@ export function CustomerDashboardPage() {
                       </div>
                     );
                   })
-                  </Card>
                 )}
               </div>
             )}
