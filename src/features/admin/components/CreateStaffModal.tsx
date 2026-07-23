@@ -13,7 +13,12 @@ const staffSchema = z.object({
   staffId: z.string().min(2, 'Staff ID is required'),
   email: z.string().email('Invalid email'),
   phone: z.string().min(10, 'Phone is required (e.g. +919876543210)'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string()
+    .min(6, 'Password must be at least 6 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   role: z.enum(STAFF_ROLES as [string, ...string[]]),
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
