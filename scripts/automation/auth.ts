@@ -5,10 +5,10 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/shared/lib/firebase';
 
 export async function authenticateForAutomation() {
-  // After the env shim runs, import.meta.env.VITE_* is populated from
-  // process.env — read directly from process.env here as the canonical source.
-  const email = process.env.VITE_AUTOMATION_EMAIL;
-  const password = process.env.VITE_AUTOMATION_PASSWORD;
+  // Since vite-node natively loads .env.local into import.meta.env,
+  // we should check both import.meta.env and process.env.
+  const email = (import.meta.env.VITE_AUTOMATION_EMAIL as string | undefined) || process.env.VITE_AUTOMATION_EMAIL;
+  const password = (import.meta.env.VITE_AUTOMATION_PASSWORD as string | undefined) || process.env.VITE_AUTOMATION_PASSWORD;
 
   if (!email || !password) {
     throw new Error(
