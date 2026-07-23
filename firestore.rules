@@ -219,7 +219,9 @@ service cloud.firestore {
 
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow write: if isAdmin(); // Phase 7: Client-side audit logs
+      // Allow any user to create an audit log for their own actions
+      allow create: if isSignedIn() && request.resource.data.actorId == request.auth.uid;
+      allow update, delete: if false; // Audit logs must be immutable
     }
 
     match /analytics/{docId} {
