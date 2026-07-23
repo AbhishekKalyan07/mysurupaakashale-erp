@@ -18,7 +18,7 @@ class PaymentService {
     const billingMonth =
       input.billingMonth ?? new Date().toISOString().slice(0, 7); // fallback: "YYYY-MM"
 
-    return paymentRepository.create({
+    const paymentId = await paymentRepository.create({
       subscriptionId: input.subscriptionId,
       customerId,
       customerName,
@@ -36,6 +36,21 @@ class PaymentService {
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     });
+
+    try {
+      const { userRepository } = require('../firestore/userRepository');
+      const { notifyPaymentSubmitted } = require('../firestore/notificationService');
+      const { where } = require('firebase/firestore');
+      
+      const admins = await userRepository.list(where('role', '==', 'admin'));
+      const adminIds = admins.map((a: any) => a.id);
+      
+      await notifyPaymentSubmitted(customerId, paymentId, input.amount, adminIds);
+    } catch (err) {
+      console.error('Failed to send payment submitted notification', err);
+    }
+
+    return paymentId;
   }
 
   /**

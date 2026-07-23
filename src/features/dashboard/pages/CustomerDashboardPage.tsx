@@ -171,9 +171,12 @@ export function CustomerDashboardPage() {
                   <div>
                     <h3 className="font-sans font-bold text-ink-900 text-base">
                       {selectedPlan?.name || 'Loading plan details...'}
+                      <span className="text-sm text-emerald-700 ml-2 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        {subscription.quantity || 1} {subscription.quantity === 1 ? 'Person' : 'People'}
+                      </span>
                     </h3>
-                    <p className="text-ink-500 text-xs mt-0.5">
-                      Billed monthly • ₹{subscription.pricePerDaySnapshot}/day
+                    <p className="text-ink-500 text-xs mt-1">
+                      Billed monthly • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day total
                     </p>
                   </div>
                   <div>
