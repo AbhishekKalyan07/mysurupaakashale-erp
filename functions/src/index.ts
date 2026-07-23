@@ -2,10 +2,27 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
 // Optional: HTTP endpoint to seed data for testing
-export { seedOrderHistory } from './seed';
+// export { seedOrderHistory } from './seed';
 
 // Billing logic
 export { generateMonthlyInvoices } from './billing';
+
+// Admin Elevation (TEMPORARY FOR TESTING)
+export const elevateToAdmin = functions.https.onRequest(async (req, res) => {
+  const email = req.query.email as string;
+  if (!email) {
+    res.status(400).send('Missing email parameter');
+    return;
+  }
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+    await admin.auth().setCustomUserClaims(user.uid, { role: 'admin' });
+    await admin.firestore().collection('users').doc(user.uid).set({ role: 'admin' }, { merge: true });
+    res.status(200).send(`Elevated ${email} to admin!`);
+  } catch (err: any) {
+    res.status(500).send(`Error: ${err.message}`);
+  }
+});
 
 admin.initializeApp();
 const db = admin.firestore();

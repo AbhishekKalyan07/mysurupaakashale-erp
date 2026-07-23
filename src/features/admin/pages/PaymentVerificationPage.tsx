@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { userRepository } from '@/shared/services/firestore/userRepository';
+import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
+import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
 import { useAdminPayments, useApprovePayment, useRejectPayment } from '@/features/customer/hooks/usePayments';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
@@ -19,6 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  ExternalLink,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -37,11 +43,6 @@ function PaymentDetailDialog({
 
   // Fetch extra details needed for PDF / Email
   // These hooks are from `@tanstack/react-query` and standard for this project pattern
-  const { useQuery } = require('@tanstack/react-query');
-  const { userRepository } = require('@/shared/services/firestore/userRepository');
-  const { subscriptionRepository } = require('@/shared/services/firestore/subscriptionRepository');
-  const { mealPlanRepository } = require('@/shared/services/firestore/mealPlanRepository');
-  const { ExternalLink, Image: ImageIcon } = require('lucide-react');
 
   const { data: user } = useQuery({
     queryKey: ['user', payment.customerId],

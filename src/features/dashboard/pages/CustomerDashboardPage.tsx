@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMySubscription } from '@/features/customer/hooks/useMySubscription';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useMySubscription, useSkipDay } from '@/features/customer/hooks/useMySubscription';
 import { useMealPlans } from '@/features/customer/hooks/useMealPlans';
 import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
@@ -12,6 +13,8 @@ import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Badge } from '@/shared/components/ui/Badge';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/shared/lib/firebase';
 import { AddressPicker, type PickedAddress } from '@/features/customer/components/AddressPicker';
 import {
   UtensilsCrossed,
@@ -57,8 +60,8 @@ export function CustomerDashboardPage() {
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
 
-  const skipDay = require('@/features/customer/hooks/useMySubscription').useSkipDay();
-  const { firebaseUser } = require('@/features/auth/hooks/useAuth').useAuth();
+  const { mutateAsync: skipDay } = useSkipDay();
+  const { firebaseUser } = useAuth();
 
   const {
     register,
@@ -480,9 +483,6 @@ function TrialMealModal({ onClose, uid, addresses, plans }: any) {
     if (!addressId || !uid) return;
     setLoading(true);
     try {
-      const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
-      const { db } = require('@/shared/lib/firebase');
-      
       const orderId = crypto.randomUUID();
       const plan = plans?.[0]; // Default to first plan for trial pricing
 
