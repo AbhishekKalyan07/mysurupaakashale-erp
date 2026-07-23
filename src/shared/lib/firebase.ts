@@ -11,13 +11,15 @@ import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'fireba
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
 
-// In Node/CI (automation scripts run via vite-node), static ES module imports
-// are hoisted and evaluated before any module body runs — so the env.ts shim
-// cannot pre-populate import.meta.env in time. We therefore read from
-// process.env as a fallback so that GitHub Actions secrets flow through
-// correctly without any import-order dependency.
+// In Node/CI (automation scripts run via vite-node), import.meta.env keys
+// may resolve to "" (empty string) for missing vars, so ?? is not enough —
+// we use || so that falsy values also fall through to process.env.
+// process.env is checked first when running in Node to avoid any stale
+// vite-node import.meta.env cache.
 function env(key: string): string | undefined {
-  return import.meta.env[key] ?? (typeof process !== 'undefined' ? process.env[key] : undefined);
+  const nodeVal = typeof process !== 'undefined' ? process.env[key] : undefined;
+  const metaVal = import.meta.env[key] as string | undefined;
+  return nodeVal || metaVal || undefined;
 }
 
 const firebaseConfig = {
