@@ -4,7 +4,7 @@ import type { PayrollRecord, EmployeeSalaryProfile, PayrollStatus } from '@/shar
 import { serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
-import { notificationRepository } from '@/features/notifications/services/notificationRepository';
+import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
 import toast from 'react-hot-toast';
 
 export const queryKeys = {

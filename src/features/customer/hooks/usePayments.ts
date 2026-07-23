@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { db } from '@/shared/lib/firebase';
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+
 import { paymentRepository } from '@/shared/services/firestore/paymentRepository';
+import { paymentService } from '@/shared/services/business/paymentService';
 import type { ManualPayment, ManualPaymentStatus, SubmitPaymentInput } from '@/shared/types';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -33,24 +33,12 @@ export function useSubmitPayment() {
 
   return useMutation({
     mutationFn: async (input: SubmitPaymentInput) => {
-      // Phase 5: Client-side payment submission
-      const paymentRef = doc(db, 'payments', crypto.randomUUID());
-      await runTransaction(db, async (t) => {
-        t.set(paymentRef, {
-          id: paymentRef.id,
-          subscriptionId: input.subscriptionId,
-          customerId: firebaseUser!.uid,
-          amount: input.amount,
-          paymentMethod: input.paymentMethod,
-          referenceNumber: input.referenceNumber,
-          status: 'pending',
-          verifiedAt: null,
-          verifiedBy: null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      });
-      return { paymentId: paymentRef.id };
+      const paymentId = await paymentService.submitPayment(
+        input, 
+        firebaseUser!.uid,
+        firebaseUser!.displayName || 'Customer'
+      );
+      return { paymentId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -98,49 +86,11 @@ export function useApprovePayment() {
   return useMutation({
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
       // Phase 5 & 6: Client-side payment approval and subscription activation
-      let capturedPayment!: ManualPayment;
-      await runTransaction(db, async (t) => {
-        const paymentRef = doc(db, 'payments', input.paymentId);
-        const paymentSnap = await t.get(paymentRef);
-        if (!paymentSnap.exists()) throw new Error('Payment not found');
-        const payment = paymentSnap.data() as ManualPayment;
-        
-        if (payment.status !== 'pending') throw new Error('Payment already processed');
-        
-        const subRef = doc(db, 'subscriptions', payment.subscriptionId);
-        
-        // Fix: use real admin UID not hardcoded string
-        const adminUid = getAuth().currentUser?.uid ?? 'admin';
-        t.update(paymentRef, {
-          status: 'verified',
-          verifiedAt: serverTimestamp(),
-          verifiedBy: adminUid,
-          updatedAt: serverTimestamp(),
-          verificationNotes: input.notes ?? null,
-        });
-        
-        t.update(subRef, {
-          status: 'active',
-          latestPaymentId: input.paymentId,
-          updatedAt: serverTimestamp(),
-        });
-        
-        // Generate invoice
-        const invoiceRef = doc(db, 'invoices', crypto.randomUUID());
-        t.set(invoiceRef, {
-          id: invoiceRef.id,
-          subscriptionId: payment.subscriptionId,
-          customerId: payment.customerId,
-          amount: payment.amount,
-          status: 'paid',
-          issuedAt: serverTimestamp(),
-          paidAt: serverTimestamp(),
-          paymentId: payment.id,
-        });
-
-        // Capture payment data outside the transaction scope for notification use below
-        capturedPayment = payment;
-      });
+      const capturedPayment = await paymentService.approvePayment(
+        input.paymentId, 
+        getAuth().currentUser?.uid ?? 'admin', 
+        input.notes
+      );
       
       const currentUser = getAuth().currentUser;
       if (currentUser) {
@@ -178,23 +128,11 @@ export function useRejectPayment() {
 
   return useMutation({
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
-      let capturedPayment!: ManualPayment;
-      await runTransaction(db, async (t) => {
-        const paymentRef = doc(db, 'payments', input.paymentId);
-        const paymentSnap = await t.get(paymentRef);
-        if (!paymentSnap.exists()) throw new Error('Payment not found');
-        const payment = paymentSnap.data() as ManualPayment;
-
-        capturedPayment = payment;
-        const adminUid = getAuth().currentUser?.uid ?? 'admin';
-        t.update(paymentRef, {
-          status: 'rejected',
-          verifiedAt: serverTimestamp(),
-          verifiedBy: adminUid,
-          verificationNotes: input.notes ?? null,
-          updatedAt: serverTimestamp(),
-        });
-      });
+      const capturedPayment = await paymentService.rejectPayment(
+        input.paymentId,
+        getAuth().currentUser?.uid ?? 'admin',
+        input.notes
+      );
       
       const user = getAuth().currentUser;
       if (user) {

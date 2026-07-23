@@ -18,7 +18,7 @@
  *     the primary business action.
  */
 
-import { notificationRepository } from '@/features/notifications/services/notificationRepository';
+import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
 import type {
   CreateNotificationPayload,
   NotificationType,

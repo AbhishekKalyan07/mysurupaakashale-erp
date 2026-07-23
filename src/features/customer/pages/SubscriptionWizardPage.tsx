@@ -5,8 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
-import { db } from '@/shared/lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { subscriptionService } from '@/shared/services/business/subscriptionService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { notifySubscriptionCreated } from '@/shared/services/firestore/notificationService';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
@@ -154,22 +153,16 @@ export function SubscriptionWizardPage() {
     ];
 
     try {
-      // Phase 5: Create subscription draft client-side
-      const subscriptionId = crypto.randomUUID();
-      await setDoc(doc(db, 'subscriptions', subscriptionId), {
-        id: subscriptionId,
-        customerId: firebaseUser!.uid,
-        planId: plan.id,
-        planTier: plan.tier,
-        pricePerDay: plan.pricePerDay,
-        status: 'pending',
-        startDate: startDate,
-        endDate: null,
-        deliveryAddressId: selectedAddressId,
+      // Phase 3: Create subscription via Business Service
+      const subscriptionId = await subscriptionService.createSubscription(
+        firebaseUser!.uid,
+        plan.id,
+        plan.tier,
+        plan.pricePerDay,
         mealPreferences,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        startDate,
+        selectedAddressId
+      );
 
       // Notify the customer their subscription draft is created.
       // Fire-and-forget — a failed notification must not block the redirect.

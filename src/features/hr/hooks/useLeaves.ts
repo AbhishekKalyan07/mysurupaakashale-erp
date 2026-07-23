@@ -4,7 +4,9 @@ import type { LeaveRequest, LeaveStatus } from '@/shared/types';
 import { serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
-import { notificationRepository } from '@/features/notifications/services/notificationRepository';
+import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
+import { db } from '@/shared/lib/firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export const queryKeys = {
@@ -88,6 +90,31 @@ export function useUpdateLeaveStatus() {
             priority: status === 'approved' ? 'normal' : 'high',
             metadata: { leaveId: id, status }
           });
+          
+          // Phase 6: Automatic Route Reassignment
+          // If approved, unassign any orders given to this delivery partner during their leave
+          if (status === 'approved') {
+            const ordersRef = collection(db, 'orders');
+            const q = query(
+              ordersRef, 
+              where('deliveryPartnerId', '==', leaveRecord.staffId),
+              where('date', '>=', leaveRecord.startDate),
+              where('date', '<=', leaveRecord.endDate)
+            );
+            
+            const strandedOrders = await getDocs(q);
+            if (!strandedOrders.empty) {
+              const batch = writeBatch(db);
+              strandedOrders.forEach((doc) => {
+                batch.update(doc.ref, { 
+                  deliveryPartnerId: null,
+                  updatedAt: serverTimestamp() 
+                });
+              });
+              await batch.commit();
+              toast(`Unassigned ${strandedOrders.size} stranded orders. Please reassign them in Delivery Dashboard.`, { icon: '⚠️' });
+            }
+          }
         }
       }
     },

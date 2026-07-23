@@ -31,7 +31,9 @@ export function mapAuthError(error: unknown): string {
   const code = (error as { code?: string } | undefined)?.code;
   const msg = (error as { message?: string } | undefined)?.message;
   
-  if (code === 'auth/popup-closed-by-user') return 'Sign-in cancelled.';
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return 'Sign-in cancelled.';
+  }
   
   return (code && ERROR_MESSAGES[code]) || msg || 'Something went wrong. Please try again.';
 }
@@ -41,7 +43,26 @@ export async function signIn(email: string, password: string): Promise<UserCrede
 }
 export async function signInWithGoogle(): Promise<UserCredential> {
   const provider = new GoogleAuthProvider();
-  return signInWithPopup(auth, provider);
+  const credential = await signInWithPopup(auth, provider);
+  
+  // Phase 6 follow-up: Ensure Google Sign-In creates a base user profile
+  const profile = await userRepository.getById(credential.user.uid);
+  if (!profile) {
+    await userRepository.create({
+      role: 'customer', // Default to customer
+      fullName: credential.user.displayName || 'New User',
+      email: credential.user.email || '',
+      phone: credential.user.phoneNumber || '',
+      photoUrl: credential.user.photoURL || null,
+      isActive: true,
+      addresses: [],
+      defaultAddressId: null,
+      createdAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as any,
+    } as Omit<UserProfile, 'id'>, credential.user.uid);
+  }
+  
+  return credential;
 }
 
 /**

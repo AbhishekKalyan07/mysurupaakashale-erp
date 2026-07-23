@@ -28,25 +28,36 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
             <p className="text-xs text-leaf-300">{ROLE_LABELS[role]}</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {items.map(({ label, to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end
-              onClick={onClose}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-turmeric-400 bg-leaf-700 text-rice-25'
-                    : 'border-transparent text-leaf-100 hover:bg-leaf-700/60',
-                )
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
+        <nav className="flex-1 space-y-6 px-3 py-4 overflow-y-auto overflow-x-hidden no-scrollbar">
+          {items.map((group, groupIdx) => (
+            <div key={groupIdx}>
+              {group.groupLabel && (
+                <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-leaf-300">
+                  {group.groupLabel}
+                </div>
+              )}
+              <div className="space-y-1">
+                {group.items.map(({ label, to, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/dashboard'} // only strict end for dashboard so sub-routes stay active
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      clsx(
+                        'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'border-turmeric-400 bg-leaf-700 text-rice-25'
+                          : 'border-transparent text-leaf-100 hover:bg-leaf-700/60 hover:text-rice-25',
+                      )
+                    }
+                  >
+                    <Icon size={18} />
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </aside>

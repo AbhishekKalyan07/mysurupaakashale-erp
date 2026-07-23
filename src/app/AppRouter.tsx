@@ -1,79 +1,86 @@
-import type { ReactNode } from 'react';
-import { createBrowserRouter, RouterProvider, type RouteObject } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
+import { RequireCompleteProfile } from '@/features/customer/components/RequireCompleteProfile';
 import { AppShell } from '@/shared/components/layout/AppShell';
-import { LoginPage } from '@/features/auth/pages/LoginPage';
-import { SignupPage } from '@/features/auth/pages/SignupPage';
-import { AdminDashboardPage } from '@/features/dashboard/pages/AdminDashboardPage';
-import { CustomerDashboardPage } from '@/features/dashboard/pages/CustomerDashboardPage';
-import { KitchenDashboardPage } from '@/features/dashboard/pages/KitchenDashboardPage';
-import { StaffManagementPage } from '@/features/admin/pages/StaffManagementPage';
-import { BusinessSettingsPage } from '@/features/admin/pages/BusinessSettingsPage';
-import { AuditLogsPage } from '@/features/admin/pages/AuditLogsPage';
-import { PaymentVerificationPage } from '@/features/admin/pages/PaymentVerificationPage';
-import { AdminCustomersPage } from '@/features/admin/pages/AdminCustomersPage';
-import { AdminSubscriptionsPage } from '@/features/admin/pages/AdminSubscriptionsPage';
-import { AdminOrdersPage } from '@/features/admin/pages/AdminOrdersPage';
-import { AdminKitchenPage } from '@/features/admin/pages/AdminKitchenPage';
-import { AdminAccountsPage } from '@/features/admin/pages/AdminAccountsPage';
-import { NotificationCenter } from '@/features/notifications/pages/NotificationCenter';
-import { NotificationHistoryPage } from '@/features/notifications/pages/NotificationHistoryPage';
-import { AccountsDashboardPage } from '@/features/dashboard/pages/AccountsDashboardPage';
-import { BusinessAnalyticsPage } from '@/features/analytics/pages/BusinessAnalyticsPage';
-import { BrowsePlansPage } from '@/features/customer/pages/BrowsePlansPage';
-import { SubscriptionDetailsPage } from '@/features/customer/pages/SubscriptionDetailsPage';
-import { SubscriptionWizardPage } from '@/features/customer/pages/SubscriptionWizardPage';
-import { PaymentHistoryPage } from '@/features/customer/pages/PaymentHistoryPage';
-import { ProductionBoardPage } from '@/features/kitchen/pages/ProductionBoardPage';
-import { DailyMenuListPage } from '@/features/kitchen/pages/DailyMenuListPage';
-import { DailyMenuEditorPage } from '@/features/kitchen/pages/DailyMenuEditorPage';
-import { DeliveryDashboardPage } from '@/features/delivery/pages/DeliveryDashboardPage';
-import { DeliveryPartnerPage } from '@/features/delivery/pages/DeliveryPartnerPage';
-import { AttendanceDashboardPage } from '@/features/hr/pages/AttendanceDashboardPage';
-import { PayrollDashboardPage } from '@/features/hr/pages/PayrollDashboardPage';
-import { ROLES, type Role } from '@/shared/constants/roles';
+import { RouteErrorBoundary } from '@/shared/components/feedback/RouteErrorBoundary';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { ROLES } from '@/shared/constants/roles';
 import { RootRedirect } from './routes/RootRedirect';
 import { NotFoundPage } from './routes/NotFoundPage';
 
-/** One role's guarded, shelled route — used 5 times below instead of repeating the same 3-level nesting by hand. */
-function roleRoute(role: Role, path: string, element: ReactNode): RouteObject {
-  return {
-    element: <ProtectedRoute allowedRoles={[role]} />,
-    children: [{ element: <AppShell />, children: [{ path, element }] }],
-  };
-}
+// ── Lazy Loaded Pages ───────────────────────────────────────────────────────
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage').then(m => ({ default: m.SignupPage })));
+const StaffManagementPage = lazy(() => import('@/features/admin/pages/StaffManagementPage').then(m => ({ default: m.StaffManagementPage })));
+const BusinessSettingsPage = lazy(() => import('@/features/admin/pages/BusinessSettingsPage').then(m => ({ default: m.BusinessSettingsPage })));
+const AuditLogsPage = lazy(() => import('@/features/admin/pages/AuditLogsPage').then(m => ({ default: m.AuditLogsPage })));
+const PaymentVerificationPage = lazy(() => import('@/features/admin/pages/PaymentVerificationPage').then(m => ({ default: m.PaymentVerificationPage })));
+const AdminCustomersPage = lazy(() => import('@/features/admin/pages/AdminCustomersPage').then(m => ({ default: m.AdminCustomersPage })));
+const AdminSubscriptionsPage = lazy(() => import('@/features/admin/pages/AdminSubscriptionsPage').then(m => ({ default: m.AdminSubscriptionsPage })));
+const AdminOrdersPage = lazy(() => import('@/features/admin/pages/AdminOrdersPage').then(m => ({ default: m.AdminOrdersPage })));
+const AdminKitchenPage = lazy(() => import('@/features/admin/pages/AdminKitchenPage').then(m => ({ default: m.AdminKitchenPage })));
+const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage').then(m => ({ default: m.AdminAccountsPage })));
+const NotificationCenter = lazy(() => import('@/features/notifications/pages/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
+const NotificationHistoryPage = lazy(() => import('@/features/notifications/pages/NotificationHistoryPage').then(m => ({ default: m.NotificationHistoryPage })));
+const BusinessAnalyticsPage = lazy(() => import('@/features/analytics/pages/BusinessAnalyticsPage').then(m => ({ default: m.BusinessAnalyticsPage })));
+const BrowsePlansPage = lazy(() => import('@/features/customer/pages/BrowsePlansPage').then(m => ({ default: m.BrowsePlansPage })));
+const SubscriptionDetailsPage = lazy(() => import('@/features/customer/pages/SubscriptionDetailsPage').then(m => ({ default: m.SubscriptionDetailsPage })));
+const SubscriptionWizardPage = lazy(() => import('@/features/customer/pages/SubscriptionWizardPage').then(m => ({ default: m.SubscriptionWizardPage })));
+const PaymentHistoryPage = lazy(() => import('@/features/customer/pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
+const ProfilePage = lazy(() => import('@/features/customer/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const ProductionBoardPage = lazy(() => import('@/features/kitchen/pages/ProductionBoardPage').then(m => ({ default: m.ProductionBoardPage })));
+const DailyMenuListPage = lazy(() => import('@/features/kitchen/pages/DailyMenuListPage').then(m => ({ default: m.DailyMenuListPage })));
+const DailyMenuEditorPage = lazy(() => import('@/features/kitchen/pages/DailyMenuEditorPage').then(m => ({ default: m.DailyMenuEditorPage })));
+const InventoryPage = lazy(() => import('@/features/kitchen/pages/InventoryPage').then(m => ({ default: m.InventoryPage })));
+const DeliveryDashboardPage = lazy(() => import('@/features/delivery/pages/DeliveryDashboardPage').then(m => ({ default: m.DeliveryDashboardPage })));
+const DeliveryPartnerPage = lazy(() => import('@/features/delivery/pages/DeliveryPartnerPage').then(m => ({ default: m.DeliveryPartnerPage })));
+const AttendanceDashboardPage = lazy(() => import('@/features/hr/pages/AttendanceDashboardPage').then(m => ({ default: m.AttendanceDashboardPage })));
+const PayrollDashboardPage = lazy(() => import('@/features/hr/pages/PayrollDashboardPage').then(m => ({ default: m.PayrollDashboardPage })));
+const UnifiedDashboardPage = lazy(() => import('@/features/dashboard/pages/UnifiedDashboardPage').then(m => ({ default: m.UnifiedDashboardPage })));
+
+// Helper to wrap lazy components with Suspense
+const withSuspense = (Component: React.LazyExoticComponent<any>) => (
+  <Suspense fallback={<LoadingScreen />}>
+    <Component />
+  </Suspense>
+);
 
 const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/signup', element: <SignupPage /> },
+  { path: '/login', element: withSuspense(LoginPage) },
+  { path: '/signup', element: withSuspense(SignupPage) },
   {
     element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
     children: [
       {
         element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/admin', element: <AdminDashboardPage /> },
-          { path: '/admin/customers', element: <AdminCustomersPage /> },
-          { path: '/admin/subscriptions', element: <AdminSubscriptionsPage /> },
-          { path: '/admin/orders', element: <AdminOrdersPage /> },
-          { path: '/admin/kitchen', element: <AdminKitchenPage /> },
-          { path: '/admin/delivery', element: <DeliveryDashboardPage /> },
-          { path: '/admin/accounts', element: <AdminAccountsPage /> },
-          { path: '/admin/analytics', element: <BusinessAnalyticsPage /> },
-          { path: '/admin/staff', element: <StaffManagementPage /> },
+          // ── Dashboard (Unified Entry) ──────────────────────────────────────────
+          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
+
+          // ── Admin Sub-modules ────────────────────────────────────────────────
+          { path: '/admin/customers', element: withSuspense(AdminCustomersPage) },
+          { path: '/admin/subscriptions', element: withSuspense(AdminSubscriptionsPage) },
+          { path: '/admin/orders', element: withSuspense(AdminOrdersPage) },
+          { path: '/admin/kitchen', element: withSuspense(AdminKitchenPage) },
+          { path: '/admin/inventory', element: withSuspense(InventoryPage) },
+          { path: '/admin/delivery', element: withSuspense(DeliveryDashboardPage) },
+          { path: '/admin/accounts', element: withSuspense(AdminAccountsPage) },
+          { path: '/admin/analytics', element: withSuspense(BusinessAnalyticsPage) },
+          { path: '/admin/staff', element: withSuspense(StaffManagementPage) },
           
-          // ── Sub-module Routes ────────────────────────────────────────────────
-          { path: '/admin/settings', element: <BusinessSettingsPage /> },
-          { path: '/admin/audit', element: <AuditLogsPage /> },
-          { path: '/admin/menus', element: <DailyMenuListPage /> },
-          { path: '/admin/menus/new', element: <DailyMenuEditorPage /> },
-          { path: '/admin/menus/:id/edit', element: <DailyMenuEditorPage /> },
-          { path: '/admin/payments', element: <PaymentVerificationPage /> },
-          { path: '/admin/notifications', element: <NotificationCenter /> },
-          { path: '/admin/notifications/history', element: <NotificationHistoryPage /> },
-          { path: '/admin/attendance', element: <AttendanceDashboardPage /> },
-          { path: '/admin/payroll', element: <PayrollDashboardPage /> },
+          { path: '/admin/settings', element: withSuspense(BusinessSettingsPage) },
+          { path: '/admin/audit', element: withSuspense(AuditLogsPage) },
+          { path: '/admin/menus', element: withSuspense(DailyMenuListPage) },
+          { path: '/admin/menus/new', element: withSuspense(DailyMenuEditorPage) },
+          { path: '/admin/menus/:id/edit', element: withSuspense(DailyMenuEditorPage) },
+          { path: '/admin/payments', element: withSuspense(PaymentVerificationPage) },
+          { path: '/admin/notifications', element: withSuspense(NotificationCenter) },
+          { path: '/admin/notifications/history', element: withSuspense(NotificationHistoryPage) },
+          { path: '/admin/attendance', element: withSuspense(AttendanceDashboardPage) },
+          { path: '/admin/payroll', element: withSuspense(PayrollDashboardPage) },
         ],
       },
     ],
@@ -82,15 +89,21 @@ const router = createBrowserRouter([
     element: <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]} />,
     children: [
       {
-        element: <AppShell />,
+        element: (
+          <RequireCompleteProfile>
+            <AppShell />
+          </RequireCompleteProfile>
+        ),
+        errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/customer', element: <CustomerDashboardPage /> },
-          { path: '/customer/plans', element: <BrowsePlansPage /> },
-          { path: '/customer/subscription', element: <SubscriptionDetailsPage /> },
-          { path: '/customer/subscribe', element: <SubscriptionWizardPage /> },
-          { path: '/customer/payments', element: <PaymentHistoryPage /> },
+          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
+          { path: '/customer/plans', element: withSuspense(BrowsePlansPage) },
+          { path: '/customer/subscription', element: withSuspense(SubscriptionDetailsPage) },
+          { path: '/customer/subscribe', element: withSuspense(SubscriptionWizardPage) },
+          { path: '/customer/payments', element: withSuspense(PaymentHistoryPage) },
+          { path: '/customer/profile', element: withSuspense(ProfilePage) },
           // Customer notification center (same component, different route)
-          { path: '/customer/notifications', element: <NotificationCenter /> },
+          { path: '/customer/notifications', element: withSuspense(NotificationCenter) },
         ],
       },
     ],
@@ -100,12 +113,14 @@ const router = createBrowserRouter([
     children: [
       {
         element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/kitchen', element: <KitchenDashboardPage /> },
-          { path: '/kitchen/production', element: <ProductionBoardPage /> },
-          { path: '/kitchen/menus', element: <DailyMenuListPage /> },
-          { path: '/kitchen/menus/new', element: <DailyMenuEditorPage /> },
-          { path: '/kitchen/menus/:id/edit', element: <DailyMenuEditorPage /> },
+          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
+          { path: '/kitchen/production', element: withSuspense(ProductionBoardPage) },
+          { path: '/kitchen/menus', element: withSuspense(DailyMenuListPage) },
+          { path: '/kitchen/inventory', element: withSuspense(InventoryPage) },
+          { path: '/kitchen/menus/new', element: withSuspense(DailyMenuEditorPage) },
+          { path: '/kitchen/menus/:id/edit', element: withSuspense(DailyMenuEditorPage) },
         ],
       },
     ],
@@ -115,14 +130,28 @@ const router = createBrowserRouter([
     children: [
       {
         element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/delivery', element: <DeliveryPartnerPage /> },
+          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
+          { path: '/delivery', element: withSuspense(DeliveryPartnerPage) },
         ],
       },
     ],
   },
-  roleRoute(ROLES.ACCOUNTS, '/accounts', <AccountsDashboardPage />),
-  roleRoute(ROLES.ACCOUNTS, '/accounts/analytics', <BusinessAnalyticsPage />),
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ACCOUNTS]} />,
+    children: [
+      {
+        element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
+          { path: '/accounts/analytics', element: withSuspense(BusinessAnalyticsPage) },
+          { path: '/admin/payroll', element: withSuspense(PayrollDashboardPage) }, // Allow accounts to see payroll
+        ],
+      },
+    ],
+  },
   // Rendered for truly unmatched paths. Wrong-role access to a route that
   // DOES exist is handled by ProtectedRoute's redirect, not this.
   { path: '*', element: <NotFoundPage /> },

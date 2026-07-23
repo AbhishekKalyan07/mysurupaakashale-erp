@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { db, firebaseApp } from '@/shared/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { firebaseApp } from '@/shared/lib/firebase';
+import { where, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { userRepository } from '@/shared/services/firestore/userRepository';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import toast from 'react-hot-toast';
 import type { UserProfile } from '@/shared/types';
@@ -15,17 +15,14 @@ export function useStaffUsers() {
   return useQuery({
     queryKey: [...queryKeys.users.all, 'staff'],
     queryFn: async () => {
-      const q = query(
-        collection(db, 'users'),
+      const users = await userRepository.list(
         where('role', 'in', ['admin', 'kitchen', 'delivery_partner', 'accounts'])
       );
-      const snap = await getDocs(q);
-      const users = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as UserProfile);
       
       // Sort in memory to avoid requiring a composite index on the users collection
       return users.sort((a, b) => {
-        const dateA = a.createdAt?.toMillis?.() || 0;
-        const dateB = b.createdAt?.toMillis?.() || 0;
+        const dateA = (a.createdAt as any)?.toMillis?.() || 0;
+        const dateB = (b.createdAt as any)?.toMillis?.() || 0;
         return dateB - dateA; // Descending
       });
     },
@@ -76,7 +73,7 @@ export function useCreateStaffUser() {
           profileData.currentLocation = null;
         }
 
-        await setDoc(doc(db, 'users', credential.user.uid), profileData);
+        await userRepository.create(profileData as any, credential.user.uid);
         
         const currentUser = getAuth().currentUser;
         if (currentUser) {
@@ -113,7 +110,7 @@ export function useToggleStaffStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
-      await updateDoc(doc(db, 'users', uid), { isActive, updatedAt: serverTimestamp() });
+      await userRepository.update(uid, { isActive, updatedAt: serverTimestamp() } as any);
       const currentUser = getAuth().currentUser;
       if (currentUser) {
         await auditRepository.logAction(
@@ -140,10 +137,10 @@ export function useUpdateStaffUser() {
   
   return useMutation({
     mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
-      await updateDoc(doc(db, 'users', uid), {
+      await userRepository.update(uid, {
         ...data,
         updatedAt: serverTimestamp(),
-      });
+      } as any);
       const currentUser = getAuth().currentUser;
       if (currentUser) {
         await auditRepository.logAction(

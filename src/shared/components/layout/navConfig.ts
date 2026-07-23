@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, CalendarDays, Truck, TrendingUp, Users, Package, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, PackageOpen, Settings, BookOpen, Activity, UserCheck, type LucideIcon } from 'lucide-react';
 import { ROLES, type Role } from '@/shared/constants/roles';
 
 export interface NavItem {
@@ -7,39 +7,100 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
-/**
- * Every role currently has exactly one working page: its dashboard. Add
- * to a role's array only when that page actually ships — an empty-looking
- * sidebar is honest; a link to an unbuilt page isn't.
- */
-export const NAV_ITEMS_BY_ROLE: Record<Role, NavItem[]> = {
+export interface NavGroup {
+  groupLabel?: string;
+  items: NavItem[];
+}
+
+export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
   [ROLES.ADMIN]: [
-    { label: 'Dashboard', to: '/admin', icon: LayoutDashboard },
-    { label: 'Customers', to: '/admin/customers', icon: Users },
-    { label: 'Subscriptions', to: '/admin/subscriptions', icon: Compass },
-    { label: 'Orders', to: '/admin/orders', icon: Package },
-    { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
-    { label: 'Delivery', to: '/admin/delivery', icon: Truck },
-    { label: 'Accounts', to: '/admin/accounts', icon: ReceiptText },
-    { label: 'Analytics', to: '/admin/analytics', icon: TrendingUp },
-    { label: 'Staff', to: '/admin/staff', icon: Users },
+    {
+      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      groupLabel: 'CRM',
+      items: [
+        { label: 'Customers', to: '/admin/customers', icon: Users },
+        { label: 'Subscriptions', to: '/admin/subscriptions', icon: Compass },
+      ],
+    },
+    {
+      groupLabel: 'Operations',
+      items: [
+        { label: 'Orders', to: '/admin/orders', icon: Package },
+        { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
+        { label: 'Inventory', to: '/admin/inventory', icon: PackageOpen },
+        { label: 'Delivery', to: '/admin/delivery', icon: Truck },
+      ],
+    },
+    {
+      groupLabel: 'Finance & HR',
+      items: [
+        { label: 'Accounts', to: '/admin/accounts', icon: ReceiptText },
+        { label: 'Payroll', to: '/admin/payroll', icon: CreditCard },
+        { label: 'Staff', to: '/admin/staff', icon: Users },
+      ],
+    },
+    {
+      groupLabel: 'System',
+      items: [
+        { label: 'Analytics', to: '/admin/analytics', icon: TrendingUp },
+        { label: 'Settings', to: '/admin/settings', icon: Settings },
+      ],
+    },
   ],
   [ROLES.CUSTOMER]: [
-    { label: 'Dashboard', to: '/customer', icon: LayoutDashboard },
-    { label: 'Browse Plans', to: '/customer/plans', icon: Compass },
-    { label: 'My Subscription', to: '/customer/subscription', icon: ReceiptText },
-    { label: 'Billing & Payments', to: '/customer/payments', icon: CreditCard },
+    {
+      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      groupLabel: 'Meal Plans',
+      items: [
+        { label: 'Browse Plans', to: '/customer/plans', icon: Compass },
+        { label: 'My Subscription', to: '/customer/subscription', icon: ReceiptText },
+      ],
+    },
+    {
+      groupLabel: 'Account',
+      items: [
+        { label: 'My Profile', to: '/customer/profile', icon: UserCheck },
+        { label: 'Billing & Payments', to: '/customer/payments', icon: CreditCard },
+        { label: 'Notifications', to: '/customer/notifications', icon: Activity },
+      ],
+    }
   ],
   [ROLES.KITCHEN]: [
-    { label: 'Dashboard', to: '/kitchen', icon: LayoutDashboard },
-    { label: 'Production Board', to: '/kitchen/production', icon: ChefHat },
-    { label: 'Daily Menus', to: '/kitchen/menus', icon: CalendarDays },
+    {
+      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      groupLabel: 'Kitchen',
+      items: [
+        { label: 'Production Board', to: '/kitchen/production', icon: ChefHat },
+        { label: 'Daily Menus', to: '/kitchen/menus', icon: BookOpen },
+        { label: 'Inventory', to: '/kitchen/inventory', icon: PackageOpen },
+      ],
+    },
   ],
-  [ROLES.DELIVERY_PARTNER]: [{ label: 'My Route', to: '/delivery', icon: Truck }],
+  [ROLES.DELIVERY_PARTNER]: [
+    {
+      items: [
+        { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+        { label: 'My Route', to: '/delivery', icon: Truck }
+      ],
+    }
+  ],
   [ROLES.ACCOUNTS]: [
-    { label: 'Dashboard', to: '/accounts', icon: LayoutDashboard },
-    { label: 'Business Analytics', to: '/accounts/analytics', icon: TrendingUp },
-    { label: 'Payroll', to: '/admin/payroll', icon: ReceiptText },
+    {
+      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+    },
+    {
+      groupLabel: 'Finance',
+      items: [
+        { label: 'Business Analytics', to: '/accounts/analytics', icon: TrendingUp },
+        { label: 'Payroll', to: '/admin/payroll', icon: ReceiptText },
+      ],
+    }
   ],
 };
 

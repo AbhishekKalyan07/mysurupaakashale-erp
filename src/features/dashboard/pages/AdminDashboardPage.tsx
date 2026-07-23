@@ -1,4 +1,4 @@
-import { LayoutGrid, Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package } from 'lucide-react';
+import { LayoutGrid, Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package, PackageOpen } from 'lucide-react';
 import { WelcomeCard } from '../components/WelcomeCard';
 import { Card } from '@/shared/components/ui/Card';
 import { useNavigate } from 'react-router-dom';
@@ -177,7 +177,7 @@ export function AdminDashboardPage() {
           <Activity className="text-leaf-600" size={24} /> 
           Real-time Business Metrics
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <MetricCard
             title="Total Customers"
             value={metrics?.totalCustomers ?? 0}
@@ -201,6 +201,18 @@ export function AdminDashboardPage() {
             value={metrics?.todayOrders.pending ?? 0}
             icon={<TrendingUp className="text-purple-600" />}
             colorClass="bg-purple-50 border-purple-100"
+          />
+          <MetricCard
+            title="Low Stock Items"
+            value={metrics?.lowStockItems ?? 0}
+            icon={<PackageOpen className="text-danger" />}
+            colorClass="bg-danger-subtle border-danger/20"
+          />
+          <MetricCard
+            title="Open Complaints"
+            value={metrics?.openComplaints ?? 0}
+            icon={<ShieldAlert className="text-orange-600" />}
+            colorClass="bg-orange-50 border-orange-200"
           />
         </div>
       </div>

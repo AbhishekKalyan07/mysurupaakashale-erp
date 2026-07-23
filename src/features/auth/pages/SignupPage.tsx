@@ -49,13 +49,27 @@ export function SignupPage() {
     }
   };
 
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   const handleGoogleSignIn = async () => {
+    if (isGoogleLoading) return;
     setFormError(null);
+    setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
       navigate('/', { replace: true });
     } catch (err) {
-      setFormError(mapAuthError(err));
+      // Provide specific feedback for popup blocked errors
+      const errorCode = (err as any)?.code;
+      if (errorCode === 'auth/popup-blocked') {
+        setFormError('Popup was blocked. Please allow pop-ups for this site and try again.');
+      } else if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+        setFormError('Sign-in cancelled.');
+      } else {
+        setFormError(mapAuthError(err));
+      }
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -112,7 +126,7 @@ export function SignupPage() {
         <Button type="submit" isLoading={isSubmitting} className="mt-2">
           Create account
         </Button>
-        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
+        <Button type="button" onClick={handleGoogleSignIn} isLoading={isGoogleLoading} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
           Continue with Google
         </Button>
       </form>

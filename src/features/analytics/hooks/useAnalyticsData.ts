@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { db } from '@/shared/lib/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { where, Timestamp } from 'firebase/firestore';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
-import type { Order, ManualPayment, Subscription } from '@/shared/types';
-import type { UserProfile } from '@/shared/types';
+import { paymentRepository } from '@/shared/services/firestore/paymentRepository';
+import { userRepository } from '@/shared/services/firestore/userRepository';
+import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
+import { orderRepository } from '@/shared/services/firestore/orderRepository';
 
 export type DateRangeFilter = 
   | 'today' | 'yesterday' | 'last7' | 'last30' 
@@ -92,18 +93,14 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
       // 1. Fetch Payments in range (and also this month for monthly KPI)
       // To save reads for MVP, we might fetch a broader range, but let's stick to the selected range
       // and do a separate quick query for the month if the range doesn't cover it.
-      const paymentsQ = query(
-        collection(db, 'payments'),
+      // 1. Fetch Payments in range
+      const payments = await paymentRepository.list(
         where('createdAt', '>=', startTs),
         where('createdAt', '<=', endTs)
       );
-      const paymentsSnap = await getDocs(paymentsQ);
-      const payments = paymentsSnap.docs.map(d => d.data() as ManualPayment);
 
       // 2. Fetch Users (Customers) in range for new registrations, all for total
-      const allCustomersQ = query(collection(db, 'users'), where('role', '==', 'customer'));
-      const allCustomersSnap = await getDocs(allCustomersQ);
-      const allCustomers = allCustomersSnap.docs.map(d => d.data() as UserProfile);
+      const allCustomers = await userRepository.list(where('role', '==', 'customer'));
       const newCustomers = allCustomers.filter(c => {
         if (!c.createdAt) return false;
         const ts = (c.createdAt as any).toMillis ? (c.createdAt as any).toMillis() : (c.createdAt as any).seconds * 1000;
@@ -111,17 +108,13 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
       });
 
       // 3. Fetch Subscriptions
-      const subsSnap = await getDocs(collection(db, 'subscriptions'));
-      const subscriptions = subsSnap.docs.map(d => d.data() as Subscription);
+      const subscriptions = await subscriptionRepository.list();
 
       // 4. Fetch Orders
-      const ordersQ = query(
-        collection(db, 'orders'),
+      const orders = await orderRepository.list(
         where('date', '>=', startIso),
         where('date', '<=', endIso)
       );
-      const ordersSnap = await getDocs(ordersQ);
-      const orders = ordersSnap.docs.map(d => d.data() as Order);
 
       // Process Revenue
       let totalRev = 0, pendingRev = 0, verifiedRev = 0, rejectedRev = 0;

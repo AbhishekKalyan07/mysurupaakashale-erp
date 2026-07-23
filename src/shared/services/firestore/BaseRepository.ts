@@ -8,6 +8,7 @@ import {
   deleteDoc,
   onSnapshot,
   query,
+  getCountFromServer,
   type CollectionReference,
   type Firestore,
   type FirestoreDataConverter,
@@ -73,6 +74,11 @@ export class BaseRepository<T extends { id: string }> {
   async list(...constraints: QueryConstraint[]): Promise<T[]> {
     const snapshot = await getDocs(query(this.collectionRef, ...constraints));
     return snapshot.docs.map((docSnap) => docSnap.data());
+  }
+
+  async count(...constraints: QueryConstraint[]): Promise<number> {
+    const snapshot = await getCountFromServer(query(this.collectionRef, ...constraints));
+    return snapshot.data().count;
   }
 
   /** Pre-generates the document id client-side (no network round-trip) so create is a single write. */

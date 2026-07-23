@@ -58,17 +58,19 @@ class PaymentRepository extends BaseRepository<ManualPayment> {
     const snapshot = await getDocs(query(colRef, ...constraints));
 
     const payments = snapshot.docs.map(d => d.data());
-    const lastDoc = snapshot.docs.length === pageSize
-      ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<ManualPayment>)
-      : null;
-
-    return { payments, lastDoc };
+    return {
+      payments,
+      lastDoc: snapshot.docs.length === pageSize
+        ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<ManualPayment>)
+        : null,
+    };
   }
 
   /** Fetch a single payment by ID. */
   async getById(id: string): Promise<ManualPayment | null> {
     return super.getById(id);
   }
+
 }
 
 export const paymentRepository = new PaymentRepository();

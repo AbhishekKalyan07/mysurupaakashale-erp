@@ -37,14 +37,20 @@ export function LoginPage() {
     }
   };
 
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   const handleGoogleSignIn = async () => {
+    if (isGoogleLoading) return;
     setFormError(null);
+    setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
       const from = (location.state as { from?: Location } | null)?.from;
       navigate(from?.pathname ?? '/', { replace: true });
     } catch (err) {
       setFormError(mapAuthError(err));
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -75,7 +81,7 @@ export function LoginPage() {
         <Button type="submit" isLoading={isSubmitting} className="mt-2">
           Sign in
         </Button>
-        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
+        <Button type="button" onClick={handleGoogleSignIn} isLoading={isGoogleLoading} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
           Sign in with Google
         </Button>
       </form>

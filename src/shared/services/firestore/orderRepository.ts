@@ -58,8 +58,24 @@ class OrderRepository extends BaseRepository<Order> {
     return this.list(
       where('date', '==', date),
       where('mealType', '==', mealType),
-      orderBy('customerId', 'asc')
+      orderBy('routeSequence', 'asc')
     );
+  }
+
+  /**
+   * Batch create multiple orders. Used by the daily order generation script.
+   */
+  async batchCreate(orders: Omit<Order, 'id'>[]): Promise<void> {
+    const { writeBatch } = await import('firebase/firestore');
+    const batch = writeBatch(db);
+    
+    for (const orderData of orders) {
+      const orderId = crypto.randomUUID();
+      const ref = doc(this.collectionRef, orderId);
+      batch.set(ref, { ...orderData, id: orderId } as Order);
+    }
+    
+    await batch.commit();
   }
 
   /**

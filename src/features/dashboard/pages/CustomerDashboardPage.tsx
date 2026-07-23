@@ -19,8 +19,10 @@ import {
   Trash2,
   Calendar,
   ExternalLink,
-  Info
+  Info,
+  MessageSquareWarning
 } from 'lucide-react';
+import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
 
 const addressFormSchema = z.object({
   label: z.string().min(1, 'Label is required (e.g., Home, Office)').max(50),
@@ -49,6 +51,7 @@ export function CustomerDashboardPage() {
   } = useCustomerAddresses();
 
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
 
   const {
@@ -196,13 +199,19 @@ export function CustomerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-rice-200 pt-5 flex justify-end">
+                <div className="border-t border-rice-200 pt-5 flex justify-end gap-2">
                   <Button
-                    onClick={() => navigate('/customer/subscription')}
-                    className="font-sans font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
                     variant="secondary"
+                    onClick={() => setShowFeedbackModal(true)}
+                    className="text-amber-700 border-amber-200 hover:bg-amber-50"
                   >
-                    View details & Preferences <ExternalLink size={13} />
+                    Report Issue <MessageSquareWarning size={16} className="ml-2" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate('/customer/subscription')}
+                  >
+                    Manage Subscription <ExternalLink size={16} className="ml-2" />
                   </Button>
                 </div>
               </div>
@@ -385,6 +394,7 @@ export function CustomerDashboardPage() {
             )}
           </Card>
         </div>
+        <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
       </div>
     </div>
   );

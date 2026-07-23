@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/shared/lib/firebase';
 import { userRepository } from '@/shared/services/firestore/userRepository';
+import { serverTimestamp } from 'firebase/firestore';
 import { isRole, type Role } from '@/shared/constants/roles';
 import type { UserProfile } from '@/shared/types';
 import { signOutUser } from '../services/authService';
@@ -61,30 +62,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setRole(null);
       return;
     }
-    
+
     // We are signed in, but waiting for the profile to establish the role
     setStatus('loading');
-    
+
+    // Safety timeout: if the profile hasn't resolved within 8 seconds (e.g. race
+    // condition where Google Sign-In fires onAuthStateChanged before the Firestore
+    // user doc has been created), try creating the profile once more and if that
+    // also fails, sign out so the user isn't stuck on a loading screen forever.
+    const timeoutId = setTimeout(async () => {
+      try {
+        const existing = await userRepository.getById(uid);
+        if (!existing && firebaseUser) {
+          // Profile still missing — create it now as a fallback
+          await userRepository.create({
+            role: 'customer',
+            fullName: firebaseUser.displayName || 'New User',
+            email: firebaseUser.email || '',
+            phone: firebaseUser.phoneNumber || '',
+            photoUrl: firebaseUser.photoURL || null,
+            isActive: true,
+            addresses: [],
+            defaultAddressId: null,
+            createdAt: serverTimestamp() as any,
+            updatedAt: serverTimestamp() as any,
+          } as Omit<UserProfile, 'id'>, uid);
+          // The onSnapshot below will pick up the newly-created doc automatically
+        } else if (!existing) {
+          // No user and no profile — sign out
+          console.error('[auth] Profile timeout: no profile found, signing out.');
+          setError('Could not load your profile. Please try signing in again.');
+          await signOutUser();
+        }
+      } catch (e) {
+        console.error('[auth] Profile timeout fallback failed:', e);
+        setError('Could not load your profile. Please try signing in again.');
+        setStatus('unauthenticated');
+      }
+    }, 8000);
+
     const unsubscribe = userRepository.subscribeToDoc(
       uid,
       (data) => {
         setProfile(data);
         if (data && isRole(data.role)) {
+          clearTimeout(timeoutId);
           setRole(data.role);
           setStatus('authenticated');
-        } else {
-          // If the profile doesn't exist yet (e.g. during sign up flow creation), 
-          // we wait. If it never exists, they'll be stuck loading, which is
-          // correct because an account without a profile is an invalid state.
         }
+        // If data is null (profile not yet created), we wait — the timeout above
+        // will handle the case where it never arrives.
       },
       (err) => {
+        clearTimeout(timeoutId);
         console.error('[auth] Failed to subscribe to user profile:', err);
         setError('Could not load your profile.');
         setStatus('unauthenticated');
       }
     );
-    return unsubscribe;
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [firebaseUser?.uid]);
 
 

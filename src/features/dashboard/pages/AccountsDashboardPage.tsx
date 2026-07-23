@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
@@ -12,17 +12,22 @@ export function AccountsDashboardPage() {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today');
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
 
-  const getRangeDates = () => {
+  // Compute start/end as ISO strings so TanStack Query keys change when dateRange changes
+  const { startStr, endStr, start, end } = useMemo(() => {
     const end = new Date();
     const start = new Date();
     if (dateRange === 'week') start.setDate(end.getDate() - 7);
     if (dateRange === 'month') start.setMonth(end.getMonth() - 1);
     start.setHours(0, 0, 0, 0);
-    return { start, end };
-  };
+    return {
+      start,
+      end,
+      startStr: start.toISOString().split('T')[0],
+      endStr: end.toISOString().split('T')[0],
+    };
+  }, [dateRange]);
 
-  const { start, end } = getRangeDates();
-  const { payments, invoices, orders, isLoading, isError } = useAccountsDashboard(start, end);
+  const { payments, invoices, orders, isLoading, isError } = useAccountsDashboard(start, end, startStr, endStr);
 
   const dailyReportMutation = useGenerateDailyReport();
   const monthlyReportMutation = useGenerateMonthlyReport();

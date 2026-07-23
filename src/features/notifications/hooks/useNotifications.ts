@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationRepository } from '@/features/notifications/services/notificationRepository';
+import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
 import { Timestamp } from 'firebase/firestore';
 import type { Notification } from '@/shared/types';
 import { queryKeys } from '@/shared/lib/queryKeys';
