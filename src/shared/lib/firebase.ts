@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
 import {

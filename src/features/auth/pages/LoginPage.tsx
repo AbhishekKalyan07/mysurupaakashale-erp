@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
-import { Google } from 'lucide-react';
+
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { signIn, signInWithGoogle, mapAuthError } from '../services/authService';
@@ -75,8 +75,8 @@ export function LoginPage() {
         <Button type="submit" isLoading={isSubmitting} className="mt-2">
           Sign in
         </Button>
-        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2">
-          <Google size={14} /> Sign in with Google
+        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2 justify-center">
+          Sign in with Google
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-600">

@@ -6,7 +6,7 @@ import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { usePayrollByMonth, useGeneratePayroll, usePaySalary, useUpdatePayrollStatus } from '../hooks/usePayroll';
 import { useStaffUsers } from '@/features/admin/hooks/useAdmin';
-// import { useBusinessSettings } from '@/features/admin/hooks/useSettings'; // removed unused import
+import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 import { salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
 import { attendanceRepository } from '@/shared/services/firestore/attendanceRepository';
 import { Banknote, FileText, CheckCircle, ArrowRight, Archive } from 'lucide-react';
@@ -19,7 +19,7 @@ export function PayrollDashboardPage() {
   const { data: payrolls, isLoading: isLoadingPayroll } = usePayrollByMonth(month);
   const generatePayroll = useGeneratePayroll();
   const paySalary = usePaySalary();
-  // const { data: settings } = useBusinessSettings(); // removed unused variable
+  const { data: settings } = useBusinessSettings();
   const updateStatus = useUpdatePayrollStatus();
 
   const isLoading = isLoadingStaff || isLoadingPayroll;
