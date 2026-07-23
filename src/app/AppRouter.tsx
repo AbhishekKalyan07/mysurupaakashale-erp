@@ -29,6 +29,7 @@ const SubscriptionDetailsPage = lazy(() => import('@/features/customer/pages/Sub
 const SubscriptionWizardPage = lazy(() => import('@/features/customer/pages/SubscriptionWizardPage').then(m => ({ default: m.SubscriptionWizardPage })));
 const PaymentHistoryPage = lazy(() => import('@/features/customer/pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const ProfilePage = lazy(() => import('@/features/customer/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const CustomerDashboardPage = lazy(() => import('@/features/dashboard/pages/CustomerDashboardPage').then(m => ({ default: m.CustomerDashboardPage })));
 const ProductionBoardPage = lazy(() => import('@/features/kitchen/pages/ProductionBoardPage').then(m => ({ default: m.ProductionBoardPage })));
 const DailyMenuListPage = lazy(() => import('@/features/kitchen/pages/DailyMenuListPage').then(m => ({ default: m.DailyMenuListPage })));
 const DailyMenuEditorPage = lazy(() => import('@/features/kitchen/pages/DailyMenuEditorPage').then(m => ({ default: m.DailyMenuEditorPage })));
@@ -96,6 +97,7 @@ const router = createBrowserRouter([
         ),
         errorElement: <RouteErrorBoundary />,
         children: [
+          { path: '/customer', element: withSuspense(CustomerDashboardPage) },
           { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
           { path: '/customer/plans', element: withSuspense(BrowsePlansPage) },
           { path: '/customer/subscription', element: withSuspense(SubscriptionDetailsPage) },
