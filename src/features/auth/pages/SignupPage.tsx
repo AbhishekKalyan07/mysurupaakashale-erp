@@ -9,7 +9,7 @@ import { signUpCustomer, mapAuthError } from '../services/authService';
 import { AuthLayout } from '../components/AuthLayout';
 import type { SignupFormValues } from '../types/auth.types';
 
-const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+const INDIAN_MOBILE_REGEX = /^(?:\+91[-\s]?)?[6-9]\d{9}$/;
 
 const signupSchema = z
   .object({

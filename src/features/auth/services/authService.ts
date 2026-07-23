@@ -1,6 +1,8 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
   sendPasswordResetEmail,
@@ -10,6 +12,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { auth } from '@/shared/lib/firebase';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import type { UserProfile } from '@/shared/types';
+
 
 const ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-email': "That email address doesn't look right.",
@@ -31,6 +34,10 @@ export function mapAuthError(error: unknown): string {
 
 export async function signIn(email: string, password: string): Promise<UserCredential> {
   return signInWithEmailAndPassword(auth, email, password);
+}
+export async function signInWithGoogle(): Promise<UserCredential> {
+  const provider = new GoogleAuthProvider();
+  return signInWithPopup(auth, provider);
 }
 
 /**

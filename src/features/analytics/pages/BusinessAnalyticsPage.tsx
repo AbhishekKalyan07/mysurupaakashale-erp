@@ -29,7 +29,7 @@ export function BusinessAnalyticsPage() {
       link.click();
       toast.success('Dashboard exported to PNG', { id: toastId });
     } catch (err) {
-      toast.error('Export failed', { id: toastId });
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
     }
   };
 
@@ -46,7 +46,7 @@ export function BusinessAnalyticsPage() {
       pdf.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success('Dashboard exported to PDF', { id: toastId });
     } catch (err) {
-      toast.error('Export failed', { id: toastId });
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
     }
   };
 

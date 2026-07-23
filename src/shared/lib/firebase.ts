@@ -11,18 +11,27 @@ import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'fireba
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
 
+// In Node/CI (automation scripts run via vite-node), static ES module imports
+// are hoisted and evaluated before any module body runs — so the env.ts shim
+// cannot pre-populate import.meta.env in time. We therefore read from
+// process.env as a fallback so that GitHub Actions secrets flow through
+// correctly without any import-order dependency.
+function env(key: string): string | undefined {
+  return import.meta.env[key] ?? (typeof process !== 'undefined' ? process.env[key] : undefined);
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey:            env('VITE_FIREBASE_API_KEY'),
+  authDomain:        env('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId:         env('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket:     env('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: env('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId:             env('VITE_FIREBASE_APP_ID'),
 };
 
 // Fail loudly in dev if env vars are missing, instead of a cryptic
 // "auth/invalid-api-key" three files deep into the app.
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV || (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production')) {
   const missingKeys = Object.entries(firebaseConfig)
     .filter(([, value]) => !value)
     .map(([key]) => key);

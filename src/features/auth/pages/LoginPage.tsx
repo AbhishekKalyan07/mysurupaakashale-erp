@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
+import { Google } from 'lucide-react';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
-import { signIn, mapAuthError } from '../services/authService';
+import { signIn, signInWithGoogle, mapAuthError } from '../services/authService';
 import { AuthLayout } from '../components/AuthLayout';
 import type { LoginFormValues } from '../types/auth.types';
 
@@ -30,9 +31,17 @@ export function LoginPage() {
     try {
       await signIn(values.email, values.password);
       const from = (location.state as { from?: Location } | null)?.from;
-      // Land back where they were headed if we know it; ProtectedRoute will
-      // still bounce them to their own role home if it turns out to be the
-      // wrong subtree for their role.
+      navigate(from?.pathname ?? '/', { replace: true });
+    } catch (err) {
+      setFormError(mapAuthError(err));
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setFormError(null);
+    try {
+      await signInWithGoogle();
+      const from = (location.state as { from?: Location } | null)?.from;
       navigate(from?.pathname ?? '/', { replace: true });
     } catch (err) {
       setFormError(mapAuthError(err));
@@ -65,6 +74,9 @@ export function LoginPage() {
         )}
         <Button type="submit" isLoading={isSubmitting} className="mt-2">
           Sign in
+        </Button>
+        <Button type="button" onClick={handleGoogleSignIn} variant="secondary" className="mt-2 flex items-center gap-2">
+          <Google size={14} /> Sign in with Google
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-600">
