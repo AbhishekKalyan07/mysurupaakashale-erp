@@ -114,7 +114,7 @@ service cloud.firestore {
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
       // Phase 5: Admins can create/update subscriptions, customers can create pending drafts
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending');
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending_payment');
 
       // Phase 5: Admins have full access. Customers can update their own subscription's status (pause, cancel, resume)
       allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid && onlyChangedFields(['status', 'updatedAt']));
@@ -195,7 +195,10 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
-      allow create: if isAdmin(); // Phase 7: Notifications generated manually or by admin actions
+      allow create: if isAdmin() || 
+                       // Customer-initiated notifications (e.g. subscription created) — 
+                       // only allowed to notify themselves, not other users.
+                       (isSignedIn() && request.resource.data.recipientId == request.auth.uid);
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.
