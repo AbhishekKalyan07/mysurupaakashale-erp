@@ -448,7 +448,6 @@ export function CustomerDashboardPage() {
         <FeedbackModal
           isOpen={showFeedbackModal}
           onClose={() => setShowFeedbackModal(false)}
-          context={{ source: 'dashboard', subscriptionId: subscription?.id }}
         />
 
         {showPauseModal && subscription && (

@@ -46,7 +46,7 @@ export function useSkipDay() {
         creditAmount
       );
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ''),
       });

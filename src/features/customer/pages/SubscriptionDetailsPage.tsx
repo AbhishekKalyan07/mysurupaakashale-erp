@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMySubscription } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';

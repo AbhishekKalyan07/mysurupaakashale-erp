@@ -73,6 +73,7 @@ class PaymentService {
       planTier: string;
       deliveryAddress: string;
       pricePerDay: number;
+      quantity?: number;
     },
   ): Promise<ManualPayment> {
     let capturedPayment!: ManualPayment;
