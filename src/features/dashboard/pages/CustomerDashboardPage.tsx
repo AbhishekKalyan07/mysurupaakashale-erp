@@ -12,6 +12,7 @@ import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Badge } from '@/shared/components/ui/Badge';
+import { AddressPicker, type PickedAddress } from '@/features/customer/components/AddressPicker';
 import {
   UtensilsCrossed,
   MapPin,
@@ -58,6 +59,7 @@ export function CustomerDashboardPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -67,6 +69,18 @@ export function CustomerDashboardPage() {
       state: 'Karnataka',
     },
   });
+
+  // Track geocoords picked from AddressPicker (not stored in form)
+  const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const handleAddressPicked = (picked: PickedAddress) => {
+    setValue('line1', picked.line1, { shouldValidate: true });
+    if (picked.line2) setValue('line2', picked.line2, { shouldValidate: true });
+    setValue('city', picked.city || 'Mysuru', { shouldValidate: true });
+    setValue('state', picked.state || 'Karnataka', { shouldValidate: true });
+    if (picked.pincode) setValue('pincode', picked.pincode, { shouldValidate: true });
+    setPickedCoords({ lat: picked.lat, lng: picked.lng });
+  };
 
   const isLoading = isSubLoading || isPlansLoading;
   const hasError = subError || plansError;
@@ -97,10 +111,11 @@ export function CustomerDashboardPage() {
       await addAddress({
         ...data,
         isDefault: addresses.length === 0,
-        lat: null,
-        lng: null,
+        lat: pickedCoords?.lat ?? null,
+        lng: pickedCoords?.lng ?? null,
       });
       setShowAddressForm(false);
+      setPickedCoords(null);
       reset();
     } catch (err: any) {
       console.error('Error adding address:', err);
@@ -275,45 +290,56 @@ export function CustomerDashboardPage() {
               <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-3 bg-rice-50 p-4 rounded-xl border border-rice-300">
                 <h3 className="font-sans font-bold text-ink-800 text-xs uppercase tracking-wider mb-2">New Address</h3>
 
-                <Input
-                  label="Label (e.g. Home, Office)"
-                  placeholder="Home"
-                  {...register('label')}
-                  error={errors.label?.message}
-                  className="py-1 text-xs"
-                />
+                {/* ── Zomato-style location picker ── */}
+                <AddressPicker onPick={handleAddressPicked} />
 
-                <Input
-                  label="Street / House Number"
-                  placeholder="123 Main St"
-                  {...register('line1')}
-                  error={errors.line1?.message}
-                  className="py-1 text-xs"
-                />
+                <div className="pt-1 border-t border-rice-200">
+                  <p className="text-[10px] text-ink-400 font-sans mb-3">Confirm or edit the auto-filled details below</p>
 
-                <Input
-                  label="Area / Landmark (Optional)"
-                  placeholder="Opposite Park"
-                  {...register('line2')}
-                  error={errors.line2?.message}
-                  className="py-1 text-xs"
-                />
-
-                <div className="grid grid-cols-2 gap-2">
                   <Input
-                    label="Pincode"
-                    placeholder="570001"
-                    {...register('pincode')}
-                    error={errors.pincode?.message}
+                    label="Label (e.g. Home, Office)"
+                    placeholder="Home"
+                    {...register('label')}
+                    error={errors.label?.message}
                     className="py-1 text-xs"
                   />
-                  <Input
-                    label="City"
-                    {...register('city')}
-                    error={errors.city?.message}
-                    disabled
-                    className="py-1 text-xs bg-rice-100"
-                  />
+
+                  <div className="mt-2">
+                    <Input
+                      label="Street / House Number"
+                      placeholder="123 Main St"
+                      {...register('line1')}
+                      error={errors.line1?.message}
+                      className="py-1 text-xs"
+                    />
+                  </div>
+
+                  <div className="mt-2">
+                    <Input
+                      label="Area / Landmark (Optional)"
+                      placeholder="Opposite Park"
+                      {...register('line2')}
+                      error={errors.line2?.message}
+                      className="py-1 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <Input
+                      label="Pincode"
+                      placeholder="570001"
+                      {...register('pincode')}
+                      error={errors.pincode?.message}
+                      className="py-1 text-xs"
+                    />
+                    <Input
+                      label="City"
+                      {...register('city')}
+                      error={errors.city?.message}
+                      disabled
+                      className="py-1 text-xs bg-rice-100"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-rice-300 mt-4">
@@ -322,6 +348,7 @@ export function CustomerDashboardPage() {
                     variant="secondary"
                     onClick={() => {
                       setShowAddressForm(false);
+                      setPickedCoords(null);
                       reset();
                     }}
                     className="py-1 px-3 text-xs font-sans font-semibold"
