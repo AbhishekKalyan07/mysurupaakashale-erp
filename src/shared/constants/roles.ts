@@ -42,11 +42,11 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 /** Where each role lands immediately after signing in. */
 export const ROLE_HOME_ROUTE: Record<Role, string> = {
-  [ROLES.ADMIN]: '/admin',
-  [ROLES.CUSTOMER]: '/customer',
-  [ROLES.KITCHEN]: '/kitchen',
-  [ROLES.DELIVERY_PARTNER]: '/delivery',
-  [ROLES.ACCOUNTS]: '/accounts',
+  [ROLES.ADMIN]: '/dashboard',
+  [ROLES.CUSTOMER]: '/dashboard',
+  [ROLES.KITCHEN]: '/dashboard',
+  [ROLES.DELIVERY_PARTNER]: '/dashboard',
+  [ROLES.ACCOUNTS]: '/dashboard',
 };
 
 /** Type guard used when reading an unknown value out of a Firebase ID token. */
