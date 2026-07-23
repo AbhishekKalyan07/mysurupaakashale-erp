@@ -20,6 +20,7 @@ export type VehicleType = 'bike' | 'bicycle' | 'on_foot' | 'other';
 interface BaseUserProfile {
   /** Same value as the Firebase Auth uid and the `users/{id}` document key — named `id` for consistency with every other entity in the system. */
   id: string;
+  staffId?: string; // Human-readable ID assigned during creation (e.g., EMP-001)
   fullName: string;
   email: string;
   phone: string;

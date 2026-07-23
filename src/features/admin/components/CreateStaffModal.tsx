@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 
 const staffSchema = z.object({
   fullName: z.string().min(2, 'Name is required'),
+  staffId: z.string().min(2, 'Staff ID is required'),
   email: z.string().email('Invalid email'),
   phone: z.string().min(10, 'Phone is required (e.g. +919876543210)'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -36,7 +37,7 @@ interface Props {
 export function CreateStaffModal({ onClose }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
-    defaultValues: { role: 'kitchen', vehicleType: 'bike' }
+    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ' }
   });
 
   const selectedRole = watch('role');
@@ -71,8 +72,13 @@ export function CreateStaffModal({ onClose }: Props) {
           <form id="staff-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Full Name</label>
-              <input {...register('fullName')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
-              {errors.fullName && <p className="text-xs text-danger">{errors.fullName.message}</p>}
+              <input {...register('fullName')} placeholder="John Doe" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
+              {errors.fullName && <p className="text-sm text-red-500">{errors.fullName.message}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-ink-700">Staff ID / U_ID</label>
+              <input {...register('staffId')} placeholder="EMP-001" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 uppercase font-data" />
+              {errors.staffId && <p className="text-sm text-red-500">{errors.staffId.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

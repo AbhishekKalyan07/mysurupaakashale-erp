@@ -64,7 +64,7 @@ export function StaffManagementPage() {
                   <tr key={user.id} className="hover:bg-rice-25">
                     <td className="px-4 py-3">
                       <div className="font-semibold text-ink-900">{user.fullName}</div>
-                      <div className="text-xs text-ink-500 font-data">{user.id}</div>
+                      <div className="text-xs text-ink-500 font-data">{user.staffId || user.id}</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 capitalize">

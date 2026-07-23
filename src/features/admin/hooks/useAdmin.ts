@@ -40,6 +40,7 @@ export function useCreateStaffUser() {
       email: string;
       password: string;
       fullName: string;
+      staffId: string;
       phone: string;
       role: Role;
       kitchenId?: string;
@@ -57,6 +58,7 @@ export function useCreateStaffUser() {
         const profileData: any = {
           role: data.role,
           fullName: data.fullName,
+          staffId: data.staffId,
           email: data.email,
           phone: data.phone,
           photoUrl: null,
