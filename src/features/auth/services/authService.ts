@@ -126,3 +126,53 @@ export async function signOutUser(): Promise<void> {
 export async function resetPassword(email: string): Promise<void> {
   await sendPasswordResetEmail(auth, email);
 }
+
+export async function authenticateWithGoogleForSignup() {
+  const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+  const provider = new GoogleAuthProvider();
+  const credential = await signInWithPopup(auth, provider);
+  const profile = await userRepository.getById(credential.user.uid);
+  return { user: credential.user, exists: !!profile };
+}
+
+export async function signUpWithGoogle(user: any, phone: string): Promise<void> {
+  const { doc, getDoc, setDoc } = await import('firebase/firestore');
+  const { signOut: firebaseSignOut } = await import('firebase/auth');
+  const { db } = await import('@/shared/lib/firebase');
+  
+  const phoneDocRef = doc(db, 'userPhones', phone);
+  const existingPhone = await getDoc(phoneDocRef);
+  if (existingPhone.exists()) {
+    try {
+      await user.delete();
+    } catch (e) {
+      await firebaseSignOut(auth);
+    }
+    throw new Error('An account with this mobile number already exists.');
+  }
+
+  // Save the phone number registry mapping
+  await setDoc(phoneDocRef, { uid: user.uid });
+  
+  await userRepository.create({
+    role: 'customer',
+    fullName: user.displayName || 'Google User',
+    email: user.email || '',
+    phone: phone,
+    photoUrl: user.photoURL || null,
+    isActive: true,
+    addresses: [],
+    defaultAddressId: null,
+    createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+    updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+  } as Omit<UserProfile, 'id'>, user.uid);
+}
+
+export async function cancelGoogleSignup(user: any): Promise<void> {
+  const { signOut: firebaseSignOut } = await import('firebase/auth');
+  try {
+    await user.delete();
+  } catch (e) {
+    await firebaseSignOut(auth);
+  }
+}
