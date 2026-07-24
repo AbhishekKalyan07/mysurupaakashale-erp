@@ -142,6 +142,12 @@ service cloud.firestore {
                ((from == 'cancelled' || from == 'expired') && to == 'pending_payment');
       }
 
+      function isValidSkipCredit() {
+        let diff = request.resource.data.creditBalance - resource.data.creditBalance;
+        let expectedCredit = resource.data.pricePerDaySnapshot * (resource.data.get('quantity', 1));
+        return diff == expectedCredit;
+      }
+
       allow read: if isSignedIn() &&
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
@@ -149,8 +155,10 @@ service cloud.firestore {
       allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending_payment');
 
       // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above.
+      // Customers can also increment their creditBalance by their daily price when skipping a delivery.
       allow update: if isAdmin() ||
-                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt']) && isAllowedCustomerTransition());
+                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt']) && isAllowedCustomerTransition()) ||
+                       (isOwnSubscription() && onlyChangedFields(['creditBalance']) && isValidSkipCredit());
 
       allow delete: if false; // cancel via status update — preserves billing history
 
