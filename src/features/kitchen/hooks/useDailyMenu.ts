@@ -50,8 +50,8 @@ export function useCreateDailyMenu() {
       }
       return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       toast.success('Menu created successfully');
     },
     onError: (err: any) => {
@@ -76,8 +76,8 @@ export function useUpdateDailyMenu() {
       }
       return id;
     },
-    onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+    onSuccess: async (id) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(id) });
       toast.success('Menu updated successfully');
     },
@@ -98,8 +98,8 @@ export function useDeleteDailyMenu() {
         await auditRepository.logAction('menu_deleted', user.uid, user.displayName || 'Admin', id, 'menu');
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       toast.success('Menu deleted successfully');
     },
     onError: (err: any) => {
@@ -127,8 +127,8 @@ export function usePublishDailyMenu() {
       }
       return menuId;
     },
-    onSuccess: (menuId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+    onSuccess: async (menuId) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(menuId) });
       // We don't have the exact date here easily, but since dailyMenuList is invalidated,
       // it covers most views. To be safe, we could invalidate all dailyMenu queries.
@@ -158,8 +158,8 @@ export function useArchiveDailyMenu() {
       }
       return menuId;
     },
-    onSuccess: (menuId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
+    onSuccess: async (menuId) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(menuId) });
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
       toast.success('Menu archived successfully');

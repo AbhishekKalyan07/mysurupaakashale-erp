@@ -105,8 +105,8 @@ export function useMarkAllNotificationsRead() {
       
       return { success: true, count: toUpdate.length };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
       });
       queryClient.invalidateQueries({
@@ -134,8 +134,8 @@ export function useArchiveNotification() {
       });
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
       });
       queryClient.invalidateQueries({

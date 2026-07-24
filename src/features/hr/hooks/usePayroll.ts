@@ -63,8 +63,8 @@ export function useUpdateSalaryProfile() {
         await auditRepository.logAction('salary_profile_updated', user.uid, user.displayName || 'Admin', data.id, 'salary_profile');
       }
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.profiles });
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.profiles });
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.profile(variables.id) });
       toast.success('Salary profile updated');
     },
@@ -106,8 +106,8 @@ export function useGeneratePayroll() {
       }
       return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll generated successfully');
     },
     onError: (err: any) => {
@@ -130,8 +130,8 @@ export function useUpdatePayroll() {
         await auditRepository.logAction('payroll_updated', user.uid, user.displayName || 'Admin', id, 'payroll', { updatedKeys: Object.keys(data) });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll updated');
     },
     onError: (err: any) => {
@@ -154,8 +154,8 @@ export function useUpdatePayrollStatus() {
         await auditRepository.logAction('payroll_status_updated', user.uid, user.displayName || 'Admin', id, 'payroll', { status });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll status updated');
     },
     onError: (err: any) => {
@@ -194,8 +194,8 @@ export function usePaySalary() {
         }
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Salary marked as paid');
     },
     onError: (err: any) => {

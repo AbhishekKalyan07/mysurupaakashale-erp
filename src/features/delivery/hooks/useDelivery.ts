@@ -73,8 +73,8 @@ export function useAssignDelivery() {
         await auditRepository.logAction('order_assigned', user.uid, user.displayName || 'Staff', orderIds.join(','), 'order', { partnerId });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base }); // because orders were updated
       toast.success('Orders assigned successfully');
     },
@@ -101,8 +101,8 @@ export function useReassignDelivery() {
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
       toast.success('Order reassigned successfully');
     },
@@ -144,8 +144,8 @@ export function useUpdateDeliveryStatus() {
         })
         .catch((err) => console.error('[useUpdateDeliveryStatus] notification failed:', err));
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
       toast.success('Status updated successfully');
     },

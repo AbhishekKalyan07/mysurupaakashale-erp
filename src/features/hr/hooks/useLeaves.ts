@@ -53,8 +53,8 @@ export function useCreateLeaveRequest() {
       }
       return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
       toast.success('Leave request submitted');
     },
     onError: (err: any) => {
@@ -118,8 +118,8 @@ export function useUpdateLeaveStatus() {
         }
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
       toast.success('Leave status updated');
     },
     onError: (err: any) => {

@@ -40,8 +40,8 @@ export function useSubmitPayment() {
       );
       return { paymentId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.payments.byCustomer(firebaseUser?.uid ?? ''),
       });
       queryClient.invalidateQueries({
@@ -123,8 +123,8 @@ export function useApprovePayment() {
 
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
       toast.success('Payment approved. Subscription activated.');
@@ -162,8 +162,8 @@ export function useRejectPayment() {
 
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success('Payment rejected. Customer has been notified.');
     },
     onError: (err: any) => {

@@ -56,8 +56,8 @@ export function useUpdateBusinessSettings() {
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.business });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.business });
       toast.success('Business settings updated successfully');
     },
     onError: (err: any) => {

@@ -62,8 +62,8 @@ export function useCheckIn() {
       }
       return record;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Checked in successfully');
     },
     onError: (err: any) => {
@@ -104,8 +104,8 @@ export function useCheckOut() {
       }
       return record.id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Checked out successfully');
     },
     onError: (err: any) => {
@@ -128,8 +128,8 @@ export function useUpdateAttendance() {
         await auditRepository.logAction('attendance_updated', user.uid, user.displayName || 'Admin', id, 'attendance', { updatedKeys: Object.keys(data) });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Attendance updated');
     },
     onError: (err: any) => {

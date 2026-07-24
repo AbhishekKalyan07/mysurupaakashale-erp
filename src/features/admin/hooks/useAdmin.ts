@@ -93,8 +93,8 @@ export function useCreateStaffUser() {
         await deleteApp(tempApp);
       }
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success('Staff user created successfully');
       // Notify the new staff member — fire-and-forget.
       notifyStaffAccountCreated(result.uid, result.role, result.fullName)
@@ -122,8 +122,8 @@ export function useToggleStaffStatus() {
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success('Staff status updated');
     },
     onError: (err: any) => {
@@ -153,8 +153,8 @@ export function useUpdateStaffUser() {
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success('Staff user updated successfully');
     },
     onError: (err: any) => {

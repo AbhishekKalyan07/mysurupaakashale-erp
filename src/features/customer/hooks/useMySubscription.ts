@@ -45,8 +45,8 @@ export function useSkipDay() {
         creditAmount
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ''),
       });
       // Also invalidate the skips subcollection if we ever fetch it explicitly
