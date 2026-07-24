@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
-import { ErrorBoundary } from './shared/components/feedback/ErrorBoundary'
+import { GlobalErrorBoundary } from './shared/components/feedback/GlobalErrorBoundary'
 import './index.css'
 
 const rootElement = document.getElementById('root')
@@ -11,8 +11,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ErrorBoundary>
+    <GlobalErrorBoundary>
       <App />
-    </ErrorBoundary>
+    </GlobalErrorBoundary>
   </StrictMode>,
 )

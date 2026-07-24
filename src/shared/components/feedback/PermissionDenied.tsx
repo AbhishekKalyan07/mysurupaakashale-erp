@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLE_HOME_ROUTE } from '@/shared/constants/roles';
+import type { UserRole } from '@/shared/types/auth.types';
 
 export interface PermissionDeniedProps {
   title?: string;
   description?: string;
+  currentRole?: UserRole | string;
+  requiredRole?: UserRole | string;
 }
 
 /**
@@ -18,10 +21,14 @@ export interface PermissionDeniedProps {
 export function PermissionDenied({
   title = 'Access Restricted',
   description = "You don't have permission to view this page. If you believe this is a mistake, please contact your administrator.",
+  currentRole,
+  requiredRole,
 }: PermissionDeniedProps) {
   const navigate = useNavigate();
   const { role } = useAuth();
   const homeTo = role ? ROLE_HOME_ROUTE[role] : '/login';
+  
+  const displayCurrentRole = currentRole || role;
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-6 text-center">
@@ -40,7 +47,27 @@ export function PermissionDenied({
         <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
       </div>
 
-      <Button onClick={() => navigate(homeTo)}>
+      {(displayCurrentRole || requiredRole) && (
+        <div className="flex gap-4 items-center bg-rice-50 border border-rice-200 rounded-lg p-3 text-sm">
+          {displayCurrentRole && (
+            <div className="flex flex-col text-left">
+              <span className="text-ink-400 text-xs uppercase tracking-wider font-semibold">Your Role</span>
+              <span className="text-ink-900 font-medium capitalize">{displayCurrentRole}</span>
+            </div>
+          )}
+          {displayCurrentRole && requiredRole && (
+            <div className="w-px h-8 bg-rice-200" />
+          )}
+          {requiredRole && (
+            <div className="flex flex-col text-left">
+              <span className="text-ink-400 text-xs uppercase tracking-wider font-semibold">Required Role</span>
+              <span className="text-ink-900 font-medium capitalize">{requiredRole}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Button onClick={() => navigate(homeTo)} className="mt-2">
         Return to Dashboard
       </Button>
     </div>

@@ -18,48 +18,13 @@ interface ErrorBoundaryState {
 /**
  * Catches render-time errors anywhere in its subtree and shows a friendly
  * fallback instead of an unmounted blank screen.
- *
- * Scope: this only catches errors thrown *during render* (React's error
- * boundary contract). It does NOT catch errors in event handlers, timers,
- * or async code (e.g. a failed Firestore read inside a useEffect) — those
- * are each feature's own responsibility via try/catch and
- * `shared/components/feedback/ErrorState.tsx`. This is the last-resort net
- * for an unexpected render crash, not a replacement for per-feature error
- * handling.
- *
- * Must be a class component — `getDerivedStateFromError`/
- * `componentDidCatch` have no hook equivalent in React 19.
+ * Component-level boundary to prevent one widget from crashing an entire page.
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { error: null };
-
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
-    } else {
-      logError(error, errorInfoToContext(errorInfo));
-    }
-  }
-
-  reset = (): void => {
-    this.setState({ error: null });
+export class WidgetErrorBoundary extends Component<WidgetErrorBoundaryProps, State> {
+  public state: State = {
+    hasError: false,
   };
 
-  render(): ReactNode {
-    const { error } = this.state;
-    if (!error) {
-      return this.props.children;
-    }
-    if (this.props.fallback) {
-      return this.props.fallback(error, this.reset);
-    }
-    return <DefaultErrorFallback error={error} onRetry={this.reset} />;
-  }
-}
 
 interface DefaultErrorFallbackProps {
   error: Error;

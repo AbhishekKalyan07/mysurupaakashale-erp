@@ -36,6 +36,33 @@ export function OfflineGuard({ children }: { children: React.ReactNode }) {
  */
 export function OfflineState() {
   const isOnline = useOnlineStatus();
+  const [offlineAt, setOfflineAt] = useState<Date | null>(null);
+  const [timeAgo, setTimeAgo] = useState<string>('');
+
+  // Capture the exact time we went offline
+  useEffect(() => {
+    if (!isOnline && !offlineAt) {
+      setOfflineAt(new Date());
+    } else if (isOnline) {
+      setOfflineAt(null);
+    }
+  }, [isOnline, offlineAt]);
+
+  // Update the "Last synced: X mins ago" string every minute
+  useEffect(() => {
+    if (!offlineAt) return;
+    
+    const updateTimeAgo = () => {
+      const mins = Math.floor((new Date().getTime() - offlineAt.getTime()) / 60000);
+      if (mins === 0) setTimeAgo('just now');
+      else if (mins === 1) setTimeAgo('1 minute ago');
+      else setTimeAgo(`${mins} minutes ago`);
+    };
+
+    updateTimeAgo();
+    const interval = setInterval(updateTimeAgo, 60000);
+    return () => clearInterval(interval);
+  }, [offlineAt]);
 
   const handleRetry = () => {
     if (isOnline) window.location.reload();
@@ -61,6 +88,12 @@ export function OfflineState() {
         </p>
       </div>
 
+      {timeAgo && (
+        <div className="px-3 py-1.5 rounded-md bg-rice-200 text-ink-600 text-xs font-medium uppercase tracking-wider">
+          Last synced: {timeAgo}
+        </div>
+      )}
+
       {isOnline ? (
         <div className="flex items-center gap-2 text-success text-sm font-medium">
           <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
@@ -73,7 +106,7 @@ export function OfflineState() {
         </div>
       )}
 
-      <Button onClick={handleRetry} disabled={!isOnline} className="gap-2">
+      <Button onClick={handleRetry} disabled={!isOnline} className="gap-2 mt-2">
         <RefreshCw size={16} />
         Retry
       </Button>

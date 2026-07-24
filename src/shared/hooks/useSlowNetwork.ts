@@ -1,32 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
 
+export type NetworkState = 'fast' | 'slow' | 'stalled';
+
 /**
- * Returns `true` when a loading operation has been in-flight longer than
- * `thresholdMs` (default 4 000 ms). Resets automatically when `isLoading`
- * drops back to `false`.
- *
- * Usage:
- * ```tsx
- * const isSlow = useSlowNetwork(isFetching);
- * {isSlow && <SlowNetwork />}
- * ```
+ * Returns the current network state based on loading duration:
+ * - 'fast': < 4s
+ * - 'slow': > 4s
+ * - 'stalled': > 15s
+ * Resets automatically when `isLoading` drops back to `false`.
  */
-export function useSlowNetwork(isLoading: boolean, thresholdMs = 4000): boolean {
-  const [isSlow, setIsSlow] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function useSlowNetwork(isLoading: boolean, slowThreshold = 4000, stalledThreshold = 15000): NetworkState {
+  const [networkState, setNetworkState] = useState<NetworkState>('fast');
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isLoading) {
-      timerRef.current = setTimeout(() => setIsSlow(true), thresholdMs);
+      slowTimerRef.current = setTimeout(() => setNetworkState('slow'), slowThreshold);
+      stalledTimerRef.current = setTimeout(() => setNetworkState('stalled'), stalledThreshold);
     } else {
-      setIsSlow(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setNetworkState('fast');
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
+      if (stalledTimerRef.current) clearTimeout(stalledTimerRef.current);
     }
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
+      if (stalledTimerRef.current) clearTimeout(stalledTimerRef.current);
     };
-  }, [isLoading, thresholdMs]);
+  }, [isLoading, slowThreshold, stalledThreshold]);
 
-  return isSlow;
+  return networkState;
 }

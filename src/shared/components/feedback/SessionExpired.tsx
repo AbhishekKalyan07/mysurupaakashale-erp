@@ -1,4 +1,5 @@
 import { Clock, LogIn } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../ui/Button';
 
 export interface SessionExpiredProps {
@@ -12,11 +13,14 @@ export interface SessionExpiredProps {
  * Wire this up in your auth listener where you detect token expiry.
  */
 export function SessionExpired({ onLoginAgain }: SessionExpiredProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleLogin = () => {
     if (onLoginAgain) {
       onLoginAgain();
     } else {
-      window.location.href = '/login';
+      navigate('/login', { state: { from: location } });
     }
   };
 
