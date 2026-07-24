@@ -46,8 +46,13 @@ export function SignupPage() {
 
   // Pending Google Signup flow state
   const [pendingGoogleUser, setPendingGoogleUser] = useState<any | null>(null);
+  
+  // Custom states for Google signup form
   const [googlePhone, setGooglePhone] = useState('');
-  const [googlePhoneError, setGooglePhoneError] = useState<string | null>(null);
+  const [googlePassword, setGooglePassword] = useState('');
+  const [googleConfirmPassword, setGoogleConfirmPassword] = useState('');
+  const [googleErrors, setGoogleErrors] = useState<{ phone?: string; password?: string; confirmPassword?: string }>({});
+  
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const {
@@ -96,19 +101,59 @@ export function SignupPage() {
 
   const handleCompleteGoogleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setGooglePhoneError(null);
+    setGoogleErrors({});
+    setFormError(null);
+    
+    let hasError = false;
+    const newErrors: typeof googleErrors = {};
+
+    // 1. Phone validation
     if (!INDIAN_MOBILE_REGEX.test(googlePhone)) {
-      setGooglePhoneError('Enter a valid 10-digit mobile number');
+      newErrors.phone = 'Enter a valid 10-digit mobile number';
+      hasError = true;
+    }
+
+    // 2. Password strength validation
+    if (googlePassword.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      hasError = true;
+    } else if (!/[A-Z]/.test(googlePassword)) {
+      newErrors.password = 'Password must contain at least one uppercase letter';
+      hasError = true;
+    } else if (!/[a-z]/.test(googlePassword)) {
+      newErrors.password = 'Password must contain at least one lowercase letter';
+      hasError = true;
+    } else if (!/[0-9]/.test(googlePassword)) {
+      newErrors.password = 'Password must contain at least one number';
+      hasError = true;
+    } else if (!/[^A-Za-z0-9]/.test(googlePassword)) {
+      newErrors.password = 'Password must contain at least one special character';
+      hasError = true;
+    }
+
+    // 3. Confirm password matching
+    if (googlePassword !== googleConfirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setGoogleErrors(newErrors);
       return;
     }
 
     setGoogleLoading(true);
     try {
-      await signUpWithGoogle(pendingGoogleUser, googlePhone);
+      await signUpWithGoogle(pendingGoogleUser, googlePhone, googlePassword);
       toast.success('Account created successfully!');
       navigate('/', { replace: true });
     } catch (err) {
-      setGooglePhoneError((err as Error).message || 'Failed to complete signup');
+      const errMsg = (err as Error).message || 'Failed to complete signup';
+      if (errMsg.includes('mobile number')) {
+        setGoogleErrors({ phone: errMsg });
+      } else {
+        setFormError(errMsg);
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -120,18 +165,22 @@ export function SignupPage() {
     }
     setPendingGoogleUser(null);
     setGooglePhone('');
-    setGooglePhoneError(null);
+    setGooglePassword('');
+    setGoogleConfirmPassword('');
+    setGoogleErrors({});
+    setFormError(null);
   };
 
   return (
     <AuthLayout title={pendingGoogleUser ? "Complete Registration" : "Sign up"}>
       {pendingGoogleUser ? (
-        // Pending Google signup: Collect Phone Number
+        // Pending Google signup: Collect Phone & Password
         <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-4">
-          <p className="text-sm text-ink-600 mb-2">
-            Hi <strong>{pendingGoogleUser.displayName || 'there'}</strong>! Almost there. Please enter your mobile number to complete your registration.
+          <p className="text-sm text-ink-600 mb-2 leading-relaxed">
+            Hi <strong>{pendingGoogleUser.displayName || 'there'}</strong>! Almost there. Please set your mobile number and create a password to complete registration.
           </p>
           
+          {/* Mobile number */}
           <div className="flex flex-col gap-1">
             <input
               type="tel"
@@ -140,15 +189,59 @@ export function SignupPage() {
               value={googlePhone}
               onChange={(e) => setGooglePhone(e.target.value)}
               className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                googlePhoneError ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+                googleErrors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
               }`}
             />
-            {googlePhoneError && (
+            {googleErrors.phone && (
               <p role="alert" className="text-xs text-danger ml-1">
-                {googlePhoneError}
+                {googleErrors.phone}
               </p>
             )}
           </div>
+
+          {/* Password */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="password"
+              placeholder="Create Password"
+              required
+              value={googlePassword}
+              onChange={(e) => setGooglePassword(e.target.value)}
+              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                googleErrors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+              }`}
+            />
+            {googleErrors.password && (
+              <p role="alert" className="text-xs text-danger ml-1">
+                {googleErrors.password}
+              </p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              required
+              value={googleConfirmPassword}
+              onChange={(e) => setGoogleConfirmPassword(e.target.value)}
+              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                googleErrors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+              }`}
+            />
+            {googleErrors.confirmPassword && (
+              <p role="alert" className="text-xs text-danger ml-1">
+                {googleErrors.confirmPassword}
+              </p>
+            )}
+          </div>
+
+          {formError && (
+            <p role="alert" className="text-sm text-danger text-center">
+              {formError}
+            </p>
+          )}
 
           <Button 
             type="submit" 

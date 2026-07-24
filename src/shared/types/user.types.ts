@@ -29,6 +29,9 @@ interface BaseUserProfile {
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  emailVerified?: boolean;
+  googleConnected?: boolean;
+  passwordCreated?: boolean;
 }
 
 export interface CustomerProfile extends BaseUserProfile {

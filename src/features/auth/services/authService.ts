@@ -64,6 +64,13 @@ export async function signInWithGoogle(): Promise<UserCredential> {
     throw new Error('No account found with this Google email. Please create an account first.');
   }
   
+  if (!profile.googleConnected) {
+    await userRepository.update(credential.user.uid, {
+      googleConnected: true,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+    } as any);
+  }
+  
   return credential;
 }
 
@@ -114,6 +121,9 @@ export async function signUpCustomer(
     defaultAddressId: null,
     createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+    emailVerified: credential.user.emailVerified,
+    googleConnected: false,
+    passwordCreated: true,
   } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
   
   return credential;
@@ -135,9 +145,9 @@ export async function authenticateWithGoogleForSignup() {
   return { user: credential.user, exists: !!profile };
 }
 
-export async function signUpWithGoogle(user: any, phone: string): Promise<void> {
+export async function signUpWithGoogle(user: any, phone: string, password: string): Promise<void> {
   const { doc, getDoc, setDoc } = await import('firebase/firestore');
-  const { signOut: firebaseSignOut } = await import('firebase/auth');
+  const { signOut: firebaseSignOut, EmailAuthProvider, linkWithCredential } = await import('firebase/auth');
   const { db } = await import('@/shared/lib/firebase');
   
   const phoneDocRef = doc(db, 'userPhones', phone);
@@ -151,13 +161,20 @@ export async function signUpWithGoogle(user: any, phone: string): Promise<void> 
     throw new Error('An account with this mobile number already exists.');
   }
 
-  // Save the phone number registry mapping
+  // 1. Link Email/Password credential to Google User
+  if (!user.email) {
+    throw new Error('Google account is missing an email address.');
+  }
+  const emailCred = EmailAuthProvider.credential(user.email, password);
+  await linkWithCredential(user, emailCred);
+
+  // 2. Save the phone number registry mapping
   await setDoc(phoneDocRef, { uid: user.uid });
   
   await userRepository.create({
     role: 'customer',
     fullName: user.displayName || 'Google User',
-    email: user.email || '',
+    email: user.email,
     phone: phone,
     photoUrl: user.photoURL || null,
     isActive: true,
@@ -165,6 +182,9 @@ export async function signUpWithGoogle(user: any, phone: string): Promise<void> 
     defaultAddressId: null,
     createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+    emailVerified: user.emailVerified,
+    googleConnected: true,
+    passwordCreated: true,
   } as Omit<UserProfile, 'id'>, user.uid);
 }
 
