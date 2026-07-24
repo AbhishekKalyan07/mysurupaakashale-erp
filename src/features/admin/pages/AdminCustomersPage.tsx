@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, Compass, ChevronDown, XCircle, Users } from 'lucide-react';
+import { Search, ChevronDown, XCircle, Users } from 'lucide-react';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
@@ -8,7 +8,7 @@ import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useAdminCustomers } from '../hooks/useAdmin';
-import type { UserProfile, CustomerProfile } from '@/shared/types';
+import type { CustomerProfile } from '@/shared/types';
 
 function formatDate(value: any): string {
   if (!value) return '—';
