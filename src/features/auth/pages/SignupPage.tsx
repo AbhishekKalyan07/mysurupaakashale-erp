@@ -3,6 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
+
 import { Button } from '@/shared/components/ui/Button';
 import { 
   signUpCustomer, 
@@ -13,7 +16,6 @@ import {
 } from '../services/authService';
 import { AuthLayout } from '../components/AuthLayout';
 import type { SignupFormValues } from '../types/auth.types';
-import toast from 'react-hot-toast';
 
 const INDIAN_MOBILE_REGEX = /^(?:\+91[-\s]?)?[6-9]\d{9}$/;
 
@@ -44,7 +46,15 @@ export function SignupPage() {
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Pending Google Signup flow state
+  // Show/Hide password states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Google Signup Flow Step States
+  // 0: Initial signup form
+  // 1: Complete Profile (Enter phone number)
+  // 2: Create Password (Enter password)
+  const [signupStep, setSignupStep] = useState<0 | 1 | 2>(0);
   const [pendingGoogleUser, setPendingGoogleUser] = useState<any | null>(null);
   
   // Custom states for Google signup form
@@ -91,12 +101,23 @@ export function SignupPage() {
         navigate('/', { replace: true });
       } else {
         setPendingGoogleUser(user);
+        setSignupStep(1); // Proceed to Complete Profile step
       }
     } catch (err) {
       setFormError(mapAuthError(err));
     } finally {
       setGoogleLoading(false);
     }
+  };
+
+  const handlePhoneStepSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGoogleErrors({});
+    if (!INDIAN_MOBILE_REGEX.test(googlePhone)) {
+      setGoogleErrors({ phone: 'Enter a valid 10-digit mobile number' });
+      return;
+    }
+    setSignupStep(2); // Proceed to Create Password step
   };
 
   const handleCompleteGoogleSignup = async (e: React.FormEvent) => {
@@ -107,13 +128,7 @@ export function SignupPage() {
     let hasError = false;
     const newErrors: typeof googleErrors = {};
 
-    // 1. Phone validation
-    if (!INDIAN_MOBILE_REGEX.test(googlePhone)) {
-      newErrors.phone = 'Enter a valid 10-digit mobile number';
-      hasError = true;
-    }
-
-    // 2. Password strength validation
+    // Password strength validation
     if (googlePassword.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
       hasError = true;
@@ -131,7 +146,7 @@ export function SignupPage() {
       hasError = true;
     }
 
-    // 3. Confirm password matching
+    // Confirm password matching
     if (googlePassword !== googleConfirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
       hasError = true;
@@ -151,6 +166,7 @@ export function SignupPage() {
       const errMsg = (err as Error).message || 'Failed to complete signup';
       if (errMsg.includes('mobile number')) {
         setGoogleErrors({ phone: errMsg });
+        setSignupStep(1); // Go back to correct the phone number
       } else {
         setFormError(errMsg);
       }
@@ -169,18 +185,27 @@ export function SignupPage() {
     setGoogleConfirmPassword('');
     setGoogleErrors({});
     setFormError(null);
+    setSignupStep(0);
   };
 
   return (
-    <AuthLayout title={pendingGoogleUser ? "Complete Registration" : "Sign up"}>
-      {pendingGoogleUser ? (
-        // Pending Google signup: Collect Phone & Password
-        <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-4">
-          <p className="text-sm text-ink-600 mb-2 leading-relaxed">
-            Hi <strong>{pendingGoogleUser.displayName || 'there'}</strong>! Almost there. Please set your mobile number and create a password to complete registration.
+    <AuthLayout>
+      {signupStep === 1 && pendingGoogleUser && (
+        // Step 1: Complete Profile (Mobile collection)
+        <form onSubmit={handlePhoneStepSubmit} className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+              Complete Profile
+            </h2>
+            <p className="text-xs text-ink-500">
+              Step 1 of 2: Enter your mobile number.
+            </p>
+          </div>
+
+          <p className="text-xs text-ink-600 leading-relaxed bg-[#FDFBF7] p-3 rounded-lg border border-[#E6E1D4]/40">
+            Hi <strong>{pendingGoogleUser.displayName || 'there'}</strong>! Please provide your phone number so our team can coordinate daily meal deliveries.
           </p>
           
-          {/* Mobile number */}
           <div className="flex flex-col gap-1">
             <input
               type="tel"
@@ -189,7 +214,7 @@ export function SignupPage() {
               value={googlePhone}
               onChange={(e) => setGooglePhone(e.target.value)}
               className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                googleErrors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+                googleErrors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
               }`}
             />
             {googleErrors.phone && (
@@ -199,18 +224,58 @@ export function SignupPage() {
             )}
           </div>
 
+          <Button 
+            type="submit" 
+            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+          >
+            Next: Create Password
+          </Button>
+
+          <Button 
+            type="button" 
+            onClick={handleCancelGoogleSignup}
+            variant="ghost"
+            className="w-full h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
+          >
+            Cancel
+          </Button>
+        </form>
+      )}
+
+      {signupStep === 2 && pendingGoogleUser && (
+        // Step 2: Create Password
+        <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+              Create Password
+            </h2>
+            <p className="text-xs text-ink-500">
+              Step 2 of 2: Secure your account credentials.
+            </p>
+          </div>
+
           {/* Password */}
           <div className="flex flex-col gap-1">
-            <input
-              type="password"
-              placeholder="Create Password"
-              required
-              value={googlePassword}
-              onChange={(e) => setGooglePassword(e.target.value)}
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                googleErrors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Create Password"
+                required
+                value={googlePassword}
+                onChange={(e) => setGooglePassword(e.target.value)}
+                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                  googleErrors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {googleErrors.password && (
               <p role="alert" className="text-xs text-danger ml-1">
                 {googleErrors.password}
@@ -220,16 +285,26 @@ export function SignupPage() {
 
           {/* Confirm Password */}
           <div className="flex flex-col gap-1">
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              required
-              value={googleConfirmPassword}
-              onChange={(e) => setGoogleConfirmPassword(e.target.value)}
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                googleErrors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                required
+                value={googleConfirmPassword}
+                onChange={(e) => setGoogleConfirmPassword(e.target.value)}
+                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                  googleErrors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {googleErrors.confirmPassword && (
               <p role="alert" className="text-xs text-danger ml-1">
                 {googleErrors.confirmPassword}
@@ -246,23 +321,44 @@ export function SignupPage() {
           <Button 
             type="submit" 
             isLoading={googleLoading}
-            className="w-full h-12 rounded-lg bg-tamarind-500 hover:bg-tamarind-600 text-white font-medium transition-colors mt-2"
+            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
           >
-            Complete Signup
+            Complete Registration
           </Button>
 
-          <Button 
-            type="button" 
-            onClick={handleCancelGoogleSignup}
-            variant="ghost"
-            className="w-full h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
-          >
-            Cancel
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              type="button" 
+              onClick={() => setSignupStep(1)}
+              variant="ghost"
+              className="w-1/2 h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
+            >
+              Back
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleCancelGoogleSignup}
+              variant="ghost"
+              className="w-1/2 h-12 rounded-lg text-danger hover:text-[#962325] transition-colors text-sm"
+            >
+              Cancel
+            </Button>
+          </div>
         </form>
-      ) : (
+      )}
+
+      {signupStep === 0 && (
         // Standard signup form
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+              Create Your Account
+            </h2>
+            <p className="text-xs text-ink-500">
+              Join thousands enjoying fresh homemade meals every day.
+            </p>
+          </div>
+
           {/* Full Name */}
           <div className="flex flex-col gap-1">
             <input
@@ -271,7 +367,7 @@ export function SignupPage() {
               autoComplete="name"
               required
               className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.fullName ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+                errors.fullName ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
               }`}
               {...register('fullName')}
             />
@@ -290,7 +386,7 @@ export function SignupPage() {
               autoComplete="email"
               required
               className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.email ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+                errors.email ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
               }`}
               {...register('email')}
             />
@@ -309,7 +405,7 @@ export function SignupPage() {
               autoComplete="tel"
               required
               className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+                errors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
               }`}
               {...register('phone')}
             />
@@ -322,16 +418,26 @@ export function SignupPage() {
 
           {/* Password */}
           <div className="flex flex-col gap-1">
-            <input
-              type="password"
-              placeholder="Password"
-              autoComplete="new-password"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-              {...register('password')}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                autoComplete="new-password"
+                required
+                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                  errors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
+                }`}
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.password && (
               <p role="alert" className="text-xs text-danger ml-1">
                 {errors.password.message}
@@ -341,16 +447,26 @@ export function SignupPage() {
 
           {/* Confirm Password */}
           <div className="flex flex-col gap-1">
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              autoComplete="new-password"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-              {...register('confirmPassword')}
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                autoComplete="new-password"
+                required
+                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+                  errors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
+                }`}
+                {...register('confirmPassword')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.confirmPassword && (
               <p role="alert" className="text-xs text-danger ml-1">
                 {errors.confirmPassword.message}
@@ -363,14 +479,14 @@ export function SignupPage() {
             <label className="flex items-start gap-2.5 cursor-pointer text-xs text-ink-600">
               <input
                 type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-rice-300 text-tamarind-500 focus:ring-tamarind-400"
+                className="mt-0.5 h-4 w-4 rounded border-rice-300 text-[#801C1E] focus:ring-[#801C1E]"
                 {...register('agreed')}
               />
               <span className="leading-tight">
                 I agree to Mysuru Paakashale's{' '}
-                <a href="#" className="text-tamarind-500 hover:underline">Terms of Service</a>,{' '}
-                <a href="#" className="text-tamarind-500 hover:underline">Privacy Policy</a> and{' '}
-                <a href="#" className="text-tamarind-500 hover:underline">Content Policies</a>
+                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Terms of Service</a>,{' '}
+                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Privacy Policy</a> and{' '}
+                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Content Policies</a>
               </span>
             </label>
             {errors.agreed && (
@@ -389,7 +505,7 @@ export function SignupPage() {
           <Button 
             type="submit" 
             isLoading={isSubmitting} 
-            className="w-full h-12 rounded-lg bg-tamarind-500 hover:bg-tamarind-600 text-white font-medium transition-colors mt-2"
+            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
           >
             Create account
           </Button>
@@ -397,7 +513,7 @@ export function SignupPage() {
           {/* Separator line */}
           <div className="relative flex items-center justify-center my-3">
             <div className="w-full border-t border-rice-200" />
-            <span className="absolute bg-white px-3 text-xs text-ink-400 font-sans">or</span>
+            <span className="absolute bg-white px-3 text-xs text-ink-400 font-sans">OR</span>
           </div>
 
           {/* Google Sign In/Up */}
@@ -429,17 +545,17 @@ export function SignupPage() {
                     d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z"
                   />
                 </svg>
-                Sign in with Google
+                Continue with Google
               </>
             )}
           </button>
         </form>
       )}
 
-      {!pendingGoogleUser && (
+      {signupStep === 0 && (
         <div className="mt-6 text-center text-sm text-ink-600">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-tamarind-500 hover:underline">
+          <Link to="/login" className="font-semibold text-[#801C1E] hover:underline">
             Log in
           </Link>
         </div>
