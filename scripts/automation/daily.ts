@@ -3,6 +3,7 @@
 import './env';
 import { authenticateForAutomation } from './auth';
 import { automationService } from '@/shared/services/firestore/automationService';
+import { orderService } from '@/shared/services/business/orderService';
 
 async function runDailyTasks() {
   try {
@@ -10,7 +11,7 @@ async function runDailyTasks() {
     await authenticateForAutomation();
 
     console.log('1. Generating Today\'s Orders...');
-    const orderRes = await automationService.generateDailyOrders();
+    const orderRes = await orderService.generateDailyOrders();
     console.log(orderRes.message);
 
     console.log('2. Generating Daily Summary (Sales, Kitchen, Delivery)...');
