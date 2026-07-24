@@ -7,22 +7,23 @@ import * as admin from 'firebase-admin';
 // Billing logic
 export { generateMonthlyInvoices } from './billing';
 
-// Admin Elevation (TEMPORARY FOR TESTING)
-export const elevateToAdmin = functions.https.onRequest(async (req, res) => {
-  const email = req.query.email as string;
-  if (!email) {
-    res.status(400).send('Missing email parameter');
-    return;
-  }
-  try {
-    const user = await admin.auth().getUserByEmail(email);
-    await admin.auth().setCustomUserClaims(user.uid, { role: 'admin' });
-    await admin.firestore().collection('users').doc(user.uid).set({ role: 'admin' }, { merge: true });
-    res.status(200).send(`Elevated ${email} to admin!`);
-  } catch (err: any) {
-    res.status(500).send(`Error: ${err.message}`);
-  }
-});
+// SECURITY: an `elevateToAdmin` HTTP endpoint used to live here
+// ("TEMPORARY FOR TESTING"). It took an ?email= query param with NO
+// authentication or authorization check and granted that account admin
+// custom claims + an admin role doc — i.e. a public, unauthenticated
+// "become admin" URL. It has been removed rather than gated, because a
+// standing self-elevation backdoor shouldn't exist even behind a check.
+// If you need to bootstrap the first admin account, do it directly in the
+// Firebase Console (Firestore: set users/{uid}.role = 'admin') or via a
+// one-off authenticated Admin SDK script you run yourself and delete —
+// never a deployed public endpoint.
+//
+// Also note: this whole functions/ directory (pubsub-scheduled Cloud
+// Functions) requires the Blaze billing plan and is NOT part of this
+// project's documented live architecture, which runs on the Spark plan
+// via the client SDK + GitHub Actions cron (see PRODUCTION_READINESS_REPORT.md
+// and scripts/automation/). Treat these functions as superseded/inactive
+// unless you've deliberately opted back into Cloud Functions.
 
 admin.initializeApp();
 const db = admin.firestore();

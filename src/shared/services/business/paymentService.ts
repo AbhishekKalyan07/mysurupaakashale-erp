@@ -1,7 +1,9 @@
-import { runTransaction, doc, serverTimestamp } from 'firebase/firestore';
+import { runTransaction, doc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, SubmitPaymentInput } from '@/shared/types';
 import { paymentRepository } from '../firestore/paymentRepository';
+import { userRepository } from '../firestore/userRepository';
+import { notifyPaymentSubmitted } from '../firestore/notificationService';
 import { generateInvoicePdf, type InvoiceData } from '@/shared/utils/generateInvoicePdf';
 import { sendInvoiceEmail } from '@/shared/services/email/sendInvoiceEmail';
 
@@ -38,12 +40,8 @@ class PaymentService {
     });
 
     try {
-      const { userRepository } = require('../firestore/userRepository');
-      const { notifyPaymentSubmitted } = require('../firestore/notificationService');
-      const { where } = require('firebase/firestore');
-      
       const admins = await userRepository.list(where('role', '==', 'admin'));
-      const adminIds = admins.map((a: any) => a.id);
+      const adminIds = admins.map((a) => a.id);
       
       await notifyPaymentSubmitted(customerId, paymentId, input.amount, adminIds);
     } catch (err) {

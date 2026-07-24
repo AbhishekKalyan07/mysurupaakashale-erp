@@ -27,6 +27,10 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isKitchen() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'kitchen';
+    }
+
     // /profile-photos/{userId}/{fileName}
     match /profile-photos/{userId}/{fileName} {
       allow read: if isSignedIn();
@@ -42,7 +46,7 @@ service firebase.storage {
       allow read: if isSignedIn() &&
                      (delivery().customerId == request.auth.uid ||
                       delivery().deliveryPartnerId == request.auth.uid ||
-                      request.auth.token.role in ['admin', 'kitchen']);
+                      isAdmin() || isKitchen());
 
       allow write: if isSignedIn() && delivery().deliveryPartnerId == request.auth.uid && isImageUnder(5);
     }
@@ -50,7 +54,7 @@ service firebase.storage {
     // /meal-plan-images/{planId}/{fileName} — marketing images for the public plan catalog
     match /meal-plan-images/{planId}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.token.role == 'admin' && isImageUnder(5);
+      allow write: if isSignedIn() && isAdmin() && isImageUnder(5);
     }
 
     // /backups/{fileName} — Automated database backups

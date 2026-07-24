@@ -5,21 +5,25 @@ rules_version = '2';
 //
 // Division of responsibility: these rules decide WHO can read/write WHAT —
 // authorization, plus a few high-value data checks (price integrity,
-// "which fields actually changed"). Full shape/format validation lives in
-// Zod schemas + Cloud Functions on the write path.
-//
-// Every collection below is either genuinely client-writable within tight
-// bounds, or intentionally `if false` because the only legitimate writer is
-// a Cloud Function using the Admin SDK — which is not subject to these
-// rules at all. `if false` here is documentation of intent, not a
-// functional gate against the Admin SDK.
+// state-machine transitions, "which fields actually changed"). This app
+// has no Cloud Functions in its live architecture (Spark plan, client SDK
+// only — see PRODUCTION_READINESS_REPORT.md); these rules ARE the entire
+// write-path validation, not a backstop for one. Full shape/format
+// validation for anything not checked here lives in Zod schemas on the
+// client, which is necessarily advisory, not enforced — treat any
+// high-value field (price, status, amount) as something that belongs in
+// this file, checked explicitly, not just assumed from the client.
 //
 // SPRINT 4 CHANGES:
-//   - payments: removed Razorpay comment; write = false (Admin SDK only,
-//     via submitPayment / verifyPayment Cloud Functions)
+//   - payments: customers may create their own 'pending' payment claim
+//     (manual payment verification workflow — see paymentService.ts);
+//     only isAdmin() may verify/reject (update) or delete
 //   - notifications: expanded to support the full Notification type;
 //     client can mark read (inAppStatus) and archive (inAppStatus = archived)
 //     — both are guarded by onlyChangedFields to prevent other tampering
+//   - subscriptions: customer self-updates are restricted to an explicit
+//     allow-list of status transitions (was: any value, same fields) —
+//     closes a free-self-activation gap, see isAllowedCustomerTransition()
 // =============================================================================
 
 service cloud.firestore {
@@ -75,6 +79,15 @@ service cloud.firestore {
       }
     }
 
+    // ---------- userPhones/{phone} ----------
+    // Phone number uniqueness registry. Used by the client to check if a phone
+    // number is already registered before creating a new account or updating profile.
+    match /userPhones/{phone} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // ---------- mealPlans/{planId} — public catalog ----------
     match /mealPlans/{planId} {
       // No auth required: prospective customers browse pricing before signing up.
@@ -110,14 +123,34 @@ service cloud.firestore {
 
     // ---------- subscriptions/{subscriptionId} ----------
     match /subscriptions/{subscriptionId} {
+      // Customers can only move their own subscription along the exact
+      // transitions the UI exposes — never straight to 'active' from
+      // anything but 'paused'. That specifically blocks a customer from
+      // writing { status: 'active' } directly via the SDK to skip payment
+      // verification entirely (a subscription can otherwise only become
+      // 'active' through admin/payment approval).
+      function isOwnSubscription() {
+        return isSignedIn() && resource.data.customerId == request.auth.uid;
+      }
+      function isAllowedCustomerTransition() {
+        let from = resource.data.status;
+        let to = request.resource.data.status;
+        return (from == 'active' && to == 'paused') ||
+               (from == 'paused' && to == 'active') ||
+               (from == 'active' && to == 'cancelled') ||
+               (from == 'paused' && to == 'cancelled') ||
+               ((from == 'cancelled' || from == 'expired') && to == 'pending_payment');
+      }
+
       allow read: if isSignedIn() &&
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
       // Phase 5: Admins can create/update subscriptions, customers can create pending drafts
       allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending_payment');
 
-      // Phase 5: Admins have full access. Customers can update their own subscription's status (pause, cancel, resume)
-      allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid && onlyChangedFields(['status', 'updatedAt']));
+      // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above.
+      allow update: if isAdmin() ||
+                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt']) && isAllowedCustomerTransition());
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -194,12 +227,21 @@ service cloud.firestore {
     //   - archive (inAppStatus: archived, status: archived)
     // Admins may read all notifications (for history page).
     match /notifications/{notificationId} {
+      // Customers can trigger a narrow set of "I did something, tell the
+      // admins" notifications (e.g. submitting a payment) — never
+      // arbitrary type/recipient/content, which would otherwise let any
+      // signed-in customer spam or impersonate system notifications to
+      // any other user.
+      function isCustomerTriggerableNotification() {
+        return request.resource.data.createdBy == request.auth.uid &&
+               request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'] &&
+               get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'admin';
+      }
+
       allow read: if isSignedIn() &&
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
-      allow create: if isAdmin() || 
-                       // Customers can trigger notifications (e.g., to admins for payments)
-                       isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && isCustomerTriggerableNotification());
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.

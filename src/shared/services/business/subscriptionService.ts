@@ -1,7 +1,7 @@
 import { serverTimestamp } from 'firebase/firestore';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { settingsRepository } from '../firestore/settingsRepository';
-import type { MealPreference, PlanTier } from '@/shared/types';
+import type { MealPreference, PlanTier, Subscription } from '@/shared/types';
 
 class SubscriptionService {
   /**
@@ -43,6 +43,48 @@ class SubscriptionService {
     }, subscriptionId);
     
     return subscriptionId;
+  }
+
+  /**
+   * Admin fast-path activation for a subscription that's still in
+   * 'draft' or 'pending_payment' (e.g. payment confirmed by another
+   * channel — cash handed over in person, a phone confirmation — without
+   * a formal payment record). For the normal flow where a customer
+   * submitted a payment screenshot, prefer paymentService.approvePayment(),
+   * which also verifies the payment record and generates the invoice.
+   */
+  async approveSubscription(subscription: Subscription): Promise<void> {
+    if (subscription.status === 'active') {
+      throw new Error('Subscription is already active.');
+    }
+    if (subscription.status === 'cancelled' || subscription.status === 'expired') {
+      throw new Error(`Cannot approve a ${subscription.status} subscription — use renew instead.`);
+    }
+    await subscriptionRepository.updateStatus(subscription.id, 'active');
+  }
+
+  /** Declines a subscription still awaiting its first payment. */
+  async rejectSubscription(subscription: Subscription): Promise<void> {
+    if (subscription.status !== 'pending_payment' && subscription.status !== 'draft') {
+      throw new Error(`Cannot reject a subscription with status "${subscription.status}".`);
+    }
+    await subscriptionRepository.updateStatus(subscription.id, 'cancelled');
+  }
+
+  /** Admin override of the customer's own pause action. */
+  async pauseSubscription(subscription: Subscription): Promise<void> {
+    if (subscription.status !== 'active') {
+      throw new Error('Only an active subscription can be paused.');
+    }
+    await subscriptionRepository.updateStatus(subscription.id, 'paused');
+  }
+
+  /** Admin override of the customer's own resume action. */
+  async resumeSubscription(subscription: Subscription): Promise<void> {
+    if (subscription.status !== 'paused') {
+      throw new Error('Only a paused subscription can be resumed.');
+    }
+    await subscriptionRepository.updateStatus(subscription.id, 'active');
   }
 }
 

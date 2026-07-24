@@ -133,6 +133,51 @@ export async function notifySubscriptionExpired(
   );
 }
 
+export async function notifySubscriptionPaused(
+  customerId: string,
+  subscriptionId: string,
+): Promise<void> {
+  await send(
+    customerId,
+    'customer',
+    'subscription_paused',
+    'Subscription paused',
+    'Your meal plan subscription has been paused. Deliveries will stop until you resume it.',
+    { relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+  );
+}
+
+export async function notifySubscriptionResumed(
+  customerId: string,
+  subscriptionId: string,
+): Promise<void> {
+  await send(
+    customerId,
+    'customer',
+    'subscription_resumed',
+    'Subscription resumed',
+    'Your meal plan subscription is active again. Deliveries will continue as scheduled.',
+    { priority: 'high', relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+  );
+}
+
+export async function notifySubscriptionRejected(
+  customerId: string,
+  subscriptionId: string,
+  reason?: string | null,
+): Promise<void> {
+  await send(
+    customerId,
+    'customer',
+    'subscription_cancelled',
+    'Subscription request declined',
+    reason
+      ? `Your subscription request couldn't be approved: ${reason}`
+      : "Your subscription request couldn't be approved. Please contact support or try subscribing again.",
+    { priority: 'high', relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Payment notifications
 // ─────────────────────────────────────────────────────────────────────────────

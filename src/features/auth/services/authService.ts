@@ -45,22 +45,25 @@ export async function signInWithGoogle(): Promise<UserCredential> {
   const provider = new GoogleAuthProvider();
   const credential = await signInWithPopup(auth, provider);
   
-  // Phase 6 follow-up: Ensure Google Sign-In creates a base user profile
-  const profile = await userRepository.getById(credential.user.uid);
-  if (!profile) {
-    await userRepository.create({
-      role: 'customer', // Default to customer
-      fullName: credential.user.displayName || 'New User',
-      email: credential.user.email || '',
-      phone: credential.user.phoneNumber || '',
-      photoUrl: credential.user.photoURL || null,
-      isActive: true,
-      addresses: [],
-      defaultAddressId: null,
-      createdAt: serverTimestamp() as any,
-      updatedAt: serverTimestamp() as any,
-    } as Omit<UserProfile, 'id'>, credential.user.uid);
-  }
+  // Phase 6 follow-up: Ensure Google Sign-In creates a base user profile.
+  // We don't await this so the UI can navigate immediately. AuthContext will 
+  // handle the loading state while this completes in the background.
+  userRepository.getById(credential.user.uid).then(profile => {
+    if (!profile) {
+      userRepository.create({
+        role: 'customer', // Default to customer
+        fullName: credential.user.displayName || 'New User',
+        email: credential.user.email || '',
+        phone: credential.user.phoneNumber || '',
+        photoUrl: credential.user.photoURL || null,
+        isActive: true,
+        addresses: [],
+        defaultAddressId: null,
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
+      } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
+    }
+  }).catch(console.error);
   
   return credential;
 }
@@ -80,11 +83,28 @@ export async function signUpCustomer(
   fullName: string,
   phone: string,
 ): Promise<UserCredential> {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(credential.user, { displayName: fullName });
+  // Check if phone number is already registered before trying to create an account
+  // This uses the unauthenticated-readable userPhones registry.
+  const { doc, getDoc, setDoc } = await import('firebase/firestore');
+  const { db } = await import('@/shared/lib/firebase');
   
-  // Phase 2: Client-side creation instead of Cloud Function
-  await userRepository.create({
+  const phoneDocRef = doc(db, 'userPhones', phone);
+  const existingPhone = await getDoc(phoneDocRef);
+  if (existingPhone.exists()) {
+    throw new Error('An account with this mobile number already exists — try signing in instead.');
+  }
+
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  
+  // Fire and forget the profile updates so the user can be navigated instantly.
+  // setDoc updates the local Firestore cache synchronously, so AuthContext will
+  // see the new profile immediately and unlock the app.
+  updateProfile(credential.user, { displayName: fullName }).catch(console.error);
+  
+  // Save the phone number registry mapping
+  setDoc(phoneDocRef, { uid: credential.user.uid }).catch(console.error);
+  
+  userRepository.create({
     role: 'customer',
     fullName,
     email,
@@ -95,7 +115,7 @@ export async function signUpCustomer(
     defaultAddressId: null,
     createdAt: serverTimestamp() as any,
     updatedAt: serverTimestamp() as any,
-  } as Omit<UserProfile, 'id'>, credential.user.uid);
+  } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
   
   return credential;
 }

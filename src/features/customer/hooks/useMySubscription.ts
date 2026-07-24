@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
@@ -19,7 +19,6 @@ export function useMySubscription() {
 
 export function useSkipDay() {
   const { firebaseUser } = useAuth();
-  const { useMutation, useQueryClient } = require('@tanstack/react-query');
   const queryClient = useQueryClient();
 
   return useMutation({

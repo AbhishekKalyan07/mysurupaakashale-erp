@@ -91,6 +91,21 @@ export function ProfilePage() {
     if (!firebaseUser) return;
     setIsSaving(true);
     try {
+      if (values.phone !== profile?.phone) {
+        // Check if new phone is already taken
+        const { doc, getDoc, setDoc } = await import('firebase/firestore');
+        const { db } = await import('@/shared/lib/firebase');
+        const phoneDocRef = doc(db, 'userPhones', values.phone);
+        const existingPhone = await getDoc(phoneDocRef);
+        
+        if (existingPhone.exists() && existingPhone.data()?.uid !== firebaseUser.uid) {
+          throw new Error('This mobile number is already registered to another account.');
+        }
+        
+        // Claim the new phone number
+        await setDoc(phoneDocRef, { uid: firebaseUser.uid });
+      }
+
       await userRepository.update(firebaseUser.uid, {
         fullName: values.fullName,
         phone: values.phone,

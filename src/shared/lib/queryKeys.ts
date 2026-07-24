@@ -17,6 +17,8 @@ export const queryKeys = {
     byCustomer: (customerId: string) => ['subscriptions', 'customer', customerId] as const,
     active: (customerId: string) => ['subscriptions', 'active', customerId] as const,
     detail: (id: string) => ['subscriptions', 'detail', id] as const,
+    /** Admin paginated (useInfiniteQuery) list — keyed on status filter so each tab has its own cache. */
+    adminList: (status: string) => ['subscriptions', 'admin', status] as const,
   },
   payments: {
     all: ['payments'] as const,

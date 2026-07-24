@@ -319,9 +319,13 @@ export function SubscriptionDetailsPage() {
     
     setUpdating(true);
     try {
-      // Phase 5: Client-side subscription lifecycle update
+      // Phase 5: Client-side subscription lifecycle update.
+      // 'renew' intentionally goes to 'pending_payment', not 'active' —
+      // a lapsed/cancelled subscription needs a fresh verified payment
+      // before deliveries resume, same as a brand-new subscription does.
+      // (Bug fix: this used to jump straight to 'active' for free.)
       await subscriptionRepository.update(subscription.id, {
-        status: action === 'renew' ? 'active' : 
+        status: action === 'renew' ? 'pending_payment' :
                 action === 'resume' ? 'active' : 
                 action === 'pause' ? 'paused' : 
                 'cancelled'

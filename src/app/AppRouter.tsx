@@ -52,7 +52,7 @@ const router = createBrowserRouter([
   { path: '/login', element: withSuspense(LoginPage) },
   { path: '/signup', element: withSuspense(SignupPage) },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+    element: <ProtectedRoute />, // Any authenticated user
     children: [
       {
         element: <AppShell />,
@@ -60,7 +60,29 @@ const router = createBrowserRouter([
         children: [
           // ── Dashboard (Unified Entry) ──────────────────────────────────────────
           { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
-
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.ACCOUNTS]} />,
+    children: [
+      {
+        element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
+        children: [
+          { path: '/admin/payroll', element: withSuspense(PayrollDashboardPage) },
+        ],
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={[ROLES.ADMIN]} />,
+    children: [
+      {
+        element: <AppShell />,
+        errorElement: <RouteErrorBoundary />,
+        children: [
           // ── Admin Sub-modules ────────────────────────────────────────────────
           { path: '/admin/customers', element: withSuspense(AdminCustomersPage) },
           { path: '/admin/subscriptions', element: withSuspense(AdminSubscriptionsPage) },
@@ -81,7 +103,6 @@ const router = createBrowserRouter([
           { path: '/admin/notifications', element: withSuspense(NotificationCenter) },
           { path: '/admin/notifications/history', element: withSuspense(NotificationHistoryPage) },
           { path: '/admin/attendance', element: withSuspense(AttendanceDashboardPage) },
-          { path: '/admin/payroll', element: withSuspense(PayrollDashboardPage) },
         ],
       },
     ],
@@ -98,7 +119,6 @@ const router = createBrowserRouter([
         errorElement: <RouteErrorBoundary />,
         children: [
           { path: '/customer', element: withSuspense(CustomerDashboardPage) },
-          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
           { path: '/customer/plans', element: withSuspense(BrowsePlansPage) },
           { path: '/customer/subscription', element: withSuspense(SubscriptionDetailsPage) },
           { path: '/customer/subscribe', element: withSuspense(SubscriptionWizardPage) },
@@ -117,7 +137,6 @@ const router = createBrowserRouter([
         element: <AppShell />,
         errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
           { path: '/kitchen/production', element: withSuspense(ProductionBoardPage) },
           { path: '/kitchen/menus', element: withSuspense(DailyMenuListPage) },
           { path: '/kitchen/inventory', element: withSuspense(InventoryPage) },
@@ -134,7 +153,6 @@ const router = createBrowserRouter([
         element: <AppShell />,
         errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
           { path: '/delivery', element: withSuspense(DeliveryPartnerPage) },
         ],
       },
@@ -147,9 +165,7 @@ const router = createBrowserRouter([
         element: <AppShell />,
         errorElement: <RouteErrorBoundary />,
         children: [
-          { path: '/dashboard', element: withSuspense(UnifiedDashboardPage) },
           { path: '/accounts/analytics', element: withSuspense(BusinessAnalyticsPage) },
-          { path: '/admin/payroll', element: withSuspense(PayrollDashboardPage) }, // Allow accounts to see payroll
         ],
       },
     ],
