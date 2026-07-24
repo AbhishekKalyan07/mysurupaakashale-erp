@@ -2,14 +2,13 @@ import { ShieldOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_HOME_ROUTE } from '@/shared/constants/roles';
-import type { UserRole } from '@/shared/types/auth.types';
+import { ROLE_HOME_ROUTE, type Role } from '@/shared/constants/roles';
 
 export interface PermissionDeniedProps {
   title?: string;
   description?: string;
-  currentRole?: UserRole | string;
-  requiredRole?: UserRole | string;
+  currentRole?: Role | string;
+  requiredRole?: Role | string;
 }
 
 /**
