@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { firebaseApp } from '@/shared/lib/firebase';
-import { where, serverTimestamp } from 'firebase/firestore';
+import { where, serverTimestamp, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { userRepository } from '@/shared/services/firestore/userRepository';
@@ -26,6 +26,19 @@ export function useStaffUsers() {
         return dateB - dateA; // Descending
       });
     },
+  });
+}
+
+export function useAdminCustomers() {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.users.all, 'customers-paginated'],
+    queryFn: async ({ pageParam }: { pageParam: QueryDocumentSnapshot<UserProfile> | undefined }) => {
+      const { customers, lastDoc } = await userRepository.getCustomersPaginated(20, pageParam);
+      return { rows: customers, lastDoc };
+    },
+    initialPageParam: undefined as QueryDocumentSnapshot<UserProfile> | undefined,
+    getNextPageParam: (lastPage) => lastPage.lastDoc ?? undefined,
+    staleTime: 15_000,
   });
 }
 

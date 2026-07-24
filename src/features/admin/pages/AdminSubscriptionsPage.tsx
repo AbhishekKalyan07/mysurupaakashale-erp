@@ -101,7 +101,10 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
               <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Customer</div>
               <div className="font-semibold text-ink-900">{subscription.customerName}</div>
               <div className="text-ink-500 text-xs">{subscription.customerPhone}</div>
-              <div className="text-ink-400 text-xs font-mono">{subscription.customerId}</div>
+              {subscription.customerAddress && (
+                <div className="text-ink-600 text-xs mt-1 italic">{subscription.customerAddress}</div>
+              )}
+              <div className="text-ink-400 text-xs font-mono mt-1">{subscription.customerId}</div>
             </div>
             <div className="bg-rice-50 rounded-lg p-3">
               <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Plan</div>
@@ -219,6 +222,9 @@ function SubscriptionRowView({ subscription, onSelect }: { subscription: Subscri
         <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{subscription.customerId}</div>
       </td>
       <td className="px-4 py-4 text-sm font-sans text-ink-600">{subscription.customerPhone}</td>
+      <td className="px-4 py-4 text-sm font-sans text-ink-600 max-w-[200px] truncate" title={subscription.customerAddress || 'No address'}>
+        {subscription.customerAddress || <span className="italic text-ink-400">No address</span>}
+      </td>
       <td className="px-4 py-4 text-sm font-sans">
         <div className="text-ink-900 font-medium">{subscription.planName}</div>
         <div className="text-ink-400 text-xs capitalize">{subscription.planTier}</div>
@@ -311,6 +317,7 @@ export function AdminSubscriptionsPage() {
                 <tr>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Address</th>
                   <th className="px-4 py-3">Plan</th>
                   <th className="px-4 py-3">Start Date</th>
                   <th className="px-4 py-3">End Date</th>

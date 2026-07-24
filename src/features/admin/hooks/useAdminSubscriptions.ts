@@ -22,6 +22,7 @@ export type AdminStatusFilter = SubscriptionStatus | 'all';
 export interface SubscriptionRow extends Subscription {
   customerName: string;
   customerPhone: string;
+  customerAddress: string | null;
   planName: string;
 }
 
@@ -70,10 +71,22 @@ async function attachDisplayFields(
     .map((sub) => {
       const customer = customerById.get(sub.customerId)!;
       const plan = planById.get(sub.planId);
+      
+      let formattedAddress = null;
+      if (customer.role === 'customer') {
+        const addrList = (customer as any).addresses || [];
+        const defaultId = (customer as any).defaultAddressId;
+        const addr = addrList.find((a: any) => a.id === defaultId) || addrList[0];
+        if (addr) {
+          formattedAddress = [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') + (addr.pincode ? ` - ${addr.pincode}` : '');
+        }
+      }
+
       return {
         ...sub,
         customerName: customer.fullName,
         customerPhone: customer.phone,
+        customerAddress: formattedAddress,
         planName: plan?.name ?? sub.planTier,
       };
     });
