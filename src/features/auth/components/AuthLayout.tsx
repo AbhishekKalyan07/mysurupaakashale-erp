@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ChevronLeft, ShieldCheck, Mail, Utensils } from 'lucide-react';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -8,65 +8,90 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSignup = location.pathname.includes('signup');
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center bg-[#FDFBF7] px-4 py-8 md:py-16 selection:bg-[#801C1E]/10 selection:text-[#801C1E]">
+    <div className="relative flex min-h-dvh flex-col bg-[#FDF8F0] overflow-hidden selection:bg-[#5B1612]/10 selection:text-[#5B1612] font-sans">
       
-      {/* Subtle traditional watermark grid element */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#801C1E_1px,transparent_1px)] [background-size:16px_16px]" />
-      
-      {/* Top-left back link */}
-      <button 
-        onClick={() => navigate('/')}
-        className="absolute left-4 top-4 flex items-center gap-1 text-sm font-medium text-ink-500 hover:text-[#801C1E] transition-colors"
-      >
-        <ChevronLeft size={16} />
-        <span>Home</span>
-      </button>
+      {/* Absolute Tiffin Image (Anchored right, blended into background) */}
+      <div className="absolute top-0 right-0 w-full md:w-[600px] h-[500px] pointer-events-none opacity-90 z-0">
+        <img 
+          src="/auth_bg.jpg" 
+          alt="Tiffin Box" 
+          className="w-full h-full object-cover object-left mix-blend-multiply [mask-image:radial-gradient(ellipse_at_top_right,black_20%,transparent_70%)]"
+        />
+      </div>
 
-      {/* Centered card frame */}
-      <div className="relative w-full max-w-[430px] rounded-2xl bg-white border border-[#E6E1D4]/60 p-6 shadow-card hover:shadow-card-hover transition-shadow md:p-8">
+      {/* Subtle traditional watermark grid element (optional, keeping opacity extremely low so it doesn't distract from the clean mockup) */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#5B1612_1px,transparent_1px)] [background-size:24px_24px] z-0" />
+
+      {/* Main Container */}
+      <div className="relative z-10 flex flex-col flex-grow w-full max-w-md mx-auto px-6 py-8">
         
-        {/* Branding Header */}
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className="flex items-center gap-2 mb-1.5">
-            <img src="/favicon.svg" alt="Logo" className="h-9 w-9 text-[#801C1E]" />
-            <span className="font-display text-2xl font-bold text-[#801C1E]">
-              Mysuru Paakashale
-            </span>
+        {/* Header Section */}
+        <div className="relative flex items-center justify-center w-full mb-8 pt-4">
+          {/* Back Arrow (Visible on Signup or based on mockup) */}
+          {isSignup && (
+            <button 
+              onClick={() => navigate('/login')}
+              className="absolute left-0 text-ink-900 hover:text-[#5B1612] transition-colors p-1"
+              aria-label="Back"
+            >
+              <ChevronLeft size={24} strokeWidth={2.5} />
+            </button>
+          )}
+
+          {/* Logo */}
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-2 mb-1">
+              <img src="/favicon.svg" alt="Logo" className="h-8 w-8 text-[#5B1612]" />
+              <span className="font-display text-2xl font-bold text-[#5B1612] tracking-wide">
+                MYSURU<br/><span className="text-xl">PAAKASHALE</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-px w-6 bg-ink-300"></div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-ink-700">
+                Real Taste of Nammuru
+              </p>
+              <div className="h-px w-6 bg-ink-300"></div>
+            </div>
           </div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-ink-500 font-sans">
-            Homemade Food Delivered Fresh
-          </p>
         </div>
 
-        {/* Tiffin Banner */}
-        <div className="relative h-40 w-full rounded-xl overflow-hidden mb-6 border border-[#E6E1D4]/40">
-          <img 
-            src="/auth_bg.jpg" 
-            alt="Mysuru Paakashale Tiffin Box" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        {/* Content Body (Form) */}
+        <div className="flex-grow mt-4 flex flex-col justify-center">
+          {children}
         </div>
-
-        {/* Form Body */}
-        <div>{children}</div>
         
-        {/* Trust Indicators */}
-        <div className="mt-8 pt-6 border-t border-[#E6E1D4]/60 flex flex-col gap-2.5 text-xs text-ink-500 font-sans">
-          <div className="flex items-center gap-2">
-            <span className="text-[#801C1E]">🔒</span>
-            <span className="font-medium text-ink-600">Secure authentication powered by Firebase</span>
+        {/* Footer Trust Badges */}
+        <div className="mt-12 pt-6 flex items-center justify-between gap-2 text-ink-700">
+          
+          <div className="flex items-start gap-2 flex-1">
+            <ShieldCheck className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-ink-900">Secure & Trusted</span>
+              <span className="text-[9px] text-ink-500 leading-tight">Your data is protected</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[#801C1E]">📧</span>
-            <span className="font-medium text-ink-600">Email verification required</span>
+
+          <div className="flex items-start gap-2 flex-1 justify-center">
+            <Mail className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-ink-900">Email Verification</span>
+              <span className="text-[9px] text-ink-500 leading-tight">For your security</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[#801C1E]">🔐</span>
-            <span className="font-medium text-ink-600">Your data is protected</span>
+
+          <div className="flex items-start gap-2 flex-1 justify-end text-right">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-bold text-ink-900">Fresh & Homemade</span>
+              <span className="text-[9px] text-ink-500 leading-tight">Delivered with care</span>
+            </div>
+            <Utensils className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
           </div>
+
         </div>
 
       </div>

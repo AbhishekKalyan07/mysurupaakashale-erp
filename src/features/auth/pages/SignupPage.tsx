@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/shared/components/ui/Button';
@@ -51,9 +51,6 @@ export function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Google Signup Flow Step States
-  // 0: Initial signup form
-  // 1: Complete Profile (Enter phone number)
-  // 2: Create Password (Enter password)
   const [signupStep, setSignupStep] = useState<0 | 1 | 2>(0);
   const [pendingGoogleUser, setPendingGoogleUser] = useState<any | null>(null);
   
@@ -128,7 +125,6 @@ export function SignupPage() {
     let hasError = false;
     const newErrors: typeof googleErrors = {};
 
-    // Password strength validation
     if (googlePassword.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
       hasError = true;
@@ -146,7 +142,6 @@ export function SignupPage() {
       hasError = true;
     }
 
-    // Confirm password matching
     if (googlePassword !== googleConfirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
       hasError = true;
@@ -166,7 +161,7 @@ export function SignupPage() {
       const errMsg = (err as Error).message || 'Failed to complete signup';
       if (errMsg.includes('mobile number')) {
         setGoogleErrors({ phone: errMsg });
-        setSignupStep(1); // Go back to correct the phone number
+        setSignupStep(1); 
       } else {
         setFormError(errMsg);
       }
@@ -191,34 +186,38 @@ export function SignupPage() {
   return (
     <AuthLayout>
       {signupStep === 1 && pendingGoogleUser && (
-        // Step 1: Complete Profile (Mobile collection)
-        <form onSubmit={handlePhoneStepSubmit} className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+        <form onSubmit={handlePhoneStepSubmit} className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-2">
+            <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-1 leading-tight">
               Complete Profile
             </h2>
-            <p className="text-xs text-ink-500">
+            <p className="text-[15px] text-ink-700 font-medium pr-8">
               Step 1 of 2: Enter your mobile number.
             </p>
           </div>
 
-          <p className="text-xs text-ink-600 leading-relaxed bg-[#FDFBF7] p-3 rounded-lg border border-[#E6E1D4]/40">
+          <p className="text-sm text-ink-700 leading-relaxed font-medium bg-white/50 p-3 rounded-xl border border-rice-300">
             Hi <strong>{pendingGoogleUser.displayName || 'there'}</strong>! Please provide your phone number so our team can coordinate daily meal deliveries.
           </p>
           
           <div className="flex flex-col gap-1">
-            <input
-              type="tel"
-              placeholder="Mobile number"
-              required
-              value={googlePhone}
-              onChange={(e) => setGooglePhone(e.target.value)}
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                googleErrors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-              }`}
-            />
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                <Phone size={20} strokeWidth={1.5} />
+              </div>
+              <input
+                type="tel"
+                placeholder="Mobile number"
+                required
+                value={googlePhone}
+                onChange={(e) => setGooglePhone(e.target.value)}
+                className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                  googleErrors.phone ? 'border-danger focus:ring-danger' : ''
+                }`}
+              />
+            </div>
             {googleErrors.phone && (
-              <p role="alert" className="text-xs text-danger ml-1">
+              <p role="alert" className="text-sm text-danger ml-2">
                 {googleErrors.phone}
               </p>
             )}
@@ -226,7 +225,7 @@ export function SignupPage() {
 
           <Button 
             type="submit" 
-            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
           >
             Next: Create Password
           </Button>
@@ -235,7 +234,7 @@ export function SignupPage() {
             type="button" 
             onClick={handleCancelGoogleSignup}
             variant="ghost"
-            className="w-full h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
+            className="w-full h-12 rounded-xl text-ink-600 hover:text-ink-900 transition-colors text-[15px] font-medium"
           >
             Cancel
           </Button>
@@ -243,77 +242,82 @@ export function SignupPage() {
       )}
 
       {signupStep === 2 && pendingGoogleUser && (
-        // Step 2: Create Password
-        <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+        <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-2">
+            <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-1 leading-tight">
               Create Password
             </h2>
-            <p className="text-xs text-ink-500">
+            <p className="text-[15px] text-ink-700 font-medium pr-8">
               Step 2 of 2: Secure your account credentials.
             </p>
           </div>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1">
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Create Password"
-                required
-                value={googlePassword}
-                onChange={(e) => setGooglePassword(e.target.value)}
-                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                  googleErrors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <div className="flex flex-col gap-4">
+            {/* Password */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Create Password"
+                  required
+                  value={googlePassword}
+                  onChange={(e) => setGooglePassword(e.target.value)}
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    googleErrors.password ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                >
+                  {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                </button>
+              </div>
+              {googleErrors.password && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {googleErrors.password}
+                </p>
+              )}
             </div>
-            {googleErrors.password && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {googleErrors.password}
-              </p>
-            )}
-          </div>
 
-          {/* Confirm Password */}
-          <div className="flex flex-col gap-1">
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm Password"
-                required
-                value={googleConfirmPassword}
-                onChange={(e) => setGoogleConfirmPassword(e.target.value)}
-                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                  googleErrors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-              >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            {/* Confirm Password */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm Password"
+                  required
+                  value={googleConfirmPassword}
+                  onChange={(e) => setGoogleConfirmPassword(e.target.value)}
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    googleErrors.confirmPassword ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                </button>
+              </div>
+              {googleErrors.confirmPassword && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {googleErrors.confirmPassword}
+                </p>
+              )}
             </div>
-            {googleErrors.confirmPassword && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {googleErrors.confirmPassword}
-              </p>
-            )}
           </div>
 
           {formError && (
-            <p role="alert" className="text-sm text-danger text-center">
+            <p role="alert" className="text-sm text-danger font-medium mt-1">
               {formError}
             </p>
           )}
@@ -321,7 +325,7 @@ export function SignupPage() {
           <Button 
             type="submit" 
             isLoading={googleLoading}
-            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
           >
             Complete Registration
           </Button>
@@ -331,7 +335,7 @@ export function SignupPage() {
               type="button" 
               onClick={() => setSignupStep(1)}
               variant="ghost"
-              className="w-1/2 h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
+              className="w-1/2 h-12 rounded-xl text-ink-600 hover:text-ink-900 transition-colors text-[15px] font-medium"
             >
               Back
             </Button>
@@ -339,7 +343,7 @@ export function SignupPage() {
               type="button" 
               onClick={handleCancelGoogleSignup}
               variant="ghost"
-              className="w-1/2 h-12 rounded-lg text-danger hover:text-[#962325] transition-colors text-sm"
+              className="w-1/2 h-12 rounded-xl text-danger hover:text-[#962325] transition-colors text-[15px] font-medium"
             >
               Cancel
             </Button>
@@ -348,156 +352,180 @@ export function SignupPage() {
       )}
 
       {signupStep === 0 && (
-        // Standard signup form
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-3 pr-12">
+            <h2 className="font-display text-[32px] font-bold text-[#5B1612] mb-1 leading-tight">
               Create Your Account
             </h2>
-            <p className="text-xs text-ink-500">
-              Join thousands enjoying fresh homemade meals every day.
+            <p className="text-[15px] text-ink-700 font-medium pr-8">
+              Join thousands enjoying homemade food everyday
             </p>
           </div>
 
-          {/* Full Name */}
-          <div className="flex flex-col gap-1">
-            <input
-              type="text"
-              placeholder="Full Name"
-              autoComplete="name"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.fullName ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-              }`}
-              {...register('fullName')}
-            />
-            {errors.fullName && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.fullName.message}
-              </p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="flex flex-col gap-1">
-            <input
-              type="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.email ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-              }`}
-              {...register('email')}
-            />
-            {errors.email && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          {/* Mobile number */}
-          <div className="flex flex-col gap-1">
-            <input
-              type="tel"
-              placeholder="Mobile number"
-              autoComplete="tel"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-              }`}
-              {...register('phone')}
-            />
-            {errors.phone && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.phone.message}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="flex flex-col gap-1">
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                autoComplete="new-password"
-                required
-                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                  errors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-                }`}
-                {...register('password')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <div className="flex flex-col gap-4">
+            {/* Full Name */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <User size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  autoComplete="name"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.fullName ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('fullName')}
+                />
+              </div>
+              {errors.fullName && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.fullName.message}
+                </p>
+              )}
             </div>
-            {errors.password && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
 
-          {/* Confirm Password */}
-          <div className="flex flex-col gap-1">
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm Password"
-                autoComplete="new-password"
-                required
-                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                  errors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-[#801C1E] focus:border-[#801C1E]'
-                }`}
-                {...register('confirmPassword')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-              >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            {/* Email */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Mail size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  autoComplete="email"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.email ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('email')}
+                />
+              </div>
+              {errors.email && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
-            {errors.confirmPassword && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.confirmPassword.message}
-              </p>
-            )}
+
+            {/* Mobile number */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Phone size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type="tel"
+                  placeholder="Mobile number"
+                  autoComplete="tel"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.phone ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('phone')}
+                />
+              </div>
+              {errors.phone && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.phone.message}
+                </p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  autoComplete="new-password"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.password ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                >
+                  {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                </button>
+              </div>
+              {errors.password && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm Password"
+                  autoComplete="new-password"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.confirmPassword ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Terms Checkbox */}
           <div className="flex flex-col gap-1 mt-1">
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-ink-600">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-rice-300 text-[#801C1E] focus:ring-[#801C1E]"
-                {...register('agreed')}
-              />
-              <span className="leading-tight">
-                I agree to Mysuru Paakashale's{' '}
-                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Terms of Service</a>,{' '}
-                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Privacy Policy</a> and{' '}
-                <a href="#" className="text-[#801C1E] hover:underline font-semibold">Content Policies</a>
+            <label className="flex items-start gap-3 cursor-pointer text-[13.5px] text-ink-700 font-medium">
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  className="peer mt-0.5 h-5 w-5 appearance-none rounded-[4px] border-2 border-ink-300 bg-white checked:border-[#5B1612] checked:bg-[#5B1612] focus:outline-none focus:ring-2 focus:ring-[#5B1612]/30 transition-all cursor-pointer"
+                  {...register('agreed')}
+                />
+                <svg className="absolute top-[3px] left-[3px] h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7.5L5.5 11L12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className="leading-tight pt-1">
+                I agree to the{' '}
+                <a href="#" className="text-[#5B1612] font-bold hover:underline">Terms of Service</a> and{' '}
+                <a href="#" className="text-[#5B1612] font-bold hover:underline">Privacy Policy</a>
               </span>
             </label>
             {errors.agreed && (
-              <p role="alert" className="text-xs text-danger ml-1">
+              <p role="alert" className="text-sm text-danger ml-8">
                 {errors.agreed.message}
               </p>
             )}
           </div>
 
           {formError && (
-            <p role="alert" className="text-sm text-danger text-center">
+            <p role="alert" className="text-sm text-danger font-medium mt-1">
               {formError}
             </p>
           )}
@@ -505,15 +533,17 @@ export function SignupPage() {
           <Button 
             type="submit" 
             isLoading={isSubmitting} 
-            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
           >
-            Create account
+            Create Account
           </Button>
 
           {/* Separator line */}
-          <div className="relative flex items-center justify-center my-3">
-            <div className="w-full border-t border-rice-200" />
-            <span className="absolute bg-white px-3 text-xs text-ink-400 font-sans">OR</span>
+          <div className="relative flex items-center justify-center my-2">
+            <div className="w-full border-t border-ink-200" />
+            <span className="absolute bg-[#FDF8F0] px-4 text-[13px] font-bold text-ink-600 font-sans uppercase">
+              OR
+            </span>
           </div>
 
           {/* Google Sign In/Up */}
@@ -521,10 +551,10 @@ export function SignupPage() {
             type="button"
             onClick={handleGoogleSignUpClick}
             disabled={googleLoading}
-            className="w-full h-12 rounded-lg border border-rice-300 bg-white hover:bg-rice-50/50 text-ink-700 font-medium transition-colors flex items-center justify-center gap-2.5 text-sm"
+            className="w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
           >
             {googleLoading ? (
-              <span className="animate-spin h-4 w-4 border-2 border-ink-400 border-t-transparent rounded-full" />
+              <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
             ) : (
               <>
                 <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
@@ -553,10 +583,10 @@ export function SignupPage() {
       )}
 
       {signupStep === 0 && (
-        <div className="mt-6 text-center text-sm text-ink-600">
+        <div className="mt-2 text-center text-[15px] font-medium text-ink-700">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-[#801C1E] hover:underline">
-            Log in
+          <Link to="/login" className="font-bold text-[#5B1612] hover:underline">
+            Sign In
           </Link>
         </div>
       )}

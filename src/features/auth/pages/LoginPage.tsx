@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/shared/components/ui/Button';
@@ -87,31 +87,36 @@ export function LoginPage() {
     <AuthLayout>
       {forgotPasswordMode ? (
         // Reset password form
-        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-4">
+            <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-2 leading-tight">
               Reset Password
             </h2>
-            <p className="text-xs text-ink-500">
+            <p className="text-sm text-ink-600 font-medium">
               Enter your email to request a secure password reset link.
             </p>
           </div>
 
           <div className="flex flex-col gap-1">
-            <input
-              type="email"
-              placeholder="Email"
-              required
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                formError ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-            />
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">
+                <Mail size={20} strokeWidth={1.5} />
+              </div>
+              <input
+                type="email"
+                placeholder="Email address"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] ${
+                  formError ? 'border-danger focus:ring-danger' : ''
+                }`}
+              />
+            </div>
           </div>
 
           {formError && (
-            <p role="alert" className="text-xs text-danger text-center">
+            <p role="alert" className="text-sm text-danger mt-1">
               {formError}
             </p>
           )}
@@ -119,7 +124,7 @@ export function LoginPage() {
           <Button 
             type="submit" 
             isLoading={resetLoading}
-            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2"
           >
             Send Reset Link
           </Button>
@@ -128,85 +133,95 @@ export function LoginPage() {
             type="button" 
             onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
             variant="ghost"
-            className="w-full h-12 rounded-lg text-ink-500 hover:text-ink-700 transition-colors text-sm"
+            className="w-full h-12 rounded-xl text-ink-600 hover:text-ink-900 transition-colors text-[15px] font-medium"
           >
             Back to Login
           </Button>
         </form>
       ) : (
         // Standard login form
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-sans text-xl font-bold text-ink-900 mb-1">
-              Welcome Back 👋
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-4 pr-12">
+            <h2 className="font-display text-[32px] font-bold text-[#5B1612] mb-2 leading-tight flex items-center gap-2">
+              Welcome Back <span className="text-2xl">👋</span>
             </h2>
-            <p className="text-xs text-ink-500">
-              Sign in to continue your meal subscription.
+            <p className="text-[15px] text-ink-700 font-medium pr-10">
+              Sign in to continue your meal journey
             </p>
           </div>
 
-          {/* Email Input */}
-          <div className="flex flex-col gap-1">
-            <input
-              type="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                errors.email ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-              }`}
-              {...register('email')}
-            />
-            {errors.email && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
+          <div className="flex flex-col gap-4">
+            {/* Email Input */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Mail size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  autoComplete="email"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.email ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('email')}
+                />
+              </div>
+              {errors.email && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-          {/* Password Input */}
-          <div className="flex flex-col gap-1">
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                autoComplete="current-password"
-                required
-                className={`h-12 w-full rounded-lg border bg-white pl-4 pr-11 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
-                  errors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
-                }`}
-                {...register('password')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            {/* Password Input */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  required
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.password ? 'border-danger focus:ring-danger' : ''
+                  }`}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
+                </button>
+              </div>
+              
+              {/* Forgot Password link directly beneath */}
+              <div className="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
+                  className="text-[14px] font-semibold text-ink-700 hover:text-[#5B1612]"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              
+              {errors.password && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
-            
-            {/* Forgot Password link directly beneath */}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
-                className="text-xs font-semibold text-[#801C1E] hover:underline"
-              >
-                Forgot Password?
-              </button>
-            </div>
-            
-            {errors.password && (
-              <p role="alert" className="text-xs text-danger ml-1">
-                {errors.password.message}
-              </p>
-            )}
           </div>
 
           {formError && (
-            <p role="alert" className="text-sm text-danger text-center">
+            <p role="alert" className="text-sm text-danger font-medium mt-1">
               {formError}
             </p>
           )}
@@ -214,15 +229,17 @@ export function LoginPage() {
           <Button 
             type="submit" 
             isLoading={isSubmitting} 
-            className="w-full h-12 rounded-lg bg-[#801C1E] hover:bg-[#962325] text-white font-medium transition-colors mt-2"
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
           >
             Sign In
           </Button>
 
           {/* Separator line */}
-          <div className="relative flex items-center justify-center my-3">
-            <div className="w-full border-t border-rice-200" />
-            <span className="absolute bg-white px-3 text-xs text-ink-400 font-sans">OR</span>
+          <div className="relative flex items-center justify-center my-2">
+            <div className="w-full border-t border-ink-200" />
+            <span className="absolute bg-[#FDF8F0] px-4 text-[13px] font-bold text-ink-600 font-sans uppercase">
+              OR
+            </span>
           </div>
 
           {/* Google Sign In */}
@@ -230,10 +247,10 @@ export function LoginPage() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isGoogleLoading}
-            className="w-full h-12 rounded-lg border border-rice-300 bg-white hover:bg-rice-50/50 text-ink-700 font-medium transition-colors flex items-center justify-center gap-2.5 text-sm"
+            className="w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
           >
             {isGoogleLoading ? (
-              <span className="animate-spin h-4 w-4 border-2 border-ink-400 border-t-transparent rounded-full" />
+              <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
             ) : (
               <>
                 <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
@@ -258,16 +275,14 @@ export function LoginPage() {
               </>
             )}
           </button>
-        </form>
-      )}
 
-      {!forgotPasswordMode && (
-        <div className="mt-6 text-center text-sm text-ink-600">
-          Don't have an account?{' '}
-          <Link to="/signup" className="font-semibold text-[#801C1E] hover:underline">
-            Create Account
-          </Link>
-        </div>
+          <div className="mt-2 text-center text-[15px] font-medium text-ink-700">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-bold text-[#5B1612] hover:underline">
+              Create Account
+            </Link>
+          </div>
+        </form>
       )}
     </AuthLayout>
   );
