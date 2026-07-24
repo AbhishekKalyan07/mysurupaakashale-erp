@@ -62,16 +62,21 @@ async function attachDisplayFields(
   const customerById = new Map(customerIds.map((id, i) => [id, customers[i]]));
   const planById = new Map(planIds.map((id, i) => [id, plans[i]]));
 
-  return subscriptions.map((sub) => {
-    const customer = customerById.get(sub.customerId);
-    const plan = planById.get(sub.planId);
-    return {
-      ...sub,
-      customerName: customer?.fullName ?? 'Unknown customer',
-      customerPhone: customer?.phone ?? '—',
-      planName: plan?.name ?? sub.planTier,
-    };
-  });
+  return subscriptions
+    .filter((sub) => {
+      const customer = customerById.get(sub.customerId);
+      return customer != null; // Ensure the customer exists and hasn't been deleted
+    })
+    .map((sub) => {
+      const customer = customerById.get(sub.customerId)!;
+      const plan = planById.get(sub.planId);
+      return {
+        ...sub,
+        customerName: customer.fullName,
+        customerPhone: customer.phone,
+        planName: plan?.name ?? sub.planTier,
+      };
+    });
 }
 
 // ── Admin: paginated subscriptions list by status ──────────────────────────────
