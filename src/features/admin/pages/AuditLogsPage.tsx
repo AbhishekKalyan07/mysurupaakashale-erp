@@ -133,9 +133,9 @@ export function AuditLogsPage() {
         ) : data?.logs.length === 0 ? (
           <div className="p-8"><EmptyState title="No Logs Found" description="Try adjusting your filters." /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-rice-50 text-ink-500 font-medium">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm block md:table">
+              <thead className="hidden md:table-header-group bg-rice-50 text-ink-500 font-medium">
                 <tr>
                   <th className="px-4 py-3">Timestamp</th>
                   <th className="px-4 py-3">Action</th>
@@ -143,24 +143,30 @@ export function AuditLogsPage() {
                   <th className="px-4 py-3">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-rice-100">
+              <tbody className="block md:table-row-group divide-y divide-rice-100">
                 {data?.logs.map(log => (
-                  <tr key={log.id} className="hover:bg-rice-25">
-                    <td className="px-4 py-3 whitespace-nowrap text-ink-600 font-data text-xs">
+                  <tr key={log.id} className="block md:table-row bg-white md:bg-transparent hover:bg-rice-25 p-4 md:p-0 space-y-3 md:space-y-0">
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 whitespace-nowrap text-ink-600 font-data text-xs">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Timestamp</span>
                       {log.timestamp ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, {
                         dateStyle: 'medium',
                         timeStyle: 'medium'
                       }).format(log.timestamp.toDate()) : 'N/A'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Action</span>
                       <Badge tone="neutral" className="font-data text-[10px] uppercase">{log.action}</Badge>
                     </td>
-                    <td className="px-4 py-3">
-                      {log.actorId && <div className="text-xs text-ink-700"><span className="text-ink-400">Actor:</span> {log.actorId}</div>}
-                      {log.entityId && <div className="text-xs text-ink-700 mt-1"><span className="text-ink-400">Entity:</span> {log.entityId}</div>}
+                    <td className="flex justify-between items-start md:items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-right md:text-left">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actor/Entity</span>
+                      <div>
+                        {log.actorId && <div className="text-xs text-ink-700"><span className="text-ink-400">Actor:</span> {log.actorId}</div>}
+                        {log.entityId && <div className="text-xs text-ink-700 mt-1"><span className="text-ink-400">Entity:</span> {log.entityId}</div>}
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <pre className="text-[10px] text-ink-600 max-w-sm overflow-x-auto bg-rice-50 p-2 rounded border border-rice-100">
+                    <td className="block md:table-cell px-0 md:px-4 py-2 md:py-3">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider block mb-1">Details</span>
+                      <pre className="text-[10px] text-ink-600 w-full overflow-x-auto bg-rice-50 p-2 rounded border border-rice-100 whitespace-pre-wrap word-break">
                         {JSON.stringify(log.details || {}, null, 2)}
                       </pre>
                     </td>

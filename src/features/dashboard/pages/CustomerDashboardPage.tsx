@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -125,9 +126,9 @@ export function CustomerDashboardPage() {
       setShowAddressForm(false);
       setPickedCoords(null);
       reset();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error adding address:', err);
-      setAddressError(err.message || 'Could not add address. Please check inputs.');
+      setAddressError((err as Error).message || 'Could not add address. Please check inputs.');
     }
   };
 
@@ -505,8 +506,8 @@ function TrialMealModal({ onClose, uid, addresses, plans }: any) {
         deliveryPartnerId: null,
         deliveryWindow: null,
         paymentId: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp
       });
 
       setSuccess(true);

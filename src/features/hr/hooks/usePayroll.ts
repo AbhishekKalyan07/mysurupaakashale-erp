@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payrollRepository, salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
 import type { PayrollRecord, EmployeeSalaryProfile, PayrollStatus } from '@/shared/types';
@@ -50,12 +51,12 @@ export function useUpdateSalaryProfile() {
       if (exists) {
         await salaryProfileRepository.update(data.id, {
           ...data,
-          updatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         });
       } else {
         await salaryProfileRepository.create({
           ...data,
-          updatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         }, data.id);
       }
       const user = getAuth().currentUser;
@@ -68,8 +69,8 @@ export function useUpdateSalaryProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.profile(variables.id) });
       toast.success('Salary profile updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update salary profile');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update salary profile');
     },
   });
 }
@@ -85,8 +86,8 @@ export function useGeneratePayroll() {
         id,
         status: 'draft',
         paymentDate: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       };
       await payrollRepository.create(record, id);
       const user = getAuth().currentUser;
@@ -110,8 +111,8 @@ export function useGeneratePayroll() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll generated successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to generate payroll');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to generate payroll');
     },
   });
 }
@@ -123,7 +124,7 @@ export function useUpdatePayroll() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<PayrollRecord> }) => {
       await payrollRepository.update(id, {
         ...data,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       const user = getAuth().currentUser;
       if (user) {
@@ -134,8 +135,8 @@ export function useUpdatePayroll() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update payroll');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update payroll');
     },
   });
 }
@@ -147,7 +148,7 @@ export function useUpdatePayrollStatus() {
     mutationFn: async ({ id, status }: { id: string; status: PayrollStatus }) => {
       await payrollRepository.update(id, {
         status,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       const user = getAuth().currentUser;
       if (user) {
@@ -158,8 +159,8 @@ export function useUpdatePayrollStatus() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Payroll status updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update payroll status');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update payroll status');
     },
   });
 }
@@ -173,7 +174,7 @@ export function usePaySalary() {
       await payrollRepository.update(id, {
         status: 'paid',
         paymentDate,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       const user = getAuth().currentUser;
       if (user) {
@@ -198,8 +199,8 @@ export function usePaySalary() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
       toast.success('Salary marked as paid');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to mark salary as paid');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to mark salary as paid');
     },
   });
 }

@@ -43,7 +43,7 @@ export function useMarkNotificationRead() {
       await notificationRepository.update(notificationId, {
         inAppStatus: 'read',
         status: 'read',
-        readAt: Timestamp.now() as any,
+        readAt: Timestamp.now() as unknown as Timestamp,
       });
       return { success: true };
     },
@@ -98,7 +98,7 @@ export function useMarkAllNotificationsRead() {
           notificationRepository.update(n.id, {
             inAppStatus: 'read',
             status: 'read',
-            readAt: Timestamp.now() as any,
+            readAt: Timestamp.now() as unknown as Timestamp,
           })
         )
       );
@@ -114,8 +114,8 @@ export function useMarkAllNotificationsRead() {
       });
       toast.success(`Marked ${data.count} notifications as read.`);
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to mark all as read.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to mark all as read.');
     },
   });
 }
@@ -142,8 +142,8 @@ export function useArchiveNotification() {
         queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
       });
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to archive notification.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to archive notification.');
     },
   });
 }

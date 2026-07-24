@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leaveRepository } from '@/shared/services/firestore/leaveRepository';
 import type { LeaveRequest, LeaveStatus } from '@/shared/types';
@@ -43,8 +44,8 @@ export function useCreateLeaveRequest() {
         id,
         status: 'pending',
         approvedBy: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       };
       await leaveRepository.create(record, id);
       const user = getAuth().currentUser;
@@ -57,8 +58,8 @@ export function useCreateLeaveRequest() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
       toast.success('Leave request submitted');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to submit leave request');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to submit leave request');
     },
   });
 }
@@ -72,7 +73,7 @@ export function useUpdateLeaveStatus() {
       await leaveRepository.update(id, {
         status,
         approvedBy: user?.uid || 'Admin',
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       if (user) {
         await auditRepository.logAction(`leave_${status}`, user.uid, user.displayName || 'Admin', id, 'leave');
@@ -108,7 +109,7 @@ export function useUpdateLeaveStatus() {
               strandedOrders.forEach((doc) => {
                 batch.update(doc.ref, { 
                   deliveryPartnerId: null,
-                  updatedAt: serverTimestamp() 
+                  updatedAt: serverTimestamp() as unknown as Timestamp 
                 });
               });
               await batch.commit();
@@ -122,8 +123,8 @@ export function useUpdateLeaveStatus() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.leaves.base });
       toast.success('Leave status updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update leave status');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update leave status');
     },
   });
 }

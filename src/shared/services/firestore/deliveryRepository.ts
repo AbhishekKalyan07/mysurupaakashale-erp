@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { Order } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
@@ -72,7 +73,7 @@ class DeliveryRepository extends BaseRepository<Order> {
     for (const orderId of orderIds) {
       batch.update(doc(db, 'orders', orderId), { 
         deliveryPartnerId: partnerId,
-        updatedAt: serverTimestamp() as any
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
       });
     }
     await batch.commit();
@@ -85,7 +86,7 @@ class DeliveryRepository extends BaseRepository<Order> {
     // Phase 1: Client-side reassignment
     await this.update(orderId, { 
       deliveryPartnerId: partnerId,
-      updatedAt: serverTimestamp() as any
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
     });
   }
 
@@ -96,9 +97,9 @@ class DeliveryRepository extends BaseRepository<Order> {
   async updateDeliveryStatus(orderId: string, newStatus: string): Promise<void> {
     // Phase 7: Client-side delivery status update
     await this.update(orderId, {
-      status: newStatus as any,
-      updatedAt: serverTimestamp() as any
-    });
+      status: newStatus,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
+    } as Partial<Order>);
   }
 }
 

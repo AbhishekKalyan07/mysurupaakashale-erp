@@ -12,8 +12,8 @@ export interface AttendanceRecord {
   totalWorkingHours: number;
   status: AttendanceStatus;
   notes: string | null;
-  createdAt: Timestamp | any;
-  updatedAt: Timestamp | any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
@@ -29,8 +29,8 @@ export interface LeaveRequest {
   reason: string;
   status: LeaveStatus;
   approvedBy: string | null;
-  createdAt: Timestamp | any;
-  updatedAt: Timestamp | any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export type PayrollStatus = 'draft' | 'review' | 'approved' | 'paid' | 'archived';
@@ -52,8 +52,8 @@ export interface PayrollRecord {
   netSalary: number;
   paymentDate: string | null;
   status: PayrollStatus;
-  createdAt: Timestamp | any;
-  updatedAt: Timestamp | any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface EmployeeSalaryProfile {
@@ -61,5 +61,5 @@ export interface EmployeeSalaryProfile {
   basicSalary: number;
   overtimeRate: number;
   isActive: boolean;
-  updatedAt: Timestamp | any;
+  updatedAt: Timestamp;
 }

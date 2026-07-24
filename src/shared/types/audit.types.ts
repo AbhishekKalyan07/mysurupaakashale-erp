@@ -8,8 +8,8 @@ export interface AuditLog {
   entityId?: string;
   entityType?: string;
   details?: {
-    previousValue?: any;
-    newValue?: any;
-    [key: string]: any;
+    previousValue?: unknown;
+    newValue?: unknown;
+    [key: string]: unknown;
   };
 }

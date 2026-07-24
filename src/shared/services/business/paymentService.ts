@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { runTransaction, doc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, SubmitPaymentInput } from '@/shared/types';
@@ -35,8 +36,8 @@ class PaymentService {
       verificationDate: null,
       verifiedBy: null,
       verificationNotes: null,
-      createdAt: serverTimestamp() as any,
-      updatedAt: serverTimestamp() as any,
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
 
     try {
@@ -90,14 +91,14 @@ class PaymentService {
         status: 'verified',
         verificationDate: serverTimestamp(),
         verifiedBy: adminUid,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         verificationNotes: notes ?? null,
       });
 
       t.update(subRef, {
         status: 'active',
         latestPaymentId: paymentId,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
 
       const invoiceId = crypto.randomUUID();
@@ -188,7 +189,7 @@ class PaymentService {
         verificationDate: serverTimestamp(),
         verifiedBy: adminUid,
         verificationNotes: notes ?? null,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
     });
 

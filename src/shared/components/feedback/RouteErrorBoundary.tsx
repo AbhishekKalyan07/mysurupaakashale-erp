@@ -14,7 +14,23 @@ export function RouteErrorBoundary() {
     title = `${error.status} ${error.statusText}`;
     message = error.data?.message || 'The page you requested could not be found or loaded.';
   } else if (error instanceof Error) {
-    message = error.message;
+    message = (error as Error).message;
+    
+    // Automatically reload on chunk load errors (Vite dynamic import failures)
+    const isChunkLoadError = message?.includes('Failed to fetch dynamically imported module') ||
+                             message?.includes('Importing a module script failed');
+                             
+    if (isChunkLoadError) {
+      const reloadKey = 'app-reloaded-from-chunk-error';
+      const hasReloaded = sessionStorage.getItem(reloadKey);
+      
+      if (!hasReloaded) {
+        sessionStorage.setItem(reloadKey, 'true');
+        window.location.reload();
+      } else {
+        sessionStorage.removeItem(reloadKey);
+      }
+    }
   }
 
   return (

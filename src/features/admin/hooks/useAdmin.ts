@@ -1,12 +1,14 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { Timestamp } from 'firebase/firestore';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { firebaseApp } from '@/shared/lib/firebase';
 import { where, serverTimestamp, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import toast from 'react-hot-toast';
-import type { UserProfile } from '@/shared/types';
+import type { UserProfile, CustomerProfile } from '@/shared/types';
 import type { Role } from '@/shared/constants/roles';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { notifyStaffAccountCreated } from '@/shared/services/firestore/notificationService';
@@ -21,24 +23,23 @@ export function useStaffUsers() {
       
       // Sort in memory to avoid requiring a composite index on the users collection
       return users.sort((a, b) => {
-        const dateA = (a.createdAt as any)?.toMillis?.() || 0;
-        const dateB = (b.createdAt as any)?.toMillis?.() || 0;
+        const dateA = parseFirestoreDate(a.createdAt)?.getTime() || 0;
+        const dateB = parseFirestoreDate(b.createdAt)?.getTime() || 0;
         return dateB - dateA; // Descending
       });
     },
   });
 }
 
-export function useAdminCustomers() {
-  return useInfiniteQuery({
-    queryKey: [...queryKeys.users.all, 'customers-paginated'],
-    queryFn: async ({ pageParam }: { pageParam: QueryDocumentSnapshot<UserProfile> | undefined }) => {
-      const { customers, lastDoc } = await userRepository.getCustomersPaginated(20, pageParam);
-      return { rows: customers, lastDoc };
+export function useAdminCustomers(lastDocSnap?: QueryDocumentSnapshot<UserProfile>) {
+  return useQuery({
+    queryKey: [...queryKeys.users.all, 'customers-paginated', lastDocSnap?.id ?? 'page-0'],
+    queryFn: async (): Promise<{ rows: CustomerProfile[]; lastDoc: QueryDocumentSnapshot<UserProfile> | null }> => {
+      const { customers, lastDoc } = await userRepository.getCustomersPaginated(20, lastDocSnap);
+      return { rows: customers as CustomerProfile[], lastDoc };
     },
-    initialPageParam: undefined as QueryDocumentSnapshot<UserProfile> | undefined,
-    getNextPageParam: (lastPage) => lastPage.lastDoc ?? undefined,
     staleTime: 15_000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -73,8 +74,8 @@ export function useCreateStaffUser() {
           phone: data.phone,
           photoUrl: null,
           isActive: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         };
 
         if (data.role === 'kitchen') {
@@ -86,7 +87,7 @@ export function useCreateStaffUser() {
           profileData.currentLocation = null;
         }
 
-        await userRepository.create(profileData as any, credential.user.uid);
+        await userRepository.create(profileData as UserProfile, credential.user.uid);
         
         const currentUser = getAuth().currentUser;
         if (currentUser) {
@@ -113,8 +114,8 @@ export function useCreateStaffUser() {
       notifyStaffAccountCreated(result.uid, result.role, result.fullName)
         .catch((err) => console.error('[useCreateStaffUser] staff notification failed:', err));
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to create staff user');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to create staff user');
     },
   });
 }
@@ -123,7 +124,7 @@ export function useToggleStaffStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
-      await userRepository.update(uid, { isActive, updatedAt: serverTimestamp() } as any);
+      await userRepository.update(uid, { isActive, updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp } as Partial<UserProfile>);
       const currentUser = getAuth().currentUser;
       if (currentUser) {
         await auditRepository.logAction(
@@ -139,8 +140,8 @@ export function useToggleStaffStatus() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success('Staff status updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update staff status');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update staff status');
     },
   });
 }
@@ -152,8 +153,8 @@ export function useUpdateStaffUser() {
     mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
       await userRepository.update(uid, {
         ...data,
-        updatedAt: serverTimestamp(),
-      } as any);
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      } as Partial<UserProfile>);
       const currentUser = getAuth().currentUser;
       if (currentUser) {
         await auditRepository.logAction(
@@ -170,8 +171,8 @@ export function useUpdateStaffUser() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success('Staff user updated successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update staff user');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update staff user');
     },
   });
 }

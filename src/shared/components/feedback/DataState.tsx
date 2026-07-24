@@ -103,7 +103,7 @@ export function DataState<T>({
     return (
       <ErrorState
         title="Failed to load data"
-        description={error.message || 'An unexpected error occurred while fetching data.'}
+        description={(error as Error).message || 'An unexpected error occurred while fetching data.'}
         onRetry={onRetry}
       />
     );

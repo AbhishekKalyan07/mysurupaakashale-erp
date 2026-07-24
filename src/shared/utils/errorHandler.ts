@@ -30,12 +30,12 @@ export function extractErrorMessage(error: unknown, defaultMessage = 'An unexpec
         return 'An account with this email already exists.';
       default:
         // Strip out the generic Firebase "FirebaseError: " prefix if present in the message
-        return error.message.replace(/^FirebaseError:\s*/, '');
+        return (error as Error).message.replace(/^FirebaseError:\s*/, '');
     }
   }
 
   if (error instanceof Error) {
-    return error.message;
+    return (error as Error).message;
   }
 
   return defaultMessage;

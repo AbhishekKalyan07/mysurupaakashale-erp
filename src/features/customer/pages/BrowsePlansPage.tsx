@@ -3,17 +3,31 @@ import { useMealPlans } from '../hooks/useMealPlans';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
+import { useMySubscription } from '../hooks/useMySubscription';
 import { Compass, ShieldCheck, Check } from 'lucide-react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
 
 export function BrowsePlansPage() {
-  const { data: plans, isLoading, error, refetch } = useMealPlans();
+  const { data: plans, isLoading: isPlansLoading, error, refetch } = useMealPlans();
+  const { data: activeSub, isLoading: isSubLoading } = useMySubscription();
   const navigate = useNavigate();
 
-  if (isLoading) {
+  if (isPlansLoading || isSubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <EmptyState
+          icon={<Compass size={40} className="text-ink-400" />}
+          title="Active Subscription Exists"
+          description="You already have an active or pending meal plan. You must cancel your current plan before switching to a new one."
+        />
+      </div>
+    );
   }
 
   if (error) {

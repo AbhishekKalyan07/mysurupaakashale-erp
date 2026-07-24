@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
@@ -37,8 +38,8 @@ export function useSeedData() {
         const ref = doc(db, 'mealPlans', plan.id);
         batch.set(ref, {
           ...plan,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         });
       });
 
@@ -78,14 +79,14 @@ export function useSeedData() {
           taxPercentage: 0,
           leaveDeductionMultiplier: 1,
         },
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
 
       await batch.commit();
       toast.success('Successfully seeded initial production data!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error seeding data:', err);
-      toast.error(err.message || 'Failed to seed data.');
+      toast.error((err as Error).message || 'Failed to seed data.');
     } finally {
       setIsSeeding(false);
     }

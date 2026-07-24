@@ -23,6 +23,24 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught React Error:', error, errorInfo);
+    
+    // Automatically reload on chunk load errors (Vite dynamic import failures)
+    // We use sessionStorage to prevent infinite reload loops if the chunk is permanently gone.
+    const isChunkLoadError = (error as Error).message?.includes('Failed to fetch dynamically imported module') ||
+                             (error as Error).message?.includes('Importing a module script failed');
+                             
+    if (isChunkLoadError) {
+      const reloadKey = 'app-reloaded-from-chunk-error';
+      const hasReloaded = sessionStorage.getItem(reloadKey);
+      
+      if (!hasReloaded) {
+        sessionStorage.setItem(reloadKey, 'true');
+        window.location.reload();
+      } else {
+        // If already reloaded once and still failing, clear the flag and show error UI
+        sessionStorage.removeItem(reloadKey);
+      }
+    }
   }
 
   private handleReload = () => {

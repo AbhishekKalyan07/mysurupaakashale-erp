@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -109,7 +110,7 @@ export function ProfilePage() {
       await userRepository.update(firebaseUser.uid, {
         fullName: values.fullName,
         phone: values.phone,
-        updatedAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       toast.success('Profile updated successfully!');
       
@@ -119,8 +120,8 @@ export function ProfilePage() {
         // Just reload to clear query param and bypass guard
         window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -141,8 +142,8 @@ export function ProfilePage() {
       if (isOnboarding) {
         window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add address');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Failed to add address');
     }
   };
 

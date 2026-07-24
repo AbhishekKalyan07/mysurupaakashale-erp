@@ -78,8 +78,8 @@ export function useAssignDelivery() {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base }); // because orders were updated
       toast.success('Orders assigned successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to assign orders');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to assign orders');
     },
   });
 }
@@ -106,8 +106,8 @@ export function useReassignDelivery() {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
       toast.success('Order reassigned successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to reassign order');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to reassign order');
     },
   });
 }
@@ -149,8 +149,8 @@ export function useUpdateDeliveryStatus() {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
       toast.success('Status updated successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update status');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update status');
     },
   });
 }

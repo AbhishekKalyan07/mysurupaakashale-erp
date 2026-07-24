@@ -214,27 +214,41 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
 function SubscriptionRowView({ subscription, onSelect }: { subscription: SubscriptionRow; onSelect: () => void }) {
   return (
     <tr
-      className="hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
+      className="block md:table-row bg-white md:bg-transparent hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0 p-4 md:p-0 space-y-3 md:space-y-0"
       onClick={onSelect}
     >
-      <td className="px-4 py-4 text-sm font-sans">
+      <td className="block md:table-cell md:px-4 md:py-4 text-sm font-sans">
         <div className="font-semibold text-ink-900">{subscription.customerName}</div>
         <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{subscription.customerId}</div>
       </td>
-      <td className="px-4 py-4 text-sm font-sans text-ink-600">{subscription.customerPhone}</td>
-      <td className="px-4 py-4 text-sm font-sans text-ink-600 max-w-[200px] truncate" title={subscription.customerAddress || 'No address'}>
-        {subscription.customerAddress || <span className="italic text-ink-400">No address</span>}
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-sm font-sans text-ink-600">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Phone</span>
+        {subscription.customerPhone}
       </td>
-      <td className="px-4 py-4 text-sm font-sans">
-        <div className="text-ink-900 font-medium">{subscription.planName}</div>
-        <div className="text-ink-400 text-xs capitalize">{subscription.planTier}</div>
+      <td className="flex justify-between items-start md:items-center md:table-cell md:px-4 md:py-4 text-sm font-sans text-ink-600 max-w-full md:max-w-[200px]" title={subscription.customerAddress || 'No address'}>
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider mt-0.5">Address</span>
+        <span className="truncate text-right md:text-left max-w-[200px] md:max-w-none">{subscription.customerAddress || <span className="italic text-ink-400">No address</span>}</span>
       </td>
-      <td className="px-4 py-4 text-ink-600 font-sans text-xs">{formatDate(subscription.startDate)}</td>
-      <td className="px-4 py-4 text-ink-600 font-sans text-xs">{formatDate(subscription.endDate)}</td>
-      <td className="px-4 py-4">
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-sm font-sans">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Plan</span>
+        <div className="text-right md:text-left">
+          <div className="text-ink-900 font-medium">{subscription.planName}</div>
+          <div className="text-ink-400 text-xs capitalize">{subscription.planTier}</div>
+        </div>
+      </td>
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-ink-600 font-sans text-xs">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Start Date</span>
+        {formatDate(subscription.startDate)}
+      </td>
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-ink-600 font-sans text-xs">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">End Date</span>
+        {formatDate(subscription.endDate)}
+      </td>
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
         <Badge tone={STATUS_TONE[subscription.status]} className="text-[10px] uppercase">{subscription.status.replace('_', ' ')}</Badge>
       </td>
-      <td className="px-4 py-4 text-right">
+      <td className="hidden md:table-cell px-4 py-4 text-right">
         <Button variant="ghost" size="sm" onClick={onSelect} className="font-sans text-xs">
           View
         </Button>
@@ -311,9 +325,9 @@ export function AdminSubscriptionsPage() {
         />
       ) : (
         <Card className="border-rice-300 overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm block md:table">
+              <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Phone</th>
@@ -325,7 +339,7 @@ export function AdminSubscriptionsPage() {
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block md:table-row-group">
                 {rows.map((row) => (
                   <SubscriptionRowView key={row.id} subscription={row} onSelect={() => setSelected(row)} />
                 ))}

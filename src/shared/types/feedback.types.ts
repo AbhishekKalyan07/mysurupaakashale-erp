@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 export type FeedbackCategory = 'food_quality' | 'delivery_issue' | 'packaging' | 'other';
 export type FeedbackStatus = 'new' | 'investigating' | 'resolved';
 
@@ -9,6 +10,6 @@ export interface Feedback {
   message: string;
   status: FeedbackStatus;
   resolutionNotes?: string;
-  createdAt: any; // Timestamp
-  updatedAt: any; // Timestamp
+  createdAt: Timestamp; // Timestamp
+  updatedAt: Timestamp; // Timestamp
 }

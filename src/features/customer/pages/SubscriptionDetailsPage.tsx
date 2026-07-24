@@ -125,8 +125,8 @@ function ManualPaymentPanel({
         billingMonth,
       });
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || 'Could not submit payment. Please try again.');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Could not submit payment. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -333,9 +333,9 @@ export function SubscriptionDetailsPage() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(subscription.customerId),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update subscription status:', err);
-      toast.error(err.message || 'Failed to update subscription.');
+      toast.error((err as Error).message || 'Failed to update subscription.');
     } finally {
       setUpdating(false);
     }

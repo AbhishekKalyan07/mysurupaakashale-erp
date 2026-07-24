@@ -5,6 +5,7 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import type { BadgeTone } from '@/shared/components/ui/Badge';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { Receipt, Calendar, Smartphone, Banknote, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ManualPayment, ManualPaymentStatus, PaymentMethod } from '@/shared/types';
@@ -55,42 +56,49 @@ function methodLabel(method: PaymentMethod): string {
 }
 
 function PaymentRow({ payment }: { payment: ManualPayment }) {
-  const paidAt = payment.createdAt as any;
-  const dateStr = paidAt?.toDate ? format(paidAt.toDate(), 'MMM dd, yyyy') : payment.paymentDate;
+  const parsedDate = parseFirestoreDate(payment.createdAt);
+  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
 
   return (
-    <tr className="hover:bg-rice-50/60 transition-colors border-b border-rice-200 last:border-0">
-      <td className="px-5 py-4">
+    <tr className="block md:table-row bg-white md:bg-transparent hover:bg-rice-50/60 transition-colors border-b border-rice-200 last:border-0 p-4 md:p-0 space-y-3 md:space-y-0">
+      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-5 md:py-4">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Date</span>
         <div className="flex items-center gap-2 text-ink-800 font-medium font-sans text-sm">
-          <Calendar size={13} className="text-ink-400 shrink-0" />
+          <Calendar size={13} className="text-ink-400 shrink-0 hidden md:block" />
           {dateStr}
         </div>
-        <div className="text-ink-400 text-xs font-mono mt-0.5 pl-5">{payment.paymentDate}</div>
       </td>
-      <td className="px-5 py-4">
+      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-5 md:py-4">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Amount</span>
         <span className="font-bold text-ink-900 font-data text-base">₹{payment.amount.toLocaleString('en-IN')}</span>
       </td>
-      <td className="px-5 py-4">
-        <div className="flex items-center gap-1.5 text-ink-600 font-sans text-sm capitalize">
-          <MethodIcon method={payment.paymentMethod} />
-          {methodLabel(payment.paymentMethod)}
-        </div>
-        {payment.referenceNumber && (
-          <div className="text-ink-400 text-xs font-mono mt-0.5 truncate max-w-[150px]">
-            {payment.referenceNumber}
+      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-5 md:py-4">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Method / Ref</span>
+        <div className="text-right md:text-left">
+          <div className="flex items-center justify-end md:justify-start gap-1.5 text-ink-600 font-sans text-sm capitalize">
+            <MethodIcon method={payment.paymentMethod} />
+            {methodLabel(payment.paymentMethod)}
           </div>
-        )}
-      </td>
-      <td className="px-5 py-4">
-        <div className="flex items-center gap-1.5">
-          <StatusIcon status={payment.status} />
-          <Badge tone={statusBadgeTone(payment.status)} className="text-[10px] uppercase">
-            {statusLabel(payment.status)}
-          </Badge>
+          {payment.referenceNumber && (
+            <div className="text-ink-400 text-xs font-mono mt-0.5 truncate max-w-[150px]">
+              {payment.referenceNumber}
+            </div>
+          )}
         </div>
-        {payment.verificationNotes && payment.status === 'rejected' && (
-          <p className="text-xs text-red-600 mt-1 font-sans">{payment.verificationNotes}</p>
-        )}
+      </td>
+      <td className="flex justify-between items-start md:items-center md:table-cell px-0 py-1 md:px-5 md:py-4">
+        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider mt-0.5">Status</span>
+        <div className="flex flex-col items-end md:items-start">
+          <div className="flex items-center gap-1.5">
+            <StatusIcon status={payment.status} />
+            <Badge tone={statusBadgeTone(payment.status)} className="text-[10px] uppercase">
+              {statusLabel(payment.status)}
+            </Badge>
+          </div>
+          {payment.verificationNotes && payment.status === 'rejected' && (
+            <p className="text-xs text-red-600 mt-1 font-sans text-right md:text-left max-w-[200px]">{payment.verificationNotes}</p>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -153,9 +161,9 @@ export function PaymentHistoryPage() {
       </div>
 
       <Card className="border-rice-300 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-sans text-sm">
-            <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 font-semibold uppercase tracking-wider text-xs">
+        <div className="overflow-x-auto md:overflow-visible">
+          <table className="w-full text-left font-sans text-sm block md:table">
+            <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 font-semibold uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-5 py-4">Date</th>
                 <th className="px-5 py-4">Amount</th>
@@ -163,7 +171,7 @@ export function PaymentHistoryPage() {
                 <th className="px-5 py-4">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block md:table-row-group">
               {payments.map((payment) => (
                 <PaymentRow key={payment.id} payment={payment} />
               ))}

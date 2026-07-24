@@ -7,6 +7,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { getAuth } from 'firebase/auth';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import {
   notifyPaymentVerified,
@@ -49,20 +50,20 @@ export function useSubmitPayment() {
       });
       toast.success('Payment details submitted. Awaiting admin verification.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to submit payment. Please try again.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to submit payment. Please try again.');
     },
   });
 }
 
 // ── Admin: paginated payments list by status ───────────────────────────────────
-export function useAdminPayments(status: ManualPaymentStatus | 'all', page: number = 0) {
+export function useAdminPayments(status: ManualPaymentStatus | 'all', lastDocSnap?: QueryDocumentSnapshot<ManualPayment>) {
   return useQuery({
-    queryKey: queryKeys.payments.adminList(status, page),
-    queryFn: async (): Promise<ManualPayment[]> => {
+    queryKey: queryKeys.payments.adminList(status, lastDocSnap?.id ?? 'page-0'),
+    queryFn: async (): Promise<{ payments: ManualPayment[]; lastDoc: QueryDocumentSnapshot<ManualPayment> | null }> => {
       const filter = status === 'all' ? {} : { status };
-      const { payments } = await paymentRepository.getPaymentsPaginated(filter, 20);
-      return payments;
+      const { payments, lastDoc } = await paymentRepository.getPaymentsPaginated(filter, 20, lastDocSnap);
+      return { payments, lastDoc };
     },
     staleTime: 15_000,
     placeholderData: (prev) => prev,
@@ -117,7 +118,7 @@ export function useApprovePayment() {
       notifySubscriptionActivated(
         capturedPayment.customerId,
         capturedPayment.subscriptionId,
-        capturedPayment.subscriptionId, // planTier not on payment; subscription page shows it
+        input.meta?.planTier || 'meal',
         new Date().toISOString().split('T')[0],
       ).catch((err) => console.error('[useApprovePayment] activated notification failed:', err));
 
@@ -129,8 +130,8 @@ export function useApprovePayment() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
       toast.success('Payment approved. Subscription activated.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to approve payment.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to approve payment.');
     },
   });
 }
@@ -166,8 +167,8 @@ export function useRejectPayment() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success('Payment rejected. Customer has been notified.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to reject payment.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to reject payment.');
     },
   });
 }

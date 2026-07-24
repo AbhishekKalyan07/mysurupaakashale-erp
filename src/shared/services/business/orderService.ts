@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { getDoc, writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from '../firestore/orderRepository';
@@ -78,8 +79,8 @@ class OrderService {
           const ref = doc(db, 'orders', order.id!);
           batch.set(ref, {
             ...order,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+            updatedAt: serverTimestamp() as unknown as Timestamp
           }, { merge: true });
         });
         await batch.commit();
@@ -90,7 +91,7 @@ class OrderService {
         date: today,
         status: 'success',
         ordersGenerated: ordersToCreate.length,
-        runAt: serverTimestamp() as any,
+        runAt: serverTimestamp() as unknown as Timestamp,
       }, today);
 
       // 5. Notify kitchen staff
@@ -108,13 +109,13 @@ class OrderService {
 
       return { success: true, message: `Successfully generated ${ordersToCreate.length} orders.`, ordersGenerated: ordersToCreate.length };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       await orderGenerationRunRepository.create({
         date: today,
         status: 'failed',
         ordersGenerated: 0,
-        runAt: serverTimestamp() as any,
-        error: error.message
+        runAt: serverTimestamp() as unknown as Timestamp,
+        error: (error as Error).message
       }, today);
       throw error;
     }
@@ -126,7 +127,7 @@ class OrderService {
   async updateOrderStatus(orderId: string, status: import('@/shared/types').OrderStatus): Promise<void> {
     await orderRepository.update(orderId, {
       status,
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
     // Add additional workflow logic (e.g., notifications) here if needed later
   }

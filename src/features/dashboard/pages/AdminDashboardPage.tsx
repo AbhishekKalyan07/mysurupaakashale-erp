@@ -92,8 +92,8 @@ export function AdminDashboardPage() {
             ],
           },
         ],
-        createdAt: serverTimestamp() as Timestamp,
-        updatedAt: serverTimestamp() as Timestamp,
+        createdAt: serverTimestamp() as unknown as Timestamp as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as Timestamp,
       });
 
       await mealPlanRepository.create({
@@ -150,13 +150,13 @@ export function AdminDashboardPage() {
             ],
           },
         ],
-        createdAt: serverTimestamp() as Timestamp,
-        updatedAt: serverTimestamp() as Timestamp,
+        createdAt: serverTimestamp() as unknown as Timestamp as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as Timestamp,
       });
 
       toast.success('Meal plans seeded successfully!', { id: 'seed' });
-    } catch (error: any) {
-      toast.error('Error seeding plans: ' + error.message, { id: 'seed' });
+    } catch (error: unknown) {
+      toast.error('Error seeding plans: ' + (error as Error).message, { id: 'seed' });
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { useNotificationHistory } from '@/features/notifications/hooks/useNotifications';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
@@ -35,34 +36,50 @@ function TypeIcon({ type }: { type: string }) {
 
 function NotificationRow({ n }: { n: Notification }) {
   const [expanded, setExpanded] = useState(false);
-  const ts = n.createdAt as any;
-  const dateStr = ts?.toDate ? format(ts.toDate(), 'MMM dd, yyyy HH:mm') : '—';
+  const parsedDate = parseFirestoreDate(n.createdAt);
+  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy HH:mm') : '—';
 
   return (
     <>
       <tr
-        className="hover:bg-rice-50/60 cursor-pointer border-b border-rice-200 transition-colors"
+        className="block md:table-row bg-white md:bg-transparent hover:bg-rice-50/60 cursor-pointer border-b border-rice-200 transition-colors p-4 md:p-0 space-y-3 md:space-y-0"
         onClick={() => setExpanded((p) => !p)}
       >
-        <td className="px-4 py-3">
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Type</span>
           <div className="flex items-center gap-2">
             <TypeIcon type={n.type} />
             <span className="text-xs font-mono text-ink-500">{n.type}</span>
           </div>
         </td>
-        <td className="px-4 py-3">
-          <div className="font-semibold text-ink-900 text-sm">{n.title}</div>
-          <div className="text-ink-400 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Title / Recipient</span>
+          <div className="text-right md:text-left">
+            <div className="font-semibold text-ink-900 text-sm">{n.title}</div>
+            <div className="text-ink-400 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
+          </div>
         </td>
-        <td className="px-4 py-3"><ChannelBadge channel={n.channel} /></td>
-        <td className="px-4 py-3"><StatusBadge status={n.status} /></td>
-        <td className="px-4 py-3 text-xs text-ink-500 font-sans">{dateStr}</td>
-        <td className="px-4 py-3 text-center text-xs text-ink-500 font-data">{n.retryCount}</td>
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Channel</span>
+          <ChannelBadge channel={n.channel} />
+        </td>
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
+          <StatusBadge status={n.status} />
+        </td>
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-xs text-ink-500 font-sans">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Created</span>
+          {dateStr}
+        </td>
+        <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-center text-xs text-ink-500 font-data">
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Retries</span>
+          {n.retryCount}
+        </td>
       </tr>
       {expanded && (
-        <tr className="bg-rice-50/50 border-b border-rice-300">
-          <td colSpan={6} className="px-6 py-4">
-            <div className="grid grid-cols-2 gap-4 text-xs font-sans">
+        <tr className="block md:table-row bg-rice-50/50 border-b border-rice-300">
+          <td colSpan={6} className="block md:table-cell px-4 md:px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
               <div>
                 <div className="text-ink-500 uppercase tracking-wider font-semibold mb-1">Message</div>
                 <div className="text-ink-800 leading-relaxed">{n.message}</div>
@@ -82,7 +99,7 @@ function NotificationRow({ n }: { n: Notification }) {
                   <div>
                     <span className="text-ink-500">Sent: </span>
                     <span className="text-ink-700 font-mono">
-                      {(n.sentAt as any)?.toDate ? format((n.sentAt as any).toDate(), 'MMM dd, HH:mm') : '—'}
+                      {parseFirestoreDate(n.sentAt) ? format(parseFirestoreDate(n.sentAt) as Date, 'MMM dd, HH:mm') : '—'}
                     </span>
                   </div>
                 )}
@@ -152,9 +169,9 @@ export function NotificationHistoryPage() {
         />
       ) : (
         <Card className="border-rice-300 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-sm block md:table">
+              <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3 text-left">Type</th>
                   <th className="px-4 py-3 text-left">Title / Recipient</th>
@@ -164,7 +181,7 @@ export function NotificationHistoryPage() {
                   <th className="px-4 py-3 text-center">Retries</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block md:table-row-group">
                 {filtered.map((n) => (
                   <NotificationRow key={n.id} n={n} />
                 ))}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -56,9 +57,9 @@ function NotificationCard({
   onArchive: () => void;
 }) {
   const isUnread = notification.inAppStatus === 'unread';
-  const ts = notification.createdAt as any;
-  const timeAgo = ts?.toDate
-    ? formatDistanceToNow(ts.toDate(), { addSuffix: true })
+  const parsedDate = parseFirestoreDate(notification.createdAt);
+  const timeAgo = parsedDate
+    ? formatDistanceToNow(parsedDate, { addSuffix: true })
     : 'recently';
 
   return (

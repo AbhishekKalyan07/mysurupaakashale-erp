@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,8 +46,8 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         category: data.category,
         message: data.message,
         status: 'new',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       toast.success('Feedback submitted successfully. We will look into it!');
       reset();

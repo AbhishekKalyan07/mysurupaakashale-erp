@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 export type InventoryCategory = 'vegetables' | 'grains' | 'spices' | 'dairy' | 'packaging' | 'other';
 
 export interface InventoryItem {
@@ -7,6 +8,6 @@ export interface InventoryItem {
   quantity: number;
   unit: string; // e.g. 'kg', 'liters', 'pieces'
   lowStockThreshold: number;
-  lastUpdated: any; // Timestamp
+  lastUpdated: Timestamp; // Timestamp
   updatedBy: string; // User ID
 }

@@ -74,8 +74,8 @@ async function attachDisplayFields(
       
       let formattedAddress = null;
       if (customer.role === 'customer') {
-        const addrList = (customer as any).addresses || [];
-        const defaultId = (customer as any).defaultAddressId;
+        const addrList = customer.role === 'customer' ? customer.addresses : [];
+        const defaultId = customer.role === 'customer' ? customer.defaultAddressId : null;
         const addr = addrList.find((a: any) => a.id === defaultId) || addrList[0];
         if (addr) {
           formattedAddress = [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') + (addr.pincode ? ` - ${addr.pincode}` : '');
@@ -150,8 +150,8 @@ export function useApproveSubscription() {
       invalidateSubscriptionLists(queryClient, subscription);
       toast.success('Subscription approved and activated.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to approve subscription.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to approve subscription.');
     },
   });
 }
@@ -185,8 +185,8 @@ export function useRejectSubscription() {
       invalidateSubscriptionLists(queryClient, subscription);
       toast.success('Subscription rejected. Customer has been notified.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to reject subscription.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to reject subscription.');
     },
   });
 }
@@ -213,8 +213,8 @@ export function usePauseSubscription() {
       invalidateSubscriptionLists(queryClient, subscription);
       toast.success('Subscription paused.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to pause subscription.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to pause subscription.');
     },
   });
 }
@@ -241,8 +241,8 @@ export function useResumeSubscription() {
       invalidateSubscriptionLists(queryClient, subscription);
       toast.success('Subscription resumed.');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to resume subscription.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to resume subscription.');
     },
   });
 }

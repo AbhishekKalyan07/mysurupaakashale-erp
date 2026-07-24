@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import { orderRepository } from '../firestore/orderRepository';
 import { notifyOrderDelivered, notifyOrderOutForDelivery, notifyDeliveryFailed } from '../firestore/notificationService';
@@ -11,7 +12,7 @@ class DeliveryService {
     await orderRepository.update(orderId, {
       deliveryPartnerId: partnerId,
       status: 'out_for_delivery',
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
     
     // Add push notification to partner here if necessary
@@ -23,7 +24,7 @@ class DeliveryService {
   async updateDeliveryStatus(orderId: string, customerId: string, status: OrderStatus, mealType: string): Promise<void> {
     await orderRepository.update(orderId, {
       status,
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
     
     if (status === 'out_for_delivery') {

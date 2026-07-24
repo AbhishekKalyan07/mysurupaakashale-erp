@@ -60,8 +60,8 @@ export function useUpdateBusinessSettings() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.business });
       toast.success('Business settings updated successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update settings. Please try again.');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update settings. Please try again.');
     },
   });
 }

@@ -183,9 +183,9 @@ export function PayrollDashboardPage() {
 
       <Card className="p-0 overflow-hidden">
         {staffList.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-rice-50 text-ink-500 font-medium">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm block md:table">
+              <thead className="hidden md:table-header-group bg-rice-50 text-ink-500 font-medium">
                 <tr>
                   <th className="px-4 py-3">Staff Member</th>
                   <th className="px-4 py-3">Role</th>
@@ -194,21 +194,26 @@ export function PayrollDashboardPage() {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-rice-100">
+              <tbody className="block md:table-row-group divide-y divide-rice-100">
                 {staffList.map(user => {
                   const record = payrollList.find(p => p.staffId === user.id);
                   const isGenerated = !!record;
 
                   return (
-                    <tr key={user.id} className="hover:bg-rice-25">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-ink-900">{user.fullName}</div>
-                        <div className="text-xs text-ink-500 font-data">{user.id}</div>
+                    <tr key={user.id} className="block md:table-row bg-white md:bg-transparent hover:bg-rice-25 p-4 md:p-0 space-y-3 md:space-y-0">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Staff Member</span>
+                        <div className="text-right md:text-left">
+                          <div className="font-semibold text-ink-900">{user.fullName}</div>
+                          <div className="text-xs text-ink-500 font-data">{user.id}</div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 capitalize text-ink-600">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 capitalize text-ink-600">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Role</span>
                         {user.role.replace('_', ' ')}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
                         <Badge tone={
                           record?.status === 'paid' ? 'success' : 
                           record?.status === 'archived' ? 'neutral' : 
@@ -219,10 +224,12 @@ export function PayrollDashboardPage() {
                           {record?.status || 'Not Generated'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 font-data font-bold text-ink-900">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 font-data font-bold text-ink-900">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Net Salary</span>
                         {isGenerated ? `₹${record.netSalary.toLocaleString()}` : '-'}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
                         <div className="flex justify-end gap-2">
                           {!isGenerated ? (
                             <Button 

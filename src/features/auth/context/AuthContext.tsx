@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/shared/lib/firebase';
@@ -84,8 +85,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isActive: true,
             addresses: [],
             defaultAddressId: null,
-            createdAt: serverTimestamp() as any,
-            updatedAt: serverTimestamp() as any,
+            createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+            updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
           } as Omit<UserProfile, 'id'>, uid);
           // The onSnapshot below will pick up the newly-created doc automatically
         } else if (!existing) {

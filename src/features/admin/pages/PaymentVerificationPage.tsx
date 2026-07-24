@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
@@ -24,7 +26,9 @@ import {
   ChevronUp,
   AlertTriangle,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -86,8 +90,8 @@ function PaymentDetailDialog({
     onClose();
   };
 
-  const paidAt = payment.createdAt as any;
-  const submittedDate = paidAt?.toDate ? format(paidAt.toDate(), 'MMM dd, yyyy HH:mm') : payment.paymentDate;
+  const parsedDate = parseFirestoreDate(payment.createdAt);
+  const submittedDate = parsedDate ? format(parsedDate, 'MMM dd, yyyy HH:mm') : payment.paymentDate;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -261,10 +265,52 @@ function PaymentDetailDialog({
   );
 }
 
-// ── Payment Row ────────────────────────────────────────────────────────────────
+// ── Payment Card (Mobile) ──────────────────────────────────────────────────────
+function PaymentCard({ payment, onSelect }: { payment: ManualPayment; onSelect: () => void }) {
+  const parsedDate = parseFirestoreDate(payment.createdAt);
+  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
+  const statusTone = payment.status === 'verified' ? 'success' : payment.status === 'rejected' ? 'danger' : 'warning';
+  const methodIcon = payment.paymentMethod === 'upi' ? <Smartphone size={13} /> : payment.paymentMethod === 'cash' ? <Banknote size={13} /> : <Building2 size={13} />;
+
+  return (
+    <Card className="p-4 border-rice-300 mb-4 cursor-pointer hover:bg-rice-50/70 transition-colors" onClick={onSelect}>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <div className="font-semibold text-ink-900 font-sans">{payment.customerName}</div>
+          <div className="text-ink-400 text-xs font-mono truncate max-w-[160px]">{payment.customerId}</div>
+        </div>
+        <Badge tone={statusTone} className="text-[10px] uppercase shrink-0">{payment.status}</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Amount</span>
+          <span className="font-bold text-ink-900 font-data text-base">₹{payment.amount.toLocaleString('en-IN')}</span>
+        </div>
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Method</span>
+          <div className="flex items-center gap-1.5 text-ink-600 font-sans text-xs capitalize">
+            {methodIcon}
+            {payment.paymentMethod.replace('_', ' ')}
+          </div>
+        </div>
+        <div className="col-span-2">
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Submitted</span>
+          <div className="text-ink-600 font-sans text-xs">{dateStr}</div>
+        </div>
+      </div>
+      <div className="mt-4 pt-3 border-t border-rice-100 flex justify-end">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="text-xs w-full">
+          View Details
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Payment Row (Desktop) ──────────────────────────────────────────────────────
 function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: () => void }) {
-  const paidAt = payment.createdAt as any;
-  const dateStr = paidAt?.toDate ? format(paidAt.toDate(), 'MMM dd, yyyy') : payment.paymentDate;
+  const parsedDate = parseFirestoreDate(payment.createdAt);
+  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
 
   const statusTone = payment.status === 'verified' ? 'success' : payment.status === 'rejected' ? 'danger' : 'warning';
 
@@ -275,7 +321,7 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
 
   return (
     <tr
-      className="hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
+      className="bg-white hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
       onClick={onSelect}
     >
       <td className="px-4 py-4 text-sm font-sans">
@@ -286,7 +332,7 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
         <span className="font-bold text-ink-900 font-data">₹{payment.amount.toLocaleString('en-IN')}</span>
       </td>
       <td className="px-4 py-4">
-        <div className="flex items-center gap-1.5 text-ink-600 font-sans text-xs capitalize">
+        <div className="flex items-center justify-start gap-1.5 text-ink-600 font-sans text-xs capitalize">
           {methodIcon}
           {payment.paymentMethod.replace('_', ' ')}
         </div>
@@ -301,7 +347,7 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
         <Badge tone={statusTone} className="text-[10px] uppercase">{payment.status}</Badge>
       </td>
       <td className="px-4 py-4 text-right">
-        <Button variant="ghost" size="sm" onClick={onSelect} className="font-sans text-xs">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs">
           View
         </Button>
       </td>
@@ -326,7 +372,41 @@ export function PaymentVerificationPage() {
   const [sortField, setSortField] = useState<'createdAt' | 'amount'>('createdAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const { data: payments, isLoading, error, refetch } = useAdminPayments(activeTab);
+  // Pagination state
+  const [pageHistory, setPageHistory] = useState<QueryDocumentSnapshot<ManualPayment>[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const currentLastDoc = currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
+
+  const { data, isLoading, error, refetch } = useAdminPayments(activeTab, currentLastDoc);
+  const payments = data?.payments;
+
+  const handleNextPage = () => {
+    if (data?.lastDoc) {
+      setPageHistory((prev) => {
+        const next = [...prev];
+        next[currentPage] = data.lastDoc!;
+        return next;
+      });
+      setCurrentPage((p) => p + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    setCurrentPage((p) => Math.max(0, p - 1));
+  };
+
+  const handleTabChange = (tab: StatusFilter) => {
+    setActiveTab(tab);
+    setPageHistory([]);
+    setCurrentPage(0);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPageHistory([]);
+    setCurrentPage(0);
+  };
 
   const filtered = (payments ?? []).filter((p) => {
     if (!search.trim()) return true;
@@ -342,8 +422,8 @@ export function PaymentVerificationPage() {
   const sorted = [...filtered].sort((a, b) => {
     const mult = sortDir === 'desc' ? -1 : 1;
     if (sortField === 'amount') return mult * (a.amount - b.amount);
-    const aTs = (a.createdAt as any)?.toMillis?.() ?? 0;
-    const bTs = (b.createdAt as any)?.toMillis?.() ?? 0;
+    const aTs = parseFirestoreDate(a.createdAt)?.getTime() ?? 0;
+    const bTs = parseFirestoreDate(b.createdAt)?.getTime() ?? 0;
     return mult * (aTs - bTs);
   });
 
@@ -382,7 +462,7 @@ export function PaymentVerificationPage() {
         {TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => handleTabChange(tab.value)}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold font-sans rounded-t-lg transition-all ${
               activeTab === tab.value
                 ? 'bg-white border border-b-white border-rice-300 text-ink-900 -mb-px'
@@ -400,7 +480,7 @@ export function PaymentVerificationPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
           placeholder="Search by customer name, ID, or reference number..."
           className="w-full pl-9 pr-4 py-2.5 border border-ink-400 rounded-lg text-sm font-sans text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-turmeric-400"
         />
@@ -413,8 +493,33 @@ export function PaymentVerificationPage() {
           description={search ? 'No payments match your search.' : `No ${activeTab === 'all' ? '' : activeTab + ' '}payments at this time.`}
         />
       ) : (
-        <Card className="border-rice-300 overflow-hidden">
-          <div className="overflow-x-auto">
+        <>
+          {/* Mobile View */}
+          <div className="md:hidden">
+            {sorted.map((payment) => (
+              <PaymentCard
+                key={payment.id}
+                payment={payment}
+                onSelect={() => setSelectedPayment(payment)}
+              />
+            ))}
+            
+            <div className="px-4 py-3 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between rounded-xl border border-rice-300 mt-4">
+              <span>{sorted.length} item{sorted.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handlePrevPage} disabled={currentPage === 0 || isLoading} className="p-1 h-8 w-8">
+                  <ChevronLeft size={16} />
+                </Button>
+                <span className="text-ink-700 font-medium font-data text-xs">Pg {currentPage + 1}</span>
+                <Button variant="ghost" size="sm" onClick={handleNextPage} disabled={!data?.lastDoc || isLoading} className="p-1 h-8 w-8">
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop View */}
+          <Card className="border-rice-300 hidden md:block overflow-hidden">
             <table className="w-full text-left text-sm">
               <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
@@ -446,11 +551,30 @@ export function PaymentVerificationPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans">
-            Showing {sorted.length} payment{sorted.length !== 1 ? 's' : ''}
-          </div>
-        </Card>
+            <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between">
+              <span>Showing {sorted.length} payment{sorted.length !== 1 ? 's' : ''} on this page</span>
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handlePrevPage} 
+                  disabled={currentPage === 0 || isLoading}
+                >
+                  <ChevronLeft size={16} className="mr-1" /> Prev
+                </Button>
+                <span className="text-ink-700 font-medium font-data text-xs">Page {currentPage + 1}</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleNextPage} 
+                  disabled={!data?.lastDoc || isLoading}
+                >
+                  Next <ChevronRight size={16} className="ml-1" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </>
       )}
 
       {selectedPayment && (

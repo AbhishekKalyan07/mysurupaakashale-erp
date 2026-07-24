@@ -54,8 +54,8 @@ export function useCreateDailyMenu() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       toast.success('Menu created successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to create menu');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to create menu');
     },
   });
 }
@@ -81,8 +81,8 @@ export function useUpdateDailyMenu() {
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(id) });
       toast.success('Menu updated successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update menu');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update menu');
     },
   });
 }
@@ -102,8 +102,8 @@ export function useDeleteDailyMenu() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
       toast.success('Menu deleted successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to delete menu');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to delete menu');
     },
   });
 }
@@ -135,8 +135,8 @@ export function usePublishDailyMenu() {
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
       toast.success('Menu published successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to publish menu');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to publish menu');
     },
   });
 }
@@ -164,8 +164,8 @@ export function useArchiveDailyMenu() {
       queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
       toast.success('Menu archived successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to archive menu');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to archive menu');
     },
   });
 }

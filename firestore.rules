@@ -183,7 +183,12 @@ service cloud.firestore {
                       isAdmin() || isAccounts() || isKitchen());
 
       // Phase 4: Admins can generate orders
-      allow create: if isAdmin();
+      // Customers can create one-time trial orders
+      allow create: if isAdmin() || 
+                      (isSignedIn() && 
+                       request.resource.data.customerId == request.auth.uid && 
+                       request.resource.data.source == 'one_time' &&
+                       request.resource.data.status == 'scheduled');
 
       // Each role can move status forward within its own lane:
       //  - Kitchen: scheduled → preparing → ready_for_pickup

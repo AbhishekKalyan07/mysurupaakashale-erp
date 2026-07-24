@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -111,8 +112,8 @@ export async function signUpCustomer(
     isActive: true,
     addresses: [],
     defaultAddressId: null,
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
+    createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+    updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
   } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
   
   return credential;

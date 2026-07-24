@@ -33,9 +33,9 @@ export function EditStaffModal({ user, onClose }: Props) {
     reset({
       fullName: user.fullName,
       phone: user.phone,
-      kitchenId: (user as any).kitchenId || '',
-      vehicleType: (user as any).vehicleType || 'bike',
-      zoneIds: (user as any).zoneIds?.join(', ') || '',
+      kitchenId: user.role === 'kitchen' ? user.kitchenId : '',
+      vehicleType: user.role === 'delivery_partner' ? user.vehicleType : 'bike',
+      zoneIds: user.role === 'delivery_partner' ? user.zoneIds?.join(', ') : '',
     });
   }, [user, reset]);
 

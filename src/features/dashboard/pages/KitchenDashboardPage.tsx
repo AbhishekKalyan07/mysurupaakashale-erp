@@ -44,7 +44,7 @@ export function KitchenDashboardPage() {
         title="Could not load kitchen data"
         description={
           error instanceof Error
-            ? error.message
+            ? (error as Error).message
             : 'Failed to fetch today\'s orders. Check your connection and try again.'
         }
         onRetry={refetch}

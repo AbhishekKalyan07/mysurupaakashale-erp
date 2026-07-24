@@ -25,7 +25,7 @@ export const queryKeys = {
     byCustomer: (customerId: string) => ['payments', 'customer', customerId] as const,
     detail: (id: string) => ['payments', 'detail', id] as const,
     /** Admin paginated list — keyed on status filter so each tab has its own cache. */
-    adminList: (status: string, page: number) => ['payments', 'admin', status, page] as const,
+    adminList: (status: string, page: number | string) => ['payments', 'admin', status, page] as const,
   },
   notifications: {
     all: ['notifications'] as const,

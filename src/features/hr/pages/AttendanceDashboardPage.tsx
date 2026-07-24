@@ -77,9 +77,9 @@ export function AttendanceDashboardPage() {
 
       <Card className="p-0 overflow-hidden">
         {staffList.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-rice-50 text-ink-500 font-medium">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm block md:table">
+              <thead className="hidden md:table-header-group bg-rice-50 text-ink-500 font-medium">
                 <tr>
                   <th className="px-4 py-3">Staff Member</th>
                   <th className="px-4 py-3">Role</th>
@@ -90,35 +90,42 @@ export function AttendanceDashboardPage() {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-rice-100">
+              <tbody className="block md:table-row-group divide-y divide-rice-100">
                 {staffList.map(user => {
                   const record = attendanceList.find(a => a.staffId === user.id);
                   const isPresent = !!record;
                   const isCheckedOut = !!record?.checkOutTime;
 
                   return (
-                    <tr key={user.id} className="hover:bg-rice-25">
-                      <td className="px-4 py-3">
+                    <tr key={user.id} className="block md:table-row bg-white md:bg-transparent hover:bg-rice-25 p-4 md:p-0 space-y-3 md:space-y-0">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Staff Member</span>
                         <div className="font-semibold text-ink-900">{user.fullName}</div>
                       </td>
-                      <td className="px-4 py-3 capitalize text-ink-600">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 capitalize text-ink-600">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Role</span>
                         {user.role.replace('_', ' ')}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
                         <Badge tone={isPresent ? 'success' : 'neutral'}>
                           {isPresent ? (isCheckedOut ? 'Completed' : 'Present') : 'Absent'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-ink-600 font-data">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-ink-600 font-data">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Check In</span>
                         {record?.checkInTime || '-'}
                       </td>
-                      <td className="px-4 py-3 text-ink-600 font-data">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-ink-600 font-data">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Check Out</span>
                         {record?.checkOutTime || '-'}
                       </td>
-                      <td className="px-4 py-3 text-ink-600 font-data font-semibold">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-ink-600 font-data font-semibold">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Total Hours</span>
                         {record?.totalWorkingHours ? `${record.totalWorkingHours} hrs` : '-'}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
                         <div className="flex justify-end gap-2">
                           {!isPresent ? (
                             <Button 

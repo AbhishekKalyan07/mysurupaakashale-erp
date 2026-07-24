@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { serverTimestamp } from 'firebase/firestore';
@@ -277,7 +278,7 @@ export function useProductionBoard(): UseProductionBoardReturn {
       // Phase 7: Client-side kitchen status update instead of Cloud Function
       await orderRepository.update(orderId, { 
         status: newStatus,
-        updatedAt: serverTimestamp() as any
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
       });
       // No manual cache invalidation needed — onSnapshot listeners push the
       // updated order into the React Query cache within ~500 ms.

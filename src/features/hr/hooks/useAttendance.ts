@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceRepository } from '@/shared/services/firestore/attendanceRepository';
 import type { AttendanceRecord } from '@/shared/types';
@@ -50,8 +51,8 @@ export function useCheckIn() {
         totalWorkingHours: 0,
         status: 'present',
         notes: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       };
 
       await attendanceRepository.create(record, id);
@@ -66,8 +67,8 @@ export function useCheckIn() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Checked in successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Check-in failed');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Check-in failed');
     },
   });
 }
@@ -95,7 +96,7 @@ export function useCheckOut() {
       await attendanceRepository.update(record.id, {
         checkOutTime: time,
         totalWorkingHours: totalHours,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
 
       const user = getAuth().currentUser;
@@ -108,8 +109,8 @@ export function useCheckOut() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Checked out successfully');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Check-out failed');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Check-out failed');
     },
   });
 }
@@ -121,7 +122,7 @@ export function useUpdateAttendance() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<AttendanceRecord> }) => {
       await attendanceRepository.update(id, {
         ...data,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       const user = getAuth().currentUser;
       if (user) {
@@ -132,8 +133,8 @@ export function useUpdateAttendance() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.base });
       toast.success('Attendance updated');
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to update attendance');
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update attendance');
     },
   });
 }

@@ -16,9 +16,9 @@
  */
 @theme {
   /* ---------- Typography ---------- */
-  --font-display: "Zilla Slab", ui-serif, Georgia, serif;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
   /* ---------- Brand: Leaf (banana-leaf green) — chrome, nav, primary identity ---------- */
   --color-leaf-50: #f1f4ea;

@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { Subscription, SubscriptionStatus } from '@/shared/types/subscription.types';
 import { BaseRepository, createConverter } from './BaseRepository';
@@ -56,7 +57,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
       date,
       mealTypes,
       reason,
-      createdAt: serverTimestamp(),
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       createdBy: uid
     });
 
@@ -116,7 +117,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   async updateStatus(subscriptionId: string, status: SubscriptionStatus): Promise<void> {
     await updateDoc(doc(db, 'subscriptions', subscriptionId), {
       status,
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
   }
 }

@@ -7,6 +7,7 @@ import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { subscriptionService } from '@/shared/services/business/subscriptionService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useMySubscription } from '../hooks/useMySubscription';
 import { notifySubscriptionCreated } from '@/shared/services/firestore/notificationService';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
@@ -48,6 +49,7 @@ export function SubscriptionWizardPage() {
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch } = useMealPlans();
   const { addresses, addAddress, isAdding } = useCustomerAddresses();
   const { data: settings, isLoading: isSettingsLoading } = useBusinessSettings();
+  const { data: activeSub, isLoading: isSubLoading } = useMySubscription();
 
   // Selected Plan ID
   const initialPlanId = location.state?.planId || plans?.[0]?.id || '';
@@ -85,8 +87,20 @@ export function SubscriptionWizardPage() {
     },
   });
 
-  if (isPlansLoading || isSettingsLoading) {
+  if (isPlansLoading || isSettingsLoading || isSubLoading) {
     return <LoadingScreen />;
+  }
+
+  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <ErrorState
+          title="Active Subscription Exists"
+          description="You already have an active or pending meal plan. You must cancel your current plan before switching to a new one."
+          onRetry={() => navigate('/customer/dashboard')}
+        />
+      </div>
+    );
   }
 
   if (plansError || !plans || plans.length === 0) {
@@ -180,9 +194,9 @@ export function SubscriptionWizardPage() {
 
       // Redirect to detail page
       navigate('/customer/subscription', { state: { justCreated: true } });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating subscription draft:', err);
-      setSubmissionError(err.message || 'An unexpected error occurred. Please verify your address or pincode.');
+      setSubmissionError((err as Error).message || 'An unexpected error occurred. Please verify your address or pincode.');
     } finally {
       setSubmittingDraft(false);
     }

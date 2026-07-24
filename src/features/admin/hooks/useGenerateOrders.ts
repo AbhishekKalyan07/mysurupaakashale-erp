@@ -16,9 +16,9 @@ export function useGenerateOrders() {
       } else {
         toast.error(result.message);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error generating orders:', err);
-      toast.error(err.message || 'Failed to generate orders.');
+      toast.error((err as Error).message || 'Failed to generate orders.');
     } finally {
       setIsGenerating(false);
     }

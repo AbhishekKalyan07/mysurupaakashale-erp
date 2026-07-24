@@ -10,7 +10,7 @@ import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { inventoryRepository } from '@/shared/services/firestore/inventoryRepository';
 import type { InventoryItem } from '@/shared/types/inventory.types';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
 
 export function InventoryPage() {
   const queryClient = useQueryClient();
@@ -25,7 +25,7 @@ export function InventoryPage() {
     mutationFn: async ({ id, quantity }: { id: string, quantity: number }) => {
       await inventoryRepository.update(id, { 
         quantity, 
-        lastUpdated: serverTimestamp(),
+        lastUpdated: serverTimestamp() as unknown as Timestamp,
         updatedBy: firebaseUser?.uid 
       });
     },
@@ -65,9 +65,9 @@ export function InventoryPage() {
       />
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-ink-600">
-            <thead className="bg-rice-50 text-xs uppercase text-ink-500">
+        <div className="overflow-x-auto md:overflow-visible">
+          <table className="w-full text-left text-sm text-ink-600 block md:table">
+            <thead className="hidden md:table-header-group bg-rice-50 text-xs uppercase text-ink-500">
               <tr>
                 <th className="px-6 py-4 font-medium">Item Name</th>
                 <th className="px-6 py-4 font-medium">Category</th>
@@ -77,20 +77,27 @@ export function InventoryPage() {
                 <th className="px-6 py-4 text-right font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-rice-100">
+            <tbody className="block md:table-row-group divide-y divide-rice-100">
               {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-ink-500">
+                <tr className="block md:table-row">
+                  <td colSpan={6} className="block md:table-cell px-6 py-12 text-center text-ink-500">
                     <PackageOpen className="mx-auto mb-3 h-8 w-8 text-ink-300" />
                     <p>No inventory items found.</p>
                   </td>
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={item.id} className="hover:bg-rice-50/50">
-                    <td className="px-6 py-4 font-medium text-ink-900">{item.name}</td>
-                    <td className="px-6 py-4 capitalize">{item.category}</td>
-                    <td className="px-6 py-4">
+                  <tr key={item.id} className="block md:table-row bg-white md:bg-transparent hover:bg-rice-50/50 p-4 md:p-0 space-y-3 md:space-y-0">
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4 font-medium text-ink-900">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Item Name</span>
+                      {item.name}
+                    </td>
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4 capitalize">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Category</span>
+                      {item.category}
+                    </td>
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Current Stock</span>
                       {editingId === item.id ? (
                         <div className="flex items-center gap-2 max-w-[150px]">
                           <Input 
@@ -105,8 +112,12 @@ export function InventoryPage() {
                         <span>{item.quantity} {item.unit}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-ink-500">{item.lowStockThreshold} {item.unit}</td>
-                    <td className="px-6 py-4">
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4 text-ink-500">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Threshold</span>
+                      {item.lowStockThreshold} {item.unit}
+                    </td>
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
                       {isLowStock(item) ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-subtle px-2.5 py-1 text-xs font-medium text-danger">
                           <AlertTriangle size={14} /> Low Stock
@@ -117,7 +128,8 @@ export function InventoryPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4 text-right">
+                      <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
                       {editingId === item.id ? (
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>

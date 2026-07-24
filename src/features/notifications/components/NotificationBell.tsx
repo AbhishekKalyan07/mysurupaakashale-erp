@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkNotificationRead, useUnreadNotificationCount } from '@/features/notifications/hooks/useNotifications';
 import type { Notification } from '@/features/notifications/types/notification.types';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { Bell, CheckCheck, X, CreditCard, Truck, ShoppingBag, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/shared/components/ui/Button';
@@ -22,8 +23,8 @@ function DropdownItem({
   onRead: () => void;
 }) {
   const isUnread = notification.inAppStatus === 'unread';
-  const ts = notification.createdAt as any;
-  const timeAgo = ts?.toDate ? formatDistanceToNow(ts.toDate(), { addSuffix: true }) : '';
+  const parsedDate = parseFirestoreDate(notification.createdAt);
+  const timeAgo = parsedDate ? formatDistanceToNow(parsedDate, { addSuffix: true }) : '';
 
   return (
     <div

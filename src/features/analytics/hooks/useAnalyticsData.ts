@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { where, Timestamp } from 'firebase/firestore';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { paymentRepository } from '@/shared/services/firestore/paymentRepository';
@@ -102,8 +103,8 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
       // 2. Fetch Users (Customers) in range for new registrations, all for total
       const allCustomers = await userRepository.list(where('role', '==', 'customer'));
       const newCustomers = allCustomers.filter(c => {
-        if (!c.createdAt) return false;
-        const ts = (c.createdAt as any).toMillis ? (c.createdAt as any).toMillis() : (c.createdAt as any).seconds * 1000;
+        const parsedDate = parseFirestoreDate(c.createdAt);
+        const ts = parsedDate ? parsedDate.getTime() : 0;
         return ts >= startTs.toMillis() && ts <= endTs.toMillis();
       });
 
@@ -196,8 +197,11 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
         
         // Estimate peak hour from creation or delivery window
         if (o.createdAt) {
-          const hour = new Date((o.createdAt as any).toMillis ? (o.createdAt as any).toMillis() : (o.createdAt as any).seconds * 1000).getHours();
-          hourCount[hour] = (hourCount[hour] || 0) + 1;
+          const parsedDate = parseFirestoreDate(o.createdAt);
+          if (parsedDate) {
+            const hour = parsedDate.getHours();
+            hourCount[hour] = (hourCount[hour] || 0) + 1;
+          }
         }
       });
 

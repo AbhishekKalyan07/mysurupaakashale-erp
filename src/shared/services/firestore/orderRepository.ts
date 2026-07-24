@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { auth } from '@/shared/lib/firebase';
 import type { Order, OrderStatus, MealType, OrderWorkflowHistory } from '@/shared/types';
@@ -147,9 +148,9 @@ class OrderRepository extends BaseRepository<Order> {
       const oldData = snap.data() as Order;
       
       t.update(orderRef, {
-        status: newStatus as any,
-        updatedAt: serverTimestamp() as any
-      });
+        status: newStatus,
+        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
+      } as Partial<Order>);
       
       const historyRef = doc(collection(db, 'orders', orderId, 'workflowHistory'));
       t.set(historyRef, {

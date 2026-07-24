@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { where, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from './orderRepository';
@@ -52,8 +53,8 @@ export class AutomationService {
       totalDeliveries: todayOrders.length,
       completedDeliveries: todayOrders.filter(o => o.status === 'delivered').length,
       failedDeliveries: todayOrders.filter(o => o.status === 'failed_delivery').length,
-      createdAt: serverTimestamp() as any,
-      updatedAt: serverTimestamp() as any,
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     };
 
     await analyticsRepository.create(summary, summary.id);

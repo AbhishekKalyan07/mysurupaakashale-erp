@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { query, orderBy, getDocs, limit, startAfter, where, addDoc, serverTimestamp, type QueryConstraint, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { AuditLog } from '@/shared/types';
@@ -33,9 +34,9 @@ class AuditRepository extends BaseRepository<AuditLog> {
       entityId,
       entityType,
       details: details || null,
-      timestamp: serverTimestamp(),
+      timestamp: serverTimestamp() as unknown as Timestamp,
       ipAddress: null, // Could be captured by functions, client-side it's not feasible reliably
-    } as any);
+    } as Partial<AuditLog>);
   }
 
   /**

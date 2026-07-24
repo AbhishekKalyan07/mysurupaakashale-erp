@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import { userRepository } from '../firestore/userRepository';
 
@@ -8,7 +9,7 @@ class CustomerService {
   async activateCustomer(customerId: string): Promise<void> {
     await userRepository.update(customerId, {
       isActive: true,
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
   }
 
@@ -18,7 +19,7 @@ class CustomerService {
   async deactivateCustomer(customerId: string): Promise<void> {
     await userRepository.update(customerId, {
       isActive: false,
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
   }
 
@@ -28,7 +29,7 @@ class CustomerService {
   async updateCustomerProfile(customerId: string, data: { name?: string; phone?: string }): Promise<void> {
     await userRepository.update(customerId, {
       ...data,
-      updatedAt: serverTimestamp() as any,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
   }
 }

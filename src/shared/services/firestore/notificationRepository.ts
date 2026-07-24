@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import type { Notification, NotificationInAppStatus, CreateNotificationPayload } from '@/shared/types';
 import { BaseRepository, createConverter } from '@/shared/services/firestore/BaseRepository';
@@ -45,7 +46,7 @@ class NotificationRepository extends BaseRepository<Notification> {
       lastRetryAt: null,
       errorMessage: null,
       // Timestamps — use serverTimestamp so Firestore records the authoritative time
-      createdAt: serverTimestamp(),
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       sentAt: null,
       readAt: null,
       deliveredAt: null,

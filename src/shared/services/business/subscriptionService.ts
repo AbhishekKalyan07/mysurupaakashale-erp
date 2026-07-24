@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { settingsRepository } from '../firestore/settingsRepository';
@@ -38,8 +39,8 @@ class SubscriptionService {
       latestPaymentId: null,
       creditBalance: 0,
       depositAmount,
-      createdAt: serverTimestamp() as any,
-      updatedAt: serverTimestamp() as any,
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     }, subscriptionId);
     
     return subscriptionId;
