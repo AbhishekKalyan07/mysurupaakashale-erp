@@ -366,8 +366,8 @@ export function SubscriptionDetailsPage() {
             {selectedPlan?.name || 'Meal Plan Subscription'}
           </h1>
         </div>
-        <Badge tone={latestPayment ? 'info' : getStatusBadgeVariant(subscription.status)} className="capitalize font-sans text-sm px-3 py-1 font-semibold flex items-center gap-1.5">
-          {latestPayment ? <><Clock size={16} /> Approval Pending</> : subscription.status.replace('_', ' ')}
+        <Badge tone={subscription.status === 'pending_payment' && latestPayment ? 'info' : getStatusBadgeVariant(subscription.status)} className="capitalize font-sans text-sm px-3 py-1 font-semibold flex items-center gap-1.5">
+          {subscription.status === 'pending_payment' && latestPayment ? <><Clock size={16} /> Approval Pending</> : subscription.status.replace('_', ' ')}
         </Badge>
       </div>
 
