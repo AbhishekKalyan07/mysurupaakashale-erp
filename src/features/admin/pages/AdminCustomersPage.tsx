@@ -89,21 +89,41 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; onSelect: () => void }) {
+  const defaultAddress = customer.addresses?.find(a => a.id === customer.defaultAddressId) || customer.addresses?.[0];
+  const locationText = defaultAddress 
+    ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(', ') 
+    : 'No address';
+
+  // Generate a simple avatar initial
+  const initial = customer.fullName ? customer.fullName.charAt(0).toUpperCase() : '?';
+
   return (
     <tr
-      className="hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
+      className="hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0 group"
       onClick={onSelect}
     >
       <td className="px-4 py-4 text-sm font-sans">
-        <div className="font-semibold text-ink-900">{customer.fullName}</div>
-        <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{customer.id}</div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-bold text-sm shrink-0">
+            {initial}
+          </div>
+          <div>
+            <div className="font-semibold text-ink-900 group-hover:text-turmeric-700 transition-colors">{customer.fullName}</div>
+            <div className="text-ink-400 text-[11px] font-mono truncate max-w-[140px] mt-0.5">{customer.id}</div>
+          </div>
+        </div>
       </td>
       <td className="px-4 py-4 text-sm font-sans text-ink-600">{customer.phone}</td>
       <td className="px-4 py-4 text-sm font-sans text-ink-600">{customer.email}</td>
+      <td className="px-4 py-4 text-sm font-sans">
+        <span className={defaultAddress ? "text-ink-700 line-clamp-1" : "text-ink-400 italic"}>
+          {locationText}
+        </span>
+      </td>
       <td className="px-4 py-4 text-ink-600 font-sans text-xs">{formatDate(customer.createdAt)}</td>
       <td className="px-4 py-4 text-right">
-        <Button variant="ghost" size="sm" onClick={onSelect} className="font-sans text-xs">
-          View
+        <Button variant="ghost" size="sm" onClick={onSelect} className="font-sans text-xs hover:bg-turmeric-50 hover:text-turmeric-700">
+          View Profile
         </Button>
       </td>
     </tr>
@@ -168,6 +188,7 @@ export function AdminCustomersPage() {
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Joined Date</th>
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
