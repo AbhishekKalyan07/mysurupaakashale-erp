@@ -25,7 +25,6 @@ class UserRepository extends BaseRepository<UserProfile> {
   ): Promise<{ customers: UserProfile[]; lastDoc: QueryDocumentSnapshot<UserProfile> | null }> {
     const constraints: QueryConstraint[] = [
       where('role', '==', 'customer'),
-      orderBy('createdAt', 'desc'),
       limit(pageSize),
     ];
 
