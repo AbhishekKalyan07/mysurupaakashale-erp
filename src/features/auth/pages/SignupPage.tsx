@@ -4,16 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/Button';
-import { Input } from '@/shared/components/ui/Input';
 import { signUpCustomer, mapAuthError } from '../services/authService';
 import { AuthLayout } from '../components/AuthLayout';
 import type { SignupFormValues } from '../types/auth.types';
+import toast from 'react-hot-toast';
 
 const INDIAN_MOBILE_REGEX = /^(?:\+91[-\s]?)?[6-9]\d{9}$/;
 
+interface ExtendedSignupFormValues extends SignupFormValues {
+  agreed: boolean;
+}
+
 const signupSchema = z
   .object({
-    fullName: z.string().trim().min(2, 'Enter your full name'),
+    fullName: z.string().trim().min(2, 'Please enter a valid name'),
     email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
     phone: z.string().regex(INDIAN_MOBILE_REGEX, 'Enter a valid 10-digit mobile number'),
     password: z.string()
@@ -23,6 +27,7 @@ const signupSchema = z
       .regex(/[0-9]/, 'Password must contain at least one number')
       .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
     confirmPassword: z.string(),
+    agreed: z.boolean().refine(val => val === true, 'You must agree to the terms and policies'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -37,9 +42,19 @@ export function SignupPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SignupFormValues>({ resolver: zodResolver(signupSchema) });
+  } = useForm<ExtendedSignupFormValues>({ 
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      agreed: false
+    }
+  });
 
-  const onSubmit = async (values: SignupFormValues) => {
+  const onSubmit = async (values: ExtendedSignupFormValues) => {
     setFormError(null);
     try {
       await signUpCustomer(values.email, values.password, values.fullName, values.phone);
@@ -50,67 +65,185 @@ export function SignupPage() {
   };
 
 
+  // We reuse sign in with Google logic for signup if needed, or we direct them to sign in
+  const handleGoogleSignUpClick = () => {
+    toast.error('Please sign in via Google from the login page.');
+  };
 
   return (
-    <AuthLayout title="Create your account" subtitle="Set up home-style meals, delivered daily.">
+    <AuthLayout title="Sign up">
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-        <Input
-          label="Full name"
-          autoComplete="name"
-          required
-          error={errors.fullName?.message}
-          {...register('fullName')}
-        />
-        <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
-          required
-          error={errors.email?.message}
-          {...register('email')}
-        />
-        <Input
-          label="Mobile number"
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel"
-          required
-          placeholder="98765 43210"
-          error={errors.phone?.message}
-          helperText={!errors.phone ? "We'll use this to reach you about deliveries." : undefined}
-          {...register('phone')}
-        />
-        <Input
-          label="Password"
-          type="password"
-          autoComplete="new-password"
-          required
-          error={errors.password?.message}
-          {...register('password')}
-        />
-        <Input
-          label="Confirm password"
-          type="password"
-          autoComplete="new-password"
-          required
-          error={errors.confirmPassword?.message}
-          {...register('confirmPassword')}
-        />
+        {/* Full Name */}
+        <div className="flex flex-col gap-1">
+          <input
+            type="text"
+            placeholder="Full Name"
+            autoComplete="name"
+            required
+            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+              errors.fullName ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+            }`}
+            {...register('fullName')}
+          />
+          {errors.fullName && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.fullName.message}
+            </p>
+          )}
+        </div>
+
+        {/* Email */}
+        <div className="flex flex-col gap-1">
+          <input
+            type="email"
+            placeholder="Email"
+            autoComplete="email"
+            required
+            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+              errors.email ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+            }`}
+            {...register('email')}
+          />
+          {errors.email && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.email.message}
+            </p>
+          )}
+        </div>
+
+        {/* Mobile number */}
+        <div className="flex flex-col gap-1">
+          <input
+            type="tel"
+            placeholder="Mobile number"
+            autoComplete="tel"
+            required
+            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+              errors.phone ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+            }`}
+            {...register('phone')}
+          />
+          {errors.phone && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.phone.message}
+            </p>
+          )}
+        </div>
+
+        {/* Password */}
+        <div className="flex flex-col gap-1">
+          <input
+            type="password"
+            placeholder="Password"
+            autoComplete="new-password"
+            required
+            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+              errors.password ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+            }`}
+            {...register('password')}
+          />
+          {errors.password && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        {/* Confirm Password */}
+        <div className="flex flex-col gap-1">
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            autoComplete="new-password"
+            required
+            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 ${
+              errors.confirmPassword ? 'border-danger focus:ring-danger' : 'border-rice-300 focus:ring-tamarind-400 focus:border-tamarind-400'
+            }`}
+            {...register('confirmPassword')}
+          />
+          {errors.confirmPassword && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.confirmPassword.message}
+            </p>
+          )}
+        </div>
+
+        {/* Terms Checkbox */}
+        <div className="flex flex-col gap-1 mt-1">
+          <label className="flex items-start gap-2.5 cursor-pointer text-xs text-ink-600">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-rice-300 text-tamarind-500 focus:ring-tamarind-400"
+              {...register('agreed')}
+            />
+            <span className="leading-tight">
+              I agree to Mysuru Paakashale's{' '}
+              <a href="#" className="text-tamarind-500 hover:underline">Terms of Service</a>,{' '}
+              <a href="#" className="text-tamarind-500 hover:underline">Privacy Policy</a> and{' '}
+              <a href="#" className="text-tamarind-500 hover:underline">Content Policies</a>
+            </span>
+          </label>
+          {errors.agreed && (
+            <p role="alert" className="text-xs text-danger ml-1">
+              {errors.agreed.message}
+            </p>
+          )}
+        </div>
+
         {formError && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-sm text-danger text-center">
             {formError}
           </p>
         )}
-        <Button type="submit" isLoading={isSubmitting} className="mt-2">
+
+        <Button 
+          type="submit" 
+          isLoading={isSubmitting} 
+          className="w-full h-12 rounded-lg bg-tamarind-500 hover:bg-tamarind-600 text-white font-medium transition-colors mt-2"
+        >
           Create account
         </Button>
+
+        {/* Separator line */}
+        <div className="relative flex items-center justify-center my-3">
+          <div className="w-full border-t border-rice-200" />
+          <span className="absolute bg-white px-3 text-xs text-ink-400 font-sans">or</span>
+        </div>
+
+        {/* Google Sign In/Up */}
+        <button
+          type="button"
+          onClick={handleGoogleSignUpClick}
+          className="w-full h-12 rounded-lg border border-rice-300 bg-white hover:bg-rice-50/50 text-ink-700 font-medium transition-colors flex items-center justify-center gap-2.5 text-sm"
+        >
+          <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
+            <path
+              fill="#EA4335"
+              d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z"
+            />
+            <path
+              fill="#4285F4"
+              d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z"
+            />
+          </svg>
+          Sign in with Google
+        </button>
       </form>
-      <p className="mt-6 text-center text-sm text-ink-600">
+
+      <div className="mt-6 text-center text-sm text-ink-600">
         Already have an account?{' '}
-        <Link to="/login" className="font-medium text-leaf-700 hover:underline">
-          Sign in
+        <Link to="/login" className="font-medium text-tamarind-500 hover:underline">
+          Log in
         </Link>
-      </p>
+      </div>
     </AuthLayout>
   );
 }
