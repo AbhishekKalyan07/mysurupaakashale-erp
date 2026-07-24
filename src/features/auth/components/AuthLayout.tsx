@@ -13,7 +13,7 @@ export function AuthLayout({ title, children }: AuthLayoutProps) {
   return (
     <div 
       className="relative flex min-h-dvh items-center justify-center bg-cover bg-center px-4 py-12"
-      style={{ backgroundImage: `url('/auth_bg.png')` }}
+      style={{ backgroundImage: `url('/auth_bg.jpg')` }}
     >
       {/* Dimmed glass overlay behind the card */}
       <div className="absolute inset-0 bg-black/45 backdrop-blur-[3px]" />
