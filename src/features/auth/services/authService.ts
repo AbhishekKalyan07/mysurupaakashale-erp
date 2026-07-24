@@ -45,25 +45,23 @@ export async function signInWithGoogle(): Promise<UserCredential> {
   const provider = new GoogleAuthProvider();
   const credential = await signInWithPopup(auth, provider);
   
-  // Phase 6 follow-up: Ensure Google Sign-In creates a base user profile.
-  // We don't await this so the UI can navigate immediately. AuthContext will 
-  // handle the loading state while this completes in the background.
-  userRepository.getById(credential.user.uid).then(profile => {
-    if (!profile) {
-      userRepository.create({
-        role: 'customer', // Default to customer
-        fullName: credential.user.displayName || 'New User',
-        email: credential.user.email || '',
-        phone: credential.user.phoneNumber || '',
-        photoUrl: credential.user.photoURL || null,
-        isActive: true,
-        addresses: [],
-        defaultAddressId: null,
-        createdAt: serverTimestamp() as any,
-        updatedAt: serverTimestamp() as any,
-      } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
+  // Check if the user profile exists.
+  const profile = await userRepository.getById(credential.user.uid);
+  
+  if (!profile) {
+    // If the account does not exist, we do not allow them to sign in directly.
+    // They MUST go through the standard signup flow which collects their phone number.
+    
+    // Attempt to clean up the orphaned Firebase Auth user
+    try {
+      await credential.user.delete();
+    } catch (e) {
+      // Fallback to sign out if delete fails (e.g., if there's a permission issue)
+      await firebaseSignOut(auth);
     }
-  }).catch(console.error);
+    
+    throw new Error('No account found with this Google email. Please create an account first.');
+  }
   
   return credential;
 }
