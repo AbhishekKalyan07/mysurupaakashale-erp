@@ -1,8 +1,8 @@
 import { cn } from '@/shared/lib/cn';
 
 // ── Primitive: a single shimmer bar ───────────────────────────────────────────
-function Shimmer({ className }: { className?: string }) {
-  return <div className={cn('skeleton-shimmer rounded-md', className)} />;
+function Shimmer({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div className={cn('skeleton-shimmer rounded-md', className)} style={style} />;
 }
 
 // ── Card Skeleton ─────────────────────────────────────────────────────────────
