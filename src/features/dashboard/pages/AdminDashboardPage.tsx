@@ -1,4 +1,4 @@
-import { LayoutGrid, Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package, PackageOpen } from 'lucide-react';
+import { Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package, PackageOpen } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Card } from '@/shared/components/ui/Card';
 import { useNavigate } from 'react-router-dom';
