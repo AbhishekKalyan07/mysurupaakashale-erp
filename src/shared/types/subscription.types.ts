@@ -42,6 +42,10 @@ export interface Subscription {
   creditBalance: number;
   /** Initial security deposit paid during signup. Refunded on cancellation. */
   depositAmount: number;
+  /** Start date of a scheduled pause (inclusive) */
+  pauseStartDate?: ISODateString | null;
+  /** End date of a scheduled pause (inclusive) */
+  pauseEndDate?: ISODateString | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

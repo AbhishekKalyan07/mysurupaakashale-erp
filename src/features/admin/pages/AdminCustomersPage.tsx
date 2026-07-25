@@ -55,7 +55,7 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
               <div className="font-semibold text-ink-900">{formatDate(customer.createdAt)}</div>
             </div>
             <div className="bg-rice-50 rounded-lg p-3">
-              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Status</div>
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Account Status</div>
               <div className="font-semibold text-ink-900">
                 <Badge tone={customer.isActive ? 'success' : 'danger'}>
                   {customer.isActive ? 'Active' : 'Inactive'}
@@ -353,7 +353,7 @@ export function AdminCustomersPage() {
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Joined Date</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Account Status</th>
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>

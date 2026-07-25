@@ -35,11 +35,11 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   async getActiveSubscriptionByCustomerId(customerId: string): Promise<Subscription | null> {
     const subs = await this.list(
       where('customerId', '==', customerId),
-      where('status', 'in', ['active', 'pending_payment'])
+      where('status', 'in', ['active', 'pending_payment', 'paused'])
     );
-    // Return active one if it exists, otherwise pending_payment, or just the first one found
-    const active = subs.find(s => s.status === 'active');
-    if (active) return active;
+    // Return active or paused if it exists, otherwise pending_payment, or just the first one found
+    const activeOrPaused = subs.find(s => s.status === 'active' || s.status === 'paused');
+    if (activeOrPaused) return activeOrPaused;
     return subs.length > 0 ? subs[0] : null;
   }
 

@@ -17,8 +17,11 @@ async function runDailyTasks() {
     console.log('2. Generating Daily Summary (Sales, Kitchen, Delivery)...');
     await automationService.generateDailySummary();
 
-    console.log('3. Checking Subscription Expiries...');
+    console.log('2. Checking for expiring subscriptions...');
     await automationService.checkSubscriptionExpiry();
+
+    console.log('3. Processing scheduled pauses and resumes...');
+    await automationService.processScheduledPauses();
 
     console.log('--- Daily Automation Tasks Completed Successfully ---');
     process.exit(0);

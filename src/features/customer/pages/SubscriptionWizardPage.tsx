@@ -27,6 +27,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
+import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
 
 // Zod Schema for Address
 const addressFormSchema = z.object({
@@ -57,7 +58,8 @@ export function SubscriptionWizardPage() {
   const plan = plans?.find((p) => p.id === (selectedPlanId || initialPlanId));
 
   // Step state
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [createdSubscriptionId, setCreatedSubscriptionId] = useState<string | null>(null);
 
   // Form states
   const [lunchOptionId, setLunchOptionId] = useState<string>('');
@@ -187,13 +189,16 @@ export function SubscriptionWizardPage() {
       notifySubscriptionCreated(firebaseUser!.uid, subscriptionId, plan.tier)
         .catch((err) => console.error('[SubscriptionWizard] notification failed:', err));
 
+      // Save ID to state for Step 4
+      setCreatedSubscriptionId(subscriptionId);
+
       // Invalidate queries so subscription pages refresh
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.all,
       });
 
-      // Redirect to detail page
-      navigate('/customer/subscription', { state: { justCreated: true } });
+      // Proceed to Step 4 (Payment) instead of redirecting
+      setStep(4);
     } catch (err: unknown) {
       console.error('Error creating subscription draft:', err);
       setSubmissionError((err as Error).message || 'An unexpected error occurred. Please verify your address or pincode.');
@@ -218,6 +223,8 @@ export function SubscriptionWizardPage() {
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 2 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>2</div>
           <div className="w-8 h-0.5 bg-rice-200"></div>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 3 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>3</div>
+          <div className="w-8 h-0.5 bg-rice-200"></div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 4 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>4</div>
         </div>
       </div>
 
@@ -620,6 +627,26 @@ export function SubscriptionWizardPage() {
               <ArrowLeft size={16} /> Back to Address
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* STEP 4: Payment */}
+      {step === 4 && createdSubscriptionId && (
+        <div className="space-y-6">
+          <h2 className="text-lg font-serif font-bold text-ink-900 flex items-center gap-2 mb-4">
+            <CheckCircle className="text-emerald-600" size={20} /> Subscription Draft Created!
+          </h2>
+          <p className="text-ink-600 text-sm font-sans mb-6">
+            Your subscription has been reserved. To complete your setup and begin meal deliveries, please pay the initial security deposit below.
+          </p>
+
+          <ManualPaymentPanel
+            subscriptionId={createdSubscriptionId}
+            amount={settings?.pricing.securityDepositAmount || 1000}
+            onSuccess={() => {
+              navigate('/customer/subscription', { state: { justCreated: true } });
+            }}
+          />
         </div>
       )}
     </div>

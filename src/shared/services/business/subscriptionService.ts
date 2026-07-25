@@ -72,20 +72,30 @@ class SubscriptionService {
     await subscriptionRepository.updateStatus(subscription.id, 'cancelled');
   }
 
-  /** Admin override of the customer's own pause action. */
-  async pauseSubscription(subscription: Subscription): Promise<void> {
-    if (subscription.status !== 'active') {
-      throw new Error('Only an active subscription can be paused.');
+  /** Admin override of the customer's own pause action, with optional schedule. */
+  async pauseSubscription(
+    subscription: Subscription, 
+    shouldPauseNow: boolean = true, 
+    pauseStartDate: string | null = null, 
+    pauseEndDate: string | null = null
+  ): Promise<void> {
+    if (subscription.status !== 'active' && shouldPauseNow) {
+      throw new Error('Only an active subscription can be paused immediately.');
     }
-    await subscriptionRepository.updateStatus(subscription.id, 'paused');
+    await subscriptionRepository.update(subscription.id, {
+      status: shouldPauseNow ? 'paused' : 'active',
+      pauseStartDate,
+      pauseEndDate,
+    });
   }
 
-  /** Admin override of the customer's own resume action. */
+  /** Admin override of the customer's own resume action, clearing any schedules. */
   async resumeSubscription(subscription: Subscription): Promise<void> {
-    if (subscription.status !== 'paused') {
-      throw new Error('Only a paused subscription can be resumed.');
-    }
-    await subscriptionRepository.updateStatus(subscription.id, 'active');
+    await subscriptionRepository.update(subscription.id, {
+      status: 'active',
+      pauseStartDate: null,
+      pauseEndDate: null,
+    });
   }
 }
 
