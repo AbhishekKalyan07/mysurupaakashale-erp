@@ -96,8 +96,8 @@ export function LoginPage() {
         </div>
       </div>
 
-      {/* Main Content Wrapper - Centered visually but pushed left on large screens to avoid the image */}
-      <div className="relative z-10 w-full lg:w-[50%] xl:w-[45%] flex flex-col items-center justify-center px-6 py-10 animate-in fade-in duration-700 mx-auto lg:ml-[10%]">
+      {/* Main Content Wrapper - Centered perfectly on all screens */}
+      <div className="relative z-10 w-full lg:w-[50%] xl:w-[45%] flex flex-col items-center justify-center px-6 py-10 animate-in fade-in duration-700 mx-auto">
         
         {/* Logo */}
         <div className="mb-8 w-full flex justify-center">
