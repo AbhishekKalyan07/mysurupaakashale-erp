@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { FormSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { useBusinessSettings, useUpdateBusinessSettings } from '../hooks/useSettings';
 import { Settings, Save, Store, IndianRupee, Clock, Truck, Play } from 'lucide-react';
 import { useGenerateOrders } from '../hooks/useGenerateOrders';
@@ -95,7 +95,7 @@ export function BusinessSettingsPage() {
     await updateMutation.mutateAsync(payload);
   };
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) return <div className="p-8"><FormSkeleton /></div>;
   if (isError) return <div className="p-8 text-danger">Failed to load settings.</div>;
 
   return (

@@ -58,7 +58,6 @@ export function CreateStaffModal({ onClose }: Props) {
       toast.success('Staff account created successfully!');
       onClose();
     } catch (err) {
-      console.error('Staff creation failed:', err);
       // Error handled globally via QueryClient
     }
   };

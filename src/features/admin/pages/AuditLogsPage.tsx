@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useAuditLogs, useExportAuditLogs } from '../hooks/useAuditLogs';
 import type { AuditLogFilter } from '@/shared/services/firestore/auditRepository';
@@ -127,7 +127,7 @@ export function AuditLogsPage() {
 
       <Card className="p-0 overflow-hidden">
         {isLoading ? (
-          <div className="p-12"><LoadingScreen /></div>
+          <div className="p-12"><div className="p-8"><TableSkeleton /></div></div>
         ) : isError ? (
           <div className="p-8 text-danger">Failed to load audit logs.</div>
         ) : data?.logs.length === 0 ? (

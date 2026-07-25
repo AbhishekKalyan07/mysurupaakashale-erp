@@ -181,64 +181,10 @@ export function AdminOrdersPage() {
           </p>
         </div>
       ) : (
-        <>
-          {/* Mobile Card Layout */}
-          <div className="grid gap-4 md:hidden">
-            {filteredOrders.map(order => (
-              <Card key={order.id} className="overflow-hidden border-rice-200">
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-mono text-xs text-ink-500 mb-1">#{order.id.slice(0, 8)}</div>
-                      <CustomerName customerId={order.customerId} />
-                    </div>
-                    <StatusBadge status={order.status} />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="block text-xs text-ink-500">Meal</span>
-                      <span className="font-medium capitalize text-ink-900">{order.mealType}</span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-ink-500">Plan Tier</span>
-                      <span className="font-medium capitalize text-ink-900">{order.planTier || 'One-time'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-ink-500">Amount</span>
-                      <span className="font-medium text-ink-900">₹{order.price}</span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-ink-500">Assigned</span>
-                      <span className="font-medium text-ink-900">
-                        {order.deliveryPartnerId ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-rice-100 flex items-center justify-between">
-                    <span className="text-xs text-ink-500 font-medium">Override Status:</span>
-                    <select
-                      value={order.status}
-                      onChange={(e) => updateStatusMutation.mutate({ orderId: order.id, newStatus: e.target.value as OrderStatus })}
-                      disabled={updateStatusMutation.isPending}
-                      className="text-xs rounded border-rice-300 py-1 pl-2 pr-6 shadow-sm focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500"
-                    >
-                      {Object.keys(statusLabels).map(key => (
-                        <option key={key} value={key}>{statusLabels[key as OrderStatus]}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop Table Layout */}
-          <Card className="hidden overflow-hidden border-rice-300 md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-ink-700">
-                <thead className="bg-rice-50/50 text-xs font-semibold uppercase tracking-wider text-ink-500">
+          <Card className="p-0 overflow-hidden border-rice-300">
+            <div className="overflow-x-auto md:overflow-visible">
+              <table className="w-full text-left text-sm block md:table">
+                <thead className="hidden md:table-header-group bg-rice-50/50 text-xs font-semibold uppercase tracking-wider text-ink-500 border-b border-rice-300">
                   <tr>
                     <th className="px-4 py-3">Order ID</th>
                     <th className="px-4 py-3">Customer</th>
@@ -248,33 +194,43 @@ export function AdminOrdersPage() {
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-rice-200 bg-white">
+                <tbody className="block md:table-row-group divide-y divide-rice-200 bg-white">
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-rice-50/50 transition-colors">
-                      <td className="px-4 py-3">
+                    <tr key={order.id} className="block md:table-row hover:bg-rice-50/50 p-4 md:p-0 space-y-3 md:space-y-0 transition-colors">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Order ID</span>
                         <div className="font-mono text-xs text-ink-500" title={order.id}>
                           {order.id.slice(0, 8)}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <CustomerName customerId={order.customerId} />
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Customer</span>
+                        <div className="text-right md:text-left">
+                          <CustomerName customerId={order.customerId} />
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium capitalize text-ink-900">{order.mealType}</div>
-                        <div className="text-xs text-ink-500">{order.planTier || 'One-time'}</div>
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Meal & Tier</span>
+                        <div className="text-right md:text-left">
+                          <div className="font-medium capitalize text-ink-900">{order.mealType}</div>
+                          <div className="text-xs text-ink-500">{order.planTier || 'One-time'}</div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 font-medium text-ink-900">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 font-medium text-ink-900">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Amount</span>
                         ₹{order.price}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
                         <StatusBadge status={order.status} />
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
+                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
                         <select
                           value={order.status}
                           onChange={(e) => updateStatusMutation.mutate({ orderId: order.id, newStatus: e.target.value as OrderStatus })}
                           disabled={updateStatusMutation.isPending}
-                          className="text-xs rounded-md border-rice-300 py-1 pl-2 pr-6 shadow-sm focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500"
+                          className="text-xs rounded-md border-rice-300 py-1 pl-2 pr-6 shadow-sm focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500 w-full md:w-auto"
                         >
                           {Object.keys(statusLabels).map(key => (
                             <option key={key} value={key}>{statusLabels[key as OrderStatus]}</option>
@@ -287,7 +243,6 @@ export function AdminOrdersPage() {
               </table>
             </div>
           </Card>
-        </>
       )}
     </div>
   );

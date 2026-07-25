@@ -84,7 +84,9 @@ service cloud.firestore {
     // number is already registered before creating a new account or updating profile.
     match /userPhones/{phone} {
       allow read: if true;
-      allow write: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
+                       request.resource.data.uid == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
@@ -204,6 +206,17 @@ service cloud.firestore {
                        onlyChangedFields(['status', 'updatedAt']));
 
       allow delete: if false;
+
+      match /workflowHistory/{historyId} {
+        allow read: if isSignedIn() &&
+                       (get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+                        get(/databases/$(database)/documents/orders/$(orderId)).data.deliveryPartnerId == request.auth.uid ||
+                        isAdmin() || isAccounts() || isKitchen());
+        allow create: if isSignedIn() && request.resource.data.changedBy == request.auth.uid &&
+                         (isAdmin() || isKitchen() || isDeliveryPartner() ||
+                          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid);
+        allow update, delete: if false; // append-only history
+      }
     }
 
     // ---------- deliveries/{deliveryId} ----------

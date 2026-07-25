@@ -79,8 +79,8 @@ class SubscriptionService {
     pauseStartDate: string | null = null, 
     pauseEndDate: string | null = null
   ): Promise<void> {
-    if (subscription.status !== 'active' && shouldPauseNow) {
-      throw new Error('Only an active subscription can be paused immediately.');
+    if (subscription.status !== 'active' && subscription.status !== 'paused' && shouldPauseNow) {
+      throw new Error('Only an active or already paused subscription can be paused immediately.');
     }
     await subscriptionRepository.update(subscription.id, {
       status: shouldPauseNow ? 'paused' : 'active',

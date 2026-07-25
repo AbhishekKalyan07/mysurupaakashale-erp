@@ -5,7 +5,7 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { inventoryRepository } from '@/shared/services/firestore/inventoryRepository';
 import type { InventoryItem } from '@/shared/types/inventory.types';
@@ -35,7 +35,7 @@ export function InventoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(0);
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
   if (error) return <ErrorState title="Error" description="Could not load inventory." onRetry={refetch} />;
 
   const items = inventoryItems || [];

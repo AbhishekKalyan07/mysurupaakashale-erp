@@ -5,7 +5,7 @@ import { useCustomerNameMap } from '@/features/kitchen/hooks/useProductionBoard'
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { MapPin, Truck, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -30,7 +30,7 @@ export function DeliveryDashboardPage() {
   ]));
   const customerNameMap = useCustomerNameMap(allCustomerIds);
 
-  if (loadingUnassigned || loadingAssigned) return <LoadingScreen />;
+  if (loadingUnassigned || loadingAssigned) return <div className="p-8"><DashboardCardsSkeleton /></div>;
 
   const handleSelect = (id: string) => {
     const newSet = new Set(selectedOrders);

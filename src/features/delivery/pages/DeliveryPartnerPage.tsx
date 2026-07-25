@@ -5,12 +5,13 @@ import { useCustomerNameMap } from '@/features/kitchen/hooks/useProductionBoard'
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { toast } from 'react-hot-toast';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { Truck, MapPin, Package, Phone, CheckCircle2, Navigation, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
+import { userRepository } from '@/shared/services/firestore/userRepository';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser } = useAuth();
@@ -24,7 +25,7 @@ export function DeliveryPartnerPage() {
   const customerIds = Array.from(new Set(orders?.map(o => o.customerId) || []));
   const customerNameMap = useCustomerNameMap(customerIds);
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) return <div className="p-8"><DashboardCardsSkeleton /></div>;
 
   if (error) {
     return (
@@ -71,6 +72,19 @@ export function DeliveryPartnerPage() {
       toast.error('Failed to update status.');
     } finally {
       setAdvancingId(null);
+    }
+  };
+
+  const handleCall = async (customerId: string) => {
+    try {
+      const customer = await userRepository.getById(customerId);
+      if (customer?.phone) {
+        window.location.href = `tel:${customer.phone}`;
+      } else {
+        toast.error('Customer phone number not available');
+      }
+    } catch (err) {
+      toast.error('Failed to get customer phone');
     }
   };
 
@@ -126,7 +140,7 @@ export function DeliveryPartnerPage() {
                       {order.status.replace(/_/g, ' ').toUpperCase()}
                     </Badge>
                     {!isTerminal && (
-                      <Button variant="ghost" size="sm" className="text-leaf-600 h-8 px-2" onClick={() => toast.success('Feature coming soon: Call Customer')}>
+                      <Button variant="ghost" size="sm" className="text-leaf-600 h-8 px-2" onClick={() => handleCall(order.customerId)}>
                         <Phone size={14}/>
                       </Button>
                     )}

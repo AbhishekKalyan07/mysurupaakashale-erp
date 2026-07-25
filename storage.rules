@@ -31,6 +31,10 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'kitchen';
     }
 
+    function isAccounts() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'accounts';
+    }
+
     // /profile-photos/{userId}/{fileName}
     match /profile-photos/{userId}/{fileName} {
       allow read: if isSignedIn();
@@ -69,7 +73,7 @@ service firebase.storage {
 
     // /payment-screenshots/{userId}/{fileName}
     match /payment-screenshots/{userId}/{fileName} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isAccounts());
       allow write: if isSignedIn() && request.auth.uid == userId && isImageUnder(5);
     }
 

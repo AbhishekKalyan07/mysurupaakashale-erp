@@ -14,7 +14,7 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge, type BadgeTone } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import type { SubscriptionStatus } from '@/shared/types';
@@ -321,7 +321,7 @@ export function AdminSubscriptionsPage() {
     );
   });
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
   if (error) {
     return (
       <div className="space-y-6">
