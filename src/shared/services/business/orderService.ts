@@ -122,6 +122,68 @@ class OrderService {
   }
 
   /**
+   * Generates orders for a specific subscription and date for the specified meal types.
+   * Useful when a subscription is resumed mid-day and needs today's remaining orders generated.
+   */
+  async generateOrdersForSubscription(
+    subscription: import('@/shared/types').Subscription,
+    date: string,
+    mealTypesToGenerate: import('@/shared/types').MealType[]
+  ): Promise<void> {
+    const ordersToCreate: Partial<Order>[] = [];
+
+    for (const pref of subscription.mealPreferences) {
+      if (!mealTypesToGenerate.includes(pref.mealType)) continue;
+
+      ordersToCreate.push({
+        id: `ord_${subscription.id}_${date}_${pref.mealType}`,
+        source: 'subscription',
+        customerId: subscription.customerId,
+        subscriptionId: subscription.id,
+        planTier: subscription.planTier,
+        mealType: pref.mealType,
+        date: date,
+        itemsLabel: `Subscription - ${pref.mealType}`,
+        selectedOptionId: pref.selectedOptionId,
+        price: subscription.pricePerDaySnapshot,
+        currency: 'INR',
+        status: 'scheduled',
+        deliveryAddressId: subscription.deliveryAddressId,
+        zoneId: subscription.zoneId,
+        kitchenId: null,
+        deliveryPartnerId: null,
+        deliveryWindow: null,
+        paymentId: subscription.latestPaymentId,
+      });
+    }
+
+    if (ordersToCreate.length === 0) return;
+
+    const batch = writeBatch(db);
+    ordersToCreate.forEach(order => {
+      const ref = doc(db, 'orders', order.id!);
+      batch.set(ref, {
+        ...order,
+        createdAt: serverTimestamp() as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      }, { merge: true });
+    });
+    
+    await batch.commit();
+
+    // Notify kitchen staff
+    try {
+      const kitchenStaff = await userRepository.list(where('role', '==', 'kitchen'), where('isActive', '==', true));
+      const ids = kitchenStaff.map((s) => s.id);
+      if (ids.length > 0) {
+        await notifyDailyOrdersGenerated(ids, date, ordersToCreate.length);
+      }
+    } catch (err) {
+      console.error('[orderService] kitchen notification failed during mid-day resume:', err);
+    }
+  }
+
+  /**
    * Standardize order lifecycle transitions
    */
   async updateOrderStatus(orderId: string, status: import('@/shared/types').OrderStatus): Promise<void> {

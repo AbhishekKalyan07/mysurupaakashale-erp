@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 
 import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
+import { ResumeDeliveryModal } from '../components/ResumeDeliveryModal';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export function SubscriptionDetailsPage() {
@@ -42,6 +43,7 @@ export function SubscriptionDetailsPage() {
   const [updating, setUpdating] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [pauseEndDate, setPauseEndDate] = useState('');
 
@@ -231,7 +233,7 @@ export function SubscriptionDetailsPage() {
             </p>
           </div>
           <Button
-            onClick={() => handleLifecycleAction('resume')}
+            onClick={() => subscription.status === 'paused' ? setShowResumeModal(true) : handleLifecycleAction('resume')}
             disabled={updating}
             variant="secondary"
             className="w-full sm:w-auto sm:ml-auto text-xs px-4 py-2 font-sans font-semibold"
@@ -365,7 +367,7 @@ export function SubscriptionDetailsPage() {
                 )}
                 {subscription.status === 'paused' && (
                   <Button
-                    onClick={() => handleLifecycleAction('resume')}
+                    onClick={() => setShowResumeModal(true)}
                     disabled={updating}
                     className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
                   >
@@ -437,6 +439,13 @@ export function SubscriptionDetailsPage() {
             </form>
           </Card>
         </div>
+      )}
+
+      {showResumeModal && (
+        <ResumeDeliveryModal
+          subscription={subscription}
+          onClose={() => setShowResumeModal(false)}
+        />
       )}
     </div>
   );

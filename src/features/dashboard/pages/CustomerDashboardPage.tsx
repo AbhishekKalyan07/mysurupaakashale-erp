@@ -28,6 +28,8 @@ import {
   MessageSquareWarning
 } from 'lucide-react';
 import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
+import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
+import { Play } from 'lucide-react';
 
 const addressFormSchema = z.object({
   label: z.string().min(1, 'Label is required (e.g., Home, Office)').max(50),
@@ -58,6 +60,7 @@ export function CustomerDashboardPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
 
@@ -234,13 +237,23 @@ export function CustomerDashboardPage() {
                   >
                     Report Issue <MessageSquareWarning size={16} className="ml-2" />
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowPauseModal(true)}
-                    className="text-ink-700 border-rice-300 hover:bg-rice-100"
-                  >
-                    Pause Delivery <Calendar size={16} className="ml-2" />
-                  </Button>
+                  {subscription.status === 'paused' ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowResumeModal(true)}
+                      className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                    >
+                      Resume Subscription <Play size={16} className="ml-2 fill-current" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowPauseModal(true)}
+                      className="text-ink-700 border-rice-300 hover:bg-rice-100"
+                    >
+                      Pause Delivery <Calendar size={16} className="ml-2" />
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     onClick={() => navigate('/customer/subscription')}
@@ -459,6 +472,13 @@ export function CustomerDashboardPage() {
             subscription={subscription} 
             onClose={() => setShowPauseModal(false)} 
             skipDay={skipDay}
+          />
+        )}
+
+        {showResumeModal && subscription && (
+          <ResumeDeliveryModal
+            subscription={subscription}
+            onClose={() => setShowResumeModal(false)}
           />
         )}
 
