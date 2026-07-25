@@ -1,16 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMySubscription } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
-import { useMyPayments, useSubmitPayment } from '../hooks/usePayments';
+import { useMyPayments } from '../hooks/usePayments';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
 import { Card } from '@/shared/components/ui/Card';
-import { Input } from '@/shared/components/ui/Input';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
 import { toast } from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -27,13 +26,7 @@ import {
   XCircle,
   Clock,
   RotateCcw,
-  CreditCard,
-  Banknote,
-  Smartphone,
-  Building2,
-  CheckCircle,
 } from 'lucide-react';
-import type { PaymentMethod } from '@/shared/types';
 
 import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
 
@@ -46,6 +39,7 @@ export function SubscriptionDetailsPage() {
   const { data: settings, isLoading: isSettingsLoading } = useBusinessSettings();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [updating, setUpdating] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
