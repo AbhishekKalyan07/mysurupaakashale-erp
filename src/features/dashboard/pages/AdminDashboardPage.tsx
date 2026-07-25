@@ -1,5 +1,5 @@
 import { LayoutGrid, Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package, PackageOpen } from 'lucide-react';
-import { WelcomeCard } from '../components/WelcomeCard';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Card } from '@/shared/components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import { useAdminDashboardMetrics } from '../hooks/useAdminDashboardMetrics';
@@ -10,7 +10,10 @@ import { serverTimestamp, type Timestamp } from 'firebase/firestore';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { data: metrics, isLoading } = useAdminDashboardMetrics();
+
+  const firstName = profile?.fullName?.split(' ')[0] || 'Admin';
 
   if (isLoading) return <LoadingScreen />;
 
@@ -162,14 +165,23 @@ export function AdminDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <WelcomeCard
-        icon={<LayoutGrid size={22} />}
-        roleTagline="Run the whole kitchen: plans, staff, zones, and reporting."
-        comingNext={[
-          'Draw delivery zones on the map and assign kitchens',
-          'Live dashboards for subscriptions, orders, and revenue',
-        ]}
-      />
+      {/* Redesigned Premium Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-[#ECE8E2]">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900">
+            Welcome back, {firstName} <span className="inline-block animate-bounce-slow">👋</span>
+          </h1>
+          <p className="mt-2 text-ink-600 font-medium text-sm md:text-base">
+            Run the whole kitchen: plans, staff, zones, and reporting.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-semibold text-sm border border-emerald-100 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            System Online
+          </div>
+        </div>
+      </div>
 
       {/* Business Metrics Grid */}
       <div>
