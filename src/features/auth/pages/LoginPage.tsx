@@ -79,25 +79,25 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center bg-[#FAF6F0] font-sans selection:bg-[#6A1B1A]/10 selection:text-[#6A1B1A] overflow-hidden">
+    <div className="min-h-screen w-full relative flex items-center bg-[#FAF6F0] font-sans selection:bg-[#6A1B1A]/10 selection:text-[#6A1B1A] overflow-hidden">
       
-      {/* Background Hero Image - Full screen to handle the blending effect shown in mockup */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
-        <img 
-          src="/auth_bg.jpg" 
-          alt="Background" 
-          className="w-full h-full object-cover opacity-100"
-          onError={(e) => {
-            // Safe fallback if auth_bg.jpg is missing
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-        {/* Soft gradient to ensure text readability if the image isn't perfectly faded */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6F0] via-[#FAF6F0]/90 to-transparent lg:to-transparent" />
+      {/* Background Hero Image - Positioned on the right half with a gradient fade to the left */}
+      <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-end">
+        <div className="w-full lg:w-[60%] h-full relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6F0] via-[#FAF6F0]/80 to-transparent z-10" />
+          <img 
+            src="/auth_bg.jpg" 
+            alt="Background" 
+            className="w-full h-full object-cover object-right"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
       </div>
 
-      {/* Main Content Wrapper */}
-      <div className="relative z-10 w-full max-w-[460px] px-6 py-10 flex flex-col items-center justify-center animate-in fade-in duration-700 zoom-in-95">
+      {/* Main Content Wrapper - Centered visually but pushed left on large screens to avoid the image */}
+      <div className="relative z-10 w-full lg:w-[50%] xl:w-[45%] flex flex-col items-center justify-center px-6 py-10 animate-in fade-in duration-700 mx-auto lg:ml-[10%]">
         
         {/* Logo */}
         <div className="mb-8 w-full flex justify-center">
@@ -106,14 +106,25 @@ export function LoginPage() {
             alt="Mysuru Paakashale Logo" 
             className="h-16 md:h-20 w-auto object-contain"
             onError={(e) => {
-              // Fallback to text logo if image fails
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
               const parent = target.parentElement;
               if (parent && !parent.querySelector('div.fallback-logo')) {
                 const fallback = document.createElement('div');
-                fallback.className = 'fallback-logo text-center';
-                fallback.innerHTML = `<span class="font-display text-2xl font-bold text-[#6A1B1A] tracking-wide">MYSURU<br/><span class="text-xl">PAAKASHALE</span></span><div class="flex items-center justify-center gap-2 mt-1"><div class="h-px w-6 bg-ink-300"></div><p class="text-[9px] font-bold uppercase tracking-[0.2em] text-ink-700">Real Taste of Nammuru</p><div class="h-px w-6 bg-ink-300"></div></div>`;
+                fallback.className = 'fallback-logo text-center flex flex-col items-center';
+                // Using a serif font for a traditional look
+                fallback.innerHTML = `
+                  <div class="flex items-center justify-center">
+                    <span class="font-serif text-[28px] font-bold text-[#6A1B1A] tracking-wider leading-tight text-center">
+                      MYSURU<br/><span class="text-[22px]">PAAKASHALE</span>
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-center gap-3 mt-2 w-full">
+                    <div class="h-[1px] w-8 bg-[#C89B3C]/50"></div>
+                    <p class="text-[9px] font-semibold uppercase tracking-[0.25em] text-[#6A1B1A]/80 font-sans">Real Taste of Nammuru</p>
+                    <div class="h-[1px] w-8 bg-[#C89B3C]/50"></div>
+                  </div>
+                `;
                 parent.appendChild(fallback);
               }
             }}
@@ -121,8 +132,8 @@ export function LoginPage() {
         </div>
 
         {forgotPasswordMode ? (
-          <form onSubmit={handleResetPassword} className="w-full flex flex-col items-center">
-            <h2 className="text-[28px] font-bold text-[#6A1B1A] mb-2 text-center tracking-tight">
+          <form onSubmit={handleResetPassword} className="w-full max-w-[420px] flex flex-col items-center">
+            <h2 className="text-[28px] font-serif font-bold text-[#6A1B1A] mb-2 text-center tracking-tight">
               Reset Password
             </h2>
             <p className="text-[14px] text-[#2B2B2B]/70 font-medium text-center mb-8 max-w-[320px]">
@@ -172,10 +183,10 @@ export function LoginPage() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="w-full flex flex-col items-center">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="w-full max-w-[420px] flex flex-col items-center">
             
-            <h2 className="text-[28px] font-bold text-[#6A1B1A] mb-2 text-center tracking-tight flex items-center justify-center gap-2">
-              Welcome Back <span className="text-2xl leading-none">👋</span>
+            <h2 className="text-[32px] font-serif font-bold text-[#6A1B1A] mb-2 text-center tracking-tight flex items-center justify-center gap-2">
+              Welcome Back <span className="text-2xl leading-none font-sans">👋</span>
             </h2>
             <p className="text-[14px] text-[#2B2B2B]/70 font-medium text-center mb-8 max-w-[320px]">
               Sign in to continue and manage your meal subscription with us.
@@ -303,31 +314,31 @@ export function LoginPage() {
         )}
 
         {/* Footer section (Trust Badges + Terms) */}
-        <div className="w-full mt-12 flex flex-col items-center">
+        <div className="w-full max-w-[480px] mt-12 flex flex-col items-center">
           
-          <div className="w-full border-t border-b border-[#E5E0D8]/60 py-5 flex items-center justify-between px-2 gap-2">
+          <div className="w-full border-t border-b border-[#E5E0D8] py-4 flex flex-row items-center justify-between px-2 gap-1 sm:gap-4">
             
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-2 flex-1 justify-center text-center sm:text-left">
-              <ShieldCheck className="w-5 h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
+            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#2B2B2B]">Secure Login</span>
-                <span className="text-[9px] text-[#2B2B2B]/60 leading-tight">Your data is protected</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Secure Login</span>
+                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">Your data is protected</span>
               </div>
             </div>
 
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-2 flex-1 justify-center text-center sm:text-left border-l border-r border-[#E5E0D8]/60 px-2">
-              <Mail className="w-5 h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
+            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left border-l border-r border-[#E5E0D8] px-1 sm:px-4">
+              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#2B2B2B]">Email Verified</span>
-                <span className="text-[9px] text-[#2B2B2B]/60 leading-tight">For your security</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Email Verified</span>
+                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">For your security</span>
               </div>
             </div>
 
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-2 flex-1 justify-center text-center sm:text-left">
-              <Utensils className="w-5 h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
+            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left">
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#2B2B2B]">Fresh & Homemade</span>
-                <span className="text-[9px] text-[#2B2B2B]/60 leading-tight">Delivered with care</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Fresh & Homemade</span>
+                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">Delivered with care</span>
               </div>
             </div>
 
