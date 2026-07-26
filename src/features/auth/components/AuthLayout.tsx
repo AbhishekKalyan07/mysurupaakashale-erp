@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Mail, Utensils } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -12,88 +12,46 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   const isSignup = location.pathname.includes('signup');
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-[#FDF8F0] overflow-hidden selection:bg-[#5B1612]/10 selection:text-[#5B1612] font-sans">
-      
-      {/* Absolute Tiffin Image (Anchored right, blended into background) */}
-      <div className="absolute top-0 right-0 w-full md:w-[600px] h-[500px] pointer-events-none opacity-90 z-0">
-        <img 
-          src="/auth_bg.jpg" 
-          alt="Tiffin Box" 
-          className="w-full h-full object-cover object-left mix-blend-multiply [mask-image:radial-gradient(ellipse_at_top_right,black_20%,transparent_70%)]"
-        />
+    <div className="mp-auth-page">
+      <div className="mp-auth-art" aria-hidden="true">
+        <img src="/login-reference.jpg" alt="" />
       </div>
+      <div className="mp-auth-vignette" aria-hidden="true" />
 
-      {/* Subtle traditional watermark grid element (optional, keeping opacity extremely low so it doesn't distract from the clean mockup) */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#5B1612_1px,transparent_1px)] [background-size:24px_24px] z-0" />
+      <div className="mp-auth-frame">
+        <main className="mp-auth-main">
+          <div className="mp-auth-content">
+            <div className="mp-auth-brand-row">
+              {isSignup && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="mp-auth-back"
+                  aria-label="Back to login"
+                >
+                  <ChevronLeft size={22} strokeWidth={2.2} />
+                </button>
+              )}
 
-      {/* Main Container */}
-      <div className="relative z-10 flex flex-col flex-grow w-full max-w-md mx-auto px-6 py-8">
-        
-        {/* Header Section */}
-        <div className="relative flex items-center justify-center w-full mb-8 pt-4">
-          {/* Back Arrow (Visible on Signup or based on mockup) */}
-          {isSignup && (
-            <button 
-              onClick={() => navigate('/login')}
-              className="absolute left-0 text-ink-900 hover:text-[#5B1612] transition-colors p-1"
-              aria-label="Back"
-            >
-              <ChevronLeft size={24} strokeWidth={2.5} />
-            </button>
-          )}
-
-          {/* Logo */}
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-2 mb-1">
-              <img src="/favicon.svg" alt="Logo" className="h-8 w-8 text-[#5B1612]" />
-              <span className="font-display text-2xl font-bold text-[#5B1612] tracking-wide">
-                MYSURU<br/><span className="text-xl">PAAKASHALE</span>
-              </span>
+              <div className="mp-auth-brand" aria-label="Mysuru Paakashale">
+                <div className="mp-auth-brand-name">MYSURU</div>
+                <div className="mp-auth-brand-subname">PAAKASHALE</div>
+                <div className="mp-auth-brand-tagline">
+                  <span />
+                  REAL TASTE OF NAMMURU
+                  <span />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-px w-6 bg-ink-300"></div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-ink-700">
-                Real Taste of Nammuru
+
+            <div className="mp-auth-card">
+              {children}
+              <p className="mp-auth-legal">
+                By continuing, you agree to our <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.
               </p>
-              <div className="h-px w-6 bg-ink-300"></div>
             </div>
           </div>
-        </div>
-
-        {/* Content Body (Form) */}
-        <div className="flex-grow mt-4 flex flex-col justify-center">
-          {children}
-        </div>
-        
-        {/* Footer Trust Badges */}
-        <div className="mt-12 pt-6 flex items-center justify-between gap-2 text-ink-700">
-          
-          <div className="flex items-start gap-2 flex-1">
-            <ShieldCheck className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-ink-900">Secure & Trusted</span>
-              <span className="text-[9px] text-ink-500 leading-tight">Your data is protected</span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 flex-1 justify-center">
-            <Mail className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-ink-900">Email Verification</span>
-              <span className="text-[9px] text-ink-500 leading-tight">For your security</span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 flex-1 justify-end text-right">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-ink-900">Fresh & Homemade</span>
-              <span className="text-[9px] text-ink-500 leading-tight">Delivered with care</span>
-            </div>
-            <Utensils className="w-5 h-5 mt-0.5 shrink-0" strokeWidth={1.5} />
-          </div>
-
-        </div>
-
+        </main>
       </div>
     </div>
   );

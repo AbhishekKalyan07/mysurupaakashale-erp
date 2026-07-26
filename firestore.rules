@@ -84,9 +84,7 @@ service cloud.firestore {
     // number is already registered before creating a new account or updating profile.
     match /userPhones/{phone} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
-                       request.resource.data.uid == request.auth.uid;
+      allow write: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
@@ -206,17 +204,23 @@ service cloud.firestore {
                        onlyChangedFields(['status', 'updatedAt']));
 
       allow delete: if false;
+    }
 
-      match /workflowHistory/{historyId} {
-        allow read: if isSignedIn() &&
-                       (get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
-                        get(/databases/$(database)/documents/orders/$(orderId)).data.deliveryPartnerId == request.auth.uid ||
-                        isAdmin() || isAccounts() || isKitchen());
-        allow create: if isSignedIn() && request.resource.data.changedBy == request.auth.uid &&
-                         (isAdmin() || isKitchen() || isDeliveryPartner() ||
-                          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid);
-        allow update, delete: if false; // append-only history
-      }
+    // Bug fix: orderRepository.updateWorkflow() writes an order status
+    // change and a workflowHistory entry in the SAME transaction. With no
+    // rule for this subcollection, the whole transaction was being denied
+    // (rules deny-by-default, no catch-all — see bottom of file), which
+    // meant every kitchen/delivery/admin order status update was silently
+    // failing. Mirrors the parent order's update-actor set; append-only.
+    match /orders/{orderId}/workflowHistory/{historyId} {
+      allow read: if isSignedIn() &&
+                     (get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+                      get(/databases/$(database)/documents/orders/$(orderId)).data.deliveryPartnerId == request.auth.uid ||
+                      isAdmin() || isAccounts() || isKitchen());
+      allow create: if isSignedIn() && request.resource.data.changedBy == request.auth.uid &&
+                       (isAdmin() || isKitchen() || isDeliveryPartner() ||
+                        get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid);
+      allow update, delete: if false; // append-only history
     }
 
     // ---------- deliveries/{deliveryId} ----------

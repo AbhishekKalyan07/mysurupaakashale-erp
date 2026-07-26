@@ -87,7 +87,7 @@ export function LoginPage() {
     <AuthLayout>
       {forgotPasswordMode ? (
         // Reset password form
-        <form onSubmit={handleResetPassword} className="flex flex-col gap-5 w-full relative z-10">
+        <form onSubmit={handleResetPassword} className="mp-auth-form flex flex-col gap-5 w-full relative z-10">
           <div className="mb-4">
             <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-2 leading-tight">
               Reset Password
@@ -140,19 +140,19 @@ export function LoginPage() {
         </form>
       ) : (
         // Standard login form
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5 w-full relative z-10">
-          <div className="mb-4 pr-12">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="mp-auth-form flex flex-col gap-5 w-full relative z-10">
+          <div className="mp-auth-welcome mb-4 pr-12">
             <h2 className="font-display text-[32px] font-bold text-[#5B1612] mb-2 leading-tight flex items-center gap-2">
               Welcome Back <span className="text-2xl">👋</span>
             </h2>
-            <p className="text-[15px] text-ink-700 font-medium pr-10">
-              Sign in to continue your meal journey
+            <p className="mp-auth-subheading text-[15px] text-ink-700 font-medium pr-10">
+              Sign in to continue and manage your meal subscription with us.
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="mp-auth-fields flex flex-col gap-4">
             {/* Email Input */}
-            <div className="flex flex-col gap-1">
+            <div className="mp-auth-field flex flex-col gap-1">
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
                   <Mail size={20} strokeWidth={1.5} />
@@ -176,7 +176,7 @@ export function LoginPage() {
             </div>
 
             {/* Password Input */}
-            <div className="flex flex-col gap-1">
+            <div className="mp-auth-field flex flex-col gap-1">
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
                   <Lock size={20} strokeWidth={1.5} />
@@ -229,13 +229,13 @@ export function LoginPage() {
           <Button 
             type="submit" 
             isLoading={isSubmitting} 
-            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
+            className="mp-auth-submit w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
           >
             Sign In
           </Button>
 
           {/* Separator line */}
-          <div className="relative flex items-center justify-center my-2">
+          <div className="mp-auth-separator relative flex items-center justify-center my-2">
             <div className="w-full border-t border-ink-200" />
             <span className="absolute bg-[#FDF8F0] px-4 text-[13px] font-bold text-ink-600 font-sans uppercase">
               OR
@@ -247,7 +247,7 @@ export function LoginPage() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isGoogleLoading}
-            className="w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
+            className="mp-auth-google w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
           >
             {isGoogleLoading ? (
               <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
@@ -276,7 +276,7 @@ export function LoginPage() {
             )}
           </button>
 
-          <div className="mt-2 text-center text-[15px] font-medium text-ink-700">
+          <div className="mp-auth-account mt-2 text-center text-[15px] font-medium text-ink-700">
             Don't have an account?{' '}
             <Link to="/signup" className="font-bold text-[#5B1612] hover:underline">
               Create Account

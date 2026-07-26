@@ -45,6 +45,7 @@ const signupSchema = z
 export function SignupPage() {
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  const [registrationStep, setRegistrationStep] = useState<1 | 2 | 3>(1);
 
   // Show/Hide password states
   const [showPassword, setShowPassword] = useState(false);
@@ -65,6 +66,7 @@ export function SignupPage() {
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<ExtendedSignupFormValues>({ 
     resolver: zodResolver(signupSchema),
@@ -86,6 +88,25 @@ export function SignupPage() {
     } catch (err) {
       setFormError(mapAuthError(err));
     }
+  };
+
+  const handleRegistrationNext = async () => {
+    setFormError(null);
+
+    const isCurrentStepValid = registrationStep === 1
+      ? await trigger(['fullName', 'email'])
+      : registrationStep === 2
+        ? await trigger('phone')
+        : true;
+
+    if (isCurrentStepValid && registrationStep < 3) {
+      setRegistrationStep((current) => (current + 1) as 1 | 2 | 3);
+    }
+  };
+
+  const handleRegistrationBack = () => {
+    setFormError(null);
+    setRegistrationStep((current) => (current - 1) as 1 | 2 | 3);
   };
 
   const handleGoogleSignUpClick = async () => {
@@ -186,7 +207,7 @@ export function SignupPage() {
   return (
     <AuthLayout>
       {signupStep === 1 && pendingGoogleUser && (
-        <form onSubmit={handlePhoneStepSubmit} className="flex flex-col gap-5 w-full relative z-10">
+        <form onSubmit={handlePhoneStepSubmit} className="mp-auth-form mp-auth-signup-step flex flex-col gap-5 w-full relative z-10">
           <div className="mb-2">
             <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-1 leading-tight">
               Complete Profile
@@ -242,7 +263,7 @@ export function SignupPage() {
       )}
 
       {signupStep === 2 && pendingGoogleUser && (
-        <form onSubmit={handleCompleteGoogleSignup} className="flex flex-col gap-5 w-full relative z-10">
+        <form onSubmit={handleCompleteGoogleSignup} className="mp-auth-form mp-auth-signup-step flex flex-col gap-5 w-full relative z-10">
           <div className="mb-2">
             <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-1 leading-tight">
               Create Password
@@ -252,7 +273,7 @@ export function SignupPage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="mp-auth-fields flex flex-col gap-4">
             {/* Password */}
             <div className="flex flex-col gap-1">
               <div className="relative">
@@ -352,238 +373,190 @@ export function SignupPage() {
       )}
 
       {signupStep === 0 && (
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5 w-full relative z-10">
-          <div className="mb-3 pr-12">
-            <h2 className="font-display text-[32px] font-bold text-[#5B1612] mb-1 leading-tight">
-              Create Your Account
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="mp-auth-form mp-registration-form">
+          <div className="mp-registration-header">
+            <div className="mp-registration-progress" aria-label={`Step ${registrationStep} of 3`}>
+              {[1, 2, 3].map((step) => (
+                <span key={step} className={step <= registrationStep ? 'is-active' : ''} />
+              ))}
+            </div>
+            <p className="mp-registration-step-label">Step {registrationStep} of 3</p>
+            <h2>
+              {registrationStep === 1 && 'Create your account'}
+              {registrationStep === 2 && 'Your delivery contact'}
+              {registrationStep === 3 && 'Secure your account'}
             </h2>
-            <p className="text-[15px] text-ink-700 font-medium pr-8">
-              Join thousands enjoying homemade food everyday
+            <p>
+              {registrationStep === 1 && 'Let’s start with the essentials.'}
+              {registrationStep === 2 && 'Where can we coordinate your meal deliveries?'}
+              {registrationStep === 3 && 'Choose a strong password to keep your account safe.'}
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
-            {/* Full Name */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
-                  <User size={20} strokeWidth={1.5} />
+          {registrationStep === 1 && (
+            <div className="mp-registration-fields">
+              <div className="mp-registration-field">
+                <label htmlFor="signup-full-name">Full name</label>
+                <div className="relative">
+                  <User aria-hidden="true" />
+                  <input
+                    id="signup-full-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    autoComplete="name"
+                    className={errors.fullName ? 'has-error' : ''}
+                    {...register('fullName')}
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  autoComplete="name"
-                  required
-                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
-                    errors.fullName ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  {...register('fullName')}
-                />
+                {errors.fullName && <p role="alert">{errors.fullName.message}</p>}
               </div>
-              {errors.fullName && (
-                <p role="alert" className="text-sm text-danger ml-2">
-                  {errors.fullName.message}
-                </p>
-              )}
-            </div>
 
-            {/* Email */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
-                  <Mail size={20} strokeWidth={1.5} />
+              <div className="mp-registration-field">
+                <label htmlFor="signup-email">Email address</label>
+                <div className="relative">
+                  <Mail aria-hidden="true" />
+                  <input
+                    id="signup-email"
+                    type="email"
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                    className={errors.email ? 'has-error' : ''}
+                    {...register('email')}
+                  />
                 </div>
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  autoComplete="email"
-                  required
-                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
-                    errors.email ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  {...register('email')}
-                />
+                {errors.email && <p role="alert">{errors.email.message}</p>}
               </div>
-              {errors.email && (
-                <p role="alert" className="text-sm text-danger ml-2">
-                  {errors.email.message}
-                </p>
-              )}
             </div>
-
-            {/* Mobile number */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
-                  <Phone size={20} strokeWidth={1.5} />
-                </div>
-                <input
-                  type="tel"
-                  placeholder="Mobile number"
-                  autoComplete="tel"
-                  required
-                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
-                    errors.phone ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  {...register('phone')}
-                />
-              </div>
-              {errors.phone && (
-                <p role="alert" className="text-sm text-danger ml-2">
-                  {errors.phone.message}
-                </p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
-                  <Lock size={20} strokeWidth={1.5} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  autoComplete="new-password"
-                  required
-                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
-                    errors.password ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  {...register('password')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                >
-                  {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
-                </button>
-              </div>
-              {errors.password && (
-                <p role="alert" className="text-sm text-danger ml-2">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-
-            {/* Confirm Password */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
-                  <Lock size={20} strokeWidth={1.5} />
-                </div>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm Password"
-                  autoComplete="new-password"
-                  required
-                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
-                    errors.confirmPassword ? 'border-danger focus:ring-danger' : ''
-                  }`}
-                  {...register('confirmPassword')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
-                >
-                  {showConfirmPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p role="alert" className="text-sm text-danger ml-2">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Terms Checkbox */}
-          <div className="flex flex-col gap-1 mt-1">
-            <label className="flex items-start gap-3 cursor-pointer text-[13.5px] text-ink-700 font-medium">
-              <div className="relative flex items-center">
-                <input
-                  type="checkbox"
-                  className="peer mt-0.5 h-5 w-5 appearance-none rounded-[4px] border-2 border-ink-300 bg-white checked:border-[#5B1612] checked:bg-[#5B1612] focus:outline-none focus:ring-2 focus:ring-[#5B1612]/30 transition-all cursor-pointer"
-                  {...register('agreed')}
-                />
-                <svg className="absolute top-[3px] left-[3px] h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" viewBox="0 0 14 14" fill="none">
-                  <path d="M2 7.5L5.5 11L12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <span className="leading-tight pt-1">
-                I agree to the{' '}
-                <a href="#" className="text-[#5B1612] font-bold hover:underline">Terms of Service</a> and{' '}
-                <a href="#" className="text-[#5B1612] font-bold hover:underline">Privacy Policy</a>
-              </span>
-            </label>
-            {errors.agreed && (
-              <p role="alert" className="text-sm text-danger ml-8">
-                {errors.agreed.message}
-              </p>
-            )}
-          </div>
-
-          {formError && (
-            <p role="alert" className="text-sm text-danger font-medium mt-1">
-              {formError}
-            </p>
           )}
 
-          <Button 
-            type="submit" 
-            isLoading={isSubmitting} 
-            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
-          >
-            Create Account
-          </Button>
+          {registrationStep === 2 && (
+            <div className="mp-registration-fields">
+              <div className="mp-registration-field">
+                <label htmlFor="signup-phone">Mobile number</label>
+                <div className="relative">
+                  <Phone aria-hidden="true" />
+                  <input
+                    id="signup-phone"
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    autoComplete="tel"
+                    className={errors.phone ? 'has-error' : ''}
+                    {...register('phone')}
+                  />
+                </div>
+                <small>Used only for delivery coordination.</small>
+                {errors.phone && <p role="alert">{errors.phone.message}</p>}
+              </div>
+            </div>
+          )}
 
-          {/* Separator line */}
-          <div className="relative flex items-center justify-center my-2">
-            <div className="w-full border-t border-ink-200" />
-            <span className="absolute bg-[#FDF8F0] px-4 text-[13px] font-bold text-ink-600 font-sans uppercase">
-              OR
-            </span>
+          {registrationStep === 3 && (
+            <>
+              <div className="mp-registration-fields">
+                <div className="mp-registration-field">
+                  <label htmlFor="signup-password">Password</label>
+                  <div className="relative">
+                    <Lock aria-hidden="true" />
+                    <input
+                      id="signup-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Create a password"
+                      autoComplete="new-password"
+                      className={errors.password ? 'has-error' : ''}
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                    </button>
+                  </div>
+                  {errors.password && <p role="alert">{errors.password.message}</p>}
+                </div>
+
+                <div className="mp-registration-field">
+                  <label htmlFor="signup-confirm-password">Confirm password</label>
+                  <div className="relative">
+                    <Lock aria-hidden="true" />
+                    <input
+                      id="signup-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Re-enter your password"
+                      autoComplete="new-password"
+                      className={errors.confirmPassword ? 'has-error' : ''}
+                      {...register('confirmPassword')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p role="alert">{errors.confirmPassword.message}</p>}
+                </div>
+              </div>
+
+              <label className="mp-registration-consent">
+                <input type="checkbox" {...register('agreed')} />
+                <span>
+                  I agree to the <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.
+                </span>
+              </label>
+              {errors.agreed && <p role="alert" className="mp-registration-error">{errors.agreed.message}</p>}
+            </>
+          )}
+
+          {formError && <p role="alert" className="mp-registration-error">{formError}</p>}
+
+          <div className="mp-registration-actions">
+            {registrationStep > 1 && (
+              <Button type="button" variant="ghost" onClick={handleRegistrationBack} className="mp-registration-back">
+                Back
+              </Button>
+            )}
+            {registrationStep < 3 ? (
+              <Button type="button" onClick={handleRegistrationNext} className="mp-auth-submit mp-registration-next">
+                Continue
+              </Button>
+            ) : (
+              <Button type="submit" isLoading={isSubmitting} className="mp-auth-submit mp-registration-next">
+                Create Account
+              </Button>
+            )}
           </div>
 
-          {/* Google Sign In/Up */}
-          <button
-            type="button"
-            onClick={handleGoogleSignUpClick}
-            disabled={googleLoading}
-            className="w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
-          >
-            {googleLoading ? (
-              <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
-            ) : (
-              <>
-                <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#EA4335"
-                    d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z"
-                  />
-                </svg>
-                Continue with Google
-              </>
-            )}
-          </button>
+          {registrationStep === 1 && (
+            <>
+              <div className="mp-auth-separator">
+                <div />
+                <span>OR</span>
+              </div>
+              <button type="button" onClick={handleGoogleSignUpClick} disabled={googleLoading} className="mp-auth-google">
+                {googleLoading ? (
+                  <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
+                ) : (
+                  <>
+                    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" />
+                      <path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" />
+                      <path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" />
+                      <path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" />
+                    </svg>
+                    Continue with Google
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </form>
       )}
 
       {signupStep === 0 && (
-        <div className="mt-2 text-center text-[15px] font-medium text-ink-700">
+        <div className="mp-auth-account mt-2 text-center text-[15px] font-medium text-ink-700">
           Already have an account?{' '}
           <Link to="/login" className="font-bold text-[#5B1612] hover:underline">
             Sign In
