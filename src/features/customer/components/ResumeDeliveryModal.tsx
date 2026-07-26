@@ -80,9 +80,18 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
         await subscriptionService.resumeSubscription(subscription);
         toast.success('Subscription resumed for today!');
       } else {
-        // Schedule resume for tomorrow by setting pause end date to today
-        // (pauseEndDate is inclusive, so it resumes tomorrow)
-        await subscriptionService.pauseSubscription(subscription, true, subscription.pauseStartDate || today, today);
+        // Resume tomorrow: we activate it now but skip all meals for today
+        // so they don't get any deliveries today.
+        const skipRef = doc(db, 'subscriptions', subscription.id, 'skips', today);
+        await setDoc(skipRef, {
+          date: today,
+          mealTypes: subscription.mealPreferences.map(p => p.mealType),
+          reason: 'Scheduled to resume tomorrow',
+          createdAt: serverTimestamp() as unknown as Timestamp,
+          createdBy: subscription.customerId,
+        });
+        
+        await subscriptionService.resumeSubscription(subscription);
         toast.success('Subscription scheduled to resume tomorrow!');
       }
 

@@ -6,7 +6,7 @@ import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
-import type { Order } from '@/shared/types';
+import type { Order, Subscription, MealType } from '@/shared/types';
 import { format } from 'date-fns';
 
 class OrderService {
@@ -119,6 +119,51 @@ class OrderService {
       }, today);
       throw error;
     }
+  }
+
+  /**
+   * Generate specific orders for a subscription (e.g. when resuming mid-day).
+   */
+  async generateOrdersForSubscription(subscription: Subscription, date: string, mealTypes: MealType[]): Promise<void> {
+    const ordersToCreate: Partial<Order>[] = [];
+
+    for (const pref of subscription.mealPreferences) {
+      if (mealTypes.includes(pref.mealType)) {
+        ordersToCreate.push({
+          id: `ord_${subscription.id}_${date}_${pref.mealType}`,
+          source: 'subscription',
+          customerId: subscription.customerId,
+          subscriptionId: subscription.id,
+          planTier: subscription.planTier,
+          mealType: pref.mealType,
+          date: date,
+          itemsLabel: `Subscription - ${pref.mealType}`,
+          selectedOptionId: pref.selectedOptionId,
+          price: subscription.pricePerDaySnapshot,
+          currency: 'INR',
+          status: 'scheduled',
+          deliveryAddressId: subscription.deliveryAddressId,
+          zoneId: subscription.zoneId,
+          kitchenId: null,
+          deliveryPartnerId: null,
+          deliveryWindow: null,
+          paymentId: subscription.latestPaymentId,
+        });
+      }
+    }
+
+    if (ordersToCreate.length === 0) return;
+
+    const batch = writeBatch(db);
+    ordersToCreate.forEach(order => {
+      const ref = doc(db, 'orders', order.id!);
+      batch.set(ref, {
+        ...order,
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      }, { merge: true });
+    });
+    await batch.commit();
   }
 
   /**
