@@ -1,0 +1,60 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+functions/node_modules
+
+# Build output
+dist
+dist-ssr
+functions/lib
+*.tsbuildinfo
+
+# Env files — never commit real secrets/config (see .env.example)
+*.local
+.env
+.env.local
+.env.*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+*.emulator-data/
+
+# Service account keys and strict credentials — never committed
+**/serviceAccountKey.json
+*-service-account.json
+firebase-adminsdk-*.json
+*.pem
+*.key
+*.cert
+*.p12
+
+# Common local secret stores
+secrets.json
+credentials.json
+github-token.txt
+smtp-config.json
+*.db
+*.sqlite
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
