@@ -196,18 +196,8 @@ export function usePauseSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      subscription, 
-      shouldPauseNow = true, 
-      pauseStartDate, 
-      pauseEndDate 
-    }: { 
-      subscription: Subscription; 
-      shouldPauseNow?: boolean; 
-      pauseStartDate?: string | null; 
-      pauseEndDate?: string | null; 
-    }) => {
-      await subscriptionService.pauseSubscription(subscription, shouldPauseNow, pauseStartDate, pauseEndDate);
+    mutationFn: async (subscription: Subscription) => {
+      await subscriptionService.pauseSubscription(subscription);
 
       const admin = getAuth().currentUser;
       if (admin) {
@@ -242,12 +232,8 @@ export function useResumeSubscription() {
         await auditRepository.logAction('subscription_resumed', admin.uid, admin.displayName || 'Admin', subscription.id, 'subscription');
       }
 
-      // @ts-ignore - function not imported or doesn't exist in original code
-      if (typeof notifySubscriptionResumed !== 'undefined') {
-        // @ts-ignore
-        notifySubscriptionResumed(subscription.customerId, subscription.id)
-          .catch((err: any) => console.error('[useResumeSubscription] notification failed:', err));
-      }
+      notifySubscriptionResumed(subscription.customerId, subscription.id)
+        .catch((err) => console.error('[useResumeSubscription] notification failed:', err));
 
       return subscription;
     },

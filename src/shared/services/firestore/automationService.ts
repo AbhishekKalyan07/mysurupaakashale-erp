@@ -104,40 +104,6 @@ export class AutomationService {
   }
 
   /**
-   * Process Scheduled Pauses and Resumes
-   */
-  async processScheduledPauses() {
-    console.log("Processing scheduled pauses and resumes...");
-    const today = format(new Date(), 'yyyy-MM-dd');
-    
-    const activeSubs = await subscriptionRepository.list(where('status', '==', 'active'));
-    const pausedSubs = await subscriptionRepository.list(where('status', '==', 'paused'));
-    const subsToCheck = [...activeSubs, ...pausedSubs];
-
-    for (const sub of subsToCheck) {
-      if (sub.status === 'active' && sub.pauseStartDate && sub.pauseStartDate <= today) {
-        if (sub.pauseEndDate && sub.pauseEndDate < today) {
-          await subscriptionRepository.update(sub.id, {
-            pauseStartDate: null,
-            pauseEndDate: null,
-          });
-          console.log(`[automationService] Cleared outdated pause schedule for subscription ${sub.id}`);
-        } else {
-          await subscriptionRepository.update(sub.id, { status: 'paused' });
-          console.log(`[automationService] Auto-paused subscription ${sub.id}`);
-        }
-      } else if (sub.status === 'paused' && sub.pauseEndDate && sub.pauseEndDate < today) {
-        await subscriptionRepository.update(sub.id, { 
-          status: 'active',
-          pauseStartDate: null,
-          pauseEndDate: null,
-        });
-        console.log(`[automationService] Auto-resumed subscription ${sub.id}`);
-      }
-    }
-  }
-
-  /**
    * Database Backup (Monthly or Weekly)
    */
   async exportDatabaseBackup() {

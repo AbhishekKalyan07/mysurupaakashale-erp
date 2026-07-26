@@ -27,7 +27,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
-import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
 
 // Zod Schema for Address
 const addressFormSchema = z.object({
@@ -58,37 +57,16 @@ export function SubscriptionWizardPage() {
   const plan = plans?.find((p) => p.id === (selectedPlanId || initialPlanId));
 
   // Step state
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [createdSubscriptionId, setCreatedSubscriptionId] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form states
   const [lunchOptionId, setLunchOptionId] = useState<string>('');
   const [dinnerOptionId, setDinnerOptionId] = useState<string>('');
-  const [enabledMeals, setEnabledMeals] = useState<Record<string, boolean>>({
-    breakfast: true,
-    lunch: true,
-    dinner: true
-  });
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [startDate, setStartDate] = useState<string>(
     new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow as default
   );
-
-  const toggleMeal = (type: string) => {
-    setEnabledMeals(prev => {
-      const next = { ...prev, [type]: !prev[type] };
-      // Enforce at least 1 meal
-      if (!next.breakfast && !next.lunch && !next.dinner) {
-        return prev;
-      }
-      return next;
-    });
-  };
-
-  const selectedMealsCount = Object.values(enabledMeals).filter(Boolean).length;
-  const pricePerMeal = plan ? Math.round(plan.pricePerDay / 3) : 0;
-  const calculatedDailyPrice = pricePerMeal * selectedMealsCount;
 
   // Address creation UI state
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -185,16 +163,11 @@ export function SubscriptionWizardPage() {
     setSubmittingDraft(true);
     setSubmissionError(null);
 
-    const mealPreferences = [];
-    if (enabledMeals.breakfast) {
-      mealPreferences.push({ mealType: 'breakfast' as const, selectedOptionId: null });
-    }
-    if (enabledMeals.lunch) {
-      mealPreferences.push({ mealType: 'lunch' as const, selectedOptionId: lunchOptionId });
-    }
-    if (enabledMeals.dinner) {
-      mealPreferences.push({ mealType: 'dinner' as const, selectedOptionId: dinnerOptionId });
-    }
+    const mealPreferences = [
+      { mealType: 'breakfast' as const, selectedOptionId: null },
+      { mealType: 'lunch' as const, selectedOptionId: lunchOptionId },
+      { mealType: 'dinner' as const, selectedOptionId: dinnerOptionId },
+    ];
 
     try {
       // Phase 3: Create subscription via Business Service
@@ -203,7 +176,7 @@ export function SubscriptionWizardPage() {
         plan.id,
         plan.tier,
         quantity,
-        calculatedDailyPrice,
+        plan.pricePerDay,
         mealPreferences,
         startDate,
         selectedAddressId
@@ -214,16 +187,13 @@ export function SubscriptionWizardPage() {
       notifySubscriptionCreated(firebaseUser!.uid, subscriptionId, plan.tier)
         .catch((err) => console.error('[SubscriptionWizard] notification failed:', err));
 
-      // Save ID to state for Step 4
-      setCreatedSubscriptionId(subscriptionId);
-
       // Invalidate queries so subscription pages refresh
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.all,
       });
 
-      // Proceed to Step 4 (Payment) instead of redirecting
-      setStep(4);
+      // Redirect to detail page
+      navigate('/customer/subscription', { state: { justCreated: true } });
     } catch (err: unknown) {
       console.error('Error creating subscription draft:', err);
       setSubmissionError((err as Error).message || 'An unexpected error occurred. Please verify your address or pincode.');
@@ -248,8 +218,6 @@ export function SubscriptionWizardPage() {
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 2 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>2</div>
           <div className="w-8 h-0.5 bg-rice-200"></div>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 3 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>3</div>
-          <div className="w-8 h-0.5 bg-rice-200"></div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-sans font-semibold text-xs transition-colors ${step >= 4 ? 'bg-emerald-600 text-stone-50' : 'bg-rice-200 text-ink-600'}`}>4</div>
         </div>
       </div>
 
@@ -294,79 +262,50 @@ export function SubscriptionWizardPage() {
           </p>
 
           <div className="space-y-6">
-            {/* Breakfast */}
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 p-4 rounded-xl border-2 border-rice-300 bg-rice-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enabledMeals.breakfast}
-                  onChange={() => toggleMeal('breakfast')}
-                  className="w-5 h-5 accent-emerald-600 rounded"
-                />
-                <div className="flex-1">
-                  <h4 className="font-sans font-bold text-ink-800 text-sm">Breakfast Slot</h4>
-                  <p className="text-ink-500 text-xs mt-1">Daily rotating menu (Idli, Shavige Bath, Khara Bath, etc.)</p>
-                </div>
-              </label>
-            </div>
+            {/* Breakfast: Fixed */}
+            <Card className="p-4 border-rice-300 bg-rice-50/50 flex justify-between items-center opacity-85">
+              <div>
+                <h4 className="font-sans font-bold text-ink-800 text-sm">Breakfast Slot</h4>
+                <p className="text-ink-500 text-xs mt-1">Daily rotating menu (Idli, Shavige Bath, Khara Bath, etc.)</p>
+              </div>
+              <span className="text-ink-400 font-sans text-xs italic">Fixed menu</span>
+            </Card>
 
             {/* Lunch Selection */}
-            <div className={`space-y-3 transition-opacity ${!enabledMeals.lunch ? 'opacity-50 grayscale' : ''}`}>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={enabledMeals.lunch}
-                  onChange={() => toggleMeal('lunch')}
-                  className="w-5 h-5 accent-emerald-600 rounded"
-                />
-                <h3 className="text-ink-900 font-bold font-sans text-sm">Lunch Slot</h3>
+            {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((option) => (
+              <label
+                key={option.id}
+                className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  lunchOptionId === option.id
+                    ? 'border-emerald-600 bg-emerald-50/20'
+                    : 'border-rice-300 hover:border-ink-400'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    name="lunch"
+                    checked={lunchOptionId === option.id}
+                    onChange={() => setLunchOptionId(option.id)}
+                    className="mt-1 accent-emerald-600"
+                  />
+                  <div>
+                    <h4 className="font-sans font-bold text-ink-900 text-sm">Lunch: {option.label}</h4>
+                    <p className="text-ink-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
+                  </div>
+                </div>
               </label>
-              <div className="pl-8 space-y-3">
-                {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((option) => (
-                  <label
-                    key={option.id}
-                    className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      lunchOptionId === option.id && enabledMeals.lunch
-                        ? 'border-emerald-600 bg-emerald-50/20'
-                        : 'border-rice-300 hover:border-ink-400'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="lunch"
-                        checked={lunchOptionId === option.id}
-                        onChange={() => setLunchOptionId(option.id)}
-                        disabled={!enabledMeals.lunch}
-                        className="mt-1 accent-emerald-600"
-                      />
-                      <div>
-                        <h4 className="font-sans font-bold text-ink-900 text-sm">{option.label}</h4>
-                        <p className="text-ink-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
+            ))}
 
             {/* Dinner Selection */}
-            <div className={`space-y-3 transition-opacity ${!enabledMeals.dinner ? 'opacity-50 grayscale' : ''}`}>
-              <label className="flex items-center gap-3 pt-6 border-t border-rice-300">
-                <input
-                  type="checkbox"
-                  checked={enabledMeals.dinner}
-                  onChange={() => toggleMeal('dinner')}
-                  className="w-5 h-5 accent-emerald-600 rounded"
-                />
-                <h3 className="text-ink-900 font-bold font-sans text-sm">Dinner Slot</h3>
-              </label>
-              <div className="pl-8 space-y-3">
+            <div className="border-t border-rice-300 pt-6">
+              <h3 className="text-ink-900 font-bold font-sans text-sm mb-4">Choose Dinner Option:</h3>
+              <div className="space-y-3">
                 {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((option) => (
                   <label
                     key={option.id}
                     className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      dinnerOptionId === option.id && enabledMeals.dinner
+                      dinnerOptionId === option.id
                         ? 'border-emerald-600 bg-emerald-50/20'
                         : 'border-rice-300 hover:border-ink-400'
                     }`}
@@ -377,11 +316,10 @@ export function SubscriptionWizardPage() {
                         name="dinner"
                         checked={dinnerOptionId === option.id}
                         onChange={() => setDinnerOptionId(option.id)}
-                        disabled={!enabledMeals.dinner}
                         className="mt-1 accent-emerald-600"
                       />
                       <div>
-                        <h4 className="font-sans font-bold text-ink-900 text-sm">{option.label}</h4>
+                        <h4 className="font-sans font-bold text-ink-900 text-sm">Dinner: {option.label}</h4>
                         <p className="text-ink-500 text-xs mt-1">Includes: {option.items.join(', ')}</p>
                       </div>
                     </div>
@@ -575,18 +513,18 @@ export function SubscriptionWizardPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Breakfast:</span>
-                    <span className="font-semibold text-ink-900">{enabledMeals.breakfast ? 'Fixed rotating menu' : 'Skipped'}</span>
+                    <span className="font-semibold text-ink-900">Fixed rotating menu</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Lunch:</span>
                     <span className="font-semibold text-ink-900">
-                      {enabledMeals.lunch ? (plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen') : 'Skipped'}
+                      {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.find((o) => o.id === lunchOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dinner:</span>
                     <span className="font-semibold text-ink-900">
-                      {enabledMeals.dinner ? (plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen') : 'Skipped'}
+                      {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.find((o) => o.id === dinnerOptionId)?.label || 'Not Chosen'}
                     </span>
                   </div>
                 </div>
@@ -639,7 +577,7 @@ export function SubscriptionWizardPage() {
                 <div className="space-y-2 text-ink-600 text-xs font-sans mb-4">
                   <div className="flex justify-between">
                     <span>Base daily rate:</span>
-                    <span className="font-semibold text-ink-900">₹{calculatedDailyPrice}</span>
+                    <span className="font-semibold text-ink-900">₹{plan.pricePerDay}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Quantity:</span>
@@ -647,11 +585,11 @@ export function SubscriptionWizardPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Total daily rate:</span>
-                    <span className="font-semibold text-ink-900">₹{calculatedDailyPrice * quantity}</span>
+                    <span className="font-semibold text-ink-900">₹{plan.pricePerDay * quantity}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-rice-300/60">
                     <span>Deliveries per day:</span>
-                    <span className="font-semibold text-ink-900">{selectedMealsCount} deliveries</span>
+                    <span className="font-semibold text-ink-900">3 deliveries</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Billing terms:</span>
@@ -682,26 +620,6 @@ export function SubscriptionWizardPage() {
               <ArrowLeft size={16} /> Back to Address
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* STEP 4: Payment */}
-      {step === 4 && createdSubscriptionId && (
-        <div className="space-y-6">
-          <h2 className="text-lg font-serif font-bold text-ink-900 flex items-center gap-2 mb-4">
-            <CheckCircle className="text-emerald-600" size={20} /> Subscription Draft Created!
-          </h2>
-          <p className="text-ink-600 text-sm font-sans mb-6">
-            Your subscription has been reserved. To complete your setup and begin meal deliveries, please pay the initial security deposit below.
-          </p>
-
-          <ManualPaymentPanel
-            subscriptionId={createdSubscriptionId}
-            amount={settings?.pricing.securityDepositAmount || 1000}
-            onSuccess={() => {
-              navigate('/customer/subscription', { state: { justCreated: true } });
-            }}
-          />
         </div>
       )}
     </div>

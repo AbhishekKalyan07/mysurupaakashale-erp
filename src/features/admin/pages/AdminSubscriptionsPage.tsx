@@ -14,7 +14,7 @@ import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge, type BadgeTone } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import type { SubscriptionStatus } from '@/shared/types';
@@ -59,8 +59,6 @@ function formatDate(value: string | null): string {
 // ── Detail Dialog ────────────────────────────────────────────────────────────
 function SubscriptionDetailDialog({ subscription, onClose }: { subscription: SubscriptionRow; onClose: () => void }) {
   const [reason, setReason] = useState('');
-  const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [pauseEndDate, setPauseEndDate] = useState('');
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'pause' | 'resume' | null>(null);
 
   const approve = useApproveSubscription();
@@ -77,16 +75,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
   const handleConfirm = async () => {
     if (confirmAction === 'approve') await approve.mutateAsync(subscription);
     else if (confirmAction === 'reject') await reject.mutateAsync({ subscription, reason: reason || undefined });
-    else if (confirmAction === 'pause') {
-      const today = new Date().toISOString().split('T')[0];
-      const shouldPauseNow = !pauseStartDate || pauseStartDate <= today;
-      await pause.mutateAsync({ 
-        subscription, 
-        shouldPauseNow,
-        pauseStartDate: pauseStartDate || null, 
-        pauseEndDate: pauseEndDate || null 
-      });
-    }
+    else if (confirmAction === 'pause') await pause.mutateAsync(subscription);
     else if (confirmAction === 'resume') await resume.mutateAsync(subscription);
     onClose();
   };
@@ -144,15 +133,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
             </div>
             <div className="bg-rice-50 rounded-lg p-3 col-span-2">
               <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Status</div>
-              <div className="flex items-center gap-3">
-                <Badge tone={STATUS_TONE[subscription.status]} className="capitalize">{subscription.status.replace('_', ' ')}</Badge>
-                {subscription.pauseStartDate && (
-                  <div className="text-xs text-ink-600 font-sans">
-                    Pause Scheduled: <strong>{formatDate(subscription.pauseStartDate)}</strong>
-                    {subscription.pauseEndDate && <span> to <strong>{formatDate(subscription.pauseEndDate)}</strong></span>}
-                  </div>
-                )}
-              </div>
+              <Badge tone={STATUS_TONE[subscription.status]} className="capitalize">{subscription.status.replace('_', ' ')}</Badge>
             </div>
           </div>
 
@@ -202,35 +183,9 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
                   <p className="text-ink-600 text-xs font-sans mb-4">
                     {confirmAction === 'approve' && 'This activates the subscription immediately without a linked payment record. Use this for confirmed off-platform payments — otherwise verify their payment from the Payments page instead.'}
                     {confirmAction === 'reject' && "This cancels the subscription request and notifies the customer."}
-                    {confirmAction === 'pause' && 'Deliveries will stop during the selected period.'}
-                    {confirmAction === 'resume' && 'Deliveries will continue as scheduled and any scheduled pauses will be cancelled.'}
+                    {confirmAction === 'pause' && 'Deliveries will stop until the subscription is resumed.'}
+                    {confirmAction === 'resume' && 'Deliveries will continue as scheduled.'}
                   </p>
-                  
-                  {confirmAction === 'pause' && (
-                    <div className="flex gap-3 mb-4 text-left">
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-semibold text-ink-700 mb-1 font-sans uppercase tracking-wider">Start Date</label>
-                        <input
-                          type="date"
-                          value={pauseStartDate}
-                          min={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => setPauseStartDate(e.target.value)}
-                          className="w-full border border-ink-400 rounded px-2 py-1.5 text-xs font-sans focus:outline-none focus:ring-2 focus:ring-amber-400"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-semibold text-ink-700 mb-1 font-sans uppercase tracking-wider">End Date (Optional)</label>
-                        <input
-                          type="date"
-                          value={pauseEndDate}
-                          min={pauseStartDate || new Date().toISOString().split('T')[0]}
-                          onChange={(e) => setPauseEndDate(e.target.value)}
-                          className="w-full border border-ink-400 rounded px-2 py-1.5 text-xs font-sans focus:outline-none focus:ring-2 focus:ring-amber-400"
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   <div className="flex gap-2">
                     <Button variant="secondary" size="sm" className="flex-1 font-sans" onClick={() => setConfirmAction(null)}>
                       Back
@@ -272,12 +227,12 @@ function SubscriptionRowView({ subscription, onSelect }: { subscription: Subscri
       </td>
       <td className="flex justify-between items-start md:items-center md:table-cell md:px-4 md:py-4 text-sm font-sans text-ink-600 max-w-full md:max-w-[200px]" title={subscription.customerAddress || 'No address'}>
         <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider mt-0.5">Address</span>
-        <div className="truncate text-right md:text-left max-w-[200px] md:max-w-[160px]">{subscription.customerAddress || <span className="italic text-ink-400">No address</span>}</div>
+        <span className="truncate text-right md:text-left max-w-[200px] md:max-w-none">{subscription.customerAddress || <span className="italic text-ink-400">No address</span>}</span>
       </td>
-      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-sm font-sans md:max-w-[140px]">
+      <td className="flex justify-between items-center md:table-cell md:px-4 md:py-4 text-sm font-sans">
         <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Plan</span>
-        <div className="text-right md:text-left truncate">
-          <div className="text-ink-900 font-medium truncate" title={subscription.planName}>{subscription.planName}</div>
+        <div className="text-right md:text-left">
+          <div className="text-ink-900 font-medium">{subscription.planName}</div>
           <div className="text-ink-400 text-xs capitalize">{subscription.planTier}</div>
         </div>
       </td>
@@ -321,7 +276,7 @@ export function AdminSubscriptionsPage() {
     );
   });
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
   if (error) {
     return (
       <div className="space-y-6">
@@ -374,14 +329,14 @@ export function AdminSubscriptionsPage() {
             <table className="w-full text-left text-sm block md:table">
               <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 min-w-[160px]">Customer</th>
-                  <th className="px-4 py-3 min-w-[120px]">Phone</th>
-                  <th className="px-4 py-3 min-w-[180px]">Address</th>
-                  <th className="px-4 py-3 min-w-[150px]">Plan</th>
-                  <th className="px-4 py-3 min-w-[110px] whitespace-nowrap">Start Date</th>
-                  <th className="px-4 py-3 min-w-[110px] whitespace-nowrap">End Date</th>
-                  <th className="px-4 py-3 min-w-[100px]">Status</th>
-                  <th className="px-4 py-3 text-right min-w-[80px]">Action</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Address</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Start Date</th>
+                  <th className="px-4 py-3">End Date</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="block md:table-row-group">

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useStaffUsers, useToggleStaffStatus } from '../hooks/useAdmin';
 import { Users, Plus, Shield, ChefHat, Truck, Receipt } from 'lucide-react';
@@ -17,7 +17,7 @@ export function StaffManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
   if (isError) return <div className="p-8 text-danger">Failed to load staff data.</div>;
 
   const roleIcon = {

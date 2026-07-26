@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2, Globe, Archive, CalendarDays } from 'lucide-react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useDailyMenus, useDeleteDailyMenu, usePublishDailyMenu, useArchiveDailyMenu } from '../hooks/useDailyMenu';
@@ -19,7 +19,7 @@ export function DailyMenuListPage() {
   const publishMutation = usePublishDailyMenu();
   const archiveMutation = useArchiveDailyMenu();
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
 
   if (isError) {
     return (

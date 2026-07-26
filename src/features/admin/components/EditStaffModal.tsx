@@ -63,7 +63,7 @@ export function EditStaffModal({ user, onClose }: Props) {
       toast.success('Staff account updated successfully!');
       onClose();
     } catch (err) {
-      // Error handled globally via QueryClient
+      console.error('Staff update failed:', err);
     }
   };
 

@@ -3,10 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ShieldCheck, Utensils } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { Button } from '@/shared/components/ui/Button';
 import { signIn, signInWithGoogle, mapAuthError, resetPassword } from '../services/authService';
+import { AuthLayout } from '../components/AuthLayout';
 import type { LoginFormValues } from '../types/auth.types';
 
 const loginSchema = z.object({
@@ -19,12 +21,13 @@ export function LoginPage() {
   const location = useLocation();
   const [formError, setFormError] = useState<string | null>(null);
   
+  // Show/Hide password state
   const [showPassword, setShowPassword] = useState(false);
   
+  // Forgot Password Mode
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -42,6 +45,8 @@ export function LoginPage() {
       setFormError(mapAuthError(err));
     }
   };
+
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     if (isGoogleLoading) return;
@@ -79,277 +84,206 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center bg-[#FAF6F0] font-sans selection:bg-[#6A1B1A]/10 selection:text-[#6A1B1A] overflow-hidden">
-      
-      {/* Background Hero Image - Positioned on the right half with a gradient fade to the left */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-end">
-        <div className="w-full lg:w-[60%] h-full relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6F0] via-[#FAF6F0]/80 to-transparent z-10" />
-          <img 
-            src="/auth_bg.jpg" 
-            alt="Background" 
-            className="w-full h-full object-cover object-right"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Main Content Wrapper - Centered perfectly on all screens */}
-      <div className="relative z-10 w-full lg:w-[50%] xl:w-[45%] flex flex-col items-center justify-center px-6 py-10 animate-in fade-in duration-700 mx-auto">
-        
-        {/* Logo */}
-        <div className="mb-8 w-full flex justify-center">
-          <img 
-            src="/logo.png" 
-            alt="Mysuru Paakashale Logo" 
-            className="h-16 md:h-20 w-auto object-contain"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent && !parent.querySelector('div.fallback-logo')) {
-                const fallback = document.createElement('div');
-                fallback.className = 'fallback-logo text-center flex flex-col items-center';
-                // Using a serif font for a traditional look
-                fallback.innerHTML = `
-                  <div class="flex items-center justify-center">
-                    <span class="font-serif text-[28px] font-bold text-[#6A1B1A] tracking-wider leading-tight text-center">
-                      MYSURU<br/><span class="text-[22px]">PAAKASHALE</span>
-                    </span>
-                  </div>
-                  <div class="flex items-center justify-center gap-3 mt-2 w-full">
-                    <div class="h-[1px] w-8 bg-[#C89B3C]/50"></div>
-                    <p class="text-[9px] font-semibold uppercase tracking-[0.25em] text-[#6A1B1A]/80 font-sans">Real Taste of Nammuru</p>
-                    <div class="h-[1px] w-8 bg-[#C89B3C]/50"></div>
-                  </div>
-                `;
-                parent.appendChild(fallback);
-              }
-            }}
-          />
-        </div>
-
-        {forgotPasswordMode ? (
-          <form onSubmit={handleResetPassword} className="w-full max-w-[420px] flex flex-col items-center">
-            <h2 className="text-[28px] font-serif font-bold text-[#6A1B1A] mb-2 text-center tracking-tight">
+    <AuthLayout>
+      {forgotPasswordMode ? (
+        // Reset password form
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-4">
+            <h2 className="font-display text-[28px] font-bold text-[#5B1612] mb-2 leading-tight">
               Reset Password
             </h2>
-            <p className="text-[14px] text-[#2B2B2B]/70 font-medium text-center mb-8 max-w-[320px]">
-              Enter your email address to receive a secure reset link.
+            <p className="text-sm text-ink-600 font-medium">
+              Enter your email to request a secure password reset link.
             </p>
+          </div>
 
-            <div className="w-full flex flex-col gap-4 mb-4">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2B2B2B]/40 pointer-events-none">
-                  <Mail size={18} strokeWidth={2} />
-                </div>
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  required
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="h-[52px] w-full rounded-xl border border-[#E5E0D8] bg-white pl-11 pr-4 text-[15px] text-[#2B2B2B] placeholder:text-[#2B2B2B]/40 transition-all duration-200 focus:outline-none focus:border-[#6A1B1A] focus:ring-1 focus:ring-[#6A1B1A] shadow-sm"
-                />
+          <div className="flex flex-col gap-1">
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400">
+                <Mail size={20} strokeWidth={1.5} />
               </div>
+              <input
+                type="email"
+                placeholder="Email address"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] ${
+                  formError ? 'border-danger focus:ring-danger' : ''
+                }`}
+              />
             </div>
+          </div>
 
-            {formError && (
-              <p role="alert" className="text-[13px] text-red-600 font-medium w-full text-center mb-4">
-                {formError}
-              </p>
-            )}
-
-            <button 
-              type="submit" 
-              disabled={resetLoading}
-              className="w-full h-[52px] rounded-xl bg-[#6A1B1A] text-white text-[16px] font-semibold transition-all duration-200 hover:bg-[#5a1615] flex items-center justify-center shadow-md disabled:opacity-70"
-            >
-              {resetLoading ? (
-                <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" />
-              ) : (
-                'Send Reset Link'
-              )}
-            </button>
-
-            <button 
-              type="button" 
-              onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
-              className="mt-6 text-[14px] font-semibold text-[#6A1B1A] hover:underline"
-            >
-              Back to sign in
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="w-full max-w-[420px] flex flex-col items-center">
-            
-            <h2 className="text-[32px] font-serif font-bold text-[#6A1B1A] mb-2 text-center tracking-tight flex items-center justify-center gap-2">
-              Welcome Back <span className="text-2xl leading-none font-sans">👋</span>
-            </h2>
-            <p className="text-[14px] text-[#2B2B2B]/70 font-medium text-center mb-8 max-w-[320px]">
-              Sign in to continue and manage your meal subscription with us.
+          {formError && (
+            <p role="alert" className="text-sm text-danger mt-1">
+              {formError}
             </p>
+          )}
 
-            <div className="w-full flex flex-col gap-4">
-              
-              {/* Email Input */}
+          <Button 
+            type="submit" 
+            isLoading={resetLoading}
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2"
+          >
+            Send Reset Link
+          </Button>
+
+          <Button 
+            type="button" 
+            onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
+            variant="ghost"
+            className="w-full h-12 rounded-xl text-ink-600 hover:text-ink-900 transition-colors text-[15px] font-medium"
+          >
+            Back to Login
+          </Button>
+        </form>
+      ) : (
+        // Standard login form
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5 w-full relative z-10">
+          <div className="mb-4 pr-12">
+            <h2 className="font-display text-[32px] font-bold text-[#5B1612] mb-2 leading-tight flex items-center gap-2">
+              Welcome Back <span className="text-2xl">👋</span>
+            </h2>
+            <p className="text-[15px] text-ink-700 font-medium pr-10">
+              Sign in to continue your meal journey
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {/* Email Input */}
+            <div className="flex flex-col gap-1">
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2B2B2B]/40 pointer-events-none">
-                  <Mail size={18} strokeWidth={2} />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Mail size={20} strokeWidth={1.5} />
                 </div>
                 <input
                   type="email"
                   placeholder="Email address"
                   autoComplete="email"
                   required
-                  className={`h-[52px] w-full rounded-xl border ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-[#E5E0D8] focus:border-[#6A1B1A] focus:ring-[#6A1B1A]'} bg-white pl-11 pr-4 text-[15px] text-[#2B2B2B] placeholder:text-[#2B2B2B]/40 transition-all duration-200 focus:outline-none focus:ring-1 shadow-sm`}
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-4 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.email ? 'border-danger focus:ring-danger' : ''
+                  }`}
                   {...register('email')}
                 />
-                {errors.email && (
-                  <p role="alert" className="text-[13px] text-red-600 font-medium absolute -bottom-5 left-1">
-                    {errors.email.message}
-                  </p>
-                )}
               </div>
+              {errors.email && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-              {/* Password Input */}
-              <div className="relative mt-2">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2B2B2B]/40 pointer-events-none">
-                  <Lock size={18} strokeWidth={2} />
+            {/* Password Input */}
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none">
+                  <Lock size={20} strokeWidth={1.5} />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
                   autoComplete="current-password"
                   required
-                  className={`h-[52px] w-full rounded-xl border ${errors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-[#E5E0D8] focus:border-[#6A1B1A] focus:ring-[#6A1B1A]'} bg-white pl-11 pr-12 text-[15px] text-[#2B2B2B] placeholder:text-[#2B2B2B]/40 transition-all duration-200 focus:outline-none focus:ring-1 shadow-sm`}
+                  className={`h-14 w-full rounded-xl border border-rice-300 bg-white pl-12 pr-12 text-[15px] text-ink-900 placeholder:text-ink-400 transition-colors focus:outline-none focus:ring-1 focus:border-[#5B1612] focus:ring-[#5B1612] shadow-sm ${
+                    errors.password ? 'border-danger focus:ring-danger' : ''
+                  }`}
                   {...register('password')}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2B2B2B]/40 hover:text-[#2B2B2B]/80 p-2 transition-colors focus:outline-none"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-1"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
+                  {showPassword ? <EyeOff size={20} strokeWidth={1.5} /> : <Eye size={20} strokeWidth={1.5} />}
                 </button>
-                {errors.password && (
-                  <p role="alert" className="text-[13px] text-red-600 font-medium absolute -bottom-5 left-1">
-                    {errors.password.message}
-                  </p>
-                )}
               </div>
-            </div>
-
-            {/* Forgot Password */}
-            <div className="w-full flex justify-end mt-3 mb-6">
-              <button
-                type="button"
-                onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
-                className="text-[13px] font-semibold text-[#6A1B1A] hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {formError && (
-              <p role="alert" className="text-[13px] text-red-600 font-medium w-full text-center mb-4 bg-red-50 py-2 rounded-lg">
-                {formError}
-              </p>
-            )}
-
-            {/* Sign In Button */}
-            <button 
-              type="submit" 
-              disabled={isSubmitting} 
-              className="w-full h-[52px] rounded-xl bg-[#6A1B1A] text-white text-[16px] font-semibold transition-all duration-200 hover:bg-[#5a1615] flex items-center justify-center shadow-md disabled:opacity-70"
-            >
-              {isSubmitting ? (
-                <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" />
-              ) : (
-                'Sign in'
+              
+              {/* Forgot Password link directly beneath */}
+              <div className="flex justify-end mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
+                  className="text-[14px] font-semibold text-ink-700 hover:text-[#5B1612]"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              
+              {errors.password && (
+                <p role="alert" className="text-sm text-danger ml-2">
+                  {errors.password.message}
+                </p>
               )}
-            </button>
-
-            {/* Divider */}
-            <div className="relative flex items-center justify-center w-full my-6">
-              <div className="w-full border-t border-[#E5E0D8]" />
-              <span className="absolute bg-[#FAF6F0] px-3 text-[11px] font-semibold text-[#2B2B2B]/40 uppercase tracking-widest">
-                OR
-              </span>
             </div>
-
-            {/* Google Sign In */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
-              className="w-full h-[52px] rounded-xl border border-[#E5E0D8] bg-white hover:bg-gray-50 text-[#2B2B2B] font-semibold transition-all duration-200 flex items-center justify-center gap-3 text-[15px] shadow-sm"
-            >
-              {isGoogleLoading ? (
-                <span className="animate-spin h-5 w-5 border-2 border-[#2B2B2B]/30 border-t-[#2B2B2B] rounded-full" />
-              ) : (
-                <>
-                  <svg className="h-[20px] w-[20px] shrink-0" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" />
-                    <path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" />
-                    <path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" />
-                    <path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" />
-                  </svg>
-                  Continue with Google
-                </>
-              )}
-            </button>
-
-            {/* Create Account Link */}
-            <div className="mt-8 text-center text-[14px] text-[#2B2B2B]/80 font-medium">
-              New to Mysuru Paakashale?{' '}
-              <Link to="/signup" className="font-semibold text-[#6A1B1A] hover:underline">
-                Create your account &rarr;
-              </Link>
-            </div>
-          </form>
-        )}
-
-        {/* Footer section (Trust Badges + Terms) */}
-        <div className="w-full max-w-[480px] mt-12 flex flex-col items-center">
-          
-          <div className="w-full border-t border-b border-[#E5E0D8] py-4 flex flex-row items-center justify-between px-2 gap-1 sm:gap-4">
-            
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left">
-              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
-              <div className="flex flex-col">
-                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Secure Login</span>
-                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">Your data is protected</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left border-l border-r border-[#E5E0D8] px-1 sm:px-4">
-              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
-              <div className="flex flex-col">
-                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Email Verified</span>
-                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">For your security</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-1 sm:gap-2 flex-1 justify-center text-center sm:text-left">
-              <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-[#6A1B1A] shrink-0" strokeWidth={1.5} />
-              <div className="flex flex-col">
-                <span className="text-[9px] sm:text-[10px] font-bold text-[#2B2B2B]">Fresh & Homemade</span>
-                <span className="text-[8px] sm:text-[9px] text-[#2B2B2B]/60 leading-tight">Delivered with care</span>
-              </div>
-            </div>
-
           </div>
 
-          <p className="text-[11px] text-[#2B2B2B]/60 text-center mt-6">
-            By continuing, you agree to our <a href="#" className="font-semibold text-[#6A1B1A] hover:underline">Terms of Service</a> and <a href="#" className="font-semibold text-[#6A1B1A] hover:underline">Privacy Policy</a>.
-          </p>
-        </div>
+          {formError && (
+            <p role="alert" className="text-sm text-danger font-medium mt-1">
+              {formError}
+            </p>
+          )}
 
-      </div>
-    </div>
+          <Button 
+            type="submit" 
+            isLoading={isSubmitting} 
+            className="w-full h-14 rounded-xl bg-[#5B1612] hover:bg-[#721c16] text-white text-[17px] font-semibold transition-colors mt-2 shadow-sm"
+          >
+            Sign In
+          </Button>
+
+          {/* Separator line */}
+          <div className="relative flex items-center justify-center my-2">
+            <div className="w-full border-t border-ink-200" />
+            <span className="absolute bg-[#FDF8F0] px-4 text-[13px] font-bold text-ink-600 font-sans uppercase">
+              OR
+            </span>
+          </div>
+
+          {/* Google Sign In */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+            className="w-full h-14 rounded-xl border border-rice-300 bg-white hover:bg-rice-50 text-ink-900 font-bold transition-colors flex items-center justify-center gap-3 text-[16px] shadow-sm"
+          >
+            {isGoogleLoading ? (
+              <span className="animate-spin h-5 w-5 border-2 border-ink-400 border-t-transparent rounded-full" />
+            ) : (
+              <>
+                <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z"
+                  />
+                </svg>
+                Continue with Google
+              </>
+            )}
+          </button>
+
+          <div className="mt-2 text-center text-[15px] font-medium text-ink-700">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-bold text-[#5B1612] hover:underline">
+              Create Account
+            </Link>
+          </div>
+        </form>
+      )}
+    </AuthLayout>
   );
 }

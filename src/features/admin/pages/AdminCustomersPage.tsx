@@ -4,7 +4,7 @@ import { Search, XCircle, Users, CheckCircle, ChevronLeft, ChevronRight } from '
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -55,7 +55,7 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
               <div className="font-semibold text-ink-900">{formatDate(customer.createdAt)}</div>
             </div>
             <div className="bg-rice-50 rounded-lg p-3">
-              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Account Status</div>
+              <div className="text-ink-500 text-xs uppercase tracking-wider mb-1">Status</div>
               <div className="font-semibold text-ink-900">
                 <Badge tone={customer.isActive ? 'success' : 'danger'}>
                   {customer.isActive ? 'Active' : 'Inactive'}
@@ -94,9 +94,59 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
 }
 
 // ── Customer Card (Mobile) ───────────────────────────────────────────────────
+function CustomerCard({ customer, onSelect }: { customer: CustomerProfile; onSelect: () => void }) {
+  const defaultAddress = customer.addresses?.find(a => a.id === customer.defaultAddressId) || customer.addresses?.[0];
+  const locationText = defaultAddress 
+    ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(', ') 
+    : 'No address';
 
+  const initial = customer.fullName ? customer.fullName.charAt(0).toUpperCase() : '?';
 
-// ── Customer Row (Responsive) ───────────────────────────────────────────────────
+  return (
+    <Card className="p-4 border-rice-300 mb-4 cursor-pointer hover:bg-rice-50/70 transition-colors" onClick={onSelect}>
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-bold text-sm shrink-0">
+          {initial}
+        </div>
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="font-semibold text-ink-900 font-sans">{customer.fullName}</div>
+              <div className="text-ink-400 text-xs font-mono truncate max-w-[150px]">{customer.id}</div>
+            </div>
+            <Badge tone={customer.isActive ? 'success' : 'danger'} className="text-[10px] uppercase shrink-0">
+              {customer.isActive ? 'Active' : 'Inactive'}
+            </Badge>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Contact</span>
+          <div className="text-ink-900 font-sans text-xs">{customer.phone}</div>
+          <div className="text-ink-600 font-sans text-xs truncate max-w-[120px]">{customer.email}</div>
+        </div>
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Joined</span>
+          <div className="text-ink-600 font-sans text-xs">{formatDate(customer.createdAt)}</div>
+        </div>
+        <div className="col-span-2">
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Location</span>
+          <div className="text-ink-600 font-sans text-xs truncate">{locationText}</div>
+        </div>
+      </div>
+      
+      <div className="mt-4 pt-3 border-t border-rice-100 flex justify-end">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="text-xs w-full">
+          View Profile
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Customer Row (Desktop) ───────────────────────────────────────────────────
 function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; onSelect: () => void }) {
   const defaultAddress = customer.addresses?.find(a => a.id === customer.defaultAddressId) || customer.addresses?.[0];
   const locationText = defaultAddress 
@@ -107,16 +157,15 @@ function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; on
 
   return (
     <tr
-      className="block md:table-row bg-white hover:bg-rice-50/70 p-4 md:p-0 space-y-3 md:space-y-0 cursor-pointer transition-colors border-b border-rice-200 last:border-0 group"
+      className="bg-white hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0 group"
       onClick={onSelect}
     >
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-sm font-sans">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Customer</span>
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end md:justify-start">
+      <td className="px-4 py-4 text-sm font-sans">
+        <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-bold text-sm shrink-0">
             {initial}
           </div>
-          <div className="text-right md:text-left">
+          <div>
             <div className="font-semibold text-ink-900 group-hover:text-turmeric-700 transition-colors">
               {customer.fullName}
             </div>
@@ -124,35 +173,27 @@ function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; on
           </div>
         </div>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-sm font-sans text-ink-600">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Phone</span>
+      <td className="px-4 py-4 text-sm font-sans text-ink-600">
         {customer.phone}
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-sm font-sans text-ink-600">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Email</span>
+      <td className="px-4 py-4 text-sm font-sans text-ink-600">
         {customer.email}
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-sm font-sans">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Location</span>
-        <div className="text-right md:text-left">
-          <span className={defaultAddress ? "text-ink-700 line-clamp-1" : "text-ink-400 italic"}>
-            {locationText}
-          </span>
-        </div>
+      <td className="px-4 py-4 text-sm font-sans">
+        <span className={defaultAddress ? "text-ink-700 line-clamp-1" : "text-ink-400 italic"}>
+          {locationText}
+        </span>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-ink-600 font-sans text-xs">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Joined Date</span>
+      <td className="px-4 py-4 text-ink-600 font-sans text-xs">
         {formatDate(customer.createdAt)}
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
+      <td className="px-4 py-4">
         <Badge tone={customer.isActive ? 'success' : 'danger'} className="text-[10px] uppercase">
           {customer.isActive ? 'Active' : 'Inactive'}
         </Badge>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Action</span>
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs hover:bg-turmeric-50 hover:text-turmeric-700 w-full md:w-auto">
+      <td className="px-4 py-4 text-right">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs hover:bg-turmeric-50 hover:text-turmeric-700">
           View
         </Button>
       </td>
@@ -227,7 +268,7 @@ export function AdminCustomersPage() {
     );
   });
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
   if (error) {
     return (
       <div className="space-y-6">
@@ -281,27 +322,47 @@ export function AdminCustomersPage() {
           description={search ? 'No customers match your search.' : `No ${activeTab === 'all' ? '' : activeTab} customers found on this page.`}
         />
       ) : (
-          <Card className="border-rice-300 overflow-hidden p-0">
-            <div className="overflow-x-auto md:overflow-visible">
-              <table className="w-full text-left text-sm block md:table">
-                <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Phone</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Location</th>
-                    <th className="px-4 py-3">Joined Date</th>
-                    <th className="px-4 py-3">Account Status</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="block md:table-row-group divide-y divide-rice-100 bg-white">
-                  {filtered.map((row) => (
-                    <CustomerRowView key={row.id} customer={row} onSelect={() => setSelected(row)} />
-                  ))}
-                </tbody>
-              </table>
+        <>
+          {/* Mobile View */}
+          <div className="md:hidden">
+            {filtered.map((row) => (
+              <CustomerCard key={row.id} customer={row} onSelect={() => setSelected(row)} />
+            ))}
+            
+            <div className="px-4 py-3 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between rounded-xl border border-rice-300 mt-4">
+              <span>{filtered.length} item{filtered.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handlePrevPage} disabled={currentPage === 0 || isLoading} className="p-1 h-8 w-8">
+                  <ChevronLeft size={16} />
+                </Button>
+                <span className="text-ink-700 font-medium font-data text-xs">Pg {currentPage + 1}</span>
+                <Button variant="ghost" size="sm" onClick={handleNextPage} disabled={!data?.lastDoc || isLoading} className="p-1 h-8 w-8">
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
             </div>
+          </div>
+
+          {/* Desktop View */}
+          <Card className="border-rice-300 hidden md:block overflow-hidden p-0">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Joined Date</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <CustomerRowView key={row.id} customer={row} onSelect={() => setSelected(row)} />
+                ))}
+              </tbody>
+            </table>
             <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between">
               <span>Showing {filtered.length} customer{filtered.length !== 1 ? 's' : ''} on this page</span>
               <div className="flex items-center gap-4">
@@ -325,6 +386,7 @@ export function AdminCustomersPage() {
               </div>
             </div>
           </Card>
+        </>
       )}
 
       {selected && <CustomerDetailDialog customer={selected} onClose={() => setSelected(null)} />}

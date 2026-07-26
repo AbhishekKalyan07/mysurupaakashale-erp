@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/cn';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge, type BadgeTone } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
-import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { APP_CONFIG } from '@/shared/config/appConfig';
@@ -37,7 +37,7 @@ export function ProductionBoardPage() {
   } = useProductionBoard();
 
   // ── Initial loading ────────────────────────────────────────────────────────
-  if (isAnyLoading) return <div className="p-8"><DashboardCardsSkeleton /></div>;
+  if (isAnyLoading) return <LoadingScreen />;
 
   const totalOrders = breakfast.total + lunch.total + dinner.total;
 

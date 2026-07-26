@@ -6,7 +6,7 @@ import { userRepository } from '@/shared/services/firestore/userRepository';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
 import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
 import { useAdminPayments, useApprovePayment, useRejectPayment } from '@/features/customer/hooks/usePayments';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { Card } from '@/shared/components/ui/Card';
@@ -265,8 +265,49 @@ function PaymentDetailDialog({
   );
 }
 
+// ── Payment Card (Mobile) ──────────────────────────────────────────────────────
+function PaymentCard({ payment, onSelect }: { payment: ManualPayment; onSelect: () => void }) {
+  const parsedDate = parseFirestoreDate(payment.createdAt);
+  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
+  const statusTone = payment.status === 'verified' ? 'success' : payment.status === 'rejected' ? 'danger' : 'warning';
+  const methodIcon = payment.paymentMethod === 'upi' ? <Smartphone size={13} /> : payment.paymentMethod === 'cash' ? <Banknote size={13} /> : <Building2 size={13} />;
 
-// ── Payment Row (Responsive) ───────────────────────────────────────────────────
+  return (
+    <Card className="p-4 border-rice-300 mb-4 cursor-pointer hover:bg-rice-50/70 transition-colors" onClick={onSelect}>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <div className="font-semibold text-ink-900 font-sans">{payment.customerName}</div>
+          <div className="text-ink-400 text-xs font-mono truncate max-w-[160px]">{payment.customerId}</div>
+        </div>
+        <Badge tone={statusTone} className="text-[10px] uppercase shrink-0">{payment.status}</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Amount</span>
+          <span className="font-bold text-ink-900 font-data text-base">₹{payment.amount.toLocaleString('en-IN')}</span>
+        </div>
+        <div>
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Method</span>
+          <div className="flex items-center gap-1.5 text-ink-600 font-sans text-xs capitalize">
+            {methodIcon}
+            {payment.paymentMethod.replace('_', ' ')}
+          </div>
+        </div>
+        <div className="col-span-2">
+          <span className="block text-ink-500 text-[10px] uppercase tracking-wider font-semibold mb-0.5">Submitted</span>
+          <div className="text-ink-600 font-sans text-xs">{dateStr}</div>
+        </div>
+      </div>
+      <div className="mt-4 pt-3 border-t border-rice-100 flex justify-end">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="text-xs w-full">
+          View Details
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ── Payment Row (Desktop) ──────────────────────────────────────────────────────
 function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: () => void }) {
   const parsedDate = parseFirestoreDate(payment.createdAt);
   const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
@@ -280,43 +321,33 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
 
   return (
     <tr
-      className="block md:table-row bg-white hover:bg-rice-50/70 p-4 md:p-0 space-y-3 md:space-y-0 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
+      className="bg-white hover:bg-rice-50/70 cursor-pointer transition-colors border-b border-rice-200 last:border-0"
       onClick={onSelect}
     >
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-sm font-sans">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Customer</span>
-        <div className="text-right md:text-left">
-          <div className="font-semibold text-ink-900">{payment.customerName}</div>
-          <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{payment.customerId}</div>
-        </div>
+      <td className="px-4 py-4 text-sm font-sans">
+        <div className="font-semibold text-ink-900">{payment.customerName}</div>
+        <div className="text-ink-400 text-xs font-mono truncate max-w-[140px]">{payment.customerId}</div>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Amount</span>
+      <td className="px-4 py-4">
         <span className="font-bold text-ink-900 font-data">₹{payment.amount.toLocaleString('en-IN')}</span>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Method</span>
-        <div className="text-right md:text-left flex flex-col md:block items-end md:items-start">
-          <div className="flex items-center justify-end md:justify-start gap-1.5 text-ink-600 font-sans text-xs capitalize">
-            {methodIcon}
-            {payment.paymentMethod.replace('_', ' ')}
-          </div>
-          {payment.referenceNumber && (
-            <div className="text-ink-400 text-xs font-mono truncate max-w-[130px] mt-0.5">{payment.referenceNumber}</div>
-          )}
+      <td className="px-4 py-4">
+        <div className="flex items-center justify-start gap-1.5 text-ink-600 font-sans text-xs capitalize">
+          {methodIcon}
+          {payment.paymentMethod.replace('_', ' ')}
         </div>
+        {payment.referenceNumber && (
+          <div className="text-ink-400 text-xs font-mono truncate max-w-[130px] mt-0.5">{payment.referenceNumber}</div>
+        )}
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Submitted</span>
+      <td className="px-4 py-4">
         <div className="text-ink-600 font-sans text-xs">{dateStr}</div>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
+      <td className="px-4 py-4">
         <Badge tone={statusTone} className="text-[10px] uppercase">{payment.status}</Badge>
       </td>
-      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
-        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Action</span>
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs w-full md:w-auto hover:bg-turmeric-50 hover:text-turmeric-700">
+      <td className="px-4 py-4 text-right">
+        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs">
           View
         </Button>
       </td>
@@ -406,7 +437,7 @@ export function PaymentVerificationPage() {
       ? sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />
       : null;
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
   if (error) {
     return (
       <ErrorState
@@ -462,40 +493,64 @@ export function PaymentVerificationPage() {
           description={search ? 'No payments match your search.' : `No ${activeTab === 'all' ? '' : activeTab + ' '}payments at this time.`}
         />
       ) : (
-          <Card className="border-rice-300 p-0 overflow-hidden">
-            <div className="overflow-x-auto md:overflow-visible">
-              <table className="w-full text-left text-sm block md:table">
-                <thead className="hidden md:table-header-group bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Customer</th>
-                    <th
-                      className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
-                      onClick={() => toggleSort('amount')}
-                    >
-                      <div className="flex items-center gap-1">Amount <SortIcon field="amount" /></div>
-                    </th>
-                    <th className="px-4 py-3">Method</th>
-                    <th
-                      className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
-                      onClick={() => toggleSort('createdAt')}
-                    >
-                      <div className="flex items-center gap-1">Submitted <SortIcon field="createdAt" /></div>
-                    </th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="block md:table-row-group divide-y divide-rice-100 bg-white">
-                  {sorted.map((payment) => (
-                    <PaymentRow
-                      key={payment.id}
-                      payment={payment}
-                      onSelect={() => setSelectedPayment(payment)}
-                    />
-                  ))}
-                </tbody>
-              </table>
+        <>
+          {/* Mobile View */}
+          <div className="md:hidden">
+            {sorted.map((payment) => (
+              <PaymentCard
+                key={payment.id}
+                payment={payment}
+                onSelect={() => setSelectedPayment(payment)}
+              />
+            ))}
+            
+            <div className="px-4 py-3 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between rounded-xl border border-rice-300 mt-4">
+              <span>{sorted.length} item{sorted.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handlePrevPage} disabled={currentPage === 0 || isLoading} className="p-1 h-8 w-8">
+                  <ChevronLeft size={16} />
+                </Button>
+                <span className="text-ink-700 font-medium font-data text-xs">Pg {currentPage + 1}</span>
+                <Button variant="ghost" size="sm" onClick={handleNextPage} disabled={!data?.lastDoc || isLoading} className="p-1 h-8 w-8">
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
             </div>
+          </div>
+
+          {/* Desktop View */}
+          <Card className="border-rice-300 hidden md:block overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-rice-50 border-b border-rice-300 text-ink-500 text-xs font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Customer</th>
+                  <th
+                    className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
+                    onClick={() => toggleSort('amount')}
+                  >
+                    <div className="flex items-center gap-1">Amount <SortIcon field="amount" /></div>
+                  </th>
+                  <th className="px-4 py-3">Method</th>
+                  <th
+                    className="px-4 py-3 cursor-pointer select-none hover:text-ink-700"
+                    onClick={() => toggleSort('createdAt')}
+                  >
+                    <div className="flex items-center gap-1">Submitted <SortIcon field="createdAt" /></div>
+                  </th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((payment) => (
+                  <PaymentRow
+                    key={payment.id}
+                    payment={payment}
+                    onSelect={() => setSelectedPayment(payment)}
+                  />
+                ))}
+              </tbody>
+            </table>
             <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans flex items-center justify-between">
               <span>Showing {sorted.length} payment{sorted.length !== 1 ? 's' : ''} on this page</span>
               <div className="flex items-center gap-4">
@@ -519,6 +574,7 @@ export function PaymentVerificationPage() {
               </div>
             </div>
           </Card>
+        </>
       )}
 
       {selectedPayment && (

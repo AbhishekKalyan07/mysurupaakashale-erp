@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Save, ArrowLeft, Trash2, Plus } from 'lucide-react';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { FormSkeleton } from '@/shared/components/feedback/SkeletonLoader';
+import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { useDailyMenu, useCreateDailyMenu, useUpdateDailyMenu } from '../hooks/useDailyMenu';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -72,7 +72,7 @@ export function DailyMenuEditorPage() {
     }
   }, [menu, isEditing, form]);
 
-  if (isLoading) return <div className="p-8"><FormSkeleton /></div>;
+  if (isLoading) return <LoadingScreen />;
 
   if (isError) {
     return (
