@@ -9,6 +9,7 @@ import { User, MapPin, AlertCircle, Save } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
+import { usePushNotifications } from '@/features/notifications/hooks/usePushNotifications';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
@@ -38,6 +39,7 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 export function ProfilePage() {
   const { profile, firebaseUser } = useAuth();
+  const { requestPermission, isRequesting, isSupported, permissionStatus } = usePushNotifications();
   const [searchParams] = useSearchParams();
   const isOnboarding = searchParams.get('onboarding') === 'true';
   const [isSaving, setIsSaving] = useState(false);
@@ -278,6 +280,37 @@ export function ProfilePage() {
           </div>
         </Card>
       </div>
+
+      <Card>
+        <div className="p-6">
+          <h2 className="text-lg font-serif font-bold text-leaf-800 mb-4">Security & Notifications</h2>
+          
+          <div className="space-y-6">
+            {isSupported && (
+              <div className="flex items-center justify-between py-4 border-b border-rice-200">
+                <div>
+                  <h3 className="text-sm font-medium text-leaf-900">Push Notifications</h3>
+                  <p className="text-sm text-leaf-600 mt-1">Receive updates about your orders and subscription on this device.</p>
+                </div>
+                <Button 
+                  variant={permissionStatus === 'granted' ? 'ghost' : 'primary'}
+                  onClick={requestPermission}
+                  disabled={isRequesting || permissionStatus === 'granted'}
+                >
+                  {permissionStatus === 'granted' ? 'Enabled' : (isRequesting ? 'Enabling...' : 'Enable')}
+                </Button>
+              </div>
+            )}
+            
+            <div className="pt-2">
+              <h3 className="text-sm font-medium text-leaf-900 mb-2">Change Password</h3>
+              <Button variant="ghost" className="w-full sm:w-auto text-danger border-danger hover:bg-danger-subtle">
+                Send Password Reset Email
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
