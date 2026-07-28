@@ -284,6 +284,12 @@ service cloud.firestore {
       allow write: if isAdmin(); // Phase 4: Manual order generation via Admin UI
     }
 
+    // ---------- inventory/{itemId} ----------
+    match /inventory/{itemId} {
+      allow read: if isKitchen() || isAdmin();
+      allow write: if isKitchen() || isAdmin();
+    }
+
     match /settings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isAdmin(); // Phase 1: Settings updated by admin
