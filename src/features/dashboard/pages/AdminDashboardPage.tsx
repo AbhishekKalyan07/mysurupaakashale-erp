@@ -7,6 +7,7 @@ import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
 import { toast } from 'react-hot-toast';
 import { serverTimestamp, type Timestamp } from 'firebase/firestore';
+import { useAutomatedDailyOrders } from '@/features/admin/hooks/useAutomatedDailyOrders';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ export function AdminDashboardPage() {
   const { data: metrics, isLoading } = useAdminDashboardMetrics();
 
   const firstName = profile?.fullName?.split(' ')[0] || 'Admin';
+
+  // Triggers daily order generation invisibly in the background if it hasn't run today
+  useAutomatedDailyOrders();
 
   if (isLoading) return <LoadingScreen />;
 

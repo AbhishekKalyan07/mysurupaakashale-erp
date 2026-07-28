@@ -5,7 +5,6 @@ import { CustomerDashboardPage } from './CustomerDashboardPage';
 import { KitchenDashboardPage } from './KitchenDashboardPage';
 import { DeliveryDashboardPage } from '@/features/delivery/pages/DeliveryDashboardPage';
 import { AccountsDashboardPage } from './AccountsDashboardPage';
-import { useAutomatedDailyOrders } from '@/features/admin/hooks/useAutomatedDailyOrders';
 
 /**
  * Acts as the central hub for all users.
@@ -14,8 +13,6 @@ import { useAutomatedDailyOrders } from '@/features/admin/hooks/useAutomatedDail
 export function UnifiedDashboardPage() {
   const { role } = useAuth();
   
-  // Triggers daily order generation invisibly in the background if it hasn't run today
-  useAutomatedDailyOrders();
 
   switch (role) {
     case ROLES.ADMIN:
