@@ -89,10 +89,6 @@ export function AdminKitchenPage() {
               <BookOpen className="mr-2 h-4 w-4" />
               Manage Menus
             </Button>
-            <Button onClick={generateOrders} disabled={isGenerating}>
-              {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              Generate Orders (Today)
-            </Button>
           </div>
         }
       />
