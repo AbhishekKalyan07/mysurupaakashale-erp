@@ -64,6 +64,28 @@ class OrderRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Retrieves all orders for a specific customer.
+   * Used to check if a customer has past orders (e.g., for trial eligibility).
+   */
+  async getCustomerOrders(customerId: string): Promise<Order[]> {
+    return this.list(
+      where('customerId', '==', customerId),
+      orderBy('createdAt', 'desc')
+    );
+  }
+
+  /**
+   * Retrieves all orders for a specific customer on a specific date.
+   */
+  async getCustomerOrdersByDate(customerId: string, date: string): Promise<Order[]> {
+    return this.list(
+      where('customerId', '==', customerId),
+      where('date', '==', date),
+      orderBy('createdAt', 'desc')
+    );
+  }
+
+  /**
    * Batch create multiple orders. Used by the daily order generation script.
    */
   async batchCreate(orders: Omit<Order, 'id'>[]): Promise<void> {

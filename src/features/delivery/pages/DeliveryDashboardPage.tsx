@@ -9,6 +9,8 @@ import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoa
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { MapPin, Truck, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import { userRepository } from '@/shared/services/firestore/userRepository';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 
 export function DeliveryDashboardPage() {
@@ -23,6 +25,14 @@ export function DeliveryDashboardPage() {
 
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [partnerIdInput, setPartnerIdInput] = useState('');
+
+  const { data: deliveryPartners } = useQuery({
+    queryKey: ['users', 'delivery_partner'],
+    queryFn: async () => {
+      const { where } = await import('firebase/firestore');
+      return userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true));
+    }
+  });
 
   const allCustomerIds = Array.from(new Set([
     ...(unassignedOrders?.map(o => o.customerId) || []),
@@ -138,13 +148,16 @@ export function DeliveryDashboardPage() {
                 <span className="font-bold text-leaf-900">{selectedOrders.size}</span> orders selected
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
-                <input 
-                  type="text"
-                  placeholder="Partner ID"
+                <select
                   value={partnerIdInput}
                   onChange={e => setPartnerIdInput(e.target.value)}
-                  className="h-10 px-3 rounded-lg border border-rice-300 text-sm focus:ring-2 focus:ring-leaf-600 flex-1 sm:w-40"
-                />
+                  className="h-10 px-3 rounded-lg border border-rice-300 text-sm focus:ring-2 focus:ring-leaf-600 flex-1 sm:w-48 bg-white"
+                >
+                  <option value="">Select Partner</option>
+                  {deliveryPartners?.map(p => (
+                    <option key={p.id} value={p.id}>{p.displayName || p.id}</option>
+                  ))}
+                </select>
                 <Button 
                   onClick={handleAssign} 
                   disabled={!partnerIdInput || assignMutation.isPending}
@@ -193,17 +206,23 @@ export function DeliveryDashboardPage() {
                       </div>
                       
                       {role === 'admin' && (
-                        <button 
-                          onClick={() => {
-                            const newPartner = prompt('Enter new partner ID (or leave blank to unassign):', order.deliveryPartnerId || '');
-                            if (newPartner !== null) {
-                              handleReassign(order.id, newPartner === '' ? null : newPartner);
+                        <select
+                          className="text-xs text-leaf-600 bg-transparent border-b border-leaf-200 outline-none cursor-pointer"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value === 'unassign') {
+                              handleReassign(order.id, null);
+                            } else if (e.target.value) {
+                              handleReassign(order.id, e.target.value);
                             }
                           }}
-                          className="text-xs text-leaf-600 hover:underline"
                         >
-                          Reassign
-                        </button>
+                          <option value="">Reassign</option>
+                          <option value="unassign">Unassign</option>
+                          {deliveryPartners?.map(p => (
+                            <option key={p.id} value={p.id}>{p.displayName || p.id}</option>
+                          ))}
+                        </select>
                       )}
                     </div>
                   </Card>

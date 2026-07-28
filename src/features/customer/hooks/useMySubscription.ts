@@ -17,6 +17,22 @@ export function useMySubscription() {
   });
 }
 
+export function useHasPastOrders() {
+  const { firebaseUser } = useAuth();
+  const customerId = firebaseUser?.uid;
+
+  return useQuery({
+    queryKey: ['hasPastOrders', customerId],
+    queryFn: async () => {
+      if (!customerId) return false;
+      const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
+      const orders = await orderRepository.getCustomerOrders(customerId);
+      return orders.length > 0;
+    },
+    enabled: !!customerId,
+  });
+}
+
 export function useSkipDay() {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();

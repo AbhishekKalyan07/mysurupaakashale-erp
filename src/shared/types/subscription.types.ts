@@ -33,8 +33,8 @@ export interface Subscription {
   mealPreferences: MealPreference[];
   status: SubscriptionStatus;
   startDate: ISODateString;
-  endDate: ISODateString | null; // null = ongoing, renews monthly
-  billingCycle: 'monthly';
+  endDate: ISODateString | null; // explicitly calculated now
+  billingCycle: 'weekly' | 'monthly';
   autoRenew: boolean;
   /** Set once the admin approves a payment — links to the verified payment record. */
   latestPaymentId: ID | null;

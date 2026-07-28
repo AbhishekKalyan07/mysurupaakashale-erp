@@ -22,6 +22,13 @@ class OrderService {
       return { success: true, message: 'Orders already generated for today.', ordersGenerated: 0 };
     }
 
+    // Sunday Holiday Check
+    const isSunday = new Date(today).getDay() === 0;
+    if (isSunday) {
+      console.log(`[orderService] Today (${today}) is Sunday. Skipping order generation.`);
+      return { success: true, message: 'Today is Sunday (Holiday). No orders generated.', ordersGenerated: 0 };
+    }
+
     try {
       // 2. Fetch all active subscriptions
       const allSubscriptions = await subscriptionRepository.list(where('status', '==', 'active'));
@@ -130,6 +137,12 @@ class OrderService {
     date: string,
     mealTypesToGenerate: import('@/shared/types').MealType[]
   ): Promise<void> {
+    const isSunday = new Date(date).getDay() === 0;
+    if (isSunday) {
+      console.log(`[orderService] Subscription ${subscription.id} skip generateOrdersForSubscription since ${date} is Sunday.`);
+      return;
+    }
+
     const ordersToCreate: Partial<Order>[] = [];
 
     for (const pref of subscription.mealPreferences) {

@@ -14,20 +14,44 @@ import {
 } from '@/shared/services/firestore/notificationService';
 
 export function useUnassignedOrders(date: string) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.delivery.unassignedOrders(date);
+
+  useEffect(() => {
+    if (!date) return;
+    const unsub = deliveryRepository.subscribeUnassignedOrders(
+      date,
+      (data) => queryClient.setQueryData(queryKey, data)
+    );
+    return () => unsub();
+  }, [date, queryClient, queryKey]);
+
   return useQuery({
-    queryKey: queryKeys.delivery.unassignedOrders(date),
+    queryKey,
     queryFn: () => deliveryRepository.getUnassignedOrders(date),
     enabled: !!date,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: Infinity,
   });
 }
 
 export function useAssignedOrders(date: string) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.delivery.assignedOrders(date);
+
+  useEffect(() => {
+    if (!date) return;
+    const unsub = deliveryRepository.subscribeAssignedOrders(
+      date,
+      (data) => queryClient.setQueryData(queryKey, data)
+    );
+    return () => unsub();
+  }, [date, queryClient, queryKey]);
+
   return useQuery({
-    queryKey: queryKeys.delivery.assignedOrders(date),
+    queryKey,
     queryFn: () => deliveryRepository.getAssignedOrders(date),
     enabled: !!date,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: Infinity,
   });
 }
 

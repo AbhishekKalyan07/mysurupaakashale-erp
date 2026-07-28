@@ -118,6 +118,24 @@ class PaymentService {
       capturedPayment = payment;
     });
 
+    // ── Auto-generate initial orders if subscription starts today or earlier ──
+    try {
+      const { subscriptionRepository } = await import('../firestore/subscriptionRepository');
+      const { orderService } = await import('./orderService');
+      const subscription = await subscriptionRepository.getById(capturedPayment.subscriptionId);
+      
+      if (subscription) {
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+        if (subscription.startDate <= today) {
+          const mealTypes = subscription.mealPreferences.map(p => p.mealType);
+          console.log(`[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`);
+          await orderService.generateOrdersForSubscription(subscription, today, mealTypes);
+        }
+      }
+    } catch (err) {
+      console.error(`[PaymentService] Failed to generate initial orders for subscription ${capturedPayment.subscriptionId}:`, err);
+    }
+
     // ── PDF + Email (fire-and-forget, non-blocking) ──────────────────────────
     if (meta) {
       try {

@@ -71,9 +71,28 @@ export function SubscriptionWizardPage() {
   });
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
-  const [startDate, setStartDate] = useState<string>(
-    new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow as default
-  );
+  const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly'>('monthly');
+
+  // Skip Sunday for default start date
+  const getDefaultStartDate = () => {
+    let d = new Date(Date.now() + 86400000); // Tomorrow
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Skip Sunday
+    return d.toISOString().split('T')[0];
+  };
+
+  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
+
+  // Calculate End Date
+  const calculateEndDate = (start: string, cycle: 'weekly' | 'monthly') => {
+    const d = new Date(start);
+    if (cycle === 'weekly') {
+      d.setDate(d.getDate() + 7);
+    } else {
+      d.setDate(d.getDate() + 30);
+    }
+    return d.toISOString().split('T')[0];
+  };
+  const endDate = calculateEndDate(startDate, billingCycle);
 
   const toggleMeal = (type: string) => {
     setEnabledMeals(prev => {
@@ -113,7 +132,7 @@ export function SubscriptionWizardPage() {
     return <LoadingScreen />;
   }
 
-  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired') {
+  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired' && !createdSubscriptionId) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <ErrorState
@@ -206,7 +225,9 @@ export function SubscriptionWizardPage() {
         calculatedDailyPrice,
         mealPreferences,
         startDate,
-        selectedAddressId
+        selectedAddressId,
+        billingCycle,
+        endDate
       );
 
       // Notify the customer their subscription draft is created.
@@ -229,6 +250,20 @@ export function SubscriptionWizardPage() {
       setSubmissionError((err as Error).message || 'An unexpected error occurred. Please verify your address or pincode.');
     } finally {
       setSubmittingDraft(false);
+    }
+  };
+
+  const handleCancelDraft = async () => {
+    if (!createdSubscriptionId) return;
+    if (!confirm('Are you sure you want to cancel this draft subscription?')) return;
+    try {
+      await subscriptionService.rejectSubscription(activeSub! || { id: createdSubscriptionId, status: 'pending_payment' } as any);
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+      navigate('/customer/plans');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to cancel draft.');
     }
   };
 
@@ -611,22 +646,45 @@ export function SubscriptionWizardPage() {
                 )}
               </Card>
 
-              {/* Start Date */}
+              {/* Start Date & Billing Cycle */}
               <Card className="p-4 border-rice-300">
-                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Select Start Date</h3>
+                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3">Billing Cycle</h3>
+                <div className="flex gap-4 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="billingCycle" checked={billingCycle === 'weekly'} onChange={() => setBillingCycle('weekly')} className="accent-emerald-600" />
+                    <span className="text-sm font-sans">Weekly (7 days)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="billingCycle" checked={billingCycle === 'monthly'} onChange={() => setBillingCycle('monthly')} className="accent-emerald-600" />
+                    <span className="text-sm font-sans">Monthly (30 days)</span>
+                  </label>
+                </div>
+
+                <h3 className="font-sans font-bold text-ink-800 text-sm mb-3 border-t border-rice-200 pt-3">Select Start Date</h3>
                 <div className="flex items-center gap-3">
                   <Calendar className="text-ink-400" size={18} />
                   <input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      const selected = new Date(e.target.value);
+                      if (selected.getDay() === 0) {
+                        alert('Sundays are holidays. Please select a different start date.');
+                        setStartDate(getDefaultStartDate());
+                      } else {
+                        setStartDate(e.target.value);
+                      }
+                    }}
                     min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} // tomorrow
                     className="border border-ink-400 rounded-md p-1.5 text-xs font-sans"
                   />
                 </div>
                 <p className="text-[10px] text-ink-400 font-sans mt-2">
-                  First delivery will occur on the morning of the selected date.
+                  First delivery will occur on the morning of the selected date. Sundays are holidays and orders will not be delivered.
                 </p>
+                <div className="mt-3 p-2 bg-rice-100 rounded text-xs text-ink-700 font-sans font-medium">
+                  <strong>Plan duration:</strong> {startDate} to {endDate}
+                </div>
               </Card>
             </div>
 
@@ -655,7 +713,7 @@ export function SubscriptionWizardPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Billing terms:</span>
-                    <span className="font-semibold text-ink-900">Monthly</span>
+                    <span className="font-semibold text-ink-900 capitalize">{billingCycle}</span>
                   </div>
                 </div>
                 <div className="border-t border-rice-300 pt-3 flex justify-between items-center font-bold text-stone-950 text-sm mb-2">
@@ -663,7 +721,7 @@ export function SubscriptionWizardPage() {
                   <span className="text-lg">₹{settings?.pricing.securityDepositAmount || 1000}</span>
                 </div>
                 <p className="text-[10px] text-ink-500 font-sans mb-6">
-                  * Monthly bills will be generated pro-rata at the end of each month based on the days you were subscribed. This security deposit is held on your account and refunded upon cancellation.
+                  * {billingCycle === 'weekly' ? 'Weekly' : 'Monthly'} bills will be generated pro-rata at the end of each cycle based on the days you were subscribed. This security deposit is held on your account and refunded upon cancellation.
                 </p>
 
                 <Button
@@ -702,6 +760,16 @@ export function SubscriptionWizardPage() {
               navigate('/customer/subscription', { state: { justCreated: true } });
             }}
           />
+
+          <div className="mt-8 pt-6 border-t border-rice-300">
+            <Button
+              variant="secondary"
+              onClick={handleCancelDraft}
+              className="text-rose-600 border-rose-200 hover:bg-rose-50"
+            >
+              <XCircle size={16} className="mr-2" /> Cancel Draft & Start Over
+            </Button>
+          </div>
         </div>
       )}
     </div>

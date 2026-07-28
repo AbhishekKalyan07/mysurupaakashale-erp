@@ -8,7 +8,6 @@ import { Input } from '@/shared/components/ui/Input';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { userRepository } from '@/shared/services/firestore/userRepository';
-import { useGenerateOrders } from '@/features/admin/hooks/useGenerateOrders';
 import { getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
 import type { OrderStatus, MealType } from '@/shared/types';
 import toast from 'react-hot-toast';
@@ -71,8 +70,6 @@ export function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [mealTypeFilter, setMealTypeFilter] = useState<MealType | 'all'>('all');
 
-  const { generateOrders, isGenerating } = useGenerateOrders();
-
   const { data: orders = [], isLoading, error } = useQuery({
     queryKey: ['admin', 'orders', selectedDate],
     queryFn: () => orderRepository.getByDate(selectedDate),
@@ -106,16 +103,6 @@ export function AdminOrdersPage() {
       <PageHeader 
         title="Orders Management"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Orders' }]}
-        actions={
-          <Button 
-            onClick={generateOrders} 
-            disabled={isGenerating || selectedDate !== today}
-            title={selectedDate !== today ? "Can only generate orders for today" : "Run the daily order generation script"}
-          >
-            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Generate Orders (Today)
-          </Button>
-        }
       />
 
       {/* Filters Toolbar */}

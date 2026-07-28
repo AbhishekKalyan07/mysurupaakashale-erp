@@ -119,6 +119,7 @@ function invalidateSubscriptionLists(queryClient: ReturnType<typeof useQueryClie
   queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.detail(subscription.id) });
   queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.active(subscription.customerId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
 }
 
 // ── Admin: approve a pending/draft subscription ─────────────────────────────────

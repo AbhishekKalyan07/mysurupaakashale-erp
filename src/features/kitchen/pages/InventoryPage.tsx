@@ -32,8 +32,23 @@ export function InventoryPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
   });
 
+  const addMutation = useMutation({
+    mutationFn: async (newItem: Omit<InventoryItem, 'id' | 'lastUpdated' | 'updatedBy'>) => {
+      await inventoryRepository.create({
+        ...newItem,
+        lastUpdated: serverTimestamp() as unknown as Timestamp,
+        updatedBy: firebaseUser?.uid || 'unknown'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      setShowAddModal(false);
+    }
+  });
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<number>(0);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
   if (error) return <ErrorState title="Error" description="Could not load inventory." onRetry={refetch} />;
@@ -58,9 +73,11 @@ export function InventoryPage() {
         title="Inventory Management"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Inventory' }]}
         actions={
-          <Button disabled className="opacity-50">
-            <Plus className="mr-2 h-4 w-4" /> Add Item (Admin Only)
-          </Button>
+          firebaseUser && (
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Item
+            </Button>
+          )
         }
       />
 
@@ -152,6 +169,94 @@ export function InventoryPage() {
           </table>
         </div>
       </Card>
+
+      {showAddModal && (
+        <AddInventoryItemModal 
+          onClose={() => setShowAddModal(false)}
+          onSubmit={(data) => addMutation.mutate(data)}
+          isSubmitting={addMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddInventoryItemModal({ onClose, onSubmit, isSubmitting }: { 
+  onClose: () => void, 
+  onSubmit: (data: any) => void,
+  isSubmitting: boolean
+}) {
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'groceries' as any,
+    quantity: 0,
+    unit: 'kg',
+    lowStockThreshold: 0
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+        <h2 className="text-xl font-bold font-serif text-ink-900 mb-4">Add Inventory Item</h2>
+        
+        <div className="space-y-4">
+          <Input 
+            label="Item Name" 
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-ink-700 mb-1 font-sans">Category</label>
+              <select 
+                className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans"
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value as any})}
+              >
+                <option value="groceries">Groceries</option>
+                <option value="vegetables">Vegetables</option>
+                <option value="dairy">Dairy</option>
+                <option value="meat">Meat</option>
+                <option value="spices">Spices</option>
+                <option value="packaging">Packaging</option>
+              </select>
+            </div>
+            <Input 
+              label="Unit (e.g. kg, L, pcs)" 
+              value={formData.unit}
+              onChange={(e) => setFormData({...formData, unit: e.target.value})}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              type="number"
+              label="Initial Stock" 
+              value={formData.quantity || ''}
+              onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
+              required
+            />
+            <Input 
+              type="number"
+              label="Low Stock Alert" 
+              value={formData.lowStockThreshold || ''}
+              onChange={(e) => setFormData({...formData, lowStockThreshold: Number(e.target.value)})}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-4 border-t border-rice-200">
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button type="submit" className="flex-1" isLoading={isSubmitting} disabled={!formData.name}>Add Item</Button>
+        </div>
+      </form>
     </div>
   );
 }

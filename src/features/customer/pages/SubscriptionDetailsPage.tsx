@@ -30,6 +30,8 @@ import {
 
 import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
 import { ResumeDeliveryModal } from '../components/ResumeDeliveryModal';
+import { EditSubscriptionModal } from '../components/EditSubscriptionModal';
+import { Edit2 } from 'lucide-react';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export function SubscriptionDetailsPage() {
@@ -44,6 +46,7 @@ export function SubscriptionDetailsPage() {
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [pauseEndDate, setPauseEndDate] = useState('');
 
@@ -91,14 +94,22 @@ export function SubscriptionDetailsPage() {
     
     setUpdating(true);
     try {
-      await subscriptionRepository.update(subscription.id, {
-        status: action === 'renew' ? 'pending_payment' :
-                action === 'resume' ? 'active' : 
-                'cancelled',
-        ...(action === 'resume' ? { pauseStartDate: null, pauseEndDate: null } : {})
-      });
+      if (action === 'cancel') {
+        const { subscriptionService } = await import('@/shared/services/business/subscriptionService');
+        await subscriptionService.rejectSubscription(subscription);
+      } else {
+        await subscriptionRepository.update(subscription.id, {
+          status: action === 'renew' ? 'pending_payment' :
+                  action === 'resume' ? 'active' : 
+                  'cancelled',
+          ...(action === 'resume' ? { pauseStartDate: null, pauseEndDate: null } : {})
+        });
+      }
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(subscription.customerId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.all,
       });
     } catch (err: unknown) {
       console.error('Failed to update subscription status:', err);
@@ -356,14 +367,24 @@ export function SubscriptionDetailsPage() {
               </h3>
               <div className="space-y-3">
                 {subscription.status === 'active' && (
-                  <Button
-                    onClick={() => setShowPauseModal(true)}
-                    disabled={updating}
-                    variant="secondary"
-                    className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
-                  >
-                    <Pause size={16} /> Pause Subscription
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => setShowEditModal(true)}
+                      disabled={updating}
+                      variant="secondary"
+                      className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                    >
+                      <Edit2 size={16} /> Edit Preferences
+                    </Button>
+                    <Button
+                      onClick={() => setShowPauseModal(true)}
+                      disabled={updating}
+                      variant="secondary"
+                      className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                    >
+                      <Pause size={16} /> Pause Subscription
+                    </Button>
+                  </>
                 )}
                 {subscription.status === 'paused' && (
                   <Button
@@ -445,6 +466,14 @@ export function SubscriptionDetailsPage() {
         <ResumeDeliveryModal
           subscription={subscription}
           onClose={() => setShowResumeModal(false)}
+        />
+      )}
+
+      {showEditModal && selectedPlan && (
+        <EditSubscriptionModal
+          subscription={subscription}
+          plan={selectedPlan}
+          onClose={() => setShowEditModal(false)}
         />
       )}
     </div>

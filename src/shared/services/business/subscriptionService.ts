@@ -17,6 +17,8 @@ class SubscriptionService {
     mealPreferences: MealPreference[],
     startDate: string,
     deliveryAddressId: string,
+    billingCycle: 'weekly' | 'monthly',
+    endDate: string | null
   ): Promise<string> {
     const subscriptionId = crypto.randomUUID();
     const settings = await settingsRepository.getBusinessSettings();
@@ -32,8 +34,8 @@ class SubscriptionService {
       zoneId: null,
       mealPreferences,
       startDate,
-      endDate: null,
-      billingCycle: 'monthly',
+      endDate,
+      billingCycle,
       autoRenew: true,
       deliveryAddressId,
       latestPaymentId: null,
@@ -62,14 +64,45 @@ class SubscriptionService {
       throw new Error(`Cannot approve a ${subscription.status} subscription — use renew instead.`);
     }
     await subscriptionRepository.updateStatus(subscription.id, 'active');
+
+    // Verify any pending payments associated with this subscription
+    const { paymentRepository } = await import('../firestore/paymentRepository');
+    const { payments } = await paymentRepository.getPaymentsPaginated({ status: 'pending' }, 100);
+    const relatedPayments = payments.filter(p => p.subscriptionId === subscription.id);
+    
+    for (const payment of relatedPayments) {
+      await paymentRepository.updateStatus(payment.id, 'verified', 'Verified via subscription fast-path activation.');
+    }
+
+    // Immediately generate orders for today if the subscription starts today or earlier
+    const { orderService } = await import('./orderService');
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    
+    if (subscription.startDate <= today) {
+      // Find which meals the customer has selected
+      const mealTypes = subscription.mealPreferences.map(p => p.mealType);
+      console.log(`[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for today (${today})...`);
+      
+      try {
+        await orderService.generateOrdersForSubscription(subscription, today, mealTypes);
+      } catch (err) {
+        console.error(`[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`, err);
+      }
+    }
   }
 
-  /** Declines a subscription still awaiting its first payment. */
+  /** Cancels a subscription and rejects any pending payments. */
   async rejectSubscription(subscription: Subscription): Promise<void> {
-    if (subscription.status !== 'pending_payment' && subscription.status !== 'draft') {
-      throw new Error(`Cannot reject a subscription with status "${subscription.status}".`);
-    }
     await subscriptionRepository.updateStatus(subscription.id, 'cancelled');
+
+    // Reject any pending payments associated with this subscription
+    const { paymentRepository } = await import('../firestore/paymentRepository');
+    const { payments } = await paymentRepository.getPaymentsPaginated({ status: 'pending' }, 100);
+    const relatedPayments = payments.filter(p => p.subscriptionId === subscription.id);
+    
+    for (const payment of relatedPayments) {
+      await paymentRepository.updateStatus(payment.id, 'rejected', 'Subscription draft was cancelled by the customer or admin.');
+    }
   }
 
   /** Admin override of the customer's own pause action, with optional schedule. */

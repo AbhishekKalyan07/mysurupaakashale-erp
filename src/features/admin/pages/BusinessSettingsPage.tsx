@@ -57,8 +57,7 @@ type SettingsForm = z.infer<typeof settingsSchema>;
 export function BusinessSettingsPage() {
   const { data: settings, isLoading, isError } = useBusinessSettings();
   const updateMutation = useUpdateBusinessSettings();
-  const { generateOrders, isGenerating } = useGenerateOrders();
-  const { seedData, isSeeding } = useSeedData();
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const { register, handleSubmit, reset } = useForm<any>({
     resolver: zodResolver(settingsSchema)
@@ -276,17 +275,8 @@ export function BusinessSettingsPage() {
           <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
             <Play size={20} className="text-emerald-600" /> Manual Operations (Spark Plan)
           </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h3 className="font-semibold text-ink-800 text-sm">Generate Today's Orders</h3>
-              <p className="text-xs text-ink-500">
-                Manually trigger order generation for all active subscriptions. Usually runs automatically, but moved to manual execution to save Cloud Function costs.
-              </p>
-              <Button type="button" onClick={generateOrders} isLoading={isGenerating} className="mt-2 text-sm bg-emerald-600 hover:bg-emerald-700">
-                Generate Today's Orders
-              </Button>
-            </div>
-            
+          <div className="grid md:grid-cols-1 gap-4">
+
             <div className="space-y-2">
               <h3 className="font-semibold text-ink-800 text-sm">Seed Production Data</h3>
               <p className="text-xs text-ink-500">

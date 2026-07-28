@@ -33,6 +33,27 @@ class DeliveryRepository extends BaseRepository<Order> {
     );
   }
 
+  subscribeUnassignedOrders(date: string, onNext: (orders: Order[]) => void, onError?: (error: Error) => void): Unsubscribe {
+    return this.subscribeToList(
+      onNext,
+      onError,
+      where('date', '==', date),
+      where('deliveryPartnerId', '==', null),
+      orderBy('zoneId', 'asc'),
+      orderBy('mealType', 'asc')
+    );
+  }
+
+  subscribeAssignedOrders(date: string, onNext: (orders: Order[]) => void, onError?: (error: Error) => void): Unsubscribe {
+    return this.subscribeToList(
+      onNext,
+      onError,
+      where('date', '==', date),
+      where('deliveryPartnerId', '!=', null),
+      orderBy('deliveryPartnerId', 'asc')
+    );
+  }
+
   /**
    * Fetch orders for a specific delivery partner on a specific date.
    */

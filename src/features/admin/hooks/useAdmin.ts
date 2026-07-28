@@ -63,6 +63,11 @@ export function useCreateStaffUser() {
       const tempAuth = getAuth(tempApp);
       
       try {
+        const existingUsers = await userRepository.list(where('phone', '==', data.phone));
+        if (existingUsers.length > 0) {
+          throw new Error('Phone number is already registered.');
+        }
+
         const credential = await createUserWithEmailAndPassword(tempAuth, data.email, data.password);
         await updateProfile(credential.user, { displayName: data.fullName });
         
@@ -151,6 +156,13 @@ export function useUpdateStaffUser() {
   
   return useMutation({
     mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
+      if (data.phone) {
+        const existingUsers = await userRepository.list(where('phone', '==', data.phone));
+        if (existingUsers.some(u => u.id !== uid)) {
+          throw new Error('Phone number is already registered to another user.');
+        }
+      }
+
       await userRepository.update(uid, {
         ...data,
         updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,

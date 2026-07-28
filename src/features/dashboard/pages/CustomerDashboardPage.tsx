@@ -5,9 +5,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useMySubscription, useSkipDay } from '@/features/customer/hooks/useMySubscription';
+import { useMySubscription, useSkipDay, useHasPastOrders } from '@/features/customer/hooks/useMySubscription';
 import { useMealPlans } from '@/features/customer/hooks/useMealPlans';
 import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
+import { useQuery } from '@tanstack/react-query';
+import { orderRepository } from '@/shared/services/firestore/orderRepository';
+import { APP_CONFIG } from '@/shared/config/appConfig';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { Card } from '@/shared/components/ui/Card';
@@ -56,6 +59,18 @@ export function CustomerDashboardPage() {
     setDefaultAddress,
     isSettingDefault
   } = useCustomerAddresses();
+
+  const { data: hasPastOrders } = useHasPastOrders();
+
+  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+  const { data: todayOrders } = useQuery({
+    queryKey: ['customerTodayOrders', firebaseUser?.uid, today],
+    queryFn: async () => {
+      if (!firebaseUser?.uid) return [];
+      return orderRepository.getCustomerOrdersByDate(firebaseUser.uid, today);
+    },
+    enabled: !!firebaseUser?.uid,
+  });
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -274,15 +289,48 @@ export function CustomerDashboardPage() {
                   >
                     Browse Meal Plans
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowTrialModal(true)}
-                    className="font-sans font-semibold uppercase tracking-wider text-xs px-6 bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
-                  >
-                    Book a Trial Meal
-                  </Button>
+                  {hasPastOrders === false && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowTrialModal(true)}
+                      className="font-sans font-semibold uppercase tracking-wider text-xs px-6 bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
+                    >
+                      Book a Trial Meal
+                    </Button>
+                  )}
                 </div>
               </div>
+            )}
+          </Card>
+
+          {/* Today's Deliveries Panel */}
+          <Card className="p-6 border-rice-300">
+            <h3 className="text-lg font-serif font-bold text-ink-900 mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Play size={18} className="text-emerald-700 fill-current" /> Today's Deliveries
+              </span>
+              {todayOrders && todayOrders.length > 0 && (
+                <span className="text-sm font-sans font-medium text-ink-600 bg-rice-100 px-2 py-1 rounded-md">
+                  Total: ₹{todayOrders.reduce((sum, order) => sum + (order.price || 0), 0)}
+                </span>
+              )}
+            </h3>
+            {todayOrders && todayOrders.length > 0 ? (
+              <div className="space-y-3">
+                {todayOrders.map((order) => (
+                  <div key={order.id} className="flex justify-between items-center p-3 rounded-xl border border-rice-200 bg-rice-50/50">
+                    <div>
+                      <p className="font-semibold font-sans text-ink-900 text-sm capitalize">{order.mealType} - {order.itemsLabel || 'Meal'}</p>
+                      <p className="text-xs text-ink-500 mt-0.5">Price: ₹{order.price || 0}</p>
+                    </div>
+                    <Badge tone={getStatusBadgeVariant(order.status)} className="capitalize font-sans px-2 py-0.5 text-xs">
+                      {order.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm font-sans text-ink-500 italic">No deliveries scheduled for today.</p>
             )}
           </Card>
 
