@@ -30,8 +30,11 @@ class OrderService {
     }
 
     try {
-      // 2. Fetch all active subscriptions
-      const allSubscriptions = await subscriptionRepository.list(where('status', '==', 'active'));
+      // 2. Fetch all active subscriptions and delivery partners
+      const [allSubscriptions, deliveryPartners] = await Promise.all([
+        subscriptionRepository.list(where('status', '==', 'active')),
+        userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true))
+      ]);
       const ordersToCreate: Partial<Order>[] = [];
 
       for (const sub of allSubscriptions) {
@@ -53,6 +56,15 @@ class OrderService {
         for (const pref of sub.mealPreferences) {
           if (skippedMeals.includes(pref.mealType)) continue;
 
+          // Auto-assign delivery partner by zone
+          let partnerId: string | null = null;
+          if (sub.zoneId) {
+            const matchingPartner = deliveryPartners.find(p => 
+              p.role === 'delivery_partner' && p.zoneIds?.includes(sub.zoneId!)
+            );
+            if (matchingPartner) partnerId = matchingPartner.id;
+          }
+
           // Generate order
           ordersToCreate.push({
             id: `ord_${sub.id}_${today}_${pref.mealType}`,
@@ -70,7 +82,7 @@ class OrderService {
             deliveryAddressId: sub.deliveryAddressId,
             zoneId: sub.zoneId,
             kitchenId: null,
-            deliveryPartnerId: null,
+            deliveryPartnerId: partnerId,
             deliveryWindow: null,
             paymentId: sub.latestPaymentId,
           });
@@ -143,10 +155,21 @@ class OrderService {
       return;
     }
 
+    // Fetch delivery partners for auto-assignment
+    const deliveryPartners = await userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true));
+    
     const ordersToCreate: Partial<Order>[] = [];
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
+
+      let partnerId: string | null = null;
+      if (subscription.zoneId) {
+        const matchingPartner = deliveryPartners.find(p => 
+          p.role === 'delivery_partner' && p.zoneIds?.includes(subscription.zoneId!)
+        );
+        if (matchingPartner) partnerId = matchingPartner.id;
+      }
 
       ordersToCreate.push({
         id: `ord_${subscription.id}_${date}_${pref.mealType}`,
@@ -164,7 +187,7 @@ class OrderService {
         deliveryAddressId: subscription.deliveryAddressId,
         zoneId: subscription.zoneId,
         kitchenId: null,
-        deliveryPartnerId: null,
+        deliveryPartnerId: partnerId,
         deliveryWindow: null,
         paymentId: subscription.latestPaymentId,
       });

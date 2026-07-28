@@ -59,7 +59,7 @@ service cloud.firestore {
 
     // ---------- users/{userId} ----------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin() || isAccounts();
+      allow read: if isOwner(userId) || isAdmin() || isAccounts() || (isSignedIn() && resource.data.role == 'delivery_partner');
 
       // Phase 2: Client-side user creation allowed for customers
       // Phase 9: Admin can create staff users directly from the client
