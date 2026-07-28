@@ -93,7 +93,7 @@ export function EditStaffModal({ user, onClose }: Props) {
 
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Email Address</label>
-              <input type="email" value={user.email} disabled className="w-full h-10 px-3 rounded-lg border border-rice-300 bg-rice-50 text-ink-500 cursor-not-allowed" />
+              <input type="email" value={user.email} disabled className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 bg-rice-50 text-ink-500 cursor-not-allowed" />
               <p className="text-xs text-ink-500">Email addresses cannot be changed.</p>
             </div>
 

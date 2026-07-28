@@ -88,7 +88,7 @@ export function CreateStaffModal({ onClose }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-ink-700">Email Address</label>
-                <input type="email" {...register('email')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
+                <input type="email" autoCapitalize="none" autoCorrect="off" {...register('email')} className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
                 {errors.email && <p className="text-xs text-danger">{errors.email.message}</p>}
               </div>
               <div className="space-y-1">

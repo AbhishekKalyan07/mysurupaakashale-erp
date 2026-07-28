@@ -195,7 +195,7 @@ export function DesktopSignupPage() {
               <div>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] w-5 h-5" />
-                  <input type="email" placeholder="Email address" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('email')} />
+                  <input type="email" autoCapitalize="none" autoCorrect="off" placeholder="Email address" className="lowercase h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('email')} />
                 </div>
                 {errors.email && <p className="text-sm text-red-600 ml-2 mt-1">{errors.email.message as string}</p>}
               </div>

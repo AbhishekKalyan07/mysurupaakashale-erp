@@ -102,9 +102,11 @@ export function DesktopLoginPage() {
                   type="email"
                   placeholder="Email address"
                   required
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
+                  onChange={(e) => setResetEmail(e.target.value.toLowerCase())}
+                  className="lowercase h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
                 />
               </div>
             </div>
@@ -153,7 +155,9 @@ export function DesktopLoginPage() {
                     placeholder="Email address"
                     autoComplete="email"
                     required
-                    className="h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    className="lowercase h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
                     {...register('email')}
                   />
                 </div>

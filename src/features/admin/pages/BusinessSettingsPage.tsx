@@ -121,7 +121,7 @@ export function BusinessSettingsPage() {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Support Email</label>
-              <input type="email" {...register('companyProfile.supportEmail')} className="w-full h-10 px-3 border rounded-lg" />
+              <input type="email" autoCapitalize="none" autoCorrect="off" {...register('companyProfile.supportEmail')} className="lowercase w-full h-10 px-3 border rounded-lg" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Support Phone</label>
