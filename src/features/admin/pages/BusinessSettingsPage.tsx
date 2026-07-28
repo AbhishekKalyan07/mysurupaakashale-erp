@@ -7,7 +7,6 @@ import { Button } from '@/shared/components/ui/Button';
 import { FormSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { useBusinessSettings, useUpdateBusinessSettings } from '../hooks/useSettings';
 import { Settings, Save, Store, IndianRupee, Clock, Truck, Play } from 'lucide-react';
-import { useGenerateOrders } from '../hooks/useGenerateOrders';
 import { useSeedData } from '../hooks/useSeedData';
 
 const settingsSchema = z.object({
@@ -57,7 +56,7 @@ type SettingsForm = z.infer<typeof settingsSchema>;
 export function BusinessSettingsPage() {
   const { data: settings, isLoading, isError } = useBusinessSettings();
   const updateMutation = useUpdateBusinessSettings();
-  const [isSeeding, setIsSeeding] = useState(false);
+  const { seedData, isSeeding } = useSeedData();
 
   const { register, handleSubmit, reset } = useForm<any>({
     resolver: zodResolver(settingsSchema)

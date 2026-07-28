@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   ChefHat, 
-  RefreshCw, 
   BookOpen, 
   AlertTriangle,
   ClipboardList,
@@ -16,7 +15,7 @@ import { Card } from '@/shared/components/ui/Card';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
 import { Button } from '@/shared/components/ui/Button';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { useGenerateOrders } from '../hooks/useGenerateOrders';
+
 import { useKitchenDashboard, getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
 import { inventoryRepository } from '@/shared/services/firestore/inventoryRepository';
 import type { MealType } from '@/shared/types';
@@ -52,7 +51,7 @@ export function AdminKitchenPage() {
   const navigate = useNavigate();
   const today = getTodayIST();
   
-  const { generateOrders, isGenerating } = useGenerateOrders();
+
   const { dashboard, isLoading, isError, error, refetch } = useKitchenDashboard(today);
 
   // Fetch low stock items

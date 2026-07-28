@@ -47,6 +47,7 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 export function CustomerDashboardPage() {
   const navigate = useNavigate();
+  const { firebaseUser } = useAuth();
   const { data: subscription, isLoading: isSubLoading, error: subError, refetch: refetchSub } = useMySubscription();
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch: refetchPlans } = useMealPlans();
   const {
@@ -80,7 +81,6 @@ export function CustomerDashboardPage() {
   const [addressError, setAddressError] = useState<string | null>(null);
 
   const { mutateAsync: skipDay } = useSkipDay();
-  const { firebaseUser } = useAuth();
 
   const {
     register,

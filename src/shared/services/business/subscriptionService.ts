@@ -71,7 +71,7 @@ class SubscriptionService {
     const relatedPayments = payments.filter(p => p.subscriptionId === subscription.id);
     
     for (const payment of relatedPayments) {
-      await paymentRepository.updateStatus(payment.id, 'verified', 'Verified via subscription fast-path activation.');
+      await paymentRepository.update(payment.id, { status: 'verified', verificationNotes: 'Verified via subscription fast-path activation.' });
     }
 
     // Immediately generate orders for today if the subscription starts today or earlier
@@ -101,7 +101,7 @@ class SubscriptionService {
     const relatedPayments = payments.filter(p => p.subscriptionId === subscription.id);
     
     for (const payment of relatedPayments) {
-      await paymentRepository.updateStatus(payment.id, 'rejected', 'Subscription draft was cancelled by the customer or admin.');
+      await paymentRepository.update(payment.id, { status: 'rejected', verificationNotes: 'Subscription draft was cancelled by the customer or admin.' });
     }
   }
 
