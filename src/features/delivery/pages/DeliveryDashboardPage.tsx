@@ -155,7 +155,7 @@ export function DeliveryDashboardPage() {
                 >
                   <option value="">Select Partner</option>
                   {deliveryPartners?.map(p => (
-                    <option key={p.id} value={p.id}>{p.displayName || p.id}</option>
+                    <option key={p.id} value={p.id}>{p.fullName || p.id}</option>
                   ))}
                 </select>
                 <Button 
@@ -220,7 +220,7 @@ export function DeliveryDashboardPage() {
                           <option value="">Reassign</option>
                           <option value="unassign">Unassign</option>
                           {deliveryPartners?.map(p => (
-                            <option key={p.id} value={p.id}>{p.displayName || p.id}</option>
+                            <option key={p.id} value={p.id}>{p.fullName || p.id}</option>
                           ))}
                         </select>
                       )}

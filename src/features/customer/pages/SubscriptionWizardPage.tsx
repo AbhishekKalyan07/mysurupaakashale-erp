@@ -24,9 +24,6 @@ import {
   CheckCircle,
   Plus,
   AlertCircle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   XCircle
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
