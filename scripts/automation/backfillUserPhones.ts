@@ -2,7 +2,6 @@ import './env';
 import { authenticateForAutomation } from './auth';
 import { getDocs, collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
-import { userRepository } from '@/shared/services/firestore/userRepository';
 
 async function backfillUserPhones() {
   try {

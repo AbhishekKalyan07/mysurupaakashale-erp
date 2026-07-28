@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Card } from '@/shared/components/ui/Card';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface WelcomeCardProps {

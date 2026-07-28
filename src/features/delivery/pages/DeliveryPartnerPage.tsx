@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useDeliveryPartnerOrders, useUpdateDeliveryStatus } from '../hooks/useDelivery';
 import { useCustomerNameMap } from '@/features/kitchen/hooks/useProductionBoard';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { toast } from 'react-hot-toast';
@@ -49,8 +49,8 @@ export function DeliveryPartnerPage() {
     setAdvancingId(orderId);
     try {
       await updateMutation.mutateAsync({ orderId, newStatus: nextStatus });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to update status');
       toast.error('Failed to update status.');
     } finally {
       setAdvancingId(null);
@@ -67,8 +67,8 @@ export function DeliveryPartnerPage() {
     setAdvancingId(orderId);
     try {
       await updateMutation.mutateAsync({ orderId, newStatus: 'failed_delivery' });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Failed to update status');
       toast.error('Failed to update status.');
     } finally {
       setAdvancingId(null);
@@ -83,7 +83,7 @@ export function DeliveryPartnerPage() {
       } else {
         toast.error('Customer phone number not available');
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to get customer phone');
     }
   };
@@ -132,7 +132,7 @@ export function DeliveryPartnerPage() {
                   </div>
                   
                   <div className="flex flex-col items-end gap-2">
-                    <Badge tone={
+                    <Badge variant={
                       order.status === 'delivered' ? 'success' : 
                       order.status === 'failed_delivery' ? 'danger' : 
                       order.status === 'out_for_delivery' ? 'info' : 'warning'

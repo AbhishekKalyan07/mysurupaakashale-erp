@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Globe, Archive, CalendarDays } from 'lucide-react';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -117,7 +117,7 @@ function MenuCard({
             day: 'numeric'
           }).format(new Date(menu.date))}
         </h3>
-        <Badge tone={isPublished ? 'success' : isDraft ? 'warning' : 'neutral'}>
+        <Badge variant={isPublished ? 'success' : isDraft ? 'warning' : 'default'}>
           {menu.status}
         </Badge>
       </div>

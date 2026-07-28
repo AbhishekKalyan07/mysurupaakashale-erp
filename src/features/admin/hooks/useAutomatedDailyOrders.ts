@@ -28,6 +28,10 @@ export function useAutomatedDailyOrders() {
         // 2. Automatically generate them
         const result = await orderService.generateDailyOrders(today);
         
+        // 3. Process daily billing and auto-renewals
+        const { billingService } = await import('@/shared/services/business/billingService');
+        await billingService.processDailyBilling(today);
+        
         if (result.success && result.ordersGenerated > 0) {
           toast.success(`Automated: ${result.message}`, { duration: 5000 });
         } else if (result.success && result.ordersGenerated === 0) {

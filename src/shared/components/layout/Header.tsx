@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Menu, LogOut } from 'lucide-react';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLE_LABELS } from '@/shared/constants/roles';
 

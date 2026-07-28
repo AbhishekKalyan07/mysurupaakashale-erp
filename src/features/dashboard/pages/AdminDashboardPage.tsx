@@ -1,6 +1,9 @@
 import { Users, Settings, ShieldAlert, Activity, CreditCard, TrendingUp, Package, PackageOpen } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { Card } from '@/shared/components/ui/Card';
+import { PremiumCard } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton } from '@/shared/components/ui/PremiumButton';
+import { MetricCard } from '@/shared/components/ui/MetricCard';
+import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { useNavigate } from 'react-router-dom';
 import { useAdminDashboardMetrics } from '../hooks/useAdminDashboardMetrics';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
@@ -168,143 +171,101 @@ export function AdminDashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Redesigned Premium Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-[#ECE8E2]">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-ink-900">
-            Welcome back, {firstName} <span className="inline-block animate-bounce-slow">👋</span>
-          </h1>
-          <p className="mt-2 text-ink-600 font-medium text-sm md:text-base">
-            Run the whole kitchen: plans, staff, zones, and reporting.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-semibold text-sm border border-emerald-100 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            System Online
-          </div>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <HeroBanner 
+        userName={firstName}
+        subtitle="Run the whole kitchen: plans, staff, zones, and reporting."
+        actions={
+          <PremiumButton variant="secondary" onClick={() => navigate('/admin/settings')}>
+            <Settings size={18} />
+            Global Settings
+          </PremiumButton>
+        }
+      />
 
-      {/* Business Metrics Grid */}
       <div>
-        <h2 className="text-xl font-bold text-ink-900 mb-4 flex items-center gap-2">
-          <Activity className="text-leaf-600" size={24} /> 
+        <h2 className="text-xl font-display font-bold text-primary mb-6 flex items-center gap-2">
+          <Activity className="text-gold" size={24} /> 
           Real-time Business Metrics
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           <MetricCard
             title="Total Customers"
             value={metrics?.totalCustomers ?? 0}
-            icon={<Users className="text-blue-600" />}
-            colorClass="bg-blue-50 border-blue-100"
+            icon={<Users size={24} />}
+            color="blue"
           />
           <MetricCard
             title="Active Subscriptions"
             value={metrics?.activeSubscriptions ?? 0}
-            icon={<CreditCard className="text-emerald-600" />}
-            colorClass="bg-emerald-50 border-emerald-100"
+            icon={<CreditCard size={24} />}
+            color="mint"
           />
           <MetricCard
             title="Today's Total Orders"
             value={metrics?.todayOrders.total ?? 0}
-            icon={<Package className="text-amber-600" />}
-            colorClass="bg-amber-50 border-amber-100"
+            icon={<Package size={24} />}
+            color="amber"
           />
           <MetricCard
             title="Pending Deliveries"
             value={metrics?.todayOrders.pending ?? 0}
-            icon={<TrendingUp className="text-purple-600" />}
-            colorClass="bg-purple-50 border-purple-100"
+            icon={<TrendingUp size={24} />}
+            color="lavender"
           />
           <MetricCard
             title="Low Stock Items"
             value={metrics?.lowStockItems ?? 0}
-            icon={<PackageOpen className="text-danger" />}
-            colorClass="bg-danger-subtle border-danger/20"
+            icon={<PackageOpen size={24} className="text-danger" />}
+            color="rose"
           />
           <MetricCard
             title="Open Complaints"
             value={metrics?.openComplaints ?? 0}
-            icon={<ShieldAlert className="text-orange-600" />}
-            colorClass="bg-orange-50 border-orange-200"
+            icon={<ShieldAlert size={24} className="text-warning" />}
+            color="cream"
           />
         </div>
       </div>
 
       <div>
-        <h2 className="text-xl font-bold text-ink-900 mb-4 flex items-center gap-2">
-          <Settings className="text-ink-500" size={24} /> 
+        <h2 className="text-xl font-display font-bold text-primary mb-6 flex items-center gap-2">
+          <Settings className="text-text-muted" size={24} /> 
           Quick Actions & Configuration
         </h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card 
-            className="p-6 cursor-pointer hover:shadow-card-hover transition-all flex flex-col gap-4 border-t-4 border-t-leaf-600"
-            onClick={() => navigate('/admin/staff')}
-          >
-            <div className="p-3 bg-leaf-50 text-leaf-600 rounded-lg w-fit">
+        <div className="grid md:grid-cols-3 gap-6">
+          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/staff')}>
+            <div className="p-3 bg-pastel-blue text-primary rounded-xl w-fit mb-4">
               <Users size={24} />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-ink-900">Staff Management</h3>
-              <p className="text-sm text-ink-500 mt-1">Provision and manage Kitchen, Delivery, and Accounts staff roles.</p>
-            </div>
-          </Card>
+            <h3 className="text-lg font-bold text-primary">Staff Management</h3>
+            <p className="text-sm text-text-muted mt-2">Provision and manage Kitchen, Delivery, and Accounts staff roles.</p>
+          </PremiumCard>
 
-          <Card 
-            className="p-6 cursor-pointer hover:shadow-card-hover transition-all flex flex-col gap-4 border-t-4 border-t-ink-600"
-            onClick={() => navigate('/admin/settings')}
-          >
-            <div className="p-3 bg-rice-100 text-ink-600 rounded-lg w-fit">
+          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/settings')}>
+            <div className="p-3 bg-pastel-mint text-primary rounded-xl w-fit mb-4">
               <Settings size={24} />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-ink-900">Global Settings</h3>
-              <p className="text-sm text-ink-500 mt-1">Configure delivery radius, operational holidays, and global parameters.</p>
-            </div>
-          </Card>
+            <h3 className="text-lg font-bold text-primary">Global Settings</h3>
+            <p className="text-sm text-text-muted mt-2">Configure delivery radius, operational holidays, and global parameters.</p>
+          </PremiumCard>
 
-          <Card 
-            className="p-6 cursor-pointer hover:shadow-card-hover transition-all flex flex-col gap-4 border-t-4 border-t-leaf-600"
-            onClick={() => navigate('/admin/audit')}
-          >
-            <div className="p-3 bg-leaf-50 text-leaf-600 rounded-lg w-fit">
+          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/audit')}>
+            <div className="p-3 bg-pastel-amber text-primary rounded-xl w-fit mb-4">
               <ShieldAlert size={24} />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-ink-900">Audit Logs</h3>
-              <p className="text-sm text-ink-500 mt-1">Review operational actions, payments, and workflow transitions.</p>
-            </div>
-          </Card>
+            <h3 className="text-lg font-bold text-primary">Audit Logs</h3>
+            <p className="text-sm text-text-muted mt-2">Review operational actions, payments, and workflow transitions.</p>
+          </PremiumCard>
 
-          <Card 
-            className="p-6 cursor-pointer hover:shadow-card-hover transition-all flex flex-col gap-4 border-t-4 border-t-purple-600 bg-purple-50/50"
-            onClick={handleSeedPlans}
-          >
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg w-fit">
+          <PremiumCard hoverLift className="cursor-pointer bg-gradient-to-br from-white to-pastel-lavender" onClick={handleSeedPlans}>
+            <div className="p-3 bg-white text-primary rounded-xl shadow-sm w-fit mb-4">
               <Package size={24} />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-ink-900">Seed Meal Plans</h3>
-              <p className="text-sm text-ink-500 mt-1">Updates database with the exact Basic (159/day) and Regular (210/day) plans.</p>
-            </div>
-          </Card>
+            <h3 className="text-lg font-bold text-primary">Seed Meal Plans</h3>
+            <p className="text-sm text-text-muted mt-2">Updates database with the exact Basic (159/day) and Regular (210/day) plans.</p>
+          </PremiumCard>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ title, value, icon, colorClass }: { title: string; value: number; icon: React.ReactNode; colorClass: string }) {
-  return (
-    <div className={`p-5 rounded-2xl border ${colorClass} flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow`}>
-      <div className="bg-white p-2 w-fit rounded-lg shadow-sm border border-black/5">
-        {icon}
-      </div>
-      <div>
-        <h4 className="text-3xl font-display font-bold text-ink-900 leading-tight">{value}</h4>
-        <p className="text-sm text-ink-600 font-medium mt-1">{title}</p>
       </div>
     </div>
   );

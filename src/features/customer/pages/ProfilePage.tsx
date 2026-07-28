@@ -11,9 +11,9 @@ import { userRepository } from '@/shared/services/firestore/userRepository';
 import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
 import { usePushNotifications } from '@/features/notifications/hooks/usePushNotifications';
 import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Input } from '@/shared/components/ui/Input';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
 import toast from 'react-hot-toast';
 import { serverTimestamp } from 'firebase/firestore';
 

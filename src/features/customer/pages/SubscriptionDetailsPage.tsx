@@ -7,9 +7,9 @@ import { useMyPayments } from '../hooks/usePayments';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { Badge } from '@/shared/components/ui/Badge';
-import { Button } from '@/shared/components/ui/Button';
-import { Card } from '@/shared/components/ui/Card';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
 import { toast } from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -146,14 +146,14 @@ export function SubscriptionDetailsPage() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' | 'danger' => {
+  const getStatusBadgeVariant = (status: string): any|any| 'default' |any=> {
     switch (status) {
       case 'active': return 'success';
       case 'pending_payment': return 'warning';
-      case 'paused': return 'neutral';
+      case 'paused': return 'default';
       case 'cancelled':
       case 'expired': return 'danger';
-      default: return 'neutral';
+      default: return 'default';
     }
   };
 
@@ -171,7 +171,7 @@ export function SubscriptionDetailsPage() {
             {selectedPlan?.name || 'Meal Plan Subscription'}
           </h1>
         </div>
-        <Badge tone={subscription.status === 'pending_payment' && latestPayment ? 'info' : getStatusBadgeVariant(subscription.status)} className="capitalize font-sans text-sm px-3 py-1 font-semibold flex items-center gap-1.5">
+        <Badge variant={subscription.status === 'pending_payment' && latestPayment ?'warning': getStatusBadgeVariant(subscription.status)} className="capitalize font-sans text-sm px-3 py-1 font-semibold flex items-center gap-1.5">
           {subscription.status === 'pending_payment' && latestPayment ? <><Clock size={16} /> Approval Pending</> : subscription.status.replace('_', ' ')}
         </Badge>
       </div>
@@ -192,7 +192,7 @@ export function SubscriptionDetailsPage() {
                   </p>
                 </div>
               </div>
-              <Badge tone="info" className="shrink-0 font-sans">Pending Verification</Badge>
+              <Badge variant="info" className="shrink-0 font-sans">Pending Verification</Badge>
             </Card>
           ) : (
             !showPaymentPanel && (

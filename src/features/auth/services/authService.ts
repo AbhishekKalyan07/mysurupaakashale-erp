@@ -56,7 +56,7 @@ export async function signInWithGoogle(): Promise<UserCredential> {
     // Attempt to clean up the orphaned Firebase Auth user
     try {
       await credential.user.delete();
-    } catch (e) {
+    } catch {
       // Fallback to sign out if delete fails (e.g., if there's a permission issue)
       await firebaseSignOut(auth);
     }
@@ -155,7 +155,7 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
   if (existingPhone.exists()) {
     try {
       await user.delete();
-    } catch (e) {
+    } catch {
       await firebaseSignOut(auth);
     }
     throw new Error('An account with this mobile number already exists.');
@@ -192,7 +192,7 @@ export async function cancelGoogleSignup(user: any): Promise<void> {
   const { signOut: firebaseSignOut } = await import('firebase/auth');
   try {
     await user.delete();
-  } catch (e) {
+  } catch {
     await firebaseSignOut(auth);
   }
 }

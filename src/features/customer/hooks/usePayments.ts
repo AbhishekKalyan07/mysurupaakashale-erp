@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { paymentRepository } from '@/shared/services/firestore/paymentRepository';
@@ -18,12 +19,30 @@ import {
 // ── Customer: my payment history ───────────────────────────────────────────────
 export function useMyPayments() {
   const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+  
+  const queryKey = useMemo(() => 
+    queryKeys.payments.byCustomer(firebaseUser?.uid ?? ''), 
+    [firebaseUser?.uid]
+  );
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const unsubscribe = paymentRepository.subscribeToCustomerPayments(
+      firebaseUser.uid,
+      (payments) => {
+        queryClient.setQueryData(queryKey, payments);
+      },
+      (error) => console.error('[useMyPayments] onSnapshot error:', error)
+    );
+    return unsubscribe;
+  }, [firebaseUser, queryClient, queryKey]);
 
   return useQuery({
-    queryKey: queryKeys.payments.byCustomer(firebaseUser?.uid ?? ''),
+    queryKey,
     queryFn: () => paymentRepository.getByCustomerId(firebaseUser!.uid),
     enabled: !!firebaseUser,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
 

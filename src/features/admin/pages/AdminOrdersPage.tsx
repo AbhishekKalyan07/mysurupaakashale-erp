@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Package, Filter, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Card } from '@/shared/components/ui/Card';
+import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 
-import { Input } from '@/shared/components/ui/Input';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { userRepository } from '@/shared/services/firestore/userRepository';
@@ -23,20 +23,20 @@ function CustomerName({ customerId }: { customerId: string }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  if (isLoading) return <span className="animate-pulse text-rice-400">Loading...</span>;
-  if (!customer) return <span className="text-ink-400">Unknown</span>;
-  return <span className="font-medium text-ink-900">{customer.fullName}</span>;
+  if (isLoading) return <span className="animate-pulse text-text-muted">Loading...</span>;
+  if (!customer) return <span className="text-text-muted">Unknown</span>;
+  return <span className="font-bold font-sans text-primary">{customer.fullName}</span>;
 }
 
 const statusColors: Record<OrderStatus, string> = {
-  scheduled: 'bg-leaf-100 text-leaf-800 border-leaf-200',
-  preparing: 'bg-sun-100 text-sun-800 border-sun-200',
-  ready_for_pickup: 'bg-sky-100 text-sky-800 border-sky-200',
-  out_for_delivery: 'bg-chili-100 text-chili-800 border-chili-200',
-  delivered: 'bg-rice-100 text-rice-800 border-rice-300',
-  skipped: 'bg-ink-100 text-ink-600 border-ink-200',
-  cancelled: 'bg-chili-50 text-chili-600 border-chili-200',
-  failed_delivery: 'bg-chili-600 text-white border-chili-700',
+  scheduled: 'bg-primary/10 text-primary border-primary/20',
+  preparing: 'bg-gold/20 text-gold-dark border-gold/30',
+  ready_for_pickup: 'bg-blue-100 text-blue-800 border-blue-200',
+  out_for_delivery: 'bg-amber-100 text-amber-800 border-amber-200',
+  delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  skipped: 'bg-background-alt text-text-muted border-primary/10',
+  cancelled: 'bg-red-50 text-red-600 border-red-200',
+  failed_delivery: 'bg-red-600 text-white border-red-700',
 };
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -52,7 +52,7 @@ const statusLabels: Record<OrderStatus, string> = {
 
 function StatusBadge({ status }: { status: OrderStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${statusColors[status]}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${statusColors[status]}`}>
       {statusLabels[status]}
     </span>
   );
@@ -99,35 +99,35 @@ export function AdminOrdersPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader 
-        title="Orders Management"
-        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Orders' }]}
+        userName="Orders Management"
+        subtitle="Dashboard / Orders"
       />
 
       {/* Filters Toolbar */}
-      <Card className="p-4 border-rice-300">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-medium text-ink-600 flex items-center gap-1">
+      <Card className="p-5">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
               <CalendarIcon size={14} /> Date
             </label>
             <Input 
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)} 
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-background"
             />
           </div>
           
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-medium text-ink-600 flex items-center gap-1">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Filter size={14} /> Status
             </label>
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
-              className="w-full rounded-lg border-rice-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-leaf-500 focus:outline-none focus:ring-1 focus:ring-leaf-500"
+              className="w-full rounded-xl border border-primary/20 bg-background px-4 py-2.5 text-sm font-sans shadow-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold text-primary font-medium transition-colors hover:border-gold/50"
             >
               <option value="all">All Statuses</option>
               {Object.keys(statusLabels).map(key => (
@@ -136,14 +136,14 @@ export function AdminOrdersPage() {
             </select>
           </div>
 
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-medium text-ink-600 flex items-center gap-1">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Package size={14} /> Meal Type
             </label>
             <select 
               value={mealTypeFilter}
               onChange={(e) => setMealTypeFilter(e.target.value as MealType | 'all')}
-              className="w-full rounded-lg border-rice-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-leaf-500 focus:outline-none focus:ring-1 focus:ring-leaf-500"
+              className="w-full rounded-xl border border-primary/20 bg-background px-4 py-2.5 text-sm font-sans shadow-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold text-primary font-medium transition-colors hover:border-gold/50"
             >
               <option value="all">All Meals</option>
               <option value="breakfast">Breakfast</option>
@@ -156,68 +156,68 @@ export function AdminOrdersPage() {
 
       {/* Results */}
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-rice-300">
-          <Loader2 className="h-8 w-8 animate-spin text-leaf-500" />
+        <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gold/30 bg-primary/5">
+          <Loader2 className="h-8 w-8 animate-spin text-gold" />
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-rice-300 py-16 text-center">
-          <Package className="mb-4 h-12 w-12 text-rice-400" />
-          <h3 className="text-lg font-medium text-ink-900">No Orders Found</h3>
-          <p className="mt-1 text-sm text-ink-500">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gold/30 bg-primary/5 py-16 text-center">
+          <Package className="mb-4 h-12 w-12 text-primary/40" />
+          <h3 className="text-lg font-display font-bold text-primary">No Orders Found</h3>
+          <p className="mt-1 text-sm font-sans text-text-muted">
             No orders match the selected date and filters.
           </p>
         </div>
       ) : (
-          <Card className="p-0 overflow-hidden border-rice-300">
+          <Card className="p-0 overflow-hidden">
             <div className="overflow-x-auto md:overflow-visible">
-              <table className="w-full text-left text-sm block md:table">
-                <thead className="hidden md:table-header-group bg-rice-50/50 text-xs font-semibold uppercase tracking-wider text-ink-500 border-b border-rice-300">
+              <table className="w-full text-left text-sm block md:table font-sans">
+                <thead className="hidden md:table-header-group bg-primary/5 text-[10px] font-bold uppercase tracking-wider text-text-muted border-b border-primary/10">
                   <tr>
-                    <th className="px-4 py-3">Order ID</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Meal & Tier</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-6 py-4">Order ID</th>
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4">Meal & Tier</th>
+                    <th className="px-6 py-4">Amount</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="block md:table-row-group divide-y divide-rice-200 bg-white">
+                <tbody className="block md:table-row-group divide-y divide-primary/5 bg-background">
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="block md:table-row hover:bg-rice-50/50 p-4 md:p-0 space-y-3 md:space-y-0 transition-colors">
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Order ID</span>
-                        <div className="font-mono text-xs text-ink-500" title={order.id}>
+                    <tr key={order.id} className="block md:table-row hover:bg-primary/5 p-4 md:p-0 space-y-3 md:space-y-0 transition-colors">
+                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Order ID</span>
+                        <div className="font-mono text-xs text-text-muted font-medium bg-background-alt px-2 py-1 rounded border border-primary/10" title={order.id}>
                           {order.id.slice(0, 8)}
                         </div>
                       </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Customer</span>
+                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Customer</span>
                         <div className="text-right md:text-left">
                           <CustomerName customerId={order.customerId} />
                         </div>
                       </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Meal & Tier</span>
+                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Meal & Tier</span>
                         <div className="text-right md:text-left">
-                          <div className="font-medium capitalize text-ink-900">{order.mealType}</div>
-                          <div className="text-xs text-ink-500">{order.planTier || 'One-time'}</div>
+                          <div className="font-bold capitalize text-primary">{order.mealType}</div>
+                          <div className="text-xs font-medium text-text-muted">{order.planTier || 'One-time'}</div>
                         </div>
                       </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 font-medium text-ink-900">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Amount</span>
+                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 font-bold text-primary">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Amount</span>
                         ₹{order.price}
                       </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
+                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Status</span>
                         <StatusBadge status={order.status} />
                       </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
+                      <td className="flex justify-between items-center md:table-cell px-0 pt-3 md:pt-0 md:px-6 md:py-4 text-right border-t border-primary/10 md:border-0 mt-3 md:mt-0">
+                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Actions</span>
                         <select
                           value={order.status}
                           onChange={(e) => updateStatusMutation.mutate({ orderId: order.id, newStatus: e.target.value as OrderStatus })}
                           disabled={updateStatusMutation.isPending}
-                          className="text-xs rounded-md border-rice-300 py-1 pl-2 pr-6 shadow-sm focus:border-leaf-500 focus:ring-1 focus:ring-leaf-500 w-full md:w-auto"
+                          className="text-xs rounded-lg border border-primary/20 bg-background py-1.5 pl-3 pr-8 shadow-sm focus:border-gold focus:ring-1 focus:ring-gold text-primary font-bold w-full md:w-auto cursor-pointer hover:border-gold/50 transition-colors"
                         >
                           {Object.keys(statusLabels).map(key => (
                             <option key={key} value={key}>{statusLabels[key as OrderStatus]}</option>

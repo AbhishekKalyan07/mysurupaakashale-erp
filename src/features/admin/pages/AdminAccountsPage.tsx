@@ -11,10 +11,11 @@ import {
   Loader2,
   FileSpreadsheet
 } from 'lucide-react';
-import { Card } from '@/shared/components/ui/Card';
-import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Button } from '@/shared/components/ui/Button';
-import { Input } from '@/shared/components/ui/Input';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
+import { MetricCard } from '@/shared/components/ui/MetricCard';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { accountsRepository } from '@/shared/services/firestore/accountsRepository';
 import { useAdminPayments } from '@/features/customer/hooks/usePayments';
@@ -97,7 +98,7 @@ export function AdminAccountsPage() {
       a.download = `daily_report_${today}.csv`;
       a.click();
       toast.success('Daily report downloaded');
-    } catch (err: unknown) {
+    } catch {
       toast.error('Failed to generate daily report');
     }
   };
@@ -111,15 +112,15 @@ export function AdminAccountsPage() {
       a.download = `monthly_report_${monthStr}.csv`;
       a.click();
       toast.success('Monthly report downloaded');
-    } catch (err: unknown) {
+    } catch {
       toast.error('Failed to generate monthly report');
     }
   };
 
   if (isError) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Accounts & Billing" breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Accounts' }]} />
+      <div className="space-y-8">
+        <PageHeader userName="Accounts & Billing" subtitle="Dashboard / Accounts" />
         <ErrorState 
           title="Failed to load accounts data" 
           description={error instanceof Error ? error.message : 'Unknown error occurred'}
@@ -130,17 +131,17 @@ export function AdminAccountsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader 
-        title="Accounts & Billing"
-        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Accounts' }]}
+        userName="Accounts & Billing"
+        subtitle="Manage revenue, invoices, and financial reports"
         actions={
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/admin/payroll')} variant="secondary">
+          <div className="flex gap-4">
+            <Button onClick={() => navigate('/admin/payroll')} variant="secondary" className="bg-white/10 text-primary hover:bg-gold/10 hover:text-gold">
               <Users className="mr-2 h-4 w-4" />
               Payroll Processing
             </Button>
-            <Button onClick={() => navigate('/admin/payments')}>
+            <Button onClick={() => navigate('/admin/payments')} variant="primary">
               <CreditCard className="mr-2 h-4 w-4" />
               Verify Payments
             </Button>
@@ -152,137 +153,130 @@ export function AdminAccountsPage() {
         
         {/* Top Metrics Column */}
         <div className="space-y-6 md:col-span-1">
-          <Card className="p-5 border-rice-300">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-leaf-100 text-leaf-600">
-                <IndianRupee size={20} />
+          {isLoadingPayments ? (
+            <div className="animate-pulse h-32 bg-primary/10 rounded-xl"></div>
+          ) : (
+            <MetricCard 
+              title="Current Month Revenue"
+              value={`₹${currentMonthRevenue.toLocaleString()}`}
+              icon={<IndianRupee size={24} />}
+              color="mint"
+            />
+          )}
+
+          {isLoadingPending ? (
+            <div className="animate-pulse h-32 bg-primary/10 rounded-xl"></div>
+          ) : (
+            <Card hoverLift className="p-5 border-amber-200/50 bg-gradient-to-br from-background to-amber-50/30 cursor-pointer" onClick={() => navigate('/admin/payments')}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 shadow-sm border border-amber-200/50">
+                  <Banknote size={24} />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-primary">Pending Actions</h3>
+                  <p className="text-sm text-text-muted">Awaiting Verification</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-ink-900">Current Month</h3>
-                <p className="text-sm text-ink-500">Verified Revenue</p>
-              </div>
-            </div>
-            
-            <div className="pt-2 border-t border-rice-100">
-              {isLoadingPayments ? (
-                <div className="animate-pulse h-10 bg-rice-200 rounded w-1/2"></div>
-              ) : (
-                <span className="text-4xl font-display font-semibold text-leaf-600">
-                  ₹{currentMonthRevenue.toLocaleString()}
+
+              <div className="pt-4 border-t border-gold/10 flex items-center justify-between">
+                <span className="text-4xl font-display font-bold text-primary">
+                  {pendingCount}{hasMorePending ? '+' : ''}
                 </span>
-              )}
-            </div>
-          </Card>
-
-          <Card className="p-5 border-rice-300">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sun-100 text-sun-600">
-                <Banknote size={20} />
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/admin/payments'); }}>
+                  Review <CreditCard size={14} className="ml-2" />
+                </Button>
               </div>
-              <div>
-                <h3 className="font-medium text-ink-900">Pending Actions</h3>
-                <p className="text-sm text-ink-500">Awaiting Verification</p>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-rice-100 flex items-center justify-between">
-              {isLoadingPending ? (
-                <div className="animate-pulse h-8 bg-rice-200 rounded w-1/3"></div>
-              ) : (
-                <>
-                  <span className="text-3xl font-display font-semibold text-ink-900">
-                    {pendingCount}{hasMorePending ? '+' : ''}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/admin/payments')}>
-                    Review
-                  </Button>
-                </>
-              )}
-            </div>
-          </Card>
+            </Card>
+          )}
         </div>
 
         {/* Tools Column */}
         <div className="md:col-span-2 space-y-6">
-          <Card className="p-6 border-rice-300">
-            <div className="mb-5">
-              <h3 className="font-medium text-lg text-ink-900">Financial Reports</h3>
-              <p className="text-sm text-ink-500">Download system-generated CSV reports</p>
+          <Card hoverLift className="p-6">
+            <div className="mb-6">
+              <h3 className="font-display font-bold text-xl text-primary">Financial Reports</h3>
+              <p className="text-sm text-text-muted">Download system-generated CSV reports</p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="border border-rice-200 rounded-xl p-4 flex items-center justify-between bg-rice-50/50">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="text-leaf-500" size={24} />
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="border border-gold/20 rounded-xl p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
+                    <FileSpreadsheet className="text-primary" size={24} />
+                  </div>
                   <div>
-                    <h4 className="font-medium text-ink-900 text-sm">Daily Report</h4>
-                    <p className="text-xs text-ink-500">For {today}</p>
+                    <h4 className="font-display font-bold text-primary">Daily Report</h4>
+                    <p className="text-xs text-text-muted">For {today}</p>
                   </div>
                 </div>
-                <Button variant="secondary" size="sm" onClick={handleDownloadDaily}>
-                  <Download className="mr-2 h-4 w-4" /> Export
+                <Button variant="secondary" size="sm" onClick={handleDownloadDaily} className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm">
+                  <Download className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="border border-rice-200 rounded-xl p-4 flex items-center justify-between bg-rice-50/50">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="text-leaf-500" size={24} />
+              <div className="border border-gold/20 rounded-xl p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
+                    <FileSpreadsheet className="text-primary" size={24} />
+                  </div>
                   <div>
-                    <h4 className="font-medium text-ink-900 text-sm">Monthly Report</h4>
-                    <p className="text-xs text-ink-500">For {today.substring(0, 7)}</p>
+                    <h4 className="font-display font-bold text-primary">Monthly Report</h4>
+                    <p className="text-xs text-text-muted">For {today.substring(0, 7)}</p>
                   </div>
                 </div>
-                <Button variant="secondary" size="sm" onClick={handleDownloadMonthly}>
-                  <Download className="mr-2 h-4 w-4" /> Export
+                <Button variant="secondary" size="sm" onClick={handleDownloadMonthly} className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm">
+                  <Download className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 border-rice-300">
-            <div className="flex items-center gap-2 mb-5">
-              <ReceiptText className="text-ink-500" size={20} />
+          <Card hoverLift className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-primary/5 p-2.5 rounded-xl border border-primary/10">
+                <ReceiptText className="text-primary" size={22} />
+              </div>
               <div>
-                <h3 className="font-medium text-lg text-ink-900">Generate Manual Invoice</h3>
-                <p className="text-sm text-ink-500">Bill a customer directly for one-time services</p>
+                <h3 className="font-display font-bold text-xl text-primary">Generate Manual Invoice</h3>
+                <p className="text-sm text-text-muted">Bill a customer directly for one-time services</p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-              <div className="flex-1 space-y-1 w-full">
-                <label className="text-xs font-medium text-ink-600">Customer ID</label>
+              <div className="flex-1 space-y-1.5 w-full">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Customer ID</label>
                 <Input 
                   placeholder="e.g. CUST-123" 
                   value={invoiceCustomerId}
                   onChange={(e) => setInvoiceCustomerId(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-background"
                 />
               </div>
-              <div className="w-full sm:w-32 space-y-1">
-                <label className="text-xs font-medium text-ink-600">Amount (₹)</label>
+              <div className="w-full sm:w-32 space-y-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Amount (₹)</label>
                 <Input 
                   type="number"
                   placeholder="0.00" 
                   value={invoiceAmount}
                   onChange={(e) => setInvoiceAmount(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-background font-display"
                 />
               </div>
-              <div className="flex-2 space-y-1 w-full">
-                <label className="text-xs font-medium text-ink-600">Description</label>
+              <div className="flex-[1.5] space-y-1.5 w-full">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Description</label>
                 <Input 
                   placeholder="e.g. Special Event Catering" 
                   value={invoiceDesc}
                   onChange={(e) => setInvoiceDesc(e.target.value)}
-                  className="w-full"
+                  className="w-full bg-background"
                 />
               </div>
               <Button 
                 onClick={() => createInvoiceMutation.mutate()} 
                 disabled={createInvoiceMutation.isPending}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-32 h-[42px]"
               >
-                {createInvoiceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+                {createInvoiceMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Create Invoice'}
               </Button>
             </div>
           </Card>

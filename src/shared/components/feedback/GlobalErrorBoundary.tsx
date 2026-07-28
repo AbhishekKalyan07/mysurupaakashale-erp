@@ -1,6 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 interface Props {
   children: ReactNode;

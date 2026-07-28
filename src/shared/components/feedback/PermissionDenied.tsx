@@ -1,6 +1,6 @@
 import { ShieldOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLE_HOME_ROUTE, type Role } from '@/shared/constants/roles';
 

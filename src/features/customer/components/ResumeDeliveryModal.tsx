@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@/shared/components/ui/Button';
-import { Card } from '@/shared/components/ui/Card';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { subscriptionService } from '@/shared/services/business/subscriptionService';
 import { orderService } from '@/shared/services/business/orderService';
 import { db } from '@/shared/lib/firebase';

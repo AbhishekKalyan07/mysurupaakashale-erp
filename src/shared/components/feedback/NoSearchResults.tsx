@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 export interface NoSearchResultsProps {
   query?: string;

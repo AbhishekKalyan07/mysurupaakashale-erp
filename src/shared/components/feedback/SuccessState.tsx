@@ -1,7 +1,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import type { ReactNode } from 'react';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 // ── Inline Success Banner ─────────────────────────────────────────────────────
 export interface SuccessStateProps {

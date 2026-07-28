@@ -11,9 +11,9 @@ import { useMySubscription } from '../hooks/useMySubscription';
 import { notifySubscriptionCreated } from '@/shared/services/firestore/notificationService';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { Button } from '@/shared/components/ui/Button';
-import { Card } from '@/shared/components/ui/Card';
-import { Input } from '@/shared/components/ui/Input';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
 import { toast } from 'react-hot-toast';
 import {
   ArrowRight,
@@ -84,13 +84,18 @@ export function SubscriptionWizardPage() {
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
 
-  // Calculate End Date
+  // Calculate End Date (skipping Sundays)
   const calculateEndDate = (start: string, cycle: 'weekly' | 'monthly') => {
     const d = new Date(start);
-    if (cycle === 'weekly') {
-      d.setDate(d.getDate() + 7);
-    } else {
-      d.setDate(d.getDate() + 30);
+    const activeDaysToAdd = cycle === 'weekly' ? 7 : 30;
+    
+    let remainingDaysToAdd = activeDaysToAdd - 1; // start date is day 1
+
+    while (remainingDaysToAdd > 0) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0) { // 0 is Sunday
+        remainingDaysToAdd--;
+      }
     }
     return d.toISOString().split('T')[0];
   };
@@ -686,6 +691,7 @@ export function SubscriptionWizardPage() {
                 </p>
                 <div className="mt-3 p-2 bg-rice-100 rounded text-xs text-ink-700 font-sans font-medium">
                   <strong>Plan duration:</strong> {startDate} to {endDate}
+                  <div className="text-[10px] font-normal text-ink-500 mt-1">({billingCycle === 'weekly' ? '7' : '30'} deliveries, excluding Sundays)</div>
                 </div>
               </Card>
             </div>

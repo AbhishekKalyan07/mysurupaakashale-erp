@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumTable, PremiumTableRow, PremiumTableCell } from '@/shared/components/ui/PremiumTable';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
+import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { useAccountsDashboard, useGenerateDailyReport, useGenerateMonthlyReport } from '@/features/accounts/hooks/useAccounts';
 import { FileText, IndianRupee, ShoppingBag, Receipt, CheckCircle2, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
@@ -64,35 +67,29 @@ export function AccountsDashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-ink-900 flex items-center gap-2">
-            <Receipt className="text-leaf-600" />
-            Accounts & Billing
-          </h1>
-          <p className="text-sm text-ink-500 font-sans mt-1">
-            Financial overview and operational reporting
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => handleGenerateReport('daily')} isLoading={generatingReport === 'daily'}>
-            <FileText size={16} className="mr-2"/> Daily Report
-          </Button>
-          <Button onClick={() => handleGenerateReport('monthly')} isLoading={generatingReport === 'monthly'}>
-            <FileText size={16} className="mr-2"/> Monthly Report
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <HeroBanner 
+        userName="Accounts Team"
+        subtitle="Financial overview and operational reporting."
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => handleGenerateReport('daily')} isLoading={generatingReport === 'daily'}>
+              <FileText size={16} className="mr-2"/> Daily Report
+            </Button>
+            <Button onClick={() => handleGenerateReport('monthly')} isLoading={generatingReport === 'monthly'}>
+              <FileText size={16} className="mr-2"/> Monthly Report
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex gap-2 p-1 bg-rice-100 rounded-lg w-fit">
+      <div className="flex gap-2 p-1 bg-white border border-gold/20 rounded-lg w-fit shadow-sm">
         {(['today', 'week', 'month'] as const).map(range => (
           <button
             key={range}
             onClick={() => setDateRange(range)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              dateRange === range ? 'bg-white shadow-sm text-ink-900' : 'text-ink-500 hover:text-ink-700'
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+              dateRange === range ? 'bg-primary shadow-sm text-white' : 'text-text-muted hover:text-primary hover:bg-background'
             }`}
           >
             {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -100,119 +97,104 @@ export function AccountsDashboardPage() {
         ))}
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 flex flex-col gap-1 border-l-4 border-l-success">
-          <div className="flex items-center gap-2 text-ink-500 text-sm font-medium">
-            <IndianRupee size={16} /> Revenue Captured
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-success">
+          <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+            <IndianRupee size={18} className="text-success" /> Revenue Captured
           </div>
-          <div className="text-3xl font-display font-bold text-ink-900 mt-1">
+          <div className="text-3xl font-display font-bold text-primary mt-1">
             {formatCurrency(totalRevenue)}
           </div>
-          <div className="text-xs text-ink-400 mt-2">From {payments.length} successful payments</div>
+          <div className="text-xs text-text-muted/80 mt-1">From {payments.length} successful payments</div>
         </Card>
 
-        <Card className="p-5 flex flex-col gap-1 border-l-4 border-l-turmeric-500">
-          <div className="flex items-center gap-2 text-ink-500 text-sm font-medium">
-            <Receipt size={16} /> Total Invoiced
+        <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-amber-500">
+          <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+            <Receipt size={18} className="text-amber-500" /> Total Invoiced
           </div>
-          <div className="text-3xl font-display font-bold text-ink-900 mt-1">
+          <div className="text-3xl font-display font-bold text-primary mt-1">
             {formatCurrency(totalInvoiced)}
           </div>
-          <div className="text-xs text-ink-400 mt-2">{invoices.length} invoices generated</div>
+          <div className="text-xs text-text-muted/80 mt-1">{invoices.length} invoices generated</div>
         </Card>
 
-        <Card className="p-5 flex flex-col gap-1 border-l-4 border-l-warning">
-          <div className="flex items-center gap-2 text-ink-500 text-sm font-medium">
-            <AlertCircle size={16} /> Outstanding Invoices
+        <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-warning">
+          <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+            <AlertCircle size={18} className="text-warning" /> Outstanding Invoices
           </div>
-          <div className="text-3xl font-display font-bold text-ink-900 mt-1">
+          <div className="text-3xl font-display font-bold text-primary mt-1">
             {outstandingInvoices}
           </div>
-          <div className="text-xs text-warning mt-2">Requires follow-up</div>
+          <div className="text-xs text-warning mt-1">Requires follow-up</div>
         </Card>
 
-        <Card className="p-5 flex flex-col gap-1 border-l-4 border-l-info">
-          <div className="flex items-center gap-2 text-ink-500 text-sm font-medium">
-            <ShoppingBag size={16} /> Orders Generated
+        <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-info">
+          <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+            <ShoppingBag size={18} className="text-info" /> Orders Generated
           </div>
-          <div className="text-3xl font-display font-bold text-ink-900 mt-1">
+          <div className="text-3xl font-display font-bold text-primary mt-1">
             {orders.length}
           </div>
-          <div className="text-xs text-ink-400 mt-2">In selected period</div>
+          <div className="text-xs text-text-muted/80 mt-1">In selected period</div>
         </Card>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-ink-900">Operational Summary</h2>
-          <Card className="p-5">
+          <h2 className="text-xl font-display font-semibold text-primary">Operational Summary</h2>
+          <Card className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-rice-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="text-success" size={20}/>
-                  <span className="font-medium text-ink-900">Delivered Successfully</span>
+                  <span className="font-medium text-primary">Delivered Successfully</span>
                 </div>
-                <span className="text-xl font-bold font-data text-ink-900">{deliveredOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">{deliveredOrders}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-rice-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
                   <XCircle className="text-danger" size={20}/>
-                  <span className="font-medium text-ink-900">Failed Deliveries</span>
+                  <span className="font-medium text-primary">Failed Deliveries</span>
                 </div>
-                <span className="text-xl font-bold font-data text-ink-900">{failedOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">{failedOrders}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-rice-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
-                  <RefreshCw className="text-ink-400" size={20}/>
-                  <span className="font-medium text-ink-900">Cancelled / Skipped</span>
+                  <RefreshCw className="text-text-muted" size={20}/>
+                  <span className="font-medium text-primary">Cancelled / Skipped</span>
                 </div>
-                <span className="text-xl font-bold font-data text-ink-900">{cancelledOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">{cancelledOrders}</span>
               </div>
             </div>
           </Card>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-ink-900">Recent Invoices</h2>
-          <Card className="p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-rice-50 text-ink-500 font-medium">
-                  <tr>
-                    <th className="px-4 py-3">Invoice #</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-rice-100">
-                  {invoices.slice(0, 5).map(inv => (
-                    <tr key={inv.id} className="hover:bg-rice-25">
-                      <td className="px-4 py-3 font-data text-ink-900">{inv.invoiceNumber}</td>
-                      <td className="px-4 py-3 text-ink-500">
-                        {inv.createdAt?.toDate ? inv.createdAt.toDate().toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 font-semibold">{formatCurrency(inv.totalAmount)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          inv.status === 'paid' ? 'bg-success-subtle text-success' :
-                          inv.status === 'issued' ? 'bg-warning-subtle text-warning' :
-                          'bg-rice-200 text-ink-600'
-                        }`}>
-                          {inv.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {invoices.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-ink-400">No invoices in this period</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <h2 className="text-xl font-display font-semibold text-primary">Recent Invoices</h2>
+          <PremiumTable 
+            columns={['Invoice #', 'Date', 'Amount', 'Status']} 
+            isEmpty={invoices.length === 0}
+            emptyState="No invoices in this period"
+          >
+            {invoices.slice(0, 5).map(inv => (
+              <PremiumTableRow key={inv.id}>
+                <PremiumTableCell className="font-medium">{inv.invoiceNumber}</PremiumTableCell>
+                <PremiumTableCell className="text-text-muted">
+                  {inv.createdAt?.toDate ? inv.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                </PremiumTableCell>
+                <PremiumTableCell className="font-semibold">{formatCurrency(inv.totalAmount)}</PremiumTableCell>
+                <PremiumTableCell>
+                  <Badge variant={
+                    inv.status === 'paid' ? 'success' :
+                    inv.status === 'issued' ? 'warning' :
+                    'default'
+                  }>
+                    {inv.status}
+                  </Badge>
+                </PremiumTableCell>
+              </PremiumTableRow>
+            ))}
+          </PremiumTable>
         </section>
       </div>
     </div>

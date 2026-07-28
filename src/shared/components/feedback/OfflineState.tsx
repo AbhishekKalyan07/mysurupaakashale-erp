@@ -1,5 +1,5 @@
 import { WifiOff, RefreshCw } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus';
 import { useEffect, useState } from 'react';
 

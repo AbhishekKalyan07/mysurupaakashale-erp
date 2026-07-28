@@ -1,6 +1,6 @@
 import { LogIn, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 /**
  * Shown when a user tries to access a protected resource WITHOUT being

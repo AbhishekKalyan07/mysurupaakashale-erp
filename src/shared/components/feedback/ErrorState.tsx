@@ -1,5 +1,5 @@
 import { AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 export interface ErrorStateProps {
   title?: string;

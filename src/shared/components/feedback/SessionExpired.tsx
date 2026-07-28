@@ -1,6 +1,6 @@
 import { Clock, LogIn } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '../ui/Button';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 export interface SessionExpiredProps {
   onLoginAgain?: () => void;

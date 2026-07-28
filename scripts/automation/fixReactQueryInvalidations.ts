@@ -6,7 +6,11 @@ function walkDir(dir: string, callback: (path: string) => void) {
   fs.readdirSync(dir).forEach(f => {
     let dirPath = path.join(dir, f);
     let isDirectory = fs.statSync(dirPath).isDirectory();
-    isDirectory ? walkDir(dirPath, callback) : callback(dirPath);
+    if (isDirectory) {
+      walkDir(dirPath, callback);
+    } else {
+      callback(dirPath);
+    }
   });
 }
 

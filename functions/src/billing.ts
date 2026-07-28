@@ -9,7 +9,7 @@ const db = admin.firestore();
  */
 export const generateMonthlyInvoices = functions.pubsub.schedule('0 0 1 * *')
   .timeZone('Asia/Kolkata')
-  .onRun(async (context) => {
+  .onRun(async (_context) => {
     console.log('Starting monthly invoice generation...');
     
     const now = new Date();

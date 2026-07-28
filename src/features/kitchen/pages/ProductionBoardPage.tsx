@@ -4,9 +4,9 @@ import {
   Loader2, RefreshCw, CheckCircle2, Clock, AlertCircle, MapPin, User,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
-import { Card } from '@/shared/components/ui/Card';
-import { Badge, type BadgeTone } from '@/shared/components/ui/Badge';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumBadge as Badge, type PremiumBadgeProps } from '@/shared/components/ui/PremiumBadge';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -244,15 +244,15 @@ function MealSectionPanel({
           <h2 className="font-display text-lg font-bold text-ink-900">{label}</h2>
           {/* Section totals */}
           <div className="flex items-center gap-2 ml-1">
-            <SectionBadge label="Total" count={section.total} tone="neutral" />
+            <SectionBadge label="Total" count={section.total} variant="default" />
             {section.scheduledCount > 0 && (
-              <SectionBadge label="Sched" count={section.scheduledCount} tone="neutral" />
+              <SectionBadge label="Sched" count={section.scheduledCount} variant="default" />
             )}
             {section.preparingCount > 0 && (
-              <SectionBadge label="Prep" count={section.preparingCount} tone="warning" />
+              <SectionBadge label="Pending" count={section.preparingCount} variant="warning" />
             )}
             {section.readyCount > 0 && (
-              <SectionBadge label="Ready" count={section.readyCount} tone="success" />
+              <SectionBadge label="Ready" count={section.readyCount} variant="success" />
             )}
           </div>
         </div>
@@ -450,20 +450,20 @@ function OrderCard({ order, onAdvance, isAdvancing }: OrderCardProps) {
 // Small sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SectionBadge({ label, count, tone }: { label: string; count: number; tone: BadgeTone }) {
+function SectionBadge({ label, count, variant }: { label: string; count: number; variant: PremiumBadgeProps['variant'] }) {
   return (
-    <Badge tone={tone} className="text-[10px] gap-1">
+    <Badge variant={variant} className="text-[10px] gap-1">
       {label} <span className="font-data font-bold">{count}</span>
     </Badge>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const tone = STATUS_BADGE_TONE[status] ?? 'neutral';
+  const tone = STATUS_BADGE_TONE[status] ?? 'default';
   const label = STATUS_DISPLAY_LABEL[status] ?? status;
   const icon = STATUS_ICON[status];
   return (
-    <Badge tone={tone} className="shrink-0 gap-1 text-[10px]">
+    <Badge variant={tone} className="shrink-0 gap-1 text-[10px]">
       {icon}
       {label}
     </Badge>
@@ -486,13 +486,13 @@ const ADVANCE_LABEL: Record<KitchenWorkflowStatus, string> = {
   ready_for_pickup: 'Mark Ready for Pickup', // fallback (shouldn't appear)
 };
 
-const STATUS_BADGE_TONE: Record<string, BadgeTone> = {
-  scheduled:        'neutral',
+const STATUS_BADGE_TONE: Record<string, PremiumBadgeProps['variant']> = {
+  scheduled:        'default',
   preparing:        'warning',
   ready_for_pickup: 'success',
   out_for_delivery: 'info',
   delivered:        'success',
-  skipped:          'neutral',
+  skipped:          'default',
   cancelled:        'danger',
   failed_delivery:  'danger',
 };

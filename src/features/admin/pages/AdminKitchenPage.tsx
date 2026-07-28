@@ -11,9 +11,9 @@ import {
   TrendingUp,
   Loader2
 } from 'lucide-react';
-import { Card } from '@/shared/components/ui/Card';
-import { PageHeader } from '@/shared/components/layout/PageHeader';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 
 import { useKitchenDashboard, getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
@@ -28,12 +28,12 @@ function ProgressBar({ label, value, max, colorClass }: { label: string, value: 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-xs font-medium">
-        <span className="text-ink-600">{label}</span>
-        <span className="text-ink-900">{value} / {max}</span>
+    <div className="space-y-2">
+      <div className="flex justify-between text-xs font-bold font-sans uppercase tracking-wider">
+        <span className="text-text-muted">{label}</span>
+        <span className="text-primary">{value} / {max}</span>
       </div>
-      <div className="h-2 w-full rounded-full bg-rice-200 overflow-hidden">
+      <div className="h-2.5 w-full rounded-full bg-primary/10 overflow-hidden shadow-inner">
         <div 
           className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
           style={{ width: `${percentage}%` }}
@@ -51,7 +51,6 @@ export function AdminKitchenPage() {
   const navigate = useNavigate();
   const today = getTodayIST();
   
-
   const { dashboard, isLoading, isError, error, refetch } = useKitchenDashboard(today);
 
   // Fetch low stock items
@@ -66,8 +65,8 @@ export function AdminKitchenPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Kitchen Operations" breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Kitchen Operations' }]} />
+      <div className="space-y-8">
+        <PageHeader userName="Kitchen Operations" subtitle="Dashboard / Kitchen" />
         <ErrorState 
           title="Failed to load kitchen dashboard" 
           description={error instanceof Error ? error.message : 'Unknown error occurred'}
@@ -78,13 +77,13 @@ export function AdminKitchenPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader 
-        title="Kitchen Operations"
-        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Kitchen Operations' }]}
+        userName="Kitchen Operations"
+        subtitle="Live production dashboard, inventory alerts, and menus"
         actions={
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/admin/menus')} variant="secondary">
+          <div className="flex gap-4">
+            <Button onClick={() => navigate('/admin/menus')} variant="primary">
               <BookOpen className="mr-2 h-4 w-4" />
               Manage Menus
             </Button>
@@ -93,46 +92,47 @@ export function AdminKitchenPage() {
       />
 
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-rice-300">
-          <Loader2 className="h-8 w-8 animate-spin text-leaf-500" />
+        <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gold/30 bg-primary/5">
+          <Loader2 className="h-8 w-8 animate-spin text-gold" />
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-3">
           
           {/* Top Metrics Column */}
           <div className="space-y-6 md:col-span-1">
-            <Card className="p-5 border-rice-300">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-leaf-100 text-leaf-600">
-                  <ChefHat size={20} />
+            <Card hoverLift className="p-6 overflow-hidden relative">
+              <div className="absolute top-0 right-0 left-0 bg-gold/10 h-1"></div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10">
+                  <ChefHat size={24} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-ink-900">Today's Orders</h3>
-                  <p className="text-sm text-ink-500">Overview across all meals</p>
+                  <h3 className="font-display font-bold text-lg text-primary">Today's Orders</h3>
+                  <p className="text-xs text-text-muted uppercase tracking-wider">Across all meals</p>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="flex justify-between items-end border-b border-rice-100 pb-3">
-                  <span className="text-3xl font-display font-semibold text-ink-900">
+              <div className="space-y-5">
+                <div className="flex justify-between items-end border-b border-gold/10 pb-3">
+                  <span className="text-4xl font-display font-bold text-primary">
                     {dashboard?.totalOrders || 0}
                   </span>
-                  <span className="text-sm font-medium text-ink-500 mb-1">Scheduled</span>
+                  <span className="text-sm font-bold text-text-muted mb-1">Scheduled</span>
                 </div>
-                <div className="flex justify-between items-end border-b border-rice-100 pb-3">
-                  <span className="text-3xl font-display font-semibold text-leaf-600">
+                <div className="flex justify-between items-end border-b border-gold/10 pb-3">
+                  <span className="text-4xl font-display font-bold text-emerald-600">
                     {dashboard?.completedCount || 0}
                   </span>
-                  <span className="text-sm font-medium text-ink-500 mb-1">Completed</span>
+                  <span className="text-sm font-bold text-text-muted mb-1">Completed</span>
                 </div>
                 <div className="pt-2">
-                  <div className="flex justify-between text-xs font-medium mb-1.5">
-                    <span className="text-ink-600">Overall Progress</span>
-                    <span className="text-ink-900">{Math.round(dashboard?.progressPercent || 0)}%</span>
+                  <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
+                    <span className="text-text-muted">Overall Progress</span>
+                    <span className="text-primary">{Math.round(dashboard?.progressPercent || 0)}%</span>
                   </div>
-                  <div className="h-2.5 w-full rounded-full bg-rice-200 overflow-hidden">
+                  <div className="h-3 w-full rounded-full bg-primary/10 overflow-hidden shadow-inner">
                     <div 
-                      className="h-full rounded-full bg-leaf-500 transition-all duration-500"
+                      className="h-full rounded-full bg-gold transition-all duration-500"
                       style={{ width: `${dashboard?.progressPercent || 0}%` }}
                     />
                   </div>
@@ -140,34 +140,36 @@ export function AdminKitchenPage() {
               </div>
             </Card>
 
-            <Card className="p-5 border-rice-300">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-chili-50 text-chili-600">
-                  <AlertTriangle size={20} />
+            <Card hoverLift className="p-6 overflow-hidden relative">
+              <div className="absolute top-0 right-0 left-0 bg-red-500/20 h-1"></div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-100">
+                  <AlertTriangle size={24} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-ink-900">Inventory Alerts</h3>
-                  <p className="text-sm text-ink-500">Low stock warnings</p>
+                  <h3 className="font-display font-bold text-lg text-primary">Inventory Alerts</h3>
+                  <p className="text-xs text-text-muted uppercase tracking-wider">Low stock warnings</p>
                 </div>
               </div>
 
               {isLoadingInventory ? (
-                <div className="py-4 text-center text-sm text-ink-400 flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Checking inventory...
+                <div className="py-6 text-center text-sm font-sans font-medium text-text-muted flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" /> Checking inventory...
                 </div>
               ) : lowStockItems.length === 0 ? (
-                <div className="py-4 text-center rounded bg-leaf-50 border border-leaf-100 text-leaf-700 text-sm flex items-center justify-center gap-1.5">
-                  <CheckCircle2 size={16} /> Inventory levels look good
+                <div className="py-6 text-center rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold flex flex-col items-center justify-center gap-2">
+                  <CheckCircle2 size={24} className="text-emerald-500" />
+                  Inventory levels look good
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {lowStockItems.map(item => (
-                    <div key={item.id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-chili-50 border border-chili-100">
-                      <span className="font-medium text-chili-900">{item.name}</span>
-                      <span className="text-chili-700 font-semibold">{item.quantity} {item.unit}</span>
+                    <div key={item.id} className="flex justify-between items-center text-sm p-3 rounded-xl bg-red-50 border border-red-100 transition-colors hover:bg-red-100/50">
+                      <span className="font-bold font-sans text-red-900">{item.name}</span>
+                      <span className="text-red-700 font-bold bg-white px-2 py-1 rounded-md shadow-sm">{item.quantity} {item.unit}</span>
                     </div>
                   ))}
-                  <Button variant="ghost" className="w-full text-xs" onClick={() => navigate('/kitchen/inventory')}>
+                  <Button variant="ghost" className="w-full h-[42px] font-bold text-primary hover:text-gold hover:bg-gold/10" onClick={() => navigate('/kitchen/inventory')}>
                     View All Inventory
                   </Button>
                 </div>
@@ -177,13 +179,13 @@ export function AdminKitchenPage() {
 
           {/* Meal Breakdown Column */}
           <div className="md:col-span-2 space-y-6">
-            <Card className="p-6 border-rice-300">
-              <div className="flex items-center justify-between mb-6">
+            <Card hoverLift className="p-8">
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="font-medium text-lg text-ink-900">Meal Production</h3>
-                  <p className="text-sm text-ink-500">Live progress of kitchen tasks</p>
+                  <h3 className="font-display font-bold text-2xl text-primary">Meal Production</h3>
+                  <p className="text-sm font-sans text-text-muted mt-1">Live progress of kitchen tasks</p>
                 </div>
-                <Button variant="secondary" size="sm" onClick={() => navigate('/kitchen/production')}>
+                <Button variant="primary" onClick={() => navigate('/kitchen/production')}>
                   <ClipboardList className="mr-2 h-4 w-4" />
                   Production Board
                 </Button>
@@ -195,34 +197,36 @@ export function AdminKitchenPage() {
                   const isDone = summary.total > 0 && (summary.readyForPickup + summary.pickedUp) === summary.total;
                   
                   return (
-                    <div key={meal} className="space-y-4 p-4 rounded-xl border border-rice-200 bg-rice-50/50">
-                      <div className="flex justify-between items-center border-b border-rice-200 pb-2">
-                        <h4 className="font-semibold text-ink-900 capitalize">{meal}</h4>
+                    <div key={meal} className="space-y-5 p-5 rounded-2xl border border-gold/20 bg-gradient-to-b from-background to-primary/5 transition-all hover:border-gold/40">
+                      <div className="flex justify-between items-center border-b border-gold/10 pb-3">
+                        <h4 className="font-display font-bold text-lg text-primary capitalize">{meal}</h4>
                         {isDone ? (
-                          <CheckCircle2 size={18} className="text-leaf-500" />
+                          <div className="bg-emerald-100 text-emerald-600 p-1.5 rounded-full shadow-sm">
+                            <CheckCircle2 size={16} />
+                          </div>
                         ) : (
-                          <span className="text-xs font-medium text-ink-500">{summary.total} Total</span>
+                          <span className="text-xs font-bold text-text-muted bg-white px-2 py-1 rounded-md shadow-sm border border-gold/10">{summary.total} Total</span>
                         )}
                       </div>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <ProgressBar 
                           label="Scheduled" 
                           value={summary.scheduled} 
                           max={summary.total} 
-                          colorClass="bg-ink-300"
+                          colorClass="bg-primary/40"
                         />
                         <ProgressBar 
                           label="Preparing" 
                           value={summary.preparing} 
                           max={summary.total} 
-                          colorClass="bg-sun-400"
+                          colorClass="bg-gold"
                         />
                         <ProgressBar 
                           label="Ready / Delivered" 
                           value={summary.readyForPickup + summary.pickedUp} 
                           max={summary.total} 
-                          colorClass="bg-leaf-500"
+                          colorClass="bg-emerald-500"
                         />
                       </div>
                     </div>
@@ -233,23 +237,23 @@ export function AdminKitchenPage() {
             
             {/* Additional Operations Card */}
             <div className="grid sm:grid-cols-2 gap-6">
-              <Card className="p-5 border-rice-300 flex items-start gap-4 hover:border-leaf-300 transition-colors cursor-pointer" onClick={() => navigate('/admin/orders')}>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
-                  <Package size={20} />
+              <Card hoverLift className="p-6 flex items-start gap-5 cursor-pointer group" onClick={() => navigate('/admin/orders')}>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/5 text-primary border border-primary/10 transition-colors group-hover:bg-gold/10 group-hover:text-gold group-hover:border-gold/30">
+                  <Package size={28} />
                 </div>
                 <div>
-                  <h4 className="font-medium text-ink-900 mb-1">Manage Orders</h4>
-                  <p className="text-sm text-ink-500 leading-snug">View and override order workflows, reassign delivery zones, and track delays.</p>
+                  <h4 className="font-display font-bold text-lg text-primary mb-1.5 group-hover:text-gold transition-colors">Manage Orders</h4>
+                  <p className="text-sm text-text-muted font-sans leading-relaxed">View and override order workflows, reassign delivery zones, and track delays.</p>
                 </div>
               </Card>
 
-              <Card className="p-5 border-rice-300 flex items-start gap-4 hover:border-leaf-300 transition-colors cursor-pointer" onClick={() => navigate('/admin/menus')}>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
-                  <TrendingUp size={20} />
+              <Card hoverLift className="p-6 flex items-start gap-5 cursor-pointer group" onClick={() => navigate('/admin/menus')}>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/5 text-primary border border-primary/10 transition-colors group-hover:bg-gold/10 group-hover:text-gold group-hover:border-gold/30">
+                  <TrendingUp size={28} />
                 </div>
                 <div>
-                  <h4 className="font-medium text-ink-900 mb-1">Menu Analytics</h4>
-                  <p className="text-sm text-ink-500 leading-snug">Analyze which meals are most popular and plan tomorrow's menu schedule.</p>
+                  <h4 className="font-display font-bold text-lg text-primary mb-1.5 group-hover:text-gold transition-colors">Menu Analytics</h4>
+                  <p className="text-sm text-text-muted font-sans leading-relaxed">Analyze which meals are most popular and plan tomorrow's menu schedule.</p>
                 </div>
               </Card>
             </div>

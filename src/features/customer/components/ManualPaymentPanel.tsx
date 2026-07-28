@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { useSubmitPayment } from '../hooks/usePayments';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Input } from '@/shared/components/ui/Input';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
 import { toast } from 'react-hot-toast';
 import {
   CreditCard,

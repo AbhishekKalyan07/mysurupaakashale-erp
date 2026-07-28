@@ -10,9 +10,10 @@ import {
   TrendingUp,
   ClipboardList,
 } from 'lucide-react';
-import { Badge } from '@/shared/components/ui/Badge';
-import { Button } from '@/shared/components/ui/Button';
-import { Card } from '@/shared/components/ui/Card';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
@@ -58,7 +59,7 @@ export function KitchenDashboardPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <PageHeader today={today} isFetching={isFetching} onRefresh={refetch} />
         <EmptyState
-          icon={<ChefHat size={40} className="text-leaf-300" />}
+          icon={<ChefHat size={48} className="text-primary/40" />}
           title="No orders for today yet"
           description={
             `Daily order generation runs at 02:00 AM IST. ` +
@@ -86,15 +87,17 @@ export function KitchenDashboardPage() {
 
       {/* ── Production Progress Bar ─────────────────────────────────────── */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={18} className="text-leaf-600" />
-            <h2 className="font-display text-base font-semibold text-ink-900">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+              <TrendingUp size={20} className="text-primary" />
+            </div>
+            <h2 className="font-display text-lg font-bold text-primary">
               Production Progress
             </h2>
           </div>
           <span
-            className="font-data text-sm font-semibold text-leaf-700"
+            className="font-data text-sm font-bold text-gold"
             aria-label={`${progressPercent} percent complete`}
           >
             {progressPercent}%
@@ -107,15 +110,15 @@ export function KitchenDashboardPage() {
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label="Kitchen production progress"
-          className="w-full h-3 bg-rice-200 rounded-full overflow-hidden"
+          className="w-full h-3 bg-primary/10 rounded-full overflow-hidden shadow-inner"
         >
           <div
-            className="h-full bg-leaf-600 rounded-full transition-all duration-700 ease-out"
+            className="h-full bg-gradient-to-r from-gold to-gold-dark rounded-full transition-all duration-700 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
-        <p className="mt-2 text-xs text-ink-500 font-sans">
+        <p className="mt-3 text-xs font-bold text-text-muted font-sans uppercase tracking-wider">
           {completedCount} of {totalOrders} orders completed
         </p>
       </Card>
@@ -129,62 +132,64 @@ export function KitchenDashboardPage() {
             label="Total Meals"
             value={totalOrders}
             icon={<ClipboardList size={20} />}
-            colorClass="text-ink-700 bg-rice-100"
+            colorClass="text-primary bg-primary/10 border border-primary/20"
           />
           <StatusKpiCard
             id="kpi-preparing"
             label="Preparing"
             value={preparingCount}
             icon={<ChefHat size={20} />}
-            colorClass="text-warning bg-warning-subtle"
+            colorClass="text-amber-600 bg-amber-500/10 border border-amber-500/20"
           />
           <StatusKpiCard
             id="kpi-ready"
             label="Ready for Pickup"
             value={readyCount}
             icon={<CheckCircle2 size={20} />}
-            colorClass="text-info bg-info-subtle"
+            colorClass="text-blue-600 bg-blue-500/10 border border-blue-500/20"
           />
           <StatusKpiCard
             id="kpi-completed"
             label="Completed"
             value={completedCount}
             icon={<CheckCircle2 size={20} />}
-            colorClass="text-success bg-success-subtle"
+            colorClass="text-emerald-600 bg-emerald-500/10 border border-emerald-500/20"
           />
         </div>
       </section>
 
       {/* ── Meal Type Breakdown ─────────────────────────────────────────── */}
       <section aria-label="Meal type breakdown">
-        <h2 className="font-display text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
-          <Utensils size={18} className="text-turmeric-500" />
+        <h2 className="font-display text-xl font-bold text-primary mb-6 flex items-center gap-3">
+          <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+            <Utensils size={20} className="text-primary" />
+          </div>
           Today's Meal Counts
         </h2>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-3 gap-6">
           <MealTypeCard
             id="meal-breakfast"
             label="Breakfast"
             mealType="breakfast"
             summary={byMealType.breakfast}
-            icon={<Sun size={18} className="text-turmeric-500" />}
-            accentClass="border-turmeric-200 bg-turmeric-50/40"
+            icon={<Sun size={20} className="text-amber-500" />}
+            accentClass="border-amber-500/20 bg-gradient-to-br from-background to-amber-500/5 shadow-sm"
           />
           <MealTypeCard
             id="meal-lunch"
             label="Lunch"
             mealType="lunch"
             summary={byMealType.lunch}
-            icon={<Utensils size={18} className="text-leaf-600" />}
-            accentClass="border-leaf-200 bg-leaf-50/40"
+            icon={<Utensils size={20} className="text-emerald-500" />}
+            accentClass="border-emerald-500/20 bg-gradient-to-br from-background to-emerald-500/5 shadow-sm"
           />
           <MealTypeCard
             id="meal-dinner"
             label="Dinner"
             mealType="dinner"
             summary={byMealType.dinner}
-            icon={<Moon size={18} className="text-info" />}
-            accentClass="border-info-subtle bg-info-subtle/30"
+            icon={<Moon size={20} className="text-blue-500" />}
+            accentClass="border-blue-500/20 bg-gradient-to-br from-background to-blue-500/5 shadow-sm"
           />
         </div>
       </section>
@@ -193,8 +198,10 @@ export function KitchenDashboardPage() {
       <div className="grid sm:grid-cols-2 gap-6">
         {/* Workflow queue breakdown */}
         <Card className="p-6">
-          <h2 className="font-display text-base font-semibold text-ink-900 mb-4 flex items-center gap-2">
-            <Clock size={16} className="text-ink-500" />
+          <h2 className="font-display text-lg font-bold text-primary mb-6 flex items-center gap-3">
+            <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+              <Clock size={18} className="text-primary" />
+            </div>
             Workflow Queue
           </h2>
           <div className="space-y-3">
@@ -202,54 +209,56 @@ export function KitchenDashboardPage() {
               label="Scheduled"
               count={scheduledCount}
               total={totalOrders}
-              tone="neutral"
+              variant="default"
             />
             <WorkflowRow
               label="Preparing"
               count={preparingCount}
               total={totalOrders}
-              tone="warning"
+              variant="warning"
             />
             <WorkflowRow
               label="Ready for Pickup"
               count={readyCount}
               total={totalOrders}
-              tone="info"
+              variant="info"
             />
             <WorkflowRow
               label="Completed"
               count={completedCount}
               total={totalOrders}
-              tone="success"
+              variant="success"
             />
           </div>
         </Card>
 
         {/* Zone distribution */}
         <Card className="p-6">
-          <h2 className="font-display text-base font-semibold text-ink-900 mb-4 flex items-center gap-2">
-            <MapPin size={16} className="text-ink-500" />
+          <h2 className="font-display text-lg font-bold text-primary mb-6 flex items-center gap-3">
+            <div className="bg-primary/5 p-2 rounded-xl border border-primary/10">
+              <MapPin size={18} className="text-primary" />
+            </div>
             Zone Distribution
           </h2>
           {Object.keys(byZone).length === 0 ? (
-            <p className="text-sm text-ink-400 font-sans italic">
+            <p className="text-sm text-text-muted font-sans font-medium">
               No zone data available.
             </p>
           ) : (
-            <ul className="space-y-2" aria-label="Order count by delivery zone">
+            <ul className="space-y-3" aria-label="Order count by delivery zone">
               {Object.entries(byZone)
                 .sort(([, a], [, b]) => b - a)
                 .map(([zoneId, count]) => (
-                  <li key={zoneId} className="flex items-center justify-between text-sm font-sans">
-                    <span className="text-ink-700 flex items-center gap-1.5">
-                      <MapPin size={12} className="text-ink-400" />
+                  <li key={zoneId} className="flex items-center justify-between text-sm font-sans p-2 rounded-lg hover:bg-primary/5 transition-colors">
+                    <span className="text-primary flex items-center gap-2">
+                      <MapPin size={14} className="text-primary/40" />
                       {zoneId === 'unassigned' ? (
-                        <span className="italic text-ink-400">Unassigned</span>
+                        <span className="font-medium text-text-muted">Unassigned</span>
                       ) : (
-                        <span className="font-medium">{zoneId}</span>
+                        <span className="font-bold">{zoneId}</span>
                       )}
                     </span>
-                    <span className="font-data text-ink-900 font-semibold">{count}</span>
+                    <span className="font-data text-primary font-bold bg-background-alt px-2 py-1 rounded border border-primary/10">{count}</span>
                   </li>
                 ))}
             </ul>
@@ -258,7 +267,7 @@ export function KitchenDashboardPage() {
       </div>
 
       {/* ── Last updated ────────────────────────────────────────────────── */}
-      <p className="text-center text-xs text-ink-400 font-sans pb-4">
+      <p className="text-center text-xs font-bold text-text-muted font-sans pb-4 uppercase tracking-wider">
         Live data · Last refreshed{' '}
         <time dateTime={dashboard.asOf}>
           {new Intl.DateTimeFormat('en-IN', {
@@ -286,30 +295,21 @@ interface PageHeaderProps {
 
 function PageHeader({ today, isFetching, onRefresh }: PageHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-ink-900 flex items-center gap-2">
-          <ChefHat size={28} className="text-leaf-600" />
-          Kitchen Operations
-        </h1>
-        <p className="text-sm text-ink-500 font-sans mt-1">
-          <time dateTime={today}>{formatDisplayDate(today)}</time>
-          {' · '}Live production board
-        </p>
-      </div>
-      <Button
-        id="kitchen-refresh-btn"
-        variant="ghost"
-        size="sm"
-        onClick={onRefresh}
-        isLoading={isFetching}
-        aria-label="Refresh kitchen data"
-        className="self-start sm:self-auto"
-      >
-        <RefreshCw size={14} />
-        Refresh
-      </Button>
-    </div>
+    <HeroBanner
+      userName="Kitchen Team"
+      subtitle={`Live production board for ${formatDisplayDate(today)}`}
+      actions={
+        <Button
+          variant="secondary"
+          onClick={onRefresh}
+          isLoading={isFetching}
+          className="text-primary border-gold/40 hover:bg-gold/10"
+        >
+          <RefreshCw size={16} className="mr-2" />
+          Refresh Data
+        </Button>
+      }
+    />
   );
 }
 
@@ -328,12 +328,12 @@ function StatusKpiCard({ id, label, value, icon, colorClass }: StatusKpiCardProp
       className="p-5 flex flex-col gap-3"
       aria-label={`${label}: ${value}`}
     >
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorClass}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}>
         {icon}
       </div>
       <div>
-        <p className="font-data text-2xl font-bold text-ink-900 leading-tight">{value}</p>
-        <p className="text-xs text-ink-500 font-sans mt-0.5">{label}</p>
+        <p className="font-display text-3xl font-bold text-primary leading-tight">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted font-sans mt-1">{label}</p>
       </div>
     </Card>
   );
@@ -352,22 +352,22 @@ function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardPro
   return (
     <Card
       id={id}
-      className={`p-5 border ${accentClass}`}
+      className={`p-6 border transition-all hover:border-gold/30 hover:shadow-md ${accentClass}`}
       aria-label={`${label} meal summary`}
     >
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-3 mb-6">
         {icon}
-        <h3 className="font-display font-semibold text-ink-900">{label}</h3>
-        <span className="ml-auto font-data text-xl font-bold text-ink-900">
+        <h3 className="font-display font-bold text-xl text-primary">{label}</h3>
+        <span className="ml-auto font-display text-2xl font-bold text-primary">
           {summary.total}
         </span>
       </div>
 
       <div className="space-y-1.5 text-xs font-sans">
-        <MealStatusRow label="Scheduled"      value={summary.scheduled}     tone="neutral" />
-        <MealStatusRow label="Preparing"      value={summary.preparing}     tone="warning" />
-        <MealStatusRow label="Ready"          value={summary.readyForPickup} tone="info"   />
-        <MealStatusRow label="Done"           value={summary.pickedUp}      tone="success" />
+        <MealStatusRow label="Scheduled"      value={summary.scheduled}     variant="default" />
+        <MealStatusRow label="Preparing"      value={summary.preparing}     variant="warning" />
+        <MealStatusRow label="Ready"          value={summary.readyForPickup} variant="info"   />
+        <MealStatusRow label="Done"           value={summary.pickedUp}      variant="success" />
       </div>
     </Card>
   );
@@ -376,14 +376,15 @@ function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardPro
 interface MealStatusRowProps {
   label: string;
   value: number;
-  tone: 'neutral' | 'warning' | 'info' | 'success';
+  variant: 'default' | 'warning' | 'info' | 'success';
 }
 
-function MealStatusRow({ label, value, tone }: MealStatusRowProps) {
+function MealStatusRow({ label, value, variant: tone }: MealStatusRowProps) {
+  const variant = tone === 'default' ? 'default' : tone;
   return (
     <div className="flex items-center justify-between">
-      <Badge tone={tone}>{label}</Badge>
-      <span className="font-data font-semibold text-ink-900">{value}</span>
+      <Badge variant={variant} className="text-[10px] uppercase font-bold tracking-wider">{label}</Badge>
+      <span className="font-data font-bold text-primary">{value}</span>
     </div>
   );
 }
@@ -392,23 +393,24 @@ interface WorkflowRowProps {
   label: string;
   count: number;
   total: number;
-  tone: 'neutral' | 'warning' | 'info' | 'success';
+  variant: 'default' | 'warning' | 'info' | 'success';
 }
 
-function WorkflowRow({ label, count, total, tone }: WorkflowRowProps) {
+function WorkflowRow({ label, count, total, variant: tone }: WorkflowRowProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const variant = tone === 'default' ? 'default' : tone;
 
   return (
     <div>
       <div className="flex items-center justify-between text-sm font-sans mb-1">
-        <Badge tone={tone}>{label}</Badge>
-        <span className="font-data font-semibold text-ink-900 text-xs">
+        <Badge variant={variant} className="text-[10px] uppercase font-bold tracking-wider">{label}</Badge>
+        <span className="font-data font-bold text-primary text-xs bg-background-alt px-1.5 py-0.5 rounded border border-primary/5">
           {count}
-          <span className="text-ink-400 font-normal"> / {total}</span>
+          <span className="text-text-muted font-medium ml-1">/ {total}</span>
         </span>
       </div>
       <div
-        className="w-full h-1.5 bg-rice-200 rounded-full overflow-hidden"
+        className="w-full h-2 bg-primary/5 border border-primary/10 rounded-full overflow-hidden shadow-inner mt-2"
         aria-hidden="true"
       >
         <div
@@ -421,10 +423,10 @@ function WorkflowRow({ label, count, total, tone }: WorkflowRowProps) {
 }
 
 const TONE_BAR: Record<string, string> = {
-  neutral: 'bg-rice-400',
-  warning: 'bg-warning',
-  info:    'bg-info',
-  success: 'bg-success',
+  neutral: 'bg-primary/30',
+  warning: 'bg-amber-500',
+  info:    'bg-blue-500',
+  success: 'bg-emerald-500',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

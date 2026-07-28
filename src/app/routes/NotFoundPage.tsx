@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Home, LayoutDashboard } from 'lucide-react';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLE_HOME_ROUTE } from '@/shared/constants/roles';
 

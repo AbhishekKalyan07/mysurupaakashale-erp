@@ -125,7 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [firebaseUser?.uid]);
+  }, [firebaseUser, firebaseUser?.uid, firebaseUser?.email, firebaseUser?.displayName, firebaseUser?.phoneNumber, firebaseUser?.photoURL]);
 
 
 

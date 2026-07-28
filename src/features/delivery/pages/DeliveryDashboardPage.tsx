@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useUnassignedOrders, useAssignedOrders, useAssignDelivery, useReassignDelivery } from '../hooks/useDelivery';
 import { useCustomerNameMap } from '@/features/kitchen/hooks/useProductionBoard';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
+import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { MapPin, Truck, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
@@ -82,24 +83,17 @@ export function DeliveryDashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-ink-900 flex items-center gap-2">
-            <Truck className="text-leaf-600" />
-            Dispatch Dashboard
-          </h1>
-          <p className="text-sm text-ink-500 font-sans mt-1">
-            Date: {today} | Unassigned: {unassignedOrders?.length || 0} | Assigned: {assignedOrders?.length || 0}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <HeroBanner 
+        userName="Dispatch Team"
+        subtitle={`Date: ${today} | Unassigned: ${unassignedOrders?.length || 0} | Assigned: ${assignedOrders?.length || 0}`}
+      />
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Unassigned Column */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-rice-200 pb-2">
-            <h2 className="text-xl font-semibold text-ink-900 flex items-center gap-2">
+          <div className="flex items-center justify-between border-b border-gold/20 pb-2">
+            <h2 className="text-xl font-display font-semibold text-primary flex items-center gap-2">
               <AlertCircle size={20} className="text-warning" />
               Unassigned Orders
             </h2>
@@ -108,33 +102,33 @@ export function DeliveryDashboardPage() {
             </Button>
           </div>
 
-          <div className="bg-rice-25 p-4 rounded-xl border border-rice-200 min-h-[300px]">
+          <div className="bg-background p-4 rounded-xl border border-gold/20 shadow-sm min-h-[300px]">
             {unassignedOrders?.length === 0 ? (
               <EmptyState 
                 title="All clear!" 
                 description="No unassigned orders at the moment." 
-                icon={<AlertCircle size={32} className="text-ink-400" />}
+                icon={<AlertCircle size={32} className="text-text-muted/60" />}
               />
             ) : (
               <div className="space-y-3">
                 {unassignedOrders?.map(order => (
-                  <Card key={order.id} className="p-3 flex items-start gap-3 transition-shadow hover:shadow-card-hover">
+                  <Card key={order.id} hoverLift className="p-4 flex items-start gap-4">
                     <input 
                       type="checkbox" 
-                      className="mt-1 rounded border-rice-300 text-leaf-600 focus:ring-leaf-600"
+                      className="mt-1 rounded border-gold/40 text-primary focus:ring-primary"
                       checked={selectedOrders.has(order.id)}
                       onChange={() => handleSelect(order.id)}
                     />
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
-                        <span className="font-semibold text-ink-900">{customerNameMap.get(order.customerId) || order.customerId}</span>
-                        <Badge tone="neutral">{order.status}</Badge>
+                        <span className="font-semibold font-display text-primary">{customerNameMap.get(order.customerId) || order.customerId}</span>
+                        <Badge variant="default">{order.status}</Badge>
                       </div>
-                      <div className="text-xs text-ink-500 mt-1 flex gap-3">
-                        <span className="flex items-center gap-1"><MapPin size={12}/> {order.zoneId || 'No Zone'}</span>
-                        <span className="flex items-center gap-1"><Clock size={12}/> {order.deliveryWindow?.start}-{order.deliveryWindow?.end}</span>
+                      <div className="text-xs text-text-muted mt-1 flex gap-4">
+                        <span className="flex items-center gap-1"><MapPin size={14}/> {order.zoneId || 'No Zone'}</span>
+                        <span className="flex items-center gap-1"><Clock size={14}/> {order.deliveryWindow?.start}-{order.deliveryWindow?.end}</span>
                       </div>
-                      <div className="text-xs text-ink-700 mt-1 truncate" title={order.itemsLabel}>{order.itemsLabel}</div>
+                      <div className="text-xs text-primary mt-2 p-2 bg-background rounded-lg border border-gold/10 truncate" title={order.itemsLabel}>{order.itemsLabel}</div>
                     </div>
                   </Card>
                 ))}
@@ -143,15 +137,15 @@ export function DeliveryDashboardPage() {
           </div>
 
           {selectedOrders.size > 0 && (
-            <Card className="p-4 bg-leaf-50 border-leaf-200 flex flex-col sm:flex-row gap-3 items-end sm:items-center justify-between sticky bottom-4 shadow-xl">
+            <Card className="p-4 bg-primary/5 border-primary/20 flex flex-col sm:flex-row gap-3 items-end sm:items-center justify-between sticky bottom-4 shadow-xl ring-1 ring-gold/20">
               <div>
-                <span className="font-bold text-leaf-900">{selectedOrders.size}</span> orders selected
+                <span className="font-bold font-display text-primary">{selectedOrders.size}</span> <span className="text-text-muted">orders selected</span>
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 <select
                   value={partnerIdInput}
                   onChange={e => setPartnerIdInput(e.target.value)}
-                  className="h-10 px-3 rounded-lg border border-rice-300 text-sm focus:ring-2 focus:ring-leaf-600 flex-1 sm:w-48 bg-white"
+                  className="h-10 px-3 rounded-lg border border-gold/30 text-sm focus:ring-2 focus:ring-gold/50 flex-1 sm:w-48 bg-white text-text shadow-sm"
                 >
                   <option value="">Select Partner</option>
                   {deliveryPartners?.map(p => (
@@ -172,42 +166,42 @@ export function DeliveryDashboardPage() {
 
         {/* Assigned Column */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-rice-200 pb-2">
-            <h2 className="text-xl font-semibold text-ink-900 flex items-center gap-2">
+          <div className="flex items-center justify-between border-b border-gold/20 pb-2">
+            <h2 className="text-xl font-display font-semibold text-primary flex items-center gap-2">
               <CheckCircle2 size={20} className="text-success" />
               Assigned Orders
             </h2>
           </div>
 
-          <div className="bg-rice-25 p-4 rounded-xl border border-rice-200 min-h-[300px]">
+          <div className="bg-background p-4 rounded-xl border border-gold/20 shadow-sm min-h-[300px]">
             {assignedOrders?.length === 0 ? (
               <EmptyState 
                 title="No assigned orders" 
                 description="Assign orders to partners to see them here." 
-                icon={<Truck size={32} className="text-ink-400" />}
+                icon={<Truck size={32} className="text-text-muted/60" />}
               />
             ) : (
               <div className="space-y-3">
                 {assignedOrders?.map(order => (
-                  <Card key={order.id} className="p-3 flex flex-col gap-2">
+                  <Card key={order.id} hoverLift className="p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-ink-900">{customerNameMap.get(order.customerId) || order.customerId}</span>
-                        <div className="text-xs text-ink-500">Partner: <span className="font-data">{order.deliveryPartnerId}</span></div>
+                        <span className="font-semibold font-display text-primary">{customerNameMap.get(order.customerId) || order.customerId}</span>
+                        <div className="text-xs text-text-muted mt-0.5">Partner: <span className="font-data text-primary">{order.deliveryPartnerId}</span></div>
                       </div>
-                      <Badge tone={order.status === 'delivered' ? 'success' : order.status === 'out_for_delivery' ? 'info' : 'warning'}>
+                      <Badge variant={order.status === 'delivered' ? 'success' : order.status === 'out_for_delivery' ? 'info' : 'warning'}>
                         {order.status}
                       </Badge>
                     </div>
                     
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-rice-100">
-                       <div className="text-xs text-ink-500 flex gap-3">
-                        <span className="flex items-center gap-1"><MapPin size={12}/> {order.zoneId || 'No Zone'}</span>
+                    <div className="flex justify-between items-center mt-2 pt-3 border-t border-gold/10">
+                       <div className="text-xs text-text-muted flex gap-3">
+                        <span className="flex items-center gap-1"><MapPin size={14}/> {order.zoneId || 'No Zone'}</span>
                       </div>
                       
                       {role === 'admin' && (
                         <select
-                          className="text-xs text-leaf-600 bg-transparent border-b border-leaf-200 outline-none cursor-pointer"
+                          className="text-xs text-primary bg-transparent border-b border-gold/40 outline-none cursor-pointer py-1 font-medium hover:text-gold transition-colors"
                           value=""
                           onChange={(e) => {
                             if (e.target.value === 'unassign') {
@@ -217,7 +211,7 @@ export function DeliveryDashboardPage() {
                             }
                           }}
                         >
-                          <option value="">Reassign</option>
+                          <option value="">Reassign...</option>
                           <option value="unassign">Unassign</option>
                           {deliveryPartners?.map(p => (
                             <option key={p.id} value={p.id}>{p.fullName || p.id}</option>

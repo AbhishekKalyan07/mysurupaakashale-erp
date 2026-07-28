@@ -4,23 +4,23 @@ import { useNotificationHistory } from '@/features/notifications/hooks/useNotifi
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { Card } from '@/shared/components/ui/Card';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import type { Notification } from '@/shared/types';
 import { History, Search, Bell, CreditCard, Truck, User, AlertCircle, Info, ShoppingBag, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 
 function ChannelBadge({ channel }: { channel: string }) {
-  const tone = channel === 'email' ? 'info' : channel === 'whatsapp' ? 'success' : 'neutral';
-  return <Badge tone={tone} className="text-[9px] uppercase">{channel.replace('_', '-')}</Badge>;
+  const tone = channel === 'email' ? 'info' : channel === 'whatsapp' ? 'success' : 'default';
+  return <Badge variant={tone} className="text-[9px] uppercase">{channel.replace('_', '-')}</Badge>;
 }
 
 function StatusBadge({ status }: { status: string }) {
   const tone =
     status === 'delivered' || status === 'read' ? 'success' :
     status === 'failed' ? 'danger' :
-    status === 'pending' ? 'warning' : 'neutral';
-  return <Badge tone={tone} className="text-[9px] uppercase">{status}</Badge>;
+    status === 'pending' ? 'warning' : 'default';
+  return <Badge variant={tone} className="text-[9px] uppercase">{status}</Badge>;
 }
 
 function TypeIcon({ type }: { type: string }) {

@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { useUpdateStaffUser } from '../hooks/useAdmin';
 import { toast } from 'react-hot-toast';
 import type { UserProfile } from '@/shared/types';
@@ -62,7 +62,7 @@ export function EditStaffModal({ user, onClose }: Props) {
       await updateMutation.mutateAsync({ uid: user.id, data: payload });
       toast.success('Staff account updated successfully!');
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled globally via QueryClient
     }
   };

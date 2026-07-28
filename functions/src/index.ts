@@ -34,7 +34,7 @@ const db = admin.firestore();
  */
 export const generateDailyOrders = functions.pubsub.schedule('1 0 * * *')
   .timeZone('Asia/Kolkata')
-  .onRun(async (context) => {
+  .onRun(async (_context) => {
     console.log('Starting daily order generation...');
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 

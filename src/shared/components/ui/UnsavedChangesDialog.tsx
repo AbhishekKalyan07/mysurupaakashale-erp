@@ -1,6 +1,6 @@
 import { FileWarning, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { Button } from './Button';
+import { PremiumButton as Button } from './PremiumButton';
 
 export interface UnsavedChangesDialogProps {
   /** Called when the user decides to stay on the page */

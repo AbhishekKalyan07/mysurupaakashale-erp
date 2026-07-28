@@ -2,11 +2,13 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
 import { FormSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { useBusinessSettings, useUpdateBusinessSettings } from '../hooks/useSettings';
-import { Settings, Save, Store, IndianRupee, Clock, Truck, Play } from 'lucide-react';
+import { Save, Store, IndianRupee, Clock, Truck, Play } from 'lucide-react';
 import { useSeedData } from '../hooks/useSeedData';
 
 const settingsSchema = z.object({
@@ -94,194 +96,125 @@ export function BusinessSettingsPage() {
   };
 
   if (isLoading) return <div className="p-8"><FormSkeleton /></div>;
-  if (isError) return <div className="p-8 text-danger">Failed to load settings.</div>;
+  if (isError) return <div className="p-8 text-red-500 font-bold">Failed to load settings.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 pb-32">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-ink-900 flex items-center gap-2">
-          <Settings className="text-leaf-600" />
-          Business Settings
-        </h1>
-        <p className="text-sm text-ink-500 font-sans mt-1">
-          Configure global system parameters. Changes propagate immediately.
-        </p>
-      </div>
+    <div className="space-y-8 pb-32">
+      <PageHeader 
+        userName="Business Settings"
+        subtitle="Configure global system parameters. Changes propagate immediately."
+      />
 
       <form id="settings-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Company Profile */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <Store size={20} className="text-ink-500" /> Company Profile
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <Store size={24} className="text-gold" /> Company Profile
           </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Business Name</label>
-              <input {...register('companyProfile.name')} className="w-full h-10 px-3 border rounded-lg" />
+          <div className="grid md:grid-cols-2 gap-6">
+            <Input label="Business Name" {...register('companyProfile.name')} />
+            <Input label="Support Email" type="email" autoCapitalize="none" autoCorrect="off" className="lowercase" {...register('companyProfile.supportEmail')} />
+            <Input label="Support Phone" type="tel" {...register('companyProfile.supportPhone')} />
+            <div className="md:col-span-2">
+              <Input label="Tagline" {...register('companyProfile.tagline')} />
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Support Email</label>
-              <input type="email" autoCapitalize="none" autoCorrect="off" {...register('companyProfile.supportEmail')} className="lowercase w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Support Phone</label>
-              <input type="tel" {...register('companyProfile.supportPhone')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium text-ink-700">Tagline</label>
-              <input {...register('companyProfile.tagline')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium text-ink-700">Physical Address</label>
-              <textarea {...register('companyProfile.address')} rows={2} className="w-full p-3 border rounded-lg resize-none" />
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-primary">Physical Address</label>
+              <textarea {...register('companyProfile.address')} rows={3} className="w-full rounded-xl border border-primary/20 bg-background px-4 py-3 text-sm font-sans text-primary placeholder:text-text-muted/50 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold shadow-sm transition-colors resize-none" />
             </div>
           </div>
         </Card>
 
         {/* Pricing & Financials */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <IndianRupee size={20} className="text-ink-500" /> Pricing & Financials
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <IndianRupee size={24} className="text-gold" /> Pricing & Financials
           </h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Breakfast Price (₹)</label>
-              <input type="number" {...register('pricing.mealPrices.breakfast')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Lunch Price (₹)</label>
-              <input type="number" {...register('pricing.mealPrices.lunch')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Dinner Price (₹)</label>
-              <input type="number" {...register('pricing.mealPrices.dinner')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Standard Delivery (₹)</label>
-              <input type="number" {...register('pricing.deliveryCharges.standard')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Security Deposit (₹)</label>
-              <input type="number" {...register('pricing.securityDepositAmount')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">GST Percentage (%)</label>
-              <input type="number" step="0.1" {...register('financials.gstPercentage')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Invoice Prefix</label>
-              <input {...register('financials.invoicePrefix')} className="w-full h-10 px-3 border rounded-lg uppercase" />
+          <div className="grid md:grid-cols-3 gap-6">
+            <Input label="Breakfast Price (₹)" type="number" {...register('pricing.mealPrices.breakfast')} />
+            <Input label="Lunch Price (₹)" type="number" {...register('pricing.mealPrices.lunch')} />
+            <Input label="Dinner Price (₹)" type="number" {...register('pricing.mealPrices.dinner')} />
+            <Input label="Standard Delivery (₹)" type="number" {...register('pricing.deliveryCharges.standard')} />
+            <Input label="Security Deposit (₹)" type="number" {...register('pricing.securityDepositAmount')} />
+            <Input label="GST Percentage (%)" type="number" step="0.1" {...register('financials.gstPercentage')} />
+            <div className="md:col-span-3">
+              <Input label="Invoice Prefix" className="uppercase" {...register('financials.invoicePrefix')} />
             </div>
           </div>
         </Card>
 
         {/* Operations */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <Clock size={20} className="text-ink-500" /> Operations
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <Clock size={24} className="text-gold" /> Operations
           </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Order Cutoff Time (24h)</label>
-              <input type="time" {...register('operations.orderCutoffTime')} className="w-full h-10 px-3 border rounded-lg" />
+          <div className="grid md:grid-cols-2 gap-6">
+            <Input label="Order Cutoff Time (24h)" type="time" {...register('operations.orderCutoffTime')} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Kitchen Start" type="time" {...register('operations.kitchenTimings.start')} />
+              <Input label="Kitchen End" type="time" {...register('operations.kitchenTimings.end')} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-ink-700">Kitchen Start</label>
-                <input type="time" {...register('operations.kitchenTimings.start')} className="w-full h-10 px-3 border rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-ink-700">Kitchen End</label>
-                <input type="time" {...register('operations.kitchenTimings.end')} className="w-full h-10 px-3 border rounded-lg" />
-              </div>
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-sm font-medium text-ink-700">Business Holidays (YYYY-MM-DD, comma separated)</label>
-              <input placeholder="2025-01-01, 2025-08-15" {...register('operations.businessHolidays')} className="w-full h-10 px-3 border rounded-lg" />
+            <div className="md:col-span-2">
+              <Input label="Business Holidays (YYYY-MM-DD, comma separated)" placeholder="2025-01-01, 2025-08-15" {...register('operations.businessHolidays')} />
             </div>
           </div>
         </Card>
 
         {/* Delivery Windows */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <Truck size={20} className="text-ink-500" /> Delivery Windows
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20 bg-primary/5">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <Truck size={24} className="text-gold" /> Delivery Windows
           </h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-ink-800">Breakfast</h3>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">Start</label>
-                <input type="time" {...register('operations.deliveryWindows.breakfast.start')} className="w-full h-10 px-3 border rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">End</label>
-                <input type="time" {...register('operations.deliveryWindows.breakfast.end')} className="w-full h-10 px-3 border rounded-lg" />
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">Breakfast</h3>
+              <div className="space-y-3">
+                <Input label="Start" type="time" {...register('operations.deliveryWindows.breakfast.start')} />
+                <Input label="End" type="time" {...register('operations.deliveryWindows.breakfast.end')} />
               </div>
             </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-ink-800">Lunch</h3>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">Start</label>
-                <input type="time" {...register('operations.deliveryWindows.lunch.start')} className="w-full h-10 px-3 border rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">End</label>
-                <input type="time" {...register('operations.deliveryWindows.lunch.end')} className="w-full h-10 px-3 border rounded-lg" />
+            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">Lunch</h3>
+              <div className="space-y-3">
+                <Input label="Start" type="time" {...register('operations.deliveryWindows.lunch.start')} />
+                <Input label="End" type="time" {...register('operations.deliveryWindows.lunch.end')} />
               </div>
             </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-ink-800">Dinner</h3>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">Start</label>
-                <input type="time" {...register('operations.deliveryWindows.dinner.start')} className="w-full h-10 px-3 border rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-ink-500">End</label>
-                <input type="time" {...register('operations.deliveryWindows.dinner.end')} className="w-full h-10 px-3 border rounded-lg" />
+            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">Dinner</h3>
+              <div className="space-y-3">
+                <Input label="Start" type="time" {...register('operations.deliveryWindows.dinner.start')} />
+                <Input label="End" type="time" {...register('operations.deliveryWindows.dinner.end')} />
               </div>
             </div>
           </div>
         </Card>
 
         {/* Payroll Settings */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <IndianRupee size={20} className="text-ink-500" /> Payroll Configuration
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <IndianRupee size={24} className="text-gold" /> Payroll Configuration
           </h2>
-          <div className="grid md:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Standard Working Days / Mo</label>
-              <input type="number" {...register('payroll.standardWorkingDays')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Standard Working Hours / Day</label>
-              <input type="number" {...register('payroll.standardWorkingHours')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Tax Deduction (%)</label>
-              <input type="number" step="0.1" {...register('payroll.taxPercentage')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Leave Deduction Multiplier</label>
-              <input type="number" step="0.1" {...register('payroll.leaveDeductionMultiplier')} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
+          <div className="grid md:grid-cols-4 gap-6">
+            <Input label="Standard Working Days / Mo" type="number" {...register('payroll.standardWorkingDays')} />
+            <Input label="Standard Working Hours / Day" type="number" {...register('payroll.standardWorkingHours')} />
+            <Input label="Tax Deduction (%)" type="number" step="0.1" {...register('payroll.taxPercentage')} />
+            <Input label="Leave Deduction Multiplier" type="number" step="0.1" {...register('payroll.leaveDeductionMultiplier')} />
           </div>
         </Card>
 
         {/* Manual Operations */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-lg font-bold text-ink-900 flex items-center gap-2 border-b border-rice-200 pb-2">
-            <Play size={20} className="text-emerald-600" /> Manual Operations (Spark Plan)
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
+          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
+            <Play size={24} className="text-emerald-600" /> Manual Operations (Spark Plan)
           </h2>
           <div className="grid md:grid-cols-1 gap-4">
-
-            <div className="space-y-2">
-              <h3 className="font-semibold text-ink-800 text-sm">Seed Production Data</h3>
-              <p className="text-xs text-ink-500">
+            <div className="space-y-3 bg-primary/5 p-5 rounded-2xl border border-primary/10">
+              <h3 className="font-bold text-primary text-base">Seed Production Data</h3>
+              <p className="text-sm font-medium text-text-muted">
                 Initializes the database with default Meal Plans and Business Settings. Run this once on a fresh deployment to set up the system.
               </p>
-              <Button type="button" onClick={seedData} isLoading={isSeeding} className="mt-2 text-sm bg-emerald-600 hover:bg-emerald-700">
+              <Button type="button" variant="primary" onClick={seedData} isLoading={isSeeding} className="mt-4 !bg-emerald-600 hover:!bg-emerald-700 shadow-md">
                 Seed Data
               </Button>
             </div>
@@ -290,10 +223,10 @@ export function BusinessSettingsPage() {
       </form>
 
       {/* Floating Save Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-rice-200 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] z-40">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] z-40 transition-all">
         <div className="max-w-4xl mx-auto flex justify-end">
-          <Button type="submit" form="settings-form" isLoading={updateMutation.isPending} size="lg">
-            <Save size={18} className="mr-2" />
+          <Button type="submit" variant="primary" form="settings-form" isLoading={updateMutation.isPending} size="lg" className="shadow-lg px-8 py-4 text-base">
+            <Save size={20} className="mr-2" />
             Save Settings
           </Button>
         </div>

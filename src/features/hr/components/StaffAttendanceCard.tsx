@@ -1,6 +1,6 @@
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { useAttendanceByDate, useCheckIn, useCheckOut } from '@/features/hr/hooks/useAttendance';
 import { LogIn, LogOut, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -67,7 +67,7 @@ export function StaffAttendanceCard() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Badge tone="success">Completed ({myRecord.totalWorkingHours} hrs)</Badge>
+              <Badge variant="success">Completed ({myRecord.totalWorkingHours} hrs)</Badge>
               <span className="text-leaf-600"><CheckCircle size={18} /></span>
             </div>
           )}

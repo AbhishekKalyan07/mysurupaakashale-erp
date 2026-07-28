@@ -5,7 +5,7 @@ import type { Notification } from '@/features/notifications/types/notification.t
 import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { Bell, CheckCheck, X, CreditCard, Truck, ShoppingBag, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 
 function NotificationTypeIcon({ type }: { type: string }) {
   const cls = 'shrink-0';
@@ -28,21 +28,21 @@ function DropdownItem({
 
   return (
     <div
-      className={`flex gap-2.5 px-4 py-3 hover:bg-rice-50 cursor-pointer transition-colors border-b border-rice-200 last:border-0 ${
-        isUnread ? 'bg-blue-50/30' : ''
+      className={`flex gap-2.5 px-4 py-3 hover:bg-primary/5 cursor-pointer transition-colors border-b border-primary/5 last:border-0 ${
+        isUnread ? 'bg-primary/5' : ''
       }`}
       onClick={isUnread ? onRead : undefined}
     >
       {isUnread && <div className="w-1.5 h-1.5 rounded-full bg-info mt-1.5 shrink-0" />}
       <NotificationTypeIcon type={notification.type} />
       <div className="flex-1 min-w-0">
-        <div className={`text-xs leading-tight ${isUnread ? 'font-bold text-ink-900' : 'font-medium text-ink-700'}`}>
+        <div className={`text-xs leading-tight ${isUnread ? 'font-bold text-primary' : 'font-medium text-text-muted'}`}>
           {notification.title}
         </div>
-        <div className="text-ink-500 text-[11px] mt-0.5 line-clamp-2 leading-relaxed">
+        <div className="text-text-muted text-[11px] mt-0.5 line-clamp-2 leading-relaxed">
           {notification.message}
         </div>
-        <div className="text-ink-400 text-[10px] mt-1">{timeAgo}</div>
+        <div className="text-primary/40 font-bold text-[10px] mt-1 tracking-wider uppercase">{timeAgo}</div>
       </div>
     </div>
   );
@@ -81,26 +81,27 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
       <button
         id="notification-bell"
         onClick={() => setIsOpen((p) => !p)}
-        className="relative p-2 rounded-lg hover:bg-rice-100 text-ink-600 hover:text-ink-900 transition-colors"
+        className="relative p-2 text-text-muted hover:text-primary transition-colors rounded-full hover:bg-background"
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-danger text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
-            {unreadCount > 99 ? '99+' : unreadCount}
+          <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
           </span>
         )}
       </button>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-rice-300 z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-card rounded-xl shadow-xl border border-primary/10 z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-rice-300">
-            <h3 className="font-bold text-ink-900 text-sm font-sans">Notifications</h3>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-primary/10 bg-primary/5">
+            <h3 className="font-bold text-primary text-sm font-sans">Notifications</h3>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-ink-400 hover:text-ink-700 p-0.5"
+              className="text-text-muted hover:text-primary transition-colors p-0.5"
             >
               <X size={14} />
             </button>
@@ -109,7 +110,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
           {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {recentNotifications.length === 0 ? (
-              <div className="py-8 text-center text-ink-400 text-xs font-sans">
+              <div className="py-8 text-center text-text-muted text-xs font-sans">
                 No notifications yet.
               </div>
             ) : (
@@ -124,7 +125,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-rice-300 px-4 py-2.5 flex justify-between items-center">
+          <div className="border-t border-primary/10 px-4 py-2.5 flex justify-between items-center bg-card">
             <Button
               variant="ghost"
               size="sm"
@@ -140,7 +141,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs font-sans gap-1 text-ink-500"
+                className="text-xs font-sans gap-1 text-text-muted hover:text-primary"
                 onClick={() => setIsOpen(false)}
               >
                 <CheckCheck size={12} /> Mark all read

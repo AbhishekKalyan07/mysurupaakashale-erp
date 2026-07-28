@@ -16,70 +16,88 @@
  */
 @theme {
   /* ---------- Typography ---------- */
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* ---------- Brand: Leaf (banana-leaf green) — chrome, nav, primary identity ---------- */
-  --color-leaf-50: #f1f4ea;
-  --color-leaf-100: #e0e8cf;
-  --color-leaf-200: #c3d3a3;
-  --color-leaf-300: #a2bb74;
-  --color-leaf-400: #82a052;
-  --color-leaf-500: #66823c;
-  --color-leaf-600: #4f672e;
-  --color-leaf-700: #3a4d23;
-  --color-leaf-800: #2a3819;
-  --color-leaf-900: #1c2611;
+  /* ---------- Premium Identity ---------- */
+  --color-primary: #2A103F;
+  --color-secondary: #3B185F;
+  --color-gold: #D4AF37;
+  --color-gold-light: #F4E8D8;
+  --color-background: #FFFDF9;
+  --color-cream: #FFF9F1;
+  --color-beige: #F8F4EC;
+  --color-card: #FFFFFF;
+  --color-sidebar: #2A103F;
+  --color-text: #2B153F;
+  --color-text-muted: #6B665A;
 
-  /* ---------- Brand: Turmeric (primary accent) — CTAs, active states, highlights ---------- */
-  --color-turmeric-50: #fdf6e8;
-  --color-turmeric-100: #faeac4;
-  --color-turmeric-200: #f4d689;
-  --color-turmeric-300: #edbe55;
-  --color-turmeric-400: #e2a63b;
-  --color-turmeric-500: #c98826;
-  --color-turmeric-600: #a66b1d;
-  --color-turmeric-700: #7d5117;
+  /* ---------- Semantic Status ---------- */
+  --color-success: #14B86A;
+  --color-success-subtle: #E7F5EC;
+  --color-warning: #E8A317;
+  --color-warning-subtle: #FBF0DC;
+  --color-danger: #D9534F;
+  --color-danger-subtle: #FBEAE7;
+  --color-info: #2E6F9E;
+  --color-info-subtle: #E8F1F7;
 
-  /* ---------- Brand: Tamarind (secondary accent) — used sparingly, never for errors ---------- */
-  --color-tamarind-400: #c96a4e;
-  --color-tamarind-500: #b5482e;
-  --color-tamarind-600: #963a23;
-  --color-tamarind-700: #742c1a;
+  /* ---------- Pastel Gradients for Metric Cards ---------- */
+  --color-pastel-blue: #E8F1F7;
+  --color-pastel-mint: #E7F5EC;
+  --color-pastel-amber: #FDF6E8;
+  --color-pastel-lavender: #F4E8F7;
+  --color-pastel-rose: #FBEAE7;
+  
+  /* ---------- Shadows ---------- */
+  --shadow-sm: 0 2px 4px rgba(42, 16, 63, 0.04);
+  --shadow-md: 0 4px 12px rgba(42, 16, 63, 0.08);
+  --shadow-lg: 0 12px 24px rgba(42, 16, 63, 0.12);
+  --shadow-hover: 0 20px 40px rgba(42, 16, 63, 0.16);
+  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.15);
 
-  /* ---------- Neutrals: warm-tinted rice/ink, not cold slate ---------- */
-  --color-rice-25: #fdfcfa;
-  --color-rice-50: #faf8f4;
-  --color-rice-100: #f3f0e9;
-  --color-rice-200: #e6e1d4;
-  --color-rice-300: #d3ccb6;
+  /* ---------- Radius ---------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 
-  --color-ink-400: #8b8578;
-  --color-ink-500: #6b665a;
-  --color-ink-600: #504c43;
-  --color-ink-700: #3a372f;
-  --color-ink-900: #211f1a;
+  /* ---------- Legacy Mappings (Preserved for incremental refactor) ---------- */
+  /* These map existing Tailwind classes back to the new palette to prevent breaking existing layouts */
+  --color-leaf-50: var(--color-background);
+  --color-leaf-100: var(--color-beige);
+  --color-leaf-200: var(--color-cream);
+  --color-leaf-300: var(--color-gold-light);
+  --color-leaf-400: var(--color-gold);
+  --color-leaf-500: var(--color-secondary);
+  --color-leaf-600: var(--color-primary);
+  --color-leaf-700: var(--color-primary);
+  --color-leaf-800: var(--color-primary);
+  --color-leaf-900: var(--color-primary);
 
-  /* ---------- Semantic status — deliberately conventional for fast scanning ---------- */
-  --color-success: #0d9455;
-  --color-success-subtle: #e7f5ec;
-  --color-warning: #c98826;
-  --color-warning-subtle: #fbf0dc;
-  --color-danger: #c23b2c;
-  --color-danger-subtle: #fbeae7;
-  --color-info: #2e6f9e;
-  --color-info-subtle: #e8f1f7;
+  --color-turmeric-50: var(--color-warning-subtle);
+  --color-turmeric-500: var(--color-warning);
+  --color-turmeric-600: var(--color-warning);
+  
+  --color-rice-25: var(--color-background);
+  --color-rice-50: var(--color-background);
+  --color-rice-100: var(--color-beige);
+  --color-rice-200: var(--color-cream);
+  --color-rice-300: #E8DED2;
 
-  /* ---------- Shadows: warm-tinted (leaf-900 base), never pure black ---------- */
-  --shadow-card: 0 1px 2px rgba(28, 38, 17, 0.06), 0 6px 16px rgba(28, 38, 17, 0.07);
-  --shadow-card-hover: 0 2px 4px rgba(28, 38, 17, 0.08), 0 12px 24px rgba(28, 38, 17, 0.1);
-  --shadow-nav: 1px 0 0 rgba(28, 38, 17, 0.08);
+  --color-ink-400: var(--color-text-muted);
+  --color-ink-500: var(--color-text-muted);
+  --color-ink-600: var(--color-text-muted);
+  --color-ink-700: var(--color-text);
+  --color-ink-900: var(--color-text);
 
-  /* ---------- Extra breakpoint for small phones (mobile-first fine control) ---------- */
+  /* ---------- Extra breakpoint for small phones ---------- */
   --breakpoint-xs: 22.5rem; /* 360px */
 
-  /* ---------- Signature motion: the LeafSpinner's gentle sway ---------- */
+  /* ---------- Signature motion ---------- */
   --animate-leaf-sway: leaf-sway 1.6s ease-in-out infinite;
 }
 

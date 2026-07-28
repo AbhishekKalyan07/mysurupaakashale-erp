@@ -69,3 +69,25 @@ export function useSkipDay() {
     },
   });
 }
+
+export function useSubscriptionAccruedBill(subscriptionId?: string) {
+  const { firebaseUser } = useAuth();
+  const customerId = firebaseUser?.uid;
+
+  return useQuery({
+    queryKey: ['accruedBill', customerId, subscriptionId],
+    queryFn: async () => {
+      if (!customerId || !subscriptionId) return 0;
+      const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
+      const orders = await orderRepository.getCustomerOrders(customerId);
+      
+      // Filter orders for this subscription that are NOT cancelled
+      const subOrders = orders.filter(
+        o => o.subscriptionId === subscriptionId && o.status !== 'cancelled'
+      );
+      
+      return subOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+    },
+    enabled: !!customerId && !!subscriptionId,
+  });
+}

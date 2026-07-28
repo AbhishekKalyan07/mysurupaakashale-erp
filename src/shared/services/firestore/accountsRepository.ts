@@ -50,8 +50,12 @@ export class AccountsRepository {
    * Request a backend-generated daily report.
    */
   async generateDailyReport(date: string): Promise<{ downloadUrl: string }> {
-    // Phase 1: Client-side daily report (mocked as CSV data URL)
-    const csvContent = "data:text/csv;charset=utf-8,Date,Report\n" + date + ",Daily Report";
+    const orders = await this.getOrdersInDateRange(date, date);
+    let csvContent = "data:text/csv;charset=utf-8,ID,Customer ID,Date,Tier,Meal Type,Status\n";
+    orders.forEach(order => {
+      const row = [order.id, order.customerId, order.date, order.planTier, order.mealType, order.status].join(',');
+      csvContent += row + "\n";
+    });
     return { downloadUrl: encodeURI(csvContent) };
   }
 
@@ -59,8 +63,20 @@ export class AccountsRepository {
    * Request a backend-generated monthly report.
    */
   async generateMonthlyReport(monthStr: string): Promise<{ downloadUrl: string }> {
-    // Phase 1: Client-side monthly report (mocked as CSV data URL)
-    const csvContent = "data:text/csv;charset=utf-8,Month,Report\n" + monthStr + ",Monthly Report";
+    const year = parseInt(monthStr.split('-')[0]);
+    const month = parseInt(monthStr.split('-')[1]);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    
+    const invoices = await this.getInvoicesInRange(startDate, endDate);
+    let csvContent = "data:text/csv;charset=utf-8,ID,Customer ID,Amount,Status,Issued At\n";
+    invoices.forEach(inv => {
+      const dateStr = inv.createdAt && (inv.createdAt as any).seconds 
+        ? new Date((inv.createdAt as any).seconds * 1000).toISOString() 
+        : '';
+      const row = [inv.id, inv.customerId, inv.totalAmount, inv.status, dateStr].join(',');
+      csvContent += row + "\n";
+    });
     return { downloadUrl: encodeURI(csvContent) };
   }
 
@@ -68,17 +84,25 @@ export class AccountsRepository {
    * Generate a manual invoice (e.g. for one-time catering or adjustments).
    */
   async generateInvoice(payload: { customerId: string; amount: number; description: string }): Promise<void> {
-    // Phase 1: Client-side invoice generation
     const invoiceId = crypto.randomUUID();
     await setDoc(doc(db, 'invoices', invoiceId), {
       id: invoiceId,
+      invoiceNumber: `INV-${Date.now()}`,
       customerId: payload.customerId,
-      amount: payload.amount,
-      status: 'pending',
-      description: payload.description,
-      issuedAt: serverTimestamp(),
+      subscriptionId: null,
+      lineItems: [{ description: payload.description, quantity: 1, unitPrice: payload.amount, amount: payload.amount }],
+      subtotal: payload.amount,
+      taxRate: 0,
+      taxAmount: 0,
+      totalAmount: payload.amount,
+      currency: 'INR',
+      status: 'issued',
+      billingPeriodStart: new Date().toISOString().split('T')[0],
+      billingPeriodEnd: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       paidAt: null,
       paymentId: null,
+      createdAt: serverTimestamp(),
     });
   }
 }

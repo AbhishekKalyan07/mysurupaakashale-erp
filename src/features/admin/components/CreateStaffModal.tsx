@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { STAFF_ROLES } from '@/shared/constants/roles';
 import { useCreateStaffUser } from '../hooks/useAdmin';
 import { toast } from 'react-hot-toast';
@@ -57,7 +57,7 @@ export function CreateStaffModal({ onClose }: Props) {
       await createMutation.mutateAsync(payload);
       toast.success('Staff account created successfully!');
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled globally via QueryClient
     }
   };

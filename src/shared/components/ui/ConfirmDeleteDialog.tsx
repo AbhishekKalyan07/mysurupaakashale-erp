@@ -1,6 +1,6 @@
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { Button } from './Button';
+import { PremiumButton as Button } from './PremiumButton';
 import { cn } from '@/shared/lib/cn';
 
 export interface ConfirmDeleteDialogProps {

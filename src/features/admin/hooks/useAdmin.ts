@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { firebaseApp } from '@/shared/lib/firebase';
-import { where, serverTimestamp, type QueryDocumentSnapshot } from 'firebase/firestore';
+import { firebaseApp, db } from '@/shared/lib/firebase';
+import { where, serverTimestamp, doc, getDoc, setDoc, deleteDoc, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -63,8 +63,9 @@ export function useCreateStaffUser() {
       const tempAuth = getAuth(tempApp);
       
       try {
-        const existingUsers = await userRepository.list(where('phone', '==', data.phone));
-        if (existingUsers.length > 0) {
+        const phoneDocRef = doc(db, 'userPhones', data.phone);
+        const existingPhone = await getDoc(phoneDocRef);
+        if (existingPhone.exists()) {
           throw new Error('Phone number is already registered.');
         }
 
@@ -93,6 +94,8 @@ export function useCreateStaffUser() {
         }
 
         await userRepository.create(profileData as UserProfile, credential.user.uid);
+        
+        await setDoc(phoneDocRef, { uid: credential.user.uid });
         
         const currentUser = getAuth().currentUser;
         if (currentUser) {
@@ -157,9 +160,18 @@ export function useUpdateStaffUser() {
   return useMutation({
     mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
       if (data.phone) {
-        const existingUsers = await userRepository.list(where('phone', '==', data.phone));
-        if (existingUsers.some(u => u.id !== uid)) {
-          throw new Error('Phone number is already registered to another user.');
+        const currentUserProfile = await userRepository.getById(uid);
+        if (currentUserProfile && currentUserProfile.phone !== data.phone) {
+          const newPhoneDocRef = doc(db, 'userPhones', data.phone);
+          const existingPhone = await getDoc(newPhoneDocRef);
+          if (existingPhone.exists() && existingPhone.data()?.uid !== uid) {
+            throw new Error('Phone number is already registered to another user.');
+          }
+          
+          if (currentUserProfile.phone) {
+            await deleteDoc(doc(db, 'userPhones', currentUserProfile.phone));
+          }
+          await setDoc(newPhoneDocRef, { uid });
         }
       }
 

@@ -1,7 +1,7 @@
 import { useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { PremiumCard as Card } from '../ui/PremiumCard';
+import { PremiumButton as Button } from '../ui/PremiumButton';
 
 export function RouteErrorBoundary() {
   const error = useRouteError();

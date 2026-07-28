@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { Card } from '@/shared/components/ui/Card';
-import { Button } from '@/shared/components/ui/Button';
-import { Badge } from '@/shared/components/ui/Badge';
+import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
+import { PremiumTable, PremiumTableRow, PremiumTableCell } from '@/shared/components/ui/PremiumTable';
+import { HeroBanner } from '@/shared/components/ui/HeroBanner';
+import { MetricCard } from '@/shared/components/ui/MetricCard';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { usePayrollByMonth, useGeneratePayroll, usePaySalary, useUpdatePayrollStatus } from '../hooks/usePayroll';
 import { useStaffUsers } from '@/features/admin/hooks/useAdmin';
 import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 import { salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
 import { attendanceRepository } from '@/shared/services/firestore/attendanceRepository';
-import { Banknote, FileText, CheckCircle, ArrowRight, Archive } from 'lucide-react';
+import { Banknote, FileText, CheckCircle, ArrowRight, Archive, CheckCircle2, TrendingDown } from 'lucide-react';
 import { PayslipPrintView } from '../components/PayslipPrintView';
 
 export function PayrollDashboardPage() {
@@ -132,188 +134,169 @@ export function PayrollDashboardPage() {
 
   return (
     <>
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 print:hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-ink-900 flex items-center gap-2">
-            <Banknote className="text-leaf-600" />
-            Payroll Management
-          </h1>
-          <p className="text-sm text-ink-500 font-sans mt-1">
-            Generate and manage monthly staff salaries.
-          </p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Button variant="secondary" onClick={exportCSV} className="shrink-0">
-            Export CSV
-          </Button>
-          <input 
-            type="month" 
-            value={month} 
-            onChange={(e) => setMonth(e.target.value)}
-            className="border border-rice-300 rounded-lg px-3 py-2 text-sm font-sans focus:outline-none focus:ring-2 focus:ring-leaf-500"
-          />
-        </div>
-      </div>
+    <div className="space-y-8 print:hidden">
+      <HeroBanner 
+        userName="Accounts Team"
+        subtitle="Generate and manage monthly staff salaries."
+        actions={
+          <>
+            <Button variant="secondary" onClick={exportCSV} className="shrink-0 bg-white text-primary">
+              Export CSV
+            </Button>
+            <div className="flex gap-2 items-center bg-white/10 backdrop-blur-md p-1 rounded-xl">
+              <input 
+                type="month" 
+                value={month} 
+                onChange={(e) => setMonth(e.target.value)}
+                className="bg-transparent border-none text-primary font-medium text-sm focus:ring-0 cursor-pointer"
+              />
+            </div>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 flex flex-col gap-1">
-          <div className="text-sm font-medium text-ink-500">Total Generated</div>
-          <div className="text-2xl font-bold text-ink-900 font-data">{payrollList.length} / {staffList.length}</div>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1">
-          <div className="text-sm font-medium text-ink-500">Paid Staff</div>
-          <div className="text-2xl font-bold text-success font-data">
-            {payrollList.filter(p => p.status === 'paid' || p.status === 'archived').length}
-          </div>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1">
-          <div className="text-sm font-medium text-ink-500">Pending Payable</div>
-          <div className="text-2xl font-bold text-warning font-data">
-            ₹{payrollList.filter(p => p.status === 'approved' || p.status === 'review' || p.status === 'draft').reduce((acc, curr) => acc + curr.netSalary, 0).toLocaleString()}
-          </div>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1">
-          <div className="text-sm font-medium text-ink-500">Monthly Expense</div>
-          <div className="text-2xl font-bold text-leaf-600 font-data">
-            ₹{payrollList.filter(p => p.status === 'paid' || p.status === 'archived').reduce((acc, curr) => acc + curr.netSalary, 0).toLocaleString()}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Generated"
+          value={`${payrollList.length} / ${staffList.length}`}
+          icon={<FileText size={24} />}
+          color="blue"
+        />
+        <MetricCard
+          title="Paid Staff"
+          value={payrollList.filter(p => p.status === 'paid' || p.status === 'archived').length}
+          icon={<CheckCircle2 size={24} />}
+          color="mint"
+        />
+        <MetricCard
+          title="Pending Payable"
+          value={`₹${payrollList.filter(p => p.status === 'approved' || p.status === 'review' || p.status === 'draft').reduce((acc, curr) => acc + curr.netSalary, 0).toLocaleString()}`}
+          icon={<TrendingDown size={24} className="text-warning" />}
+          color="amber"
+        />
+        <MetricCard
+          title="Monthly Expense"
+          value={`₹${payrollList.filter(p => p.status === 'paid' || p.status === 'archived').reduce((acc, curr) => acc + curr.netSalary, 0).toLocaleString()}`}
+          icon={<Banknote size={24} />}
+          color="lavender"
+        />
       </div>
 
       <Card className="p-0 overflow-hidden">
-        {staffList.length > 0 ? (
-          <div className="overflow-x-auto md:overflow-visible">
-            <table className="w-full text-left text-sm block md:table">
-              <thead className="hidden md:table-header-group bg-rice-50 text-ink-500 font-medium">
-                <tr>
-                  <th className="px-4 py-3">Staff Member</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Net Salary</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="block md:table-row-group divide-y divide-rice-100">
-                {staffList.map(user => {
-                  const record = payrollList.find(p => p.staffId === user.id);
-                  const isGenerated = !!record;
+        <div className="p-6">
+          <PremiumTable
+            columns={['Staff Member', 'Role', 'Status', 'Net Salary', 'Actions']}
+            isEmpty={staffList.length === 0}
+            emptyState="No staff found. Add staff members in Staff Management first."
+          >
+            {staffList.map(user => {
+              const record = payrollList.find(p => p.staffId === user.id);
+              const isGenerated = !!record;
 
-                  return (
-                    <tr key={user.id} className="block md:table-row bg-white md:bg-transparent hover:bg-rice-25 p-4 md:p-0 space-y-3 md:space-y-0">
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Staff Member</span>
-                        <div className="text-right md:text-left">
-                          <div className="font-semibold text-ink-900">{user.fullName}</div>
-                          <div className="text-xs text-ink-500 font-data">{user.id}</div>
+              return (
+                <PremiumTableRow key={user.id}>
+                  <PremiumTableCell>
+                    <div className="text-right md:text-left">
+                      <div className="font-semibold text-primary">{user.fullName}</div>
+                      <div className="text-xs text-text-muted font-data">{user.id}</div>
+                    </div>
+                  </PremiumTableCell>
+                  <PremiumTableCell className="capitalize text-text-muted">
+                    {user.role.replace('_', ' ')}
+                  </PremiumTableCell>
+                  <PremiumTableCell>
+                    <Badge variant={
+                      record?.status === 'paid' ? 'success' : 
+                      record?.status === 'archived' ? 'default' : 
+                      record?.status === 'approved' ? 'success' :
+                      record?.status === 'review' ? 'warning' :
+                      isGenerated ? 'warning' : 'default'
+                    } className="capitalize">
+                      {record?.status || 'Not Generated'}
+                    </Badge>
+                  </PremiumTableCell>
+                  <PremiumTableCell className="font-data font-bold text-primary">
+                    {isGenerated ? `₹${record.netSalary.toLocaleString()}` : '-'}
+                  </PremiumTableCell>
+                  <PremiumTableCell>
+                    <div className="flex justify-end gap-2">
+                      {!isGenerated ? (
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleGenerate(user)}
+                          isLoading={generatePayroll.isPending && generatePayroll.variables?.staffId === user.id}
+                        >
+                          <FileText size={14} className="mr-1" /> Generate
+                        </Button>
+                      ) : record?.status === 'draft' ? (
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={() => handleStatusUpdate(record.id, 'review')}
+                          isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
+                        >
+                          <ArrowRight size={14} className="mr-1" /> Submit for Review
+                        </Button>
+                      ) : record?.status === 'review' ? (
+                        <Button 
+                          size="sm" 
+                          variant="primary"
+                          onClick={() => handleStatusUpdate(record.id, 'approved')}
+                          isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
+                        >
+                          <CheckCircle size={14} className="mr-1" /> Approve
+                        </Button>
+                      ) : record?.status === 'approved' ? (
+                        <Button 
+                          size="sm" 
+                          variant="primary"
+                          onClick={() => handlePay(record.id)}
+                          isLoading={paySalary.isPending && paySalary.variables === record.id}
+                        >
+                          <Banknote size={14} className="mr-1" /> Mark Paid
+                        </Button>
+                      ) : record?.status === 'paid' ? (
+                        <>
+                          <span className="text-success flex items-center gap-1 text-sm font-semibold">
+                            <CheckCircle size={14} /> Paid {record.paymentDate}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handlePrint(record)}
+                          >
+                            Print
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleStatusUpdate(record.id, 'archived')}
+                            isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
+                          >
+                            <Archive size={14} />
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className="text-text-muted flex items-center gap-1 text-sm font-semibold">
+                            Archived
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handlePrint(record)}
+                          >
+                            Print
+                          </Button>
                         </div>
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 capitalize text-ink-600">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Role</span>
-                        {user.role.replace('_', ' ')}
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
-                        <Badge tone={
-                          record?.status === 'paid' ? 'success' : 
-                          record?.status === 'archived' ? 'neutral' : 
-                          record?.status === 'approved' ? 'success' :
-                          record?.status === 'review' ? 'warning' :
-                          isGenerated ? 'warning' : 'neutral'
-                        } className="capitalize">
-                          {record?.status || 'Not Generated'}
-                        </Badge>
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 font-data font-bold text-ink-900">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Net Salary</span>
-                        {isGenerated ? `₹${record.netSalary.toLocaleString()}` : '-'}
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 pt-2 md:pt-0 md:px-4 md:py-3 text-right border-t border-rice-100 md:border-0 mt-2 md:mt-0">
-                        <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Actions</span>
-                        <div className="flex justify-end gap-2">
-                          {!isGenerated ? (
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleGenerate(user)}
-                              isLoading={generatePayroll.isPending && generatePayroll.variables?.staffId === user.id}
-                            >
-                              <FileText size={14} className="mr-1" /> Generate
-                            </Button>
-                          ) : record?.status === 'draft' ? (
-                            <Button 
-                              size="sm" 
-                              variant="secondary"
-                              onClick={() => handleStatusUpdate(record.id, 'review')}
-                              isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
-                            >
-                              <ArrowRight size={14} className="mr-1" /> Submit for Review
-                            </Button>
-                          ) : record?.status === 'review' ? (
-                            <Button 
-                              size="sm" 
-                              variant="primary"
-                              onClick={() => handleStatusUpdate(record.id, 'approved')}
-                              isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
-                            >
-                              <CheckCircle size={14} className="mr-1" /> Approve
-                            </Button>
-                          ) : record?.status === 'approved' ? (
-                            <Button 
-                              size="sm" 
-                              variant="primary"
-                              onClick={() => handlePay(record.id)}
-                              isLoading={paySalary.isPending && paySalary.variables === record.id}
-                            >
-                              <Banknote size={14} className="mr-1" /> Mark Paid
-                            </Button>
-                          ) : record?.status === 'paid' ? (
-                            <>
-                              <span className="text-leaf-600 flex items-center gap-1 text-sm font-semibold">
-                                <CheckCircle size={14} /> Paid {record.paymentDate}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => handlePrint(record)}
-                              >
-                                Print
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => handleStatusUpdate(record.id, 'archived')}
-                                isLoading={updateStatus.isPending && updateStatus.variables?.id === record.id}
-                              >
-                                <Archive size={14} />
-                              </Button>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <span className="text-ink-500 flex items-center gap-1 text-sm font-semibold">
-                                Archived
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => handlePrint(record)}
-                              >
-                                Print
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8">
-            <EmptyState title="No Staff Found" description="Add staff members in Staff Management first." />
-          </div>
-        )}
+                      )}
+                    </div>
+                  </PremiumTableCell>
+                </PremiumTableRow>
+              );
+            })}
+          </PremiumTable>
+        </div>
       </Card>
     </div>
     

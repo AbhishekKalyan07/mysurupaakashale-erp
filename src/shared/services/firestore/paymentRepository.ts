@@ -22,6 +22,20 @@ class PaymentRepository extends BaseRepository<ManualPayment> {
     );
   }
 
+  /** Real-time subscription to customer payments. */
+  subscribeToCustomerPayments(
+    customerId: string, 
+    onNext: (payments: ManualPayment[]) => void, 
+    onError?: (error: Error) => void
+  ) {
+    return this.subscribeToList(
+      onNext, 
+      onError,
+      where('customerId', '==', customerId),
+      orderBy('createdAt', 'desc')
+    );
+  }
+
   /**
    * Cursor-paginated list for the admin verification table.
    * Supports status filter and customer filter independently.
