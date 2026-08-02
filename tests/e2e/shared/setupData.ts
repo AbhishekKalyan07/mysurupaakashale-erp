@@ -1,18 +1,8 @@
 import axios from 'axios';
-import * as admin from 'firebase-admin';
+import { execSync } from 'child_process';
+import path from 'path';
 
 const PROJECT_ID = 'demo-test';
-
-// Set emulator host variables so firebase-admin connects to emulators
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
-
-// Initialize firebase-admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp({ projectId: PROJECT_ID });
-}
-const db = admin.firestore();
-const auth = admin.auth();
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -38,39 +28,8 @@ export async function clearEmulatorData() {
 }
 
 export async function seedUsers() {
-  const users = [
-    { email: 'admin@test.com', password: 'password123', role: 'admin' },
-    { email: 'kitchen@test.com', password: 'password123', role: 'kitchen' },
-    { email: 'delivery@test.com', password: 'password123', role: 'delivery' },
-    { email: 'customer@test.com', password: 'password123', role: 'customer' },
-    { email: 'accounts@test.com', password: 'password123', role: 'accounts' }
-  ];
-
-  console.log('Seeding users...');
-  for (const u of users) {
-    try {
-      // 1. Create User in Auth
-      const userRecord = await auth.createUser({
-        email: u.email,
-        password: u.password,
-      });
-      
-      // 2. Create User in Firestore (Admin SDK bypasses security rules)
-      await db.collection('users').doc(userRecord.uid).set({
-        id: userRecord.uid,
-        email: u.email,
-        role: u.role,
-        name: `${u.role.charAt(0).toUpperCase() + u.role.slice(1)} User`,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    } catch (err: any) {
-      if (err.code !== 'auth/email-already-exists') {
-        throw err;
-      }
-    }
-  }
+  console.log('Running seed script...');
+  execSync(`node "${path.join(__dirname, 'seed.cjs')}"`, { stdio: 'inherit' });
 }
 
 export async function setupData() {
