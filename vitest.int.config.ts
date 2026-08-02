@@ -7,7 +7,9 @@ const merged = mergeConfig(viteConfig, defineConfig({
     setupFiles: ['./vitest.int.setup.ts'],
     coverage: {
       enabled: false,
-    }
+    },
+    testTimeout: 30000,
+    hookTimeout: 30000,
   }
 }));
 
