@@ -77,7 +77,7 @@ export function OfflineState() {
       {/* Icon */}
       <div className="relative">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-rice-200">
-          <WifiOff size={44} className="text-ink-400" strokeWidth={1.5} />
+          <WifiOff size={44} className="text-ink-500" strokeWidth={1.5} />
         </div>
       </div>
 
@@ -100,7 +100,7 @@ export function OfflineState() {
           Connection restored — click retry to continue
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-ink-400 text-sm">
+        <div className="flex items-center gap-2 text-ink-500 text-sm">
           <div className="h-2 w-2 rounded-full bg-ink-300 animate-pulse" />
           Waiting for connection...
         </div>

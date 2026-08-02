@@ -96,7 +96,7 @@ export function MobileLoginPage() {
 
             <div className="flex flex-col gap-1 mt-2">
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                   <Mail size={18} strokeWidth={1.8} />
                 </div>
                 <input
@@ -118,7 +118,7 @@ export function MobileLoginPage() {
               </p>
             )}
 
-            <button
+            <button aria-label="Button action"
               type="submit"
               disabled={resetLoading}
               className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-all mt-2 flex justify-center items-center"
@@ -126,7 +126,7 @@ export function MobileLoginPage() {
               {resetLoading ? <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" /> : 'Send reset link'}
             </button>
 
-            <button
+            <button aria-label="Button action"
               type="button"
               onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
               className="mt-2 w-full text-center text-sm font-semibold text-[#5c1417] hover:underline"
@@ -148,7 +148,7 @@ export function MobileLoginPage() {
             <div className="flex flex-col gap-3 mt-1">
               <div className="flex flex-col gap-1">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                     <Mail size={18} strokeWidth={1.8} />
                   </div>
                   <input
@@ -167,7 +167,7 @@ export function MobileLoginPage() {
 
               <div className="flex flex-col gap-1">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                     <Lock size={18} strokeWidth={1.8} />
                   </div>
                   <input
@@ -178,10 +178,10 @@ export function MobileLoginPage() {
                     className="h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-11 pr-10 text-sm text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
                     {...register('password')}
                   />
-                  <button
+                  <button aria-label="Button action"
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8c746a] p-1.5"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -191,7 +191,7 @@ export function MobileLoginPage() {
             </div>
 
             <div className="w-full flex justify-end -mt-2">
-              <button
+              <button aria-label="Button action"
                 type="button"
                 onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
                 className="text-xs font-semibold text-[#5c1417] hover:underline"
@@ -206,7 +206,7 @@ export function MobileLoginPage() {
               </p>
             )}
 
-            <button
+            <button aria-label="Button action"
               type="submit"
               disabled={isSubmitting}
               className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-all flex justify-center items-center"
@@ -216,12 +216,12 @@ export function MobileLoginPage() {
 
             <div className="relative flex items-center justify-center w-full my-2">
               <div className="w-full border-t border-[#e8ded2]" />
-              <span className="absolute bg-[#fbf5ed] px-3 text-[10px] font-bold text-[#8c746a] uppercase tracking-widest rounded-full">
+              <span className="absolute bg-[#fbf5ed] px-3 text-[10px] font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">
                 Or
               </span>
             </div>
 
-            <button
+            <button aria-label="Button action"
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
@@ -251,7 +251,7 @@ export function MobileLoginPage() {
           </form>
         )}
 
-        <p className="mt-5 text-[10px] text-[#8c746a] text-center">
+        <p className="mt-5 text-[10px] text-[#5a4a44] text-center">
           By continuing, you agree to our{' '}
           <Link to="/terms" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</Link> and{' '}
           <Link to="/privacy" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</Link>.

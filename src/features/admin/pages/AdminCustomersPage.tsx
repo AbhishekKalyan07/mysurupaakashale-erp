@@ -55,7 +55,7 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
               {customer.displayId || 'Customer'}
             </p>
           </div>
-          <button onClick={onClose} className="text-primary hover:text-gold p-1 transition-colors">
+          <button aria-label="Button action" onClick={onClose} className="text-primary hover:text-gold p-1 transition-colors">
             <X size={24} />
           </button>
         </div>
@@ -262,7 +262,7 @@ function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: 
             </Badge>
           </div>
           
-          <button 
+          <button aria-label="Button action" 
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
             className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
             aria-label="More actions"
@@ -274,11 +274,11 @@ function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: 
         {/* Overflow Menu Dropdown */}
         {menuOpen && (
           <div className="absolute top-11 right-3 z-30 bg-card border border-border shadow-xl rounded-xl w-44 overflow-hidden flex flex-col py-1">
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Edit</button>
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Assign Driver</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Edit</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Assign Driver</button>
             <div className="h-[1px] bg-border my-1 w-full" />
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); window.location.href = `tel:${customer.phone}`; }}>Call Customer</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); window.location.href = `tel:${customer.phone}`; }}>Call Customer</button>
           </div>
         )}
         
@@ -412,7 +412,7 @@ export function AdminCustomersPage() {
           {/* Tab bar */}
           <div className="flex gap-2">
             {TABS.map((tab) => (
-              <button
+              <button aria-label="Button action"
                 key={tab.value}
                 onClick={() => handleTabChange(tab.value)}
                 className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-all border ${
@@ -437,7 +437,7 @@ export function AdminCustomersPage() {
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {search && (
-                <button
+                <button aria-label="Button action"
                   onClick={() => setSearch('')}
                   className="text-text-muted hover:text-text p-1"
                 >
@@ -445,7 +445,7 @@ export function AdminCustomersPage() {
                 </button>
               )}
               <div className="w-[1px] h-4 bg-border hidden sm:block"></div>
-              <button className="text-text-muted hover:text-primary transition-colors flex items-center gap-1.5 p-1 rounded hover:bg-surface-2">
+              <button aria-label="Button action" className="text-text-muted hover:text-primary transition-colors flex items-center gap-1.5 p-1 rounded hover:bg-surface-2">
                 <Filter size={16} />
                 <span className="text-xs font-semibold hidden sm:inline">Filter</span>
               </button>

@@ -50,7 +50,7 @@ export function PermissionDenied({
         <div className="flex gap-4 items-center bg-rice-50 border border-rice-200 rounded-lg p-3 text-sm">
           {displayCurrentRole && (
             <div className="flex flex-col text-left">
-              <span className="text-ink-400 text-xs uppercase tracking-wider font-semibold">Your Role</span>
+              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">Your Role</span>
               <span className="text-ink-900 font-medium capitalize">{displayCurrentRole}</span>
             </div>
           )}
@@ -59,7 +59,7 @@ export function PermissionDenied({
           )}
           {requiredRole && (
             <div className="flex flex-col text-left">
-              <span className="text-ink-400 text-xs uppercase tracking-wider font-semibold">Required Role</span>
+              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">Required Role</span>
               <span className="text-ink-900 font-medium capitalize">{requiredRole}</span>
             </div>
           )}

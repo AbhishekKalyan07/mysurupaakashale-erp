@@ -53,7 +53,7 @@ export function UnlockProductionModal({ isOpen, onClose, onConfirm }: Props) {
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-rice-200">
         <div className="flex items-center justify-between p-6 border-b border-rice-100">
           <h2 className="text-xl font-bold font-display text-ink-900">Unlock Production</h2>
-          <button onClick={onClose} className="text-ink-400 hover:text-ink-600 transition-colors">
+          <button aria-label="Button action" onClick={onClose} className="text-ink-500 hover:text-ink-600 transition-colors">
             <X size={20} />
           </button>
         </div>

@@ -203,7 +203,7 @@ export function NotificationCenter() {
                   ? (notifications ?? []).length
                   : (notifications ?? []).filter((n) => n.inAppStatus === tab.value).length;
               return (
-                <button
+                <button aria-label="Button action"
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value)}
                   className={`px-4 py-2 text-sm font-bold font-sans tracking-wide transition-all flex items-center gap-2 rounded-xl whitespace-nowrap ${

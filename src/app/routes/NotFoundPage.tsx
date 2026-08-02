@@ -49,7 +49,7 @@ export function NotFoundPage() {
       </div>
 
       {/* Brand mark */}
-      <p className="text-xs text-ink-400 font-sans">
+      <p className="text-xs text-ink-500 font-sans">
         Mysuru Paakashale ERP
       </p>
     </div>

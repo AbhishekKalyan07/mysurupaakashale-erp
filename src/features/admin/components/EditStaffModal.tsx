@@ -72,7 +72,7 @@ export function EditStaffModal({ user, onClose }: Props) {
       <Card className="w-full max-w-lg bg-white overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-rice-200">
           <h2 className="text-xl font-semibold text-ink-900">Edit Staff Account</h2>
-          <button onClick={onClose} className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors">
+          <button aria-label="Button action" onClick={onClose} className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors">
             <X size={20} />
           </button>
         </div>

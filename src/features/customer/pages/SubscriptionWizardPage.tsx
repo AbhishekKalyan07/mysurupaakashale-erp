@@ -312,7 +312,7 @@ export function SubscriptionWizardPage() {
             <h3 className="text-sm font-sans font-bold text-ink-800 mb-2">Switch Plan Tier:</h3>
             <div className="flex gap-3">
               {plans.map((p) => (
-                <button
+                <button aria-label="Button action"
                   key={p.id}
                   type="button"
                   onClick={() => handleSelectPlan(p.id)}
@@ -599,12 +599,12 @@ export function SubscriptionWizardPage() {
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="font-sans font-bold text-ink-800 text-sm">Selected Preferences</h3>
                   <div className="flex items-center gap-2 bg-rice-100 rounded-lg p-1 border border-rice-300">
-                    <button
+                    <button aria-label="Button action"
                       onClick={() => setQuantity(q => Math.max(1, q - 1))}
                       className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
                     >-</button>
                     <span className="text-xs font-bold w-12 text-center">{quantity} {quantity === 1 ? 'Person' : 'People'}</span>
-                    <button
+                    <button aria-label="Button action"
                       onClick={() => setQuantity(q => Math.min(10, q + 1))}
                       className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
                     >+</button>
@@ -669,7 +669,7 @@ export function SubscriptionWizardPage() {
 
                 <h3 className="font-sans font-bold text-ink-800 text-sm mb-3 border-t border-rice-200 pt-3">Select Start Date</h3>
                 <div className="flex items-center gap-3">
-                  <Calendar className="text-ink-400" size={18} />
+                  <Calendar className="text-ink-500" size={18} />
                   <input
                     type="date"
                     value={startDate}
@@ -686,7 +686,7 @@ export function SubscriptionWizardPage() {
                     className="border border-ink-400 rounded-md p-1.5 text-xs font-sans"
                   />
                 </div>
-                <p className="text-[10px] text-ink-400 font-sans mt-2">
+                <p className="text-[10px] text-ink-500 font-sans mt-2">
                   First delivery will occur on the morning of the selected date. Sundays are holidays and orders will not be delivered.
                 </p>
                 <div className="mt-3 p-2 bg-rice-100 rounded text-xs text-ink-700 font-sans font-medium">

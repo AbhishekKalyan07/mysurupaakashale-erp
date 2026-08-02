@@ -24,7 +24,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function TypeIcon({ type }: { type: string }) {
-  const cls = 'shrink-0 text-ink-400';
+  const cls = 'shrink-0 text-ink-500';
   if (type.includes('payment')) return <CreditCard size={14} className={cls} />;
   if (type.includes('subscription')) return <ShoppingBag size={14} className={cls} />;
   if (type.includes('delivery') || type.includes('out_for') || type === 'delivered') return <Truck size={14} className={cls} />;
@@ -56,7 +56,7 @@ function NotificationRow({ n }: { n: Notification }) {
           <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Title / Recipient</span>
           <div className="text-right md:text-left">
             <div className="font-semibold text-ink-900 text-sm">{n.title}</div>
-            <div className="text-ink-400 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
+            <div className="text-ink-500 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
           </div>
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
@@ -151,7 +151,7 @@ export function NotificationHistoryPage() {
       </div>
 
       <div className="relative mb-5">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
         <input
           type="text"
           value={search}

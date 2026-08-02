@@ -58,7 +58,7 @@ export function UnsavedChangesDialog({ onStay, onLeave }: UnsavedChangesDialogPr
           </div>
           <button
             onClick={onStay}
-            className="text-ink-400 hover:text-ink-600 p-1 rounded-md transition-colors"
+            className="text-ink-500 hover:text-ink-600 p-1 rounded-md transition-colors"
             aria-label="Stay on page"
           >
             <X size={18} />

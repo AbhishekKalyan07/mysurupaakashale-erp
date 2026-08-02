@@ -21,7 +21,7 @@ export function TermsOfServicePage() {
         <div className="bg-white rounded-2xl border border-rice-200 shadow-sm p-6 sm:p-10 space-y-8 text-ink-700 text-[15px] leading-relaxed font-sans">
           
           <div>
-            <p className="text-sm text-ink-400 font-medium uppercase tracking-wider mb-1">Last updated</p>
+            <p className="text-sm text-ink-500 font-medium uppercase tracking-wider mb-1">Last updated</p>
             <p className="text-ink-600 font-semibold">29 July 2026</p>
           </div>
 

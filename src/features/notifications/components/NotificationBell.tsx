@@ -12,7 +12,7 @@ function NotificationTypeIcon({ type }: { type: string }) {
   if (type.includes('payment')) return <CreditCard size={13} className={`text-amber-600 ${cls}`} />;
   if (type.includes('subscription')) return <ShoppingBag size={13} className={`text-blue-600 ${cls}`} />;
   if (type.includes('delivery') || type === 'delivered') return <Truck size={13} className={`text-emerald-600 ${cls}`} />;
-  return <Info size={13} className={`text-ink-400 ${cls}`} />;
+  return <Info size={13} className={`text-ink-500 ${cls}`} />;
 }
 
 function DropdownItem({
@@ -78,7 +78,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
   return (
     <div className="relative" ref={ref}>
       {/* Bell button */}
-      <button
+      <button aria-label="Button action"
         id="notification-bell"
         onClick={() => setIsOpen((p) => !p)}
         className="relative p-2 text-text-muted hover:text-primary transition-colors rounded-full hover:bg-background"
@@ -99,7 +99,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-primary/10 bg-primary/5">
             <h3 className="font-bold text-primary text-sm font-sans">Notifications</h3>
-            <button
+            <button aria-label="Button action"
               onClick={() => setIsOpen(false)}
               className="text-text-muted hover:text-primary transition-colors p-0.5"
             >

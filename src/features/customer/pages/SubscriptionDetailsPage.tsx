@@ -69,7 +69,7 @@ export function SubscriptionDetailsPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <EmptyState
-          icon={<Compass size={40} className="text-ink-400" />}
+          icon={<Compass size={40} className="text-ink-500" />}
           title="No Active Subscription"
           description="You don't have an active or pending meal plan subscription right now."
           action={
@@ -315,7 +315,7 @@ export function SubscriptionDetailsPage() {
                 <p className="text-ink-700 text-sm">
                   {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
                 </p>
-                <p className="text-xs text-ink-400 mt-3 flex items-center gap-1.5">
+                <p className="text-xs text-ink-500 mt-3 flex items-center gap-1.5">
                   <Clock size={12} /> Zone Code: {subscription.zoneId || 'Unassigned'}
                 </p>
               </div>
@@ -345,7 +345,7 @@ export function SubscriptionDetailsPage() {
               <div className="flex justify-between text-ink-600 items-center">
                 <span>Start Date:</span>
                 <span className="text-stone-950 font-semibold flex items-center gap-1">
-                  <Calendar size={14} className="text-ink-400" /> {subscription.startDate}
+                  <Calendar size={14} className="text-ink-500" /> {subscription.startDate}
                 </span>
               </div>
               <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-base">
@@ -424,7 +424,7 @@ export function SubscriptionDetailsPage() {
       {showPauseModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <Card className="max-w-md w-full bg-white p-6 relative">
-            <button onClick={() => setShowPauseModal(false)} className="absolute top-4 right-4 text-ink-400 hover:text-ink-600">
+            <button aria-label="Button action" onClick={() => setShowPauseModal(false)} className="absolute top-4 right-4 text-ink-500 hover:text-ink-600">
               <XCircle size={20} />
             </button>
             <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Pause Subscription</h2>

@@ -132,7 +132,7 @@ export function BottomNav({ role }: BottomNavProps) {
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-2">
               <h2 className="font-display font-bold text-base text-text">More</h2>
-              <button
+              <button aria-label="Button action"
                 onClick={() => setShowMore(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
               >
@@ -141,7 +141,7 @@ export function BottomNav({ role }: BottomNavProps) {
             </div>
             <div className="px-4 pb-4 grid grid-cols-3 gap-2">
               {moreItems.map((item) => (
-                <button
+                <button aria-label="Button action"
                   key={item.to}
                   onClick={() => { navigate(item.to); setShowMore(false); }}
                   className="flex flex-col items-center gap-1.5 p-3 rounded-[16px] bg-surface-2 hover:bg-pastel-lavender hover:text-secondary transition-colors group"
@@ -201,7 +201,7 @@ export function BottomNav({ role }: BottomNavProps) {
 
           {/* More Tab */}
           {hasMore && (
-            <button
+            <button aria-label="Button action"
               onClick={() => setShowMore(!showMore)}
               className={cn(
                 'flex flex-col items-center justify-center flex-1 gap-0.5 px-1 pt-2 pb-1 transition-colors relative',

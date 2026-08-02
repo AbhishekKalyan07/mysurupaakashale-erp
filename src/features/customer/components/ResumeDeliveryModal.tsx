@@ -101,7 +101,7 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <Card className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-ink-400 hover:text-ink-600">
+        <button aria-label="Button action" onClick={onClose} className="absolute top-4 right-4 text-ink-500 hover:text-ink-600">
           <XCircle size={20} />
         </button>
         <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Resume Subscription</h2>

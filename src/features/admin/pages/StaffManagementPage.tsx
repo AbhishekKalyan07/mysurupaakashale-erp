@@ -53,7 +53,7 @@ function StaffCardView({
           </div>
           
           {user.role !== 'admin' && (
-            <button 
+            <button aria-label="Button action" 
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
               className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
               aria-label="More actions"
@@ -66,8 +66,8 @@ function StaffCardView({
         {/* Overflow Menu Dropdown */}
         {menuOpen && (
           <div className="absolute top-11 right-3 z-30 bg-card border border-border shadow-xl rounded-xl w-44 overflow-hidden flex flex-col py-1">
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={() => { setMenuOpen(false); onEdit(); }}>Edit Details</button>
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={() => { setMenuOpen(false); onToggleStatus(); }}>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={() => { setMenuOpen(false); onEdit(); }}>Edit Details</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={() => { setMenuOpen(false); onToggleStatus(); }}>
               {user.isActive ? 'Deactivate Account' : 'Activate Account'}
             </button>
           </div>

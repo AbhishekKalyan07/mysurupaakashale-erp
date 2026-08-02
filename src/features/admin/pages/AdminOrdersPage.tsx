@@ -181,7 +181,7 @@ export function AdminOrdersPage() {
             className="w-full h-11 pl-10 pr-4 rounded-[14px] border border-border bg-card text-sm text-text placeholder:text-text-faint focus:border-secondary/60 focus:outline-none focus:ring-2 focus:ring-secondary/20 shadow-xs"
           />
           {searchQuery && (
-            <button
+            <button aria-label="Button action"
               onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
             >
@@ -214,7 +214,7 @@ export function AdminOrdersPage() {
                 <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Meal Type</label>
                 <div className="flex flex-wrap gap-2">
                   {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(m => (
-                    <button
+                    <button aria-label="Button action"
                       key={m}
                       onClick={() => setMealTypeFilter(m)}
                       className={cn(
@@ -240,7 +240,7 @@ export function AdminOrdersPage() {
           const count = statusCounts[chip.key] || 0;
           const isActive = statusFilter === chip.key;
           return (
-            <button
+            <button aria-label="Button action"
               key={chip.key}
               onClick={() => setStatusFilter(chip.key as OrderStatus | 'all')}
               className={cn(

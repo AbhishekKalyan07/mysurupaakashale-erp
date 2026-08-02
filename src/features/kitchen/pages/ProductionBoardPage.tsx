@@ -173,7 +173,7 @@ export function ProductionBoardPage() {
 
       {/* ── Tabs ── */}
       <div className="flex border-b border-rice-200">
-        <button
+        <button aria-label="Button action"
           onClick={() => setActiveTab('production')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'production' 
@@ -183,7 +183,7 @@ export function ProductionBoardPage() {
         >
           Production Board
         </button>
-        <button
+        <button aria-label="Button action"
           onClick={() => setActiveTab('packing')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'packing' 

@@ -78,7 +78,7 @@ export function KitchenProductionTable({
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex flex-wrap gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
           <input
             type="search"
             placeholder="Search customer or Order ID..."

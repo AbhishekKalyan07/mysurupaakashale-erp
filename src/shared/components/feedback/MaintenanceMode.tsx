@@ -22,7 +22,7 @@ export function MaintenanceMode({
       {/* Logo area */}
       <div className="space-y-1">
         <p className="font-display text-2xl font-bold text-leaf-700">Mysuru Paakashale</p>
-        <p className="text-xs text-ink-400 uppercase tracking-widest font-sans">ERP</p>
+        <p className="text-xs text-ink-500 uppercase tracking-widest font-sans">ERP</p>
       </div>
 
       {/* Illustration */}
@@ -54,7 +54,7 @@ export function MaintenanceMode({
         ))}
       </div>
 
-      <p className="text-xs text-ink-400">
+      <p className="text-xs text-ink-500">
         If you have questions, contact us at{' '}
         <a href="mailto:support@mysurupaakashale.in" className="text-leaf-600 underline hover:text-leaf-700">
           support@mysurupaakashale.in

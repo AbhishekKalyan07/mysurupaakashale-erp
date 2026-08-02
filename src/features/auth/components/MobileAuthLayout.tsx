@@ -35,7 +35,7 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
         <div className="relative flex items-center justify-center w-full min-h-[6rem] mb-2 pt-2 shrink-0">
           {/* Back Arrow (Visible on Signup or based on mockup) */}
           {isSignup && (
-            <button 
+            <button aria-label="Button action" 
               onClick={() => navigate('/login')}
               className="absolute left-0 top-4 text-ink-900 hover:text-leaf-700 transition-colors p-1"
               aria-label="Back"

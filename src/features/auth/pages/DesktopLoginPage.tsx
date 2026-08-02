@@ -95,7 +95,7 @@ export function DesktopLoginPage() {
 
             <div className="flex flex-col gap-1 mt-4">
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                   <Mail size={20} strokeWidth={1.8} />
                 </div>
                 <input
@@ -117,7 +117,7 @@ export function DesktopLoginPage() {
               </p>
             )}
 
-            <button
+            <button aria-label="Button action"
               type="submit"
               disabled={resetLoading}
               className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-all mt-4 flex justify-center items-center"
@@ -125,7 +125,7 @@ export function DesktopLoginPage() {
               {resetLoading ? <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" /> : 'Send reset link'}
             </button>
 
-            <button
+            <button aria-label="Button action"
               type="button"
               onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
               className="mt-4 w-full text-center text-sm font-semibold text-[#5c1417] hover:underline"
@@ -147,7 +147,7 @@ export function DesktopLoginPage() {
             <div className="flex flex-col gap-3 mt-1">
               <div className="flex flex-col gap-1">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                     <Mail size={20} strokeWidth={1.8} />
                   </div>
                   <input
@@ -166,7 +166,7 @@ export function DesktopLoginPage() {
 
               <div className="flex flex-col gap-1">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8c746a] pointer-events-none">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] pointer-events-none">
                     <Lock size={20} strokeWidth={1.8} />
                   </div>
                   <input
@@ -177,10 +177,10 @@ export function DesktopLoginPage() {
                     className="h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
                     {...register('password')}
                   />
-                  <button
+                  <button aria-label="Button action"
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8c746a] p-1"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
@@ -190,7 +190,7 @@ export function DesktopLoginPage() {
             </div>
 
             <div className="w-full flex justify-end -mt-3">
-              <button
+              <button aria-label="Button action"
                 type="button"
                 onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
                 className="text-sm font-semibold text-[#5c1417] hover:underline"
@@ -205,7 +205,7 @@ export function DesktopLoginPage() {
               </p>
             )}
 
-            <button
+            <button aria-label="Button action"
               type="submit"
               disabled={isSubmitting}
               className="w-full h-11 md:h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-[17px] shadow-md transition-all flex justify-center items-center mt-1"
@@ -215,12 +215,12 @@ export function DesktopLoginPage() {
 
             <div className="relative flex items-center justify-center w-full my-2">
               <div className="w-full border-t border-[#e8ded2]" />
-              <span className="absolute bg-[#f9f1e8] px-4 text-xs font-bold text-[#8c746a] uppercase tracking-widest rounded-full">
+              <span className="absolute bg-[#f9f1e8] px-4 text-xs font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">
                 Or
               </span>
             </div>
 
-            <button
+            <button aria-label="Button action"
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
@@ -250,7 +250,7 @@ export function DesktopLoginPage() {
           </form>
         )}
 
-        <p className="mt-4 text-[11px] text-[#8c746a] text-center px-4 leading-tight">
+        <p className="mt-4 text-[11px] text-[#5a4a44] text-center px-4 leading-tight">
           By continuing, you agree to our{' '}
           <Link to="/terms" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</Link> and{' '}
           <Link to="/privacy" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</Link>.

@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /kitchen/
+Disallow: /delivery/
+Disallow: /accounts/
+
+Sitemap: https://mysuru-paakashale-erp.web.app/sitemap.xml

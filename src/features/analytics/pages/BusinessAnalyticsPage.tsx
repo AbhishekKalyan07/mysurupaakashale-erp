@@ -96,7 +96,7 @@ export function BusinessAnalyticsPage() {
         {/* Drill-down View */}
         {selectedDateStr && (
           <Card className="p-6 bg-primary/5 border-primary/20 shadow-sm relative ring-1 ring-gold/20">
-            <button 
+            <button aria-label="Button action" 
               onClick={() => setSelectedDateStr(null)}
               className="absolute top-4 right-4 text-text-muted hover:text-gold transition-colors"
             >

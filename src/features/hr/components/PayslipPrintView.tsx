@@ -94,7 +94,7 @@ export function PayslipPrintView({ payroll, settings }: PayslipProps) {
             <p className="text-sm text-ink-500">Employee Signature</p>
           </div>
         </div>
-        <p className="text-center text-xs text-ink-400 mt-8">
+        <p className="text-center text-xs text-ink-500 mt-8">
           This is a computer-generated document. Status: {payroll.status.toUpperCase()}
         </p>
       </div>

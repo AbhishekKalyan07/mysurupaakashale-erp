@@ -18,7 +18,7 @@ export function NoSearchResults({
 }: NoSearchResultsProps) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-rice-300 bg-rice-50/50 px-6 py-14 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rice-200 text-ink-400">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rice-200 text-ink-500">
         <Search size={24} strokeWidth={1.5} />
       </div>
       <div className="space-y-1.5 max-w-sm">

@@ -122,7 +122,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
                 <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">{subscription.customerDisplayId}</p>
               )}
             </div>
-            <button onClick={onClose} className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10">
+            <button aria-label="Button action" onClick={onClose} className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10">
               <XCircle size={20} />
             </button>
           </div>
@@ -363,7 +363,7 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
             </Badge>
           </div>
           
-          <button 
+          <button aria-label="Button action" 
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
             className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
             aria-label="More actions"
@@ -375,7 +375,7 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
         {/* Overflow Menu Dropdown */}
         {menuOpen && (
           <div className="absolute top-11 right-3 z-30 bg-card border border-border shadow-xl rounded-xl w-44 overflow-hidden flex flex-col py-1">
-            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
+            <button aria-label="Button action" className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
           </div>
         )}
         
@@ -451,7 +451,7 @@ export function AdminSubscriptionsPage() {
 
       <div className="flex gap-2 mb-4 border-b border-primary/10 pb-1 overflow-x-auto hide-scrollbar">
         {TABS.map((tab) => (
-          <button
+          <button aria-label="Button action"
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
             className={`shrink-0 px-5 py-2.5 text-sm font-bold font-sans rounded-t-xl transition-all uppercase tracking-wider ${

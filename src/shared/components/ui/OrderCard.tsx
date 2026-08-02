@@ -360,7 +360,7 @@ export function OrderCard({
             {extraActions}
 
             {/* Expand/collapse toggle */}
-            <button
+            <button aria-label="Button action"
               onClick={() => setExpanded(!expanded)}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
               title={expanded ? 'Collapse' : 'Expand'}

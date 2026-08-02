@@ -181,7 +181,7 @@ export function ProfilePage() {
                 disabled 
                 className="w-full rounded-md border border-rice-300 bg-rice-50 px-3 py-2 text-sm text-ink-500 cursor-not-allowed" 
               />
-              <p className="text-xs text-ink-400 mt-1">Email cannot be changed.</p>
+              <p className="text-xs text-ink-500 mt-1">Email cannot be changed.</p>
             </div>
             
             <Input

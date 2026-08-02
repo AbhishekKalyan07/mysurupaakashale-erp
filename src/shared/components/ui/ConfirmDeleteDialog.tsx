@@ -89,7 +89,7 @@ export function ConfirmDeleteDialog({
           </div>
           <button
             onClick={onCancel}
-            className="text-ink-400 hover:text-ink-600 p-1 rounded-md transition-colors"
+            className="text-ink-500 hover:text-ink-600 p-1 rounded-md transition-colors"
             aria-label="Close dialog"
           >
             <X size={18} />

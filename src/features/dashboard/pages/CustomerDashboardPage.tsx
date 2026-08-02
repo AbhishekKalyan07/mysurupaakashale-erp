@@ -421,7 +421,7 @@ export function CustomerDashboardPage() {
                 <MapPin size={20} className="text-gold" /> Saved Addresses
               </span>
               {!showAddressForm && (
-                <button
+                <button aria-label="Button action"
                   onClick={() => setShowAddressForm(true)}
                   className="text-gold hover:text-gold/80 text-xs font-sans font-bold flex items-center gap-1 transition-colors bg-gold/10 px-3 py-1.5 rounded-lg border border-gold/20"
                 >
@@ -534,7 +534,7 @@ export function CustomerDashboardPage() {
                                 Default
                               </span>
                             ) : (
-                              <button
+                              <button aria-label="Button action"
                                 onClick={() => setDefaultAddress(addr.id)}
                                 disabled={isSettingDefault}
                                 className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 text-text-muted hover:text-gold text-[10px] font-bold uppercase tracking-wider transition-all bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10 hover:border-gold/30"
@@ -550,7 +550,7 @@ export function CustomerDashboardPage() {
                           </p>
                         </div>
 
-                        <button
+                        <button aria-label="Button action"
                           onClick={() => deleteAddress(addr.id)}
                           disabled={isDeleting}
                           className="text-text-muted hover:text-danger p-2 shrink-0 transition-colors hover:bg-danger/10 rounded-lg"

@@ -85,7 +85,7 @@ export function AccountsDashboardPage() {
 
       <div className="flex gap-2 p-1 bg-white border border-gold/20 rounded-lg w-fit shadow-sm">
         {(['today', 'week', 'month'] as const).map(range => (
-          <button
+          <button aria-label="Button action"
             key={range}
             onClick={() => setDateRange(range)}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${

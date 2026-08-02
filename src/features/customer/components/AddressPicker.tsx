@@ -201,10 +201,10 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
               Drag the pin to exactly where you want your meals delivered.
             </p>
           </div>
-          <button 
+          <button aria-label="Button action" 
             type="button" 
             onClick={() => setTempAddress(null)}
-            className="p-1 text-ink-400 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
+            className="p-1 text-ink-500 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
           >
             <X size={16} />
           </button>
@@ -216,14 +216,14 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
         />
         
         <div className="flex justify-end gap-3 pt-2">
-          <button
+          <button aria-label="Button action"
             type="button"
             onClick={() => setTempAddress(null)}
             className="px-4 py-2 text-xs font-bold text-ink-600 hover:bg-rice-200 rounded-lg transition"
           >
             Cancel
           </button>
-          <button
+          <button aria-label="Button action"
             type="button"
             onClick={handleConfirmLocation}
             className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
@@ -238,7 +238,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
   return (
     <div className="space-y-3">
       {/* Live Location Button */}
-      <button
+      <button aria-label="Button action"
         type="button"
         onClick={handleUseLiveLocation}
         disabled={isLocating}
@@ -271,29 +271,29 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       {/* Divider */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-rice-200" />
-        <span className="text-xs text-ink-400 font-sans">or search</span>
+        <span className="text-xs text-ink-500 font-sans">or search</span>
         <div className="flex-1 h-px bg-rice-200" />
       </div>
 
       {/* Search Box */}
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500 pointer-events-none" />
           {isSearching && (
-            <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 animate-spin" />
+            <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-500 animate-spin" />
           )}
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your street, landmark, area…"
-            className="w-full pl-9 pr-9 py-2.5 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-400 transition"
+            className="w-full pl-9 pr-9 py-2.5 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-500 transition"
           />
           {query && (
-            <button
+            <button aria-label="Button action"
               type="button"
               onClick={() => { setQuery(''); setSuggestions([]); setShowDropdown(false); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700"
             >
               <X size={14} />
             </button>
@@ -304,7 +304,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
         {showDropdown && suggestions.length > 0 && (
           <div className="absolute z-50 top-full mt-1.5 left-0 right-0 bg-white border border-rice-200 rounded-xl shadow-lg overflow-hidden">
             {suggestions.map((result) => (
-              <button
+              <button aria-label="Button action"
                 key={result.place_id}
                 type="button"
                 onClick={() => handleSelectSuggestion(result)}
@@ -315,7 +315,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
                   <p className="text-sm font-sans text-ink-800 font-medium leading-tight line-clamp-1">
                     {result.display_name.split(',').slice(0, 2).join(',')}
                   </p>
-                  <p className="text-xs text-ink-400 mt-0.5 line-clamp-1">
+                  <p className="text-xs text-ink-500 mt-0.5 line-clamp-1">
                     {result.display_name.split(',').slice(2, 5).join(',')}
                   </p>
                 </div>

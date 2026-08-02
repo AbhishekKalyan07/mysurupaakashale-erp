@@ -76,7 +76,7 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <Card className="max-w-xl w-full bg-white p-6 relative max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-4 right-4 text-ink-400 hover:text-ink-600">
+        <button aria-label="Button action" onClick={onClose} className="absolute top-4 right-4 text-ink-500 hover:text-ink-600">
           <XCircle size={20} />
         </button>
         <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Edit Meal Plan</h2>
@@ -86,9 +86,9 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
           <div className="flex justify-between items-center bg-rice-50 p-4 rounded-xl border border-rice-200">
             <h3 className="font-sans font-bold text-ink-800 text-sm">Number of People</h3>
             <div className="flex items-center gap-2 bg-rice-100 rounded-lg p-1 border border-rice-300">
-              <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold">-</button>
+              <button aria-label="Button action" type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold">-</button>
               <span className="text-sm font-bold w-12 text-center">{quantity}</span>
-              <button type="button" onClick={() => setQuantity(q => Math.min(10, q + 1))} className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold">+</button>
+              <button aria-label="Button action" type="button" onClick={() => setQuantity(q => Math.min(10, q + 1))} className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold">+</button>
             </div>
           </div>
 

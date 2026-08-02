@@ -46,14 +46,14 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
       
       {isStalled && (
         <div className="flex items-center gap-3 shrink-0">
-          <button 
+          <button aria-label="Button action" 
             onClick={() => setIsDismissed(true)}
             className="text-ink-500 hover:text-ink-700 font-medium transition-colors"
           >
             Wait
           </button>
           {onRetry && (
-            <button 
+            <button aria-label="Button action" 
               onClick={onRetry}
               className="flex items-center gap-1.5 text-warning-700 hover:text-warning-800 font-medium transition-colors"
             >
@@ -61,7 +61,7 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
               Retry
             </button>
           )}
-          <button
+          <button aria-label="Button action"
             onClick={() => setIsDismissed(true)}
             className="p-1 rounded-md hover:bg-warning/20 text-ink-500 transition-colors"
             aria-label="Dismiss warning"
