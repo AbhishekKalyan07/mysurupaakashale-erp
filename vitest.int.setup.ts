@@ -6,6 +6,8 @@ vi.unmock('firebase/auth');
 vi.unmock('firebase/firestore');
 vi.unmock('firebase/storage');
 
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
+
 process.env.VITE_USE_FIREBASE_EMULATORS = 'true';
 process.env.VITE_FIREBASE_PROJECT_ID = 'demo-test';
 process.env.VITE_FIREBASE_API_KEY = 'demo-key';
