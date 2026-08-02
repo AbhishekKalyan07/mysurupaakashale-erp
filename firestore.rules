@@ -36,7 +36,8 @@ service cloud.firestore {
 
     function role() {
       // Phase 3: Read role from Firestore instead of Custom Claims
-      return isSignedIn() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role : null;
+      let userDoc = isSignedIn() ? get(/databases/$(database)/documents/users/$(request.auth.uid)) : null;
+      return (userDoc != null) ? userDoc.data.get('role', null) : null;
     }
 
     function isAdmin() { return role() == 'admin'; }

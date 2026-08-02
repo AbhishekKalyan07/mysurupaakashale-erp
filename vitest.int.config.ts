@@ -3,6 +3,7 @@ import viteConfig from './vite.config';
 
 const merged = mergeConfig(viteConfig, defineConfig({
   test: {
+    environment: 'node',
     include: ['**/*.int.test.ts', 'tests/security/**/*.test.ts'],
     setupFiles: ['./vitest.int.setup.ts'],
     coverage: {
@@ -10,6 +11,7 @@ const merged = mergeConfig(viteConfig, defineConfig({
     },
     testTimeout: 30000,
     hookTimeout: 30000,
+    fileParallelism: false,
   }
 }));
 
