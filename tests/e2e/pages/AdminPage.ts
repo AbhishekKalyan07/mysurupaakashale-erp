@@ -8,7 +8,7 @@ export class AdminPage {
   }
 
   async gotoDashboard() {
-    await this.page.goto('/admin');
+    await this.page.goto('/dashboard');
   }
 
   async verifyDashboardKPIs() {

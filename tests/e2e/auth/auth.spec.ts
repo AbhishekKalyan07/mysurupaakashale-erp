@@ -16,7 +16,7 @@ test.describe('Authentication & Security', () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login('admin@test.com', 'password123');
-    await expect(page).toHaveURL(/.*admin/);
+    await expect(page).toHaveURL(/.*dashboard/);
     await expect(page.locator('h1', { hasText: 'Dashboard' })).toBeVisible();
   });
 
@@ -24,7 +24,7 @@ test.describe('Authentication & Security', () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login('customer@test.com', 'password123');
-    await expect(page).toHaveURL(/.*customer/);
+    await expect(page).toHaveURL(/.*dashboard/);
   });
 
   // Test route protection (Unauthenticated)

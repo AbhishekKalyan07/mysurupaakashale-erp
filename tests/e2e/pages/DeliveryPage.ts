@@ -8,7 +8,7 @@ export class DeliveryPage {
   }
 
   async gotoDashboard() {
-    await this.page.goto('/delivery');
+    await this.page.goto('/dashboard');
   }
 
   async verifyDashboardLoaded() {

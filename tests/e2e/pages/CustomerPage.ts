@@ -8,7 +8,7 @@ export class CustomerPage {
   }
 
   async gotoDashboard() {
-    await this.page.goto('/customer');
+    await this.page.goto('/dashboard');
   }
 
   async navigateToSubscriptions() {
