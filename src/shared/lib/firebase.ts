@@ -77,11 +77,11 @@ const appCheckDebugToken = env('VITE_APPCHECK_DEBUG_TOKEN');
 const isEmulatorMode = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
 
 export const appCheck = (() => {
-  // Test environment (Vitest/jsdom): skip App Check entirely.
+  // Test environment (Vitest/jsdom) or Emulators (Playwright E2E): skip App Check entirely.
   // firebase/app is mocked in vitest.setup.ts; initializeAppCheck would crash
   // against the mocked undefined app. App Check security is verified in the
   // Firestore/Storage security rule tests, not in unit tests.
-  if (import.meta.env.MODE === 'test') {
+  if (import.meta.env.MODE === 'test' || isEmulatorMode) {
     return null;
   }
 
