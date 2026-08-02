@@ -78,7 +78,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
   return (
     <div className="relative" ref={ref}>
       {/* Bell button */}
-      <button aria-label="Button action"
+      <button
         id="notification-bell"
         onClick={() => setIsOpen((p) => !p)}
         className="relative p-2 text-text-muted hover:text-primary transition-colors rounded-full hover:bg-background"

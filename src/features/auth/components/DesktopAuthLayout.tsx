@@ -32,7 +32,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
         {/* Header / Logo */}
         <div className="relative flex items-center justify-center w-full mb-0 shrink-0 z-20">
           {isSignup && (
-            <button aria-label="Button action"
+            <button
               onClick={() => navigate('/login')}
               className="absolute left-0 lg:-left-4 top-1/2 -translate-y-1/2 text-[#2c150c] hover:text-[#5c1417] transition-colors p-2 bg-white/40 rounded-full backdrop-blur-sm"
               aria-label="Back"

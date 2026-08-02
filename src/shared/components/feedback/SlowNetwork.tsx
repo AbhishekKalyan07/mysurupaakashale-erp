@@ -61,7 +61,7 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
               Retry
             </button>
           )}
-          <button aria-label="Button action"
+          <button
             onClick={() => setIsDismissed(true)}
             className="p-1 rounded-md hover:bg-warning/20 text-ink-500 transition-colors"
             aria-label="Dismiss warning"

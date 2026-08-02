@@ -262,7 +262,7 @@ function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: 
             </Badge>
           </div>
           
-          <button aria-label="Button action" 
+          <button 
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
             className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
             aria-label="More actions"

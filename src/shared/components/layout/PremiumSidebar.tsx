@@ -74,7 +74,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           </div>
 
           {/* Desktop collapse toggle */}
-          <button aria-label="Button action"
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden lg:flex w-7 h-7 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
             aria-label="Toggle Sidebar"
