@@ -1,8 +1,18 @@
 import axios from 'axios';
+import * as admin from 'firebase-admin';
 
 const PROJECT_ID = 'demo-test';
-const FIRESTORE_URL = `http://127.0.0.1:8080/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const AUTH_URL = `http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}`;
+
+// Set emulator host variables so firebase-admin connects to emulators
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+
+// Initialize firebase-admin if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp({ projectId: PROJECT_ID });
+}
+const db = admin.firestore();
+const auth = admin.auth();
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -38,31 +48,28 @@ export async function seedUsers() {
 
   console.log('Seeding users...');
   for (const u of users) {
-    // 1. Create User in Auth
-    const authRes = await axios.post(`${AUTH_URL}/accounts:signUp?key=fake-api-key`, {
-      email: u.email,
-      password: u.password,
-      returnSecureToken: true
-    });
-    const uid = authRes.data.localId;
-
-    // We cannot easily set custom claims via REST, so our frontend/backend must be resilient 
-    // to reading roles from Firestore for tests, or we just rely on Firestore users collection.
-
-    // 2. Create User in Firestore
-    const docData = {
-      fields: {
-        id: { stringValue: uid },
-        email: { stringValue: u.email },
-        role: { stringValue: u.role },
-        name: { stringValue: `${u.role.charAt(0).toUpperCase() + u.role.slice(1)} User` },
-        isActive: { booleanValue: true },
-        createdAt: { timestampValue: new Date().toISOString() },
-        updatedAt: { timestampValue: new Date().toISOString() }
+    try {
+      // 1. Create User in Auth
+      const userRecord = await auth.createUser({
+        email: u.email,
+        password: u.password,
+      });
+      
+      // 2. Create User in Firestore (Admin SDK bypasses security rules)
+      await db.collection('users').doc(userRecord.uid).set({
+        id: userRecord.uid,
+        email: u.email,
+        role: u.role,
+        name: `${u.role.charAt(0).toUpperCase() + u.role.slice(1)} User`,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      if (err.code !== 'auth/email-already-exists') {
+        throw err;
       }
-    };
-
-    await axios.post(`${FIRESTORE_URL}/users?documentId=${uid}`, docData);
+    }
   }
 }
 
