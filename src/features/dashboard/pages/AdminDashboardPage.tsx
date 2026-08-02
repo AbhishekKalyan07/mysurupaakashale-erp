@@ -281,8 +281,8 @@ export function AdminDashboardPage() {
             color="amber"
           />
           <MetricCard
-            title="Pending Orders"
-            value={metrics?.todayOrders.pending ?? 0}
+            title="Scheduled"
+            value={metrics?.todayOrders.scheduled ?? 0}
             icon={<AlertTriangle size={24} />}
             color="rose"
           />

@@ -11,7 +11,7 @@ export interface AdminMetrics {
   activeSubscriptions: number;
   todayOrders: {
     total: number;
-    pending: number;
+    scheduled: number;
     preparing: number;
     ready: number;
     outForDelivery: number;
@@ -44,7 +44,7 @@ export function useAdminDashboardMetrics() {
           totalCustomers: 0,
           activeDrivers: 0,
           activeSubscriptions: 0,
-          todayOrders: { total: 0, pending: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0 },
+          todayOrders: { total: 0, scheduled: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0 },
           revenueToday: 0,
           failedPayments: 0,
           openComplaints: 0,
@@ -79,13 +79,13 @@ export function useAdminDashboardMetrics() {
     const unsubOrders = onSnapshot(
       query(collection(db, 'orders'), where('date', '==', today)),
       (snap) => {
-        let pending = 0, preparing = 0, ready = 0, outForDelivery = 0;
+        let scheduled = 0, preparing = 0, ready = 0, outForDelivery = 0;
         let delivered = 0, cancelled = 0, unassigned = 0, failedDeliveries = 0;
         let revenue = 0;
 
         snap.forEach(doc => {
           const data = doc.data() as Order;
-          if (data.status === 'pending') pending++;
+          if (data.status === 'scheduled') scheduled++;
           if (data.status === 'preparing') preparing++;
           if (data.status === 'ready_for_pickup') ready++;
           if (data.status === 'out_for_delivery') outForDelivery++;
@@ -102,20 +102,20 @@ export function useAdminDashboardMetrics() {
           }
         });
         
-        const totalKitchenExpected = pending + preparing + ready + outForDelivery + delivered;
+        const totalKitchenExpected = scheduled + preparing + ready + outForDelivery + delivered;
         const kitchenSLA = totalKitchenExpected === 0 ? 100 : Math.round(((ready + outForDelivery + delivered) / totalKitchenExpected) * 100);
         
         const totalDeliveryExpected = outForDelivery + delivered + failedDeliveries;
         const deliverySLA = totalDeliveryExpected === 0 ? 100 : Math.round((delivered / totalDeliveryExpected) * 100);
 
         updateMetrics({ 
-          todayOrders: { total: snap.size, pending, preparing, ready, outForDelivery, delivered, cancelled, unassigned, failedDeliveries },
+          todayOrders: { total: snap.size, scheduled, preparing, ready, outForDelivery, delivered, cancelled, unassigned, failedDeliveries },
           revenueToday: revenue,
           kitchenSLA,
           deliverySLA
         });
       },
-      (error) => {
+      (_error) => {
         // If offline or permission denied
         updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' });
       }
@@ -149,7 +149,7 @@ export function useAdminDashboardMetrics() {
       totalCustomers: 0,
       activeDrivers: 0,
       activeSubscriptions: 0,
-      todayOrders: { total: 0, pending: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0 },
+      todayOrders: { total: 0, scheduled: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0 },
       revenueToday: 0,
       failedPayments: 0,
       openComplaints: 0,
