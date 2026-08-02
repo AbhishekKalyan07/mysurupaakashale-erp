@@ -8,11 +8,11 @@ export class AccountsPage {
   }
 
   async gotoDashboard() {
-    await this.page.goto('/accounts');
+    await this.page.goto('/dashboard');
   }
 
   async verifyDashboardLoaded() {
-    await expect(this.page.locator('h1', { hasText: 'Accounts Dashboard' })).toBeVisible();
+    await expect(this.page.locator('h1', { hasText: 'Accounts Team' })).toBeVisible();
   }
 
   async navigateToInvoices() {

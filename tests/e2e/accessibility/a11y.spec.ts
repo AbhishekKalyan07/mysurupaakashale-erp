@@ -9,14 +9,15 @@ test.describe('Accessibility Checks', () => {
   });
 
   test('Admin dashboard should be accessible', async ({ adminPage }) => {
-    await adminPage.goto('/admin');
-    await adminPage.waitForSelector('h1:has-text("Dashboard")');
+    await adminPage.goto('/dashboard');
+    await adminPage.waitForSelector('h1:has-text("Admin")');
     const accessibilityScanResults = await new AxeBuilder({ page: adminPage }).analyze();
     expect(accessibilityScanResults.violations).toEqual([]);
   });
 
   test('Customer dashboard should be accessible', async ({ customerPage }) => {
-    await customerPage.goto('/customer');
+    await customerPage.goto('/dashboard');
+    await customerPage.waitForSelector('h1:has-text("Customer")');
     const accessibilityScanResults = await new AxeBuilder({ page: customerPage }).analyze();
     expect(accessibilityScanResults.violations).toEqual([]);
   });

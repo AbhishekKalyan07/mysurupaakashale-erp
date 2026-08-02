@@ -12,9 +12,9 @@ export class AdminPage {
   }
 
   async verifyDashboardKPIs() {
-    await expect(this.page.locator('h1', { hasText: 'Dashboard' })).toBeVisible();
-    await expect(this.page.locator('text=Total Subscribers')).toBeVisible();
-    await expect(this.page.locator('text=Active Orders')).toBeVisible();
+    await expect(this.page.locator('h1', { hasText: 'Admin' })).toBeVisible();
+    await expect(this.page.locator('text=Total Customers')).toBeVisible();
+    await expect(this.page.locator('text=Total Orders')).toBeVisible();
   }
 
   async navigateToCustomers() {

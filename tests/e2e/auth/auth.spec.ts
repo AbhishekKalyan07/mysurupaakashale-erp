@@ -8,7 +8,7 @@ test.describe('Authentication & Security', () => {
     await loginPage.goto();
     await loginPage.login('invalid@test.com', 'wrongpassword');
     // Assuming the app shows an error message like "Invalid email or password"
-    await expect(page.locator('text=Invalid')).toBeVisible();
+    await expect(page.locator('text=Incorrect email or password')).toBeVisible();
   });
 
   // Test successful login and redirect based on role
@@ -17,7 +17,7 @@ test.describe('Authentication & Security', () => {
     await loginPage.goto();
     await loginPage.login('admin@test.com', 'password123');
     await expect(page).toHaveURL(/.*dashboard/);
-    await expect(page.locator('h1', { hasText: 'Dashboard' })).toBeVisible();
+    await expect(page.locator('h1', { hasText: 'Admin' })).toBeVisible();
   });
 
   test('customer should be redirected to customer dashboard', async ({ page }) => {

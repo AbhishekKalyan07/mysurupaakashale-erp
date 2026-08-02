@@ -13,8 +13,8 @@ test.describe('Performance Checks', () => {
 
   test('Admin dashboard should load quickly', async ({ adminPage }) => {
     const startTime = Date.now();
-    await adminPage.goto('/admin');
-    await adminPage.waitForSelector('h1:has-text("Dashboard")');
+    await adminPage.goto('/dashboard');
+    await adminPage.waitForSelector('h1:has-text("Admin")');
     const loadTime = Date.now() - startTime;
     expect(loadTime).toBeLessThan(MAX_LOAD_TIME_MS);
   });
