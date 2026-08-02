@@ -25,9 +25,12 @@ const PROJECT_ID = 'demo-security-test';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
-// Helper to create a fake file blob
-function makeFile(mimeType: string, sizeBytes: number): Blob {
-  return new Blob([new Uint8Array(sizeBytes).fill(0)], { type: mimeType });
+// Helper to create a fake file buffer and metadata
+function makeFile(mimeType: string, sizeBytes: number): { data: Uint8Array, meta: { contentType: string } } {
+  return {
+    data: new Uint8Array(sizeBytes).fill(0),
+    meta: { contentType: mimeType }
+  };
 }
 
 withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
@@ -99,40 +102,40 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Owner can upload their own profile photo', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_A_UID}/photo.jpg`);
-      await assertSucceeds(uploadBytes(photoRef, validImage));
+      await assertSucceeds(uploadBytes(photoRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Customer A cannot upload to Customer B profile path', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_B_UID}/photo.jpg`);
-      await assertFails(uploadBytes(photoRef, validImage));
+      await assertFails(uploadBytes(photoRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Unauthenticated cannot upload profile photo', async () => {
       const storage = env.unauthenticatedContext().storage();
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_A_UID}/photo.jpg`);
-      await assertFails(uploadBytes(photoRef, validImage));
+      await assertFails(uploadBytes(photoRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Customer cannot upload oversized profile photo (>5MB)', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const bigImage = makeFile('image/jpeg', 6 * 1024 * 1024); // 6 MB
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_A_UID}/big.jpg`);
-      await assertFails(uploadBytes(photoRef, bigImage));
+      await assertFails(uploadBytes(photoRef, bigImage.data, bigImage.meta));
     });
 
     it('DENY: Customer cannot upload non-image file as profile photo', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const pdfFile = makeFile('application/pdf', 100 * 1024);
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_A_UID}/resume.pdf`);
-      await assertFails(uploadBytes(photoRef, pdfFile));
+      await assertFails(uploadBytes(photoRef, pdfFile.data, pdfFile.meta));
     });
 
     it('DENY: Customer B cannot read Customer A profile photo (IDOR)', async () => {
       // First seed a photo via admin
       await env.withSecurityRulesDisabled(async (ctx) => {
         const photoRef = ref(ctx.storage(), `profile-photos/${CUSTOMER_A_UID}/photo.jpg`);
-        await uploadBytes(photoRef, validImage);
+        await uploadBytes(photoRef, validImage.data, validImage.meta);
       });
 
       const storage = env.authenticatedContext(CUSTOMER_B_UID).storage();
@@ -143,7 +146,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Admin can read any profile photo', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const photoRef = ref(ctx.storage(), `profile-photos/${CUSTOMER_A_UID}/photo.jpg`);
-        await uploadBytes(photoRef, validImage);
+        await uploadBytes(photoRef, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(ADMIN_UID).storage();
       const photoRef = ref(storage, `profile-photos/${CUSTOMER_A_UID}/photo.jpg`);
@@ -160,31 +163,31 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Assigned delivery partner can upload proof', async () => {
       const storage = env.authenticatedContext(DELIVERY_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-      await assertSucceeds(uploadBytes(proofRef, validImage));
+      await assertSucceeds(uploadBytes(proofRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Unassigned delivery partner cannot upload proof', async () => {
       const storage = env.authenticatedContext(DELIVERY_B_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-      await assertFails(uploadBytes(proofRef, validImage));
+      await assertFails(uploadBytes(proofRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Customer cannot upload delivery proof', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-      await assertFails(uploadBytes(proofRef, validImage));
+      await assertFails(uploadBytes(proofRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Kitchen cannot upload delivery proof', async () => {
       const storage = env.authenticatedContext(KITCHEN_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-      await assertFails(uploadBytes(proofRef, validImage));
+      await assertFails(uploadBytes(proofRef, validImage.data, validImage.meta));
     });
 
     it('DENY: Accounts cannot read delivery proof (not in scope)', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const proofRef = ref(ctx.storage(), `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-        await uploadBytes(proofRef, validImage);
+        await uploadBytes(proofRef, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(ACCOUNTS_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
@@ -194,7 +197,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Customer can read their own delivery proof', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const proofRef = ref(ctx.storage(), `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-        await uploadBytes(proofRef, validImage);
+        await uploadBytes(proofRef, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
@@ -204,7 +207,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('DENY: Customer B cannot read Customer A delivery proof (IDOR)', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const proofRef = ref(ctx.storage(), `delivery-proof/${DELIVERY_ID}/proof.jpg`);
-        await uploadBytes(proofRef, validImage);
+        await uploadBytes(proofRef, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(CUSTOMER_B_UID).storage();
       const proofRef = ref(storage, `delivery-proof/${DELIVERY_ID}/proof.jpg`);
@@ -221,19 +224,19 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Customer can upload their own payment screenshot', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
-      await assertSucceeds(uploadBytes(ref_, validImage));
+      await assertSucceeds(uploadBytes(ref_, validImage.data, validImage.meta));
     });
 
     it('DENY: Customer A cannot upload to Customer B payment path', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_B_UID}/receipt.png`);
-      await assertFails(uploadBytes(ref_, validImage));
+      await assertFails(uploadBytes(ref_, validImage.data, validImage.meta));
     });
 
     it('DENY: Kitchen cannot read payment screenshots', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const ref_ = ref(ctx.storage(), `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
-        await uploadBytes(ref_, validImage);
+        await uploadBytes(ref_, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(KITCHEN_UID).storage();
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
@@ -243,7 +246,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Accounts can read payment screenshots', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const ref_ = ref(ctx.storage(), `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
-        await uploadBytes(ref_, validImage);
+        await uploadBytes(ref_, validImage.data, validImage.meta);
       });
       const storage = env.authenticatedContext(ACCOUNTS_UID).storage();
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
@@ -254,13 +257,13 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const exeFile = makeFile('application/octet-stream', 100 * 1024);
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_A_UID}/malware.exe`);
-      await assertFails(uploadBytes(ref_, exeFile));
+      await assertFails(uploadBytes(ref_, exeFile.data, exeFile.meta));
     });
 
     it('DENY: Unauthenticated cannot access payment screenshots', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const ref_ = ref(ctx.storage(), `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
-        await uploadBytes(ref_, validImage);
+        await uploadBytes(ref_, validImage.data, validImage.meta);
       });
       const storage = env.unauthenticatedContext().storage();
       const ref_ = ref(storage, `payment-screenshots/${CUSTOMER_A_UID}/receipt.png`);
@@ -287,7 +290,8 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Admin can read reports', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const ref_ = ref(ctx.storage(), 'reports/monthly.xlsx');
-        await uploadBytes(ref_, makeFile('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 10 * 1024));
+        const mockFile = makeFile('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 10 * 1024);
+        await uploadBytes(ref_, mockFile.data, mockFile.meta);
       });
       const storage = env.authenticatedContext(ADMIN_UID).storage();
       const ref_ = ref(storage, 'reports/monthly.xlsx');
@@ -297,7 +301,8 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('ALLOW: Accounts can read reports', async () => {
       await env.withSecurityRulesDisabled(async (ctx) => {
         const ref_ = ref(ctx.storage(), 'reports/monthly.xlsx');
-        await uploadBytes(ref_, makeFile('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 10 * 1024));
+        const mockFile = makeFile('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 10 * 1024);
+        await uploadBytes(ref_, mockFile.data, mockFile.meta);
       });
       const storage = env.authenticatedContext(ACCOUNTS_UID).storage();
       const ref_ = ref(storage, 'reports/monthly.xlsx');
@@ -324,7 +329,8 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
     it('DENY: Customer cannot upload to root path', async () => {
       const storage = env.authenticatedContext(CUSTOMER_A_UID).storage();
       const rootRef = ref(storage, 'rootfile.jpg');
-      await assertFails(uploadBytes(rootRef, makeFile('image/jpeg', 100)));
+      const rootFile = makeFile('image/jpeg', 100);
+      await assertFails(uploadBytes(rootRef, rootFile.data, rootFile.meta));
     });
   });
 });
