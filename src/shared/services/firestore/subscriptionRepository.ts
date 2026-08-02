@@ -68,6 +68,12 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     });
   }
 
+  async getSkips(subscriptionId: string): Promise<any[]> {
+    const skipsRef = collection(db, 'subscriptions', subscriptionId, 'skips');
+    const snapshot = await getDocs(query(skipsRef, orderBy('date', 'desc')));
+    return snapshot.docs.map(d => d.data());
+  }
+
   /**
    * Cursor-paginated list for the admin subscriptions table.
    * Mirrors paymentRepository.getPaymentsPaginated — same shape, same

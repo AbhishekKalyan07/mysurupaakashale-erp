@@ -21,9 +21,12 @@ export type AdminStatusFilter = SubscriptionStatus | 'all';
 /** A subscription row enriched with the display fields the admin table needs — Subscription itself only stores customerId/planId. */
 export interface SubscriptionRow extends Subscription {
   customerName: string;
+  customerDisplayId?: string | null;
   customerPhone: string;
   customerAddress: string | null;
   planName: string;
+  preferencesText: string;
+  deliveryPartnerName: string | null;
 }
 
 /**
@@ -38,8 +41,9 @@ async function attachDisplayFields(
 ): Promise<SubscriptionRow[]> {
   const customerIds = [...new Set(subscriptions.map((s) => s.customerId))];
   const planIds = [...new Set(subscriptions.map((s) => s.planId))];
+  const deliveryPartnerIds = [...new Set(subscriptions.map((s) => s.deliveryPartnerId).filter((id): id is string => !!id))];
 
-  const [customers, plans] = await Promise.all([
+  const [customers, plans, deliveryPartners] = await Promise.all([
     Promise.all(
       customerIds.map((id) =>
         queryClient.fetchQuery({
@@ -58,10 +62,20 @@ async function attachDisplayFields(
         }),
       ),
     ),
+    Promise.all(
+      deliveryPartnerIds.map((id) =>
+        queryClient.fetchQuery({
+          queryKey: ['user', id],
+          queryFn: () => userRepository.getById(id),
+          staleTime: 5 * 60_000,
+        }),
+      ),
+    ),
   ]);
 
   const customerById = new Map(customerIds.map((id, i) => [id, customers[i]]));
   const planById = new Map(planIds.map((id, i) => [id, plans[i]]));
+  const dpById = new Map(deliveryPartnerIds.map((id, i) => [id, deliveryPartners[i]]));
 
   return subscriptions
     .filter((sub) => {
@@ -82,12 +96,31 @@ async function attachDisplayFields(
         }
       }
 
+      let preferencesText = '';
+      if (plan && sub.mealPreferences) {
+        const prefs = sub.mealPreferences.map(pref => {
+          const slot = plan.mealSlots.find((s: any) => s.mealType === pref.mealType);
+          let option = slot?.options?.find((o: any) => o.id === pref.selectedOptionId);
+          if (!option && slot && slot.options && slot.options.length > 0) {
+            option = slot.options[0];
+          }
+          if (option) return option.label;
+          return pref.mealType;
+        });
+        preferencesText = prefs.join(' • ');
+      }
+
+      const dp = sub.deliveryPartnerId ? dpById.get(sub.deliveryPartnerId) : null;
+
       return {
         ...sub,
         customerName: customer.fullName,
+        customerDisplayId: customer.displayId,
         customerPhone: customer.phone,
         customerAddress: formattedAddress,
         planName: plan?.name ?? sub.planTier,
+        preferencesText,
+        deliveryPartnerName: dp?.fullName ?? null,
       };
     });
 }
@@ -258,6 +291,53 @@ export function useResumeSubscription() {
     },
     onError: (err: unknown) => {
       toast.error((err as Error).message || 'Failed to resume subscription.');
+    },
+  });
+}
+
+// ── Admin: update delivery partner on a subscription ────────────────────────────
+export function useUpdateDeliveryPartner() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ subscriptionId, deliveryPartnerId }: { subscriptionId: string; deliveryPartnerId: string | null }) => {
+      // Validate the delivery partner before saving
+      if (deliveryPartnerId) {
+        const partner = await userRepository.getById(deliveryPartnerId);
+        if (!partner) {
+          throw new Error('Delivery partner not found.');
+        }
+        if (partner.role !== 'delivery_partner') {
+          throw new Error('Selected user is not a delivery partner.');
+        }
+        if (!partner.isActive) {
+          throw new Error('This delivery partner is inactive. Please select an active partner.');
+        }
+      }
+
+      await subscriptionRepository.update(subscriptionId, {
+        deliveryPartnerId: deliveryPartnerId,
+      } as Partial<Subscription>);
+
+      const admin = getAuth().currentUser;
+      if (admin) {
+        await auditRepository.logAction(
+          'subscription_delivery_partner_updated',
+          admin.uid,
+          admin.displayName || 'Admin',
+          subscriptionId,
+          'subscription',
+          { deliveryPartnerId },
+        );
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptions', 'admin'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      toast.success('Delivery partner updated.');
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to update delivery partner.');
     },
   });
 }

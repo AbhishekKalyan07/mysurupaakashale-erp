@@ -81,13 +81,40 @@ export function useSubscriptionAccruedBill(subscriptionId?: string) {
       const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
       const orders = await orderRepository.getCustomerOrders(customerId);
       
-      // Filter orders for this subscription that are NOT cancelled
+      // Filter orders for this subscription that are delivered
       const subOrders = orders.filter(
-        o => o.subscriptionId === subscriptionId && o.status !== 'cancelled'
+        o => o.subscriptionId === subscriptionId && o.status === 'delivered'
       );
       
       return subOrders.reduce((sum, order) => sum + (order.price || 0), 0);
     },
     enabled: !!customerId && !!subscriptionId,
+  });
+}
+
+export function useSubscriptionStats(subscriptionId?: string, customerId?: string) {
+  return useQuery({
+    queryKey: ['subscriptionStats', subscriptionId, customerId],
+    queryFn: async () => {
+      if (!subscriptionId || !customerId) return { daysOrdered: 0, pausedDates: [] };
+      const [{ orderRepository }, { subscriptionRepository }] = await Promise.all([
+        import('@/shared/services/firestore/orderRepository'),
+        import('@/shared/services/firestore/subscriptionRepository')
+      ]);
+      
+      const [orders, skips] = await Promise.all([
+        orderRepository.getCustomerOrders(customerId),
+        subscriptionRepository.getSkips(subscriptionId)
+      ]);
+
+      const subOrders = orders.filter(o => o.subscriptionId === subscriptionId && o.status === 'delivered');
+      const uniqueDaysOrdered = new Set(subOrders.map(o => o.date)).size;
+
+      return {
+        daysOrdered: uniqueDaysOrdered,
+        pausedDates: skips.map(s => s.date)
+      };
+    },
+    enabled: !!subscriptionId && !!customerId,
   });
 }

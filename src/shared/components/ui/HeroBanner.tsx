@@ -4,28 +4,31 @@ import { animations } from '@/theme/animations';
 interface HeroBannerProps {
   userName?: string;
   subtitle?: string;
+  title?: string;
   actions?: React.ReactNode;
 }
 
-export function HeroBanner({ userName, subtitle = 'Mysuru Paakashale ERP', actions }: HeroBannerProps) {
+export function HeroBanner({ userName, title, subtitle = 'Mysuru Paakashale ERP', actions }: HeroBannerProps) {
+  const displayTitle = title || userName || 'Dashboard';
+
   return (
     <motion.div
       variants={animations.motion.heroSlideUp}
       initial="initial"
       animate="animate"
-      className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6"
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6"
     >
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-display font-bold text-ink-900 mb-1">
-          {userName || 'Dashboard'}
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-2xl font-display font-bold text-text leading-tight truncate">
+          {displayTitle}
         </h1>
-        <p className="text-sm text-ink-500 max-w-2xl">
+        <p className="text-sm text-text-muted mt-0.5 leading-tight">
           {subtitle}
         </p>
       </div>
 
       {actions && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {actions}
         </div>
       )}

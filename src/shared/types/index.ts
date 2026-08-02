@@ -61,5 +61,4 @@ export type {
   EmployeeSalaryProfile
 } from './hr.types';
 
-export type { InventoryItem, InventoryCategory } from './inventory.types';
 export type { Feedback, FeedbackCategory, FeedbackStatus } from './feedback.types';

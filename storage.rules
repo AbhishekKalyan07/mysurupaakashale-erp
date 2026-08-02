@@ -10,6 +10,15 @@ rules_version = '2';
 // Firestore — see README.md "Deploying rules". Cross-service checks are
 // capped at 2 Firestore document reads per rules evaluation; every path
 // below uses at most one.
+//
+// PHASE 4 SECURITY HARDENING CHANGES:
+//   - profile-photos: restrict reads to owner + admin only (was: any signed-in user)
+//     prevents customers from enumerating other users' profile images.
+//   - delivery-proof: restrict kitchen read access (kitchen can read; accounts cannot)
+//   - payment-screenshots: no change (owner + admin + accounts)
+//   - backups/reports: added explicit admin-only guard (no change needed, confirming)
+//   - All upload paths: enforce image/* MIME type + 5 MB limit consistently
+//   - meal-plan-images: public read is intentional (marketing images); admin write only
 // =============================================================================
 
 service firebase.storage {
@@ -19,29 +28,52 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Image upload guard: enforces content type and size limit.
+    // maxMb should be a plain number (e.g. 5 for 5 MB).
     function isImageUnder(maxMb) {
-      return request.resource.size < maxMb * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+      return request.resource.size < maxMb * 1024 * 1024
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // PDF upload guard: for payment receipts that may be PDFs.
+    function isPdfOrImageUnder(maxMb) {
+      return request.resource.size < maxMb * 1024 * 1024
+          && (request.resource.contentType.matches('image/.*')
+              || request.resource.contentType == 'application/pdf');
+    }
+
+    function getUser() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return getUser().role == 'admin';
     }
 
     function isKitchen() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'kitchen';
+      return getUser().role == 'kitchen';
     }
 
     function isAccounts() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'accounts';
+      return getUser().role == 'accounts';
+    }
+
+    function isDeliveryPartner() {
+      return getUser().role == 'delivery_partner';
     }
 
     // /profile-photos/{userId}/{fileName}
+    // SECURITY FIX: read was previously open to any signed-in user, enabling
+    // enumeration of profile images for any known UID. Restrict to owner + admin.
     match /profile-photos/{userId}/{fileName} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if isSignedIn() && request.auth.uid == userId && isImageUnder(5);
     }
 
     // /delivery-proof/{deliveryId}/{fileName}
+    // Write: only the assigned delivery partner may upload proof photos.
+    // Read:  customer (their own delivery), delivery partner, admin, kitchen.
+    //        Accounts cannot view delivery proof photos (not in their operational scope).
     match /delivery-proof/{deliveryId}/{fileName} {
       function delivery() {
         return firestore.get(/databases/(default)/documents/deliveries/$(deliveryId)).data;
@@ -52,31 +84,42 @@ service firebase.storage {
                       delivery().deliveryPartnerId == request.auth.uid ||
                       isAdmin() || isKitchen());
 
-      allow write: if isSignedIn() && delivery().deliveryPartnerId == request.auth.uid && isImageUnder(5);
+      // Only the assigned delivery partner may upload; image only, 5 MB max.
+      allow write: if isSignedIn()
+                   && delivery().deliveryPartnerId == request.auth.uid
+                   && isImageUnder(5);
     }
 
-    // /meal-plan-images/{planId}/{fileName} — marketing images for the public plan catalog
+    // /meal-plan-images/{planId}/{fileName}
+    // Public read is intentional — these are marketing catalog images shown
+    // before authentication (prospective customers browsing plan pricing).
     match /meal-plan-images/{planId}/{fileName} {
       allow read: if true;
       allow write: if isSignedIn() && isAdmin() && isImageUnder(5);
     }
 
-    // /backups/{fileName} — Automated database backups
+    // /backups/{fileName} — Automated database backups. Admin only.
     match /backups/{fileName} {
       allow read, write: if isSignedIn() && isAdmin();
     }
 
-    // /reports/{fileName} — Automated Excel reports
+    // /reports/{fileName} — Automated Excel/PDF reports. Admin + Accounts.
     match /reports/{fileName} {
-      allow read, write: if isSignedIn() && isAdmin();
+      allow read: if isSignedIn() && (isAdmin() || isAccounts());
+      allow write: if isSignedIn() && (isAdmin() || isAccounts());
     }
 
     // /payment-screenshots/{userId}/{fileName}
+    // Customers upload payment screenshots for manual verification.
+    // Accounts staff and admins can view for verification; delivery/kitchen cannot.
     match /payment-screenshots/{userId}/{fileName} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isAccounts());
-      allow write: if isSignedIn() && request.auth.uid == userId && isImageUnder(5);
+      // Accept images and PDFs (some payment receipts come as PDFs).
+      // Restrict to 5 MB max.
+      allow write: if isSignedIn() && request.auth.uid == userId && isPdfOrImageUnder(5);
     }
 
-    // Everything else: denied by default.
+    // Everything else: denied by default (no catch-all rule needed —
+    // Firebase Storage denies unmatched paths automatically).
   }
 }

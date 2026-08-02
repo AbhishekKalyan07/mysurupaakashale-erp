@@ -20,7 +20,7 @@ export type VehicleType = 'bike' | 'bicycle' | 'on_foot' | 'other';
 interface BaseUserProfile {
   /** Same value as the Firebase Auth uid and the `users/{id}` document key — named `id` for consistency with every other entity in the system. */
   id: string;
-  staffId?: string; // Human-readable ID assigned during creation (e.g., EMP-001)
+  displayId?: string; // Human-readable ID assigned during creation (e.g., CUST-1001, STAFF-101)
   fullName: string;
   email: string;
   phone: string;
@@ -38,6 +38,12 @@ export interface CustomerProfile extends BaseUserProfile {
   role: 'customer';
   addresses: Address[];
   defaultAddressId: string | null;
+  /** Permanently assigned delivery partner. Copied to every generated order. */
+  deliveryPartnerId?: string | null;
+  /** Permanently assigned delivery zone. Copied to every generated order. (Priority 2, below Partner, above Pincode) */
+  zoneId?: string | null;
+  assignedAt?: Timestamp | null;
+  assignedBy?: string | null;
 }
 
 export interface KitchenStaffProfile extends BaseUserProfile {

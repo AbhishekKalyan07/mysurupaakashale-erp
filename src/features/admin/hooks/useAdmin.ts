@@ -1,8 +1,8 @@
 import { Timestamp } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { firebaseApp, db } from '@/shared/lib/firebase';
+import { firebaseApp, db, auth } from '@/shared/lib/firebase';
 import { where, serverTimestamp, doc, getDoc, setDoc, deleteDoc, type QueryDocumentSnapshot } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, initializeAuth, inMemoryPersistence, connectAuthEmulator } from 'firebase/auth';
 import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { userRepository } from '@/shared/services/firestore/userRepository';
@@ -51,7 +51,6 @@ export function useCreateStaffUser() {
       email: string;
       password: string;
       fullName: string;
-      staffId: string;
       phone: string;
       role: Role;
       kitchenId?: string;
@@ -59,8 +58,15 @@ export function useCreateStaffUser() {
       vehicleType?: string;
     }) => {
       // Phase 3: Client-side staff creation using secondary app to prevent admin logout
-      const tempApp = initializeApp(firebaseApp.options, 'temp-admin-creation');
-      const tempAuth = getAuth(tempApp);
+      const tempAppName = `temp-admin-creation-${Date.now()}`;
+      const tempApp = initializeApp(firebaseApp.options, tempAppName);
+      const tempAuth = initializeAuth(tempApp, {
+        persistence: inMemoryPersistence,
+      });
+
+      if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+        connectAuthEmulator(tempAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      }
       
       try {
         const phoneDocRef = doc(db, 'userPhones', data.phone);
@@ -72,10 +78,12 @@ export function useCreateStaffUser() {
         const credential = await createUserWithEmailAndPassword(tempAuth, data.email, data.password);
         await updateProfile(credential.user, { displayName: data.fullName });
         
+        const displayId = await userRepository.generateNextDisplayId(data.role);
+
         const profileData: any = {
+          displayId,
           role: data.role,
           fullName: data.fullName,
-          staffId: data.staffId,
           email: data.email,
           phone: data.phone,
           photoUrl: null,
@@ -97,7 +105,7 @@ export function useCreateStaffUser() {
         
         await setDoc(phoneDocRef, { uid: credential.user.uid });
         
-        const currentUser = getAuth().currentUser;
+        const currentUser = auth.currentUser;
         if (currentUser) {
           await auditRepository.logAction(
             'staff_created',
@@ -133,7 +141,7 @@ export function useToggleStaffStatus() {
   return useMutation({
     mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
       await userRepository.update(uid, { isActive, updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp } as Partial<UserProfile>);
-      const currentUser = getAuth().currentUser;
+      const currentUser = auth.currentUser;
       if (currentUser) {
         await auditRepository.logAction(
           isActive ? 'staff_activated' : 'staff_deactivated',
@@ -179,7 +187,7 @@ export function useUpdateStaffUser() {
         ...data,
         updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       } as Partial<UserProfile>);
-      const currentUser = getAuth().currentUser;
+      const currentUser = auth.currentUser;
       if (currentUser) {
         await auditRepository.logAction(
           'staff_updated',
@@ -197,6 +205,92 @@ export function useUpdateStaffUser() {
     },
     onError: (err: unknown) => {
       toast.error((err as Error).message || 'Failed to update staff user');
+    },
+  });
+}
+
+export function useCustomerNameMap(customerIds: string[]) {
+  const uniqueIds = Array.from(new Set(customerIds)).filter(Boolean);
+  
+  const { data } = useQuery({
+    queryKey: ['customers', 'nameMap', uniqueIds.sort().join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(uniqueIds.map(id => userRepository.getById(id)));
+      const map = new Map<string, string>();
+      results.forEach((user, idx) => {
+        if (user) {
+          map.set(uniqueIds[idx], user.fullName);
+        }
+      });
+      return map;
+    },
+    enabled: uniqueIds.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  return data || new Map<string, string>();
+}
+
+export function useAssignDeliveryPartner() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      customerId,
+      partnerId,
+    }: {
+      customerId: string;
+      partnerId: string;
+    }) => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Not authenticated');
+      
+      const { customerService } = await import('@/shared/services/business/customerService');
+      await customerService.assignDeliveryPartner(
+        customerId,
+        partnerId,
+        currentUser.uid,
+        currentUser.displayName || 'Admin'
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      toast.success('Delivery partner assigned successfully');
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to assign delivery partner');
+    },
+  });
+}
+
+export function useAssignCustomerZone() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      customerId,
+      zoneId,
+    }: {
+      customerId: string;
+      zoneId: string;
+    }) => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Not authenticated');
+      
+      const { customerService } = await import('@/shared/services/business/customerService');
+      await customerService.assignCustomerZone(
+        customerId,
+        zoneId,
+        currentUser.uid,
+        currentUser.displayName || 'Admin'
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      toast.success('Zone assigned successfully');
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to assign zone');
     },
   });
 }

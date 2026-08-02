@@ -42,6 +42,8 @@ export interface Subscription {
   creditBalance: number;
   /** Initial security deposit paid during signup. Refunded on cancellation. */
   depositAmount: number;
+  /** Permanently assigned delivery partner. Copied to every generated order. */
+  deliveryPartnerId?: ID | null;
   /** Start date of a scheduled pause (inclusive) */
   pauseStartDate?: ISODateString | null;
   /** End date of a scheduled pause (inclusive) */

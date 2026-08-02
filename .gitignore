@@ -59,3 +59,12 @@ smtp-config.json
 *.njsproj
 *.sln
 *.sw?
+
+# Testing and Reports
+playwright-report/
+test-results/
+bundle-stats.html
+npm-audit-report.json
+
+# Scratch Files
+fix_ts*.cjs

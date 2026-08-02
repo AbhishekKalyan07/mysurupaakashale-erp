@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MapPin, Navigation, Search, Loader2, X, CheckCircle2 } from 'lucide-react';
+import { MapPin, Navigation, Search, Loader2, X, CheckCircle2, Map } from 'lucide-react';
+import { MapPinPicker } from './MapPinPicker';
 
 interface NominatimResult {
   place_id: number;
@@ -83,6 +84,10 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
   const [locationStatus, setLocationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [locationMessage, setLocationMessage] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  
+  // New state to hold the address before confirmation
+  const [tempAddress, setTempAddress] = useState<PickedAddress | null>(null);
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -135,8 +140,9 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
           if (!result) throw new Error('Could not resolve address');
           const picked = parseNominatim(result);
           setLocationStatus('success');
-          setLocationMessage(picked.line1 + (picked.line2 ? ', ' + picked.line2 : '') + ', ' + picked.city);
-          onPick(picked);
+          setLocationMessage('Location detected! Please review and adjust the pin below.');
+          setTempAddress(picked);
+          // Don't call onPick yet, let them adjust the map
         } catch {
           setLocationStatus('error');
           setLocationMessage('Could not get address for your location. Please search manually.');
@@ -155,15 +161,79 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  }, [onPick]);
+  }, []);
 
   const handleSelectSuggestion = (result: NominatimResult) => {
     const picked = parseNominatim(result);
     setQuery(result.display_name.split(',').slice(0, 2).join(','));
     setShowDropdown(false);
     setSuggestions([]);
-    onPick(picked);
+    setTempAddress(picked);
+    setLocationStatus('idle');
+    setLocationMessage('');
   };
+
+  const handleConfirmLocation = () => {
+    if (tempAddress) {
+      onPick(tempAddress);
+      setTempAddress(null);
+      setQuery('');
+      setLocationStatus('idle');
+    }
+  };
+
+  const handleMapPinChange = (loc: { lat: number, lng: number }) => {
+    if (tempAddress) {
+      setTempAddress({ ...tempAddress, lat: loc.lat, lng: loc.lng });
+    }
+  };
+
+  // If we have a temp address, show the map instead of the search box
+  if (tempAddress) {
+    return (
+      <div className="space-y-4 animate-fade-in bg-rice-50 p-4 rounded-xl border border-emerald-200">
+        <div className="flex items-start justify-between">
+          <div>
+            <h4 className="text-sm font-bold text-ink-900 flex items-center gap-2">
+              <Map size={16} className="text-emerald-600" /> Adjust Pin Location
+            </h4>
+            <p className="text-xs text-ink-500 mt-1">
+              Drag the pin to exactly where you want your meals delivered.
+            </p>
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setTempAddress(null)}
+            className="p-1 text-ink-400 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        
+        <MapPinPicker 
+          initialLocation={{ lat: tempAddress.lat, lng: tempAddress.lng }}
+          onLocationChange={handleMapPinChange}
+        />
+        
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => setTempAddress(null)}
+            className="px-4 py-2 text-xs font-bold text-ink-600 hover:bg-rice-200 rounded-lg transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmLocation}
+            className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
+          >
+            Confirm Exact Location
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

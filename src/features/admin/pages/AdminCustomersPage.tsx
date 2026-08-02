@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, XCircle, Users, CheckCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, XCircle, Users, CheckCircle, ChevronLeft, ChevronRight, X, Filter, MoreVertical } from 'lucide-react';
 import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
@@ -8,8 +8,9 @@ import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { useAdminCustomers } from '../hooks/useAdmin';
-import type { CustomerProfile, UserProfile } from '@/shared/types';
+import { useAdminCustomers, useStaffUsers, useAssignDeliveryPartner, useAssignCustomerZone } from '@/features/admin/hooks/useAdmin';
+import { useDeliveryZones } from '@/features/admin/hooks/useDeliveryZones';
+import type { CustomerProfile, UserProfile, DeliveryPartnerProfile } from '@/shared/types';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
 function formatDate(value: any): string {
@@ -27,13 +28,32 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
   const addrList = customer.addresses || [];
   const defaultId = customer.defaultAddressId;
   
+  const { data: staffUsers } = useStaffUsers();
+  const deliveryPartners = (staffUsers || []).filter(u => u.role === 'delivery_partner' && u.isActive) as DeliveryPartnerProfile[];
+  const { data: zones = [] } = useDeliveryZones();
+  
+  const assignPartner = useAssignDeliveryPartner();
+  const assignZone = useAssignCustomerZone();
+  
+  const [isEditingPartner, setIsEditingPartner] = useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState(customer.deliveryPartnerId || '');
+
+  const [isEditingZone, setIsEditingZone] = useState(false);
+  const [selectedZoneId, setSelectedZoneId] = useState(customer.zoneId || '');
+  
+  // Find current partner object if exists
+  const currentPartner = deliveryPartners.find(p => p.id === customer.deliveryPartnerId);
+  const currentZone = zones.find(z => z.id === customer.zoneId);
+
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-primary/20">
         <div className="p-6 border-b border-primary/10 flex justify-between items-start bg-primary/5">
           <div>
             <h2 className="text-2xl font-bold text-primary font-display">Customer Details</h2>
-            <p className="text-text-muted text-xs font-mono mt-1 bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">{customer.id}</p>
+            <p className="text-text-muted text-xs font-mono mt-1 bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
+              {customer.displayId || 'Customer'}
+            </p>
           </div>
           <button onClick={onClose} className="text-primary hover:text-gold p-1 transition-colors">
             <X size={24} />
@@ -84,6 +104,122 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
                 </div>
               )}
             </div>
+
+            <div className="bg-primary/5 rounded-xl p-4 col-span-2 border border-primary/10 mt-2">
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-text-muted text-[10px] font-bold uppercase tracking-wider">Delivery Zone Assignment</div>
+                {!isEditingZone && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditingZone(true)} className="text-xs text-gold hover:bg-gold/10 px-2 py-1 h-auto">
+                    Change Zone
+                  </Button>
+                )}
+              </div>
+
+              {isEditingZone ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-3">
+                    <select 
+                      value={selectedZoneId}
+                      onChange={(e) => setSelectedZoneId(e.target.value)}
+                      className="flex-1 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
+                    >
+                      <option value="">Auto-Assign (Pincode Based)</option>
+                      {zones.map(z => (
+                        <option key={z.id} value={z.id}>{z.name} ({z.pincodes.length} pincodes)</option>
+                      ))}
+                    </select>
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      disabled={selectedZoneId === (customer.zoneId || '') || assignZone.isPending}
+                      onClick={() => {
+                        assignZone.mutate(
+                          { customerId: customer.id, zoneId: selectedZoneId },
+                          { onSuccess: () => setIsEditingZone(false) }
+                        );
+                      }}
+                    >
+                      {assignZone.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setIsEditingZone(false); setSelectedZoneId(customer.zoneId || ''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">Zone</div>
+                    <div className="font-bold text-primary text-base">
+                      {currentZone ? currentZone.name : (customer.zoneId ? 'Unknown Zone' : 'Auto-Assign (Pincode)')}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-primary/5 rounded-xl p-4 col-span-2 border border-primary/10 mt-2">
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-text-muted text-[10px] font-bold uppercase tracking-wider">Delivery Partner Assignment</div>
+                {!isEditingPartner && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditingPartner(true)} className="text-xs text-gold hover:bg-gold/10 px-2 py-1 h-auto">
+                    Change Assignment
+                  </Button>
+                )}
+              </div>
+
+              {isEditingPartner ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-3">
+                    <select 
+                      value={selectedPartnerId}
+                      onChange={(e) => setSelectedPartnerId(e.target.value)}
+                      className="flex-1 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
+                    >
+                      <option value="">Select a Delivery Partner</option>
+                      {deliveryPartners.map(dp => (
+                        <option key={dp.id} value={dp.id}>{dp.fullName} ({(dp.zoneIds || []).length > 0 ? dp.zoneIds.join(', ') : 'No zones'})</option>
+                      ))}
+                    </select>
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      disabled={!selectedPartnerId || selectedPartnerId === customer.deliveryPartnerId || assignPartner.isPending}
+                      onClick={() => {
+                        assignPartner.mutate(
+                          { customerId: customer.id, partnerId: selectedPartnerId },
+                          { onSuccess: () => setIsEditingPartner(false) }
+                        );
+                      }}
+                    >
+                      {assignPartner.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setIsEditingPartner(false); setSelectedPartnerId(customer.deliveryPartnerId || ''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">Partner</div>
+                    <div className="font-bold text-primary text-base">
+                      {currentPartner ? currentPartner.fullName : (customer.deliveryPartnerId ? 'Unknown Partner' : 'Unassigned')}
+                    </div>
+                  </div>
+                  {(customer.assignedAt || customer.assignedBy) && (
+                    <div>
+                      <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">Assignment Details</div>
+                      <div className="text-xs text-text-muted font-medium">
+                        {customer.assignedAt ? `On ${formatDate(customer.assignedAt)}` : ''}
+                        {customer.assignedBy ? ` By Admin` : ''}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
@@ -92,69 +228,94 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
 }
 
 
-// ── Customer Row (Responsive) ───────────────────────────────────────────────────
-function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; onSelect: () => void }) {
+// ── Customer Card (Responsive Grid) ───────────────────────────────────────────────────
+function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: CustomerProfile; onSelect: () => void; deliveryPartners: DeliveryPartnerProfile[] }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const defaultAddress = customer.addresses?.find(a => a.id === customer.defaultAddressId) || customer.addresses?.[0];
   const locationText = defaultAddress 
     ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(', ') 
     : 'No address';
 
-  const initial = customer.fullName ? customer.fullName.charAt(0).toUpperCase() : '?';
+  const partner = deliveryPartners.find(p => p.id === customer.deliveryPartnerId);
 
   return (
-    <tr
-      className="block md:table-row bg-background md:bg-transparent hover:bg-primary/5 p-4 md:p-0 space-y-3 md:space-y-0 cursor-pointer transition-colors group"
-      onClick={onSelect}
-    >
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-sm font-sans">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Customer</span>
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end md:justify-start">
-          <div className="w-10 h-10 rounded-full bg-gold/20 text-gold flex items-center justify-center font-bold text-base shrink-0 border border-gold/30">
-            {initial}
+    <Card elevated className="relative bg-card transition-colors hover:border-secondary/40 group overflow-visible">
+      {/* Menu Overlay Backdrop */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
+      )}
+      
+      <div 
+        className="p-3 flex flex-col gap-2 cursor-pointer h-[130px]" 
+        onClick={() => { if(!menuOpen) onSelect(); }}
+      >
+        {/* Top Header Row */}
+        <div className="flex justify-between items-start">
+          <div className="flex gap-2 items-center mt-1">
+            {customer.displayId && (
+              <Badge variant="default" className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10">
+                {customer.displayId}
+              </Badge>
+            )}
+            <Badge variant={customer.isActive ? 'success' : 'danger'} dot className="text-[10px] shadow-sm px-1.5 py-0.5">
+              {customer.isActive ? 'Active' : 'Inactive'}
+            </Badge>
           </div>
-          <div className="text-right md:text-left">
-            <div className="font-bold text-primary group-hover:text-gold transition-colors text-base">
-              {customer.fullName}
-            </div>
-            <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5 truncate max-w-[140px]">{customer.id}</div>
+          
+          <button 
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
+            aria-label="More actions"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
+
+        {/* Overflow Menu Dropdown */}
+        {menuOpen && (
+          <div className="absolute top-11 right-3 z-30 bg-card border border-border shadow-xl rounded-xl w-44 overflow-hidden flex flex-col py-1">
+            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
+            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Edit</button>
+            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>Assign Driver</button>
+            <div className="h-[1px] bg-border my-1 w-full" />
+            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); window.location.href = `tel:${customer.phone}`; }}>Call Customer</button>
           </div>
+        )}
+        
+        {/* Name Row */}
+        <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors line-clamp-2 -mt-1 pr-6">
+          {customer.fullName}
+        </h3>
+        
+        {/* Contact Info Inline */}
+        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium truncate mt-0.5">
+          <span className="flex items-center gap-1 shrink-0"><span className="text-[13px] leading-none">📞</span> {customer.phone}</span>
+          <span className="text-border">•</span>
+          <span className="flex items-center gap-1 truncate"><span className="text-[13px] leading-none">📍</span> <span className="truncate">{locationText}</span></span>
         </div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-sm font-sans font-medium text-primary">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Phone</span>
-        {customer.phone}
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-sm font-sans font-medium text-text-muted">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Email</span>
-        {customer.email}
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-sm font-sans">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Location</span>
-        <div className="text-right md:text-left">
-          <span className={defaultAddress ? "text-primary font-medium line-clamp-1" : "text-text-muted italic"}>
-            {locationText}
-          </span>
+
+        {/* Chips Row (Bottom) */}
+        <div className="flex gap-2 items-center mt-auto overflow-hidden pb-0.5">
+          <Badge variant="default" className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-text font-semibold shrink-0 whitespace-nowrap">
+            🍛 Basic Plan
+          </Badge>
+          
+          {partner ? (
+            <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[90px]">
+              🚚 {partner.fullName}
+            </Badge>
+          ) : (
+            <Badge variant="warning" className="text-[10px] px-1.5 py-0.5 shadow-sm shrink-0 whitespace-nowrap">
+              ⚠ Unassigned
+            </Badge>
+          )}
+
+          <Badge variant="default" className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary font-bold shadow-sm shrink-0 whitespace-nowrap">
+            🟣 Ready
+          </Badge>
         </div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-text-muted font-sans text-xs">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Joined Date</span>
-        <span className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block text-primary font-medium">
-          {formatDate(customer.createdAt)}
-        </span>
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Status</span>
-        <Badge variant={customer.isActive ? 'success' : 'danger'} className="text-[10px] uppercase tracking-wider font-bold px-3 py-1">
-          {customer.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      </td>
-      <td className="flex justify-between items-center md:table-cell px-0 pt-3 md:pt-0 md:px-6 md:py-4 text-right border-t border-primary/10 md:border-0 mt-3 md:mt-0">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Action</span>
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans font-bold text-xs hover:bg-gold/10 hover:text-gold w-full md:w-auto">
-          View
-        </Button>
-      </td>
-    </tr>
+      </div>
+    </Card>
   );
 }
 
@@ -162,7 +323,7 @@ function CustomerRowView({ customer, onSelect }: { customer: CustomerProfile; on
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const TABS: { label: string; value: StatusFilter; icon: React.ReactNode }[] = [
-  { label: 'All Customers', value: 'all', icon: <Users size={16} /> },
+  { label: 'All', value: 'all', icon: <Users size={16} /> },
   { label: 'Active', value: 'active', icon: <CheckCircle size={16} /> },
   { label: 'Inactive', value: 'inactive', icon: <XCircle size={16} /> },
 ];
@@ -179,7 +340,10 @@ export function AdminCustomersPage() {
   const currentLastDoc = currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
 
   const { data, isLoading, error, refetch } = useAdminCustomers(currentLastDoc);
+  const { data: staffUsers } = useStaffUsers();
+  
   const customers = data?.rows ?? [];
+  const deliveryPartners = (staffUsers || []).filter(u => u.role === 'delivery_partner' && u.isActive) as DeliveryPartnerProfile[];
 
   const handleNextPage = () => {
     if (data?.lastDoc) {
@@ -221,7 +385,8 @@ export function AdminCustomersPage() {
       row.fullName.toLowerCase().includes(q) ||
       row.phone.toLowerCase().includes(q) ||
       row.email.toLowerCase().includes(q) ||
-      row.id.toLowerCase().includes(q)
+      row.id.toLowerCase().includes(q) ||
+      (row.displayId && row.displayId.toLowerCase().includes(q))
     );
   });
 
@@ -236,24 +401,24 @@ export function AdminCustomersPage() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-6 pb-12">
       <PageHeader 
         userName="Customers"
-        subtitle="View and manage customer profiles, addresses, and status."
+        subtitle="Manage customer profiles, addresses, and partner assignments."
       />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           {/* Tab bar */}
-          <div className="flex gap-2 bg-primary/5 p-1 rounded-xl border border-primary/10 self-start">
+          <div className="flex gap-2">
             {TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => handleTabChange(tab.value)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold font-sans rounded-lg transition-all ${
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-all border ${
                   activeTab === tab.value
-                    ? 'bg-background shadow-sm text-gold border border-gold/20'
-                    : 'text-text-muted hover:text-primary hover:bg-primary/5'
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface-2 text-text-muted border-border hover:border-secondary/40'
                 }`}
               >
                 {tab.icon} {tab.label}
@@ -261,71 +426,146 @@ export function AdminCustomersPage() {
             ))}
           </div>
 
-          <div className="relative min-w-[300px]">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+          <div className="relative min-w-[300px] flex-1 max-w-md">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={handleSearchChange}
-              placeholder="Search customers..."
-              className="w-full pl-11 pr-4 py-3 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold shadow-sm transition-colors"
+              placeholder="Search..."
+              className="w-full pl-10 pr-16 h-11 bg-card border border-border rounded-[14px] text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary/60 shadow-xs transition-colors"
             />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="text-text-muted hover:text-text p-1"
+                >
+                  <X size={14} />
+                </button>
+              )}
+              <div className="w-[1px] h-4 bg-border hidden sm:block"></div>
+              <button className="text-text-muted hover:text-primary transition-colors flex items-center gap-1.5 p-1 rounded hover:bg-surface-2">
+                <Filter size={16} />
+                <span className="text-xs font-semibold hidden sm:inline">Filter</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {filtered.length === 0 ? (
           <EmptyState
-            icon={<Users size={48} className="text-primary/40" />}
+            icon={<Users size={48} className="text-text-faint" />}
             title="No customers found"
-            description={search ? 'No customers match your search.' : `No ${activeTab === 'all' ? '' : activeTab} customers found on this page.`}
+            description={search ? 'No customers match your search query.' : `No ${activeTab === 'all' ? '' : activeTab} customers found.`}
           />
         ) : (
-            <Card className="p-0 overflow-hidden shadow-md border-primary/20">
-              <div className="overflow-x-auto md:overflow-visible">
-                <table className="w-full text-left text-sm block md:table font-sans">
-                  <thead className="hidden md:table-header-group bg-primary/5 text-text-muted font-bold text-[10px] uppercase tracking-wider border-b border-primary/10">
-                    <tr>
-                      <th className="px-6 py-4">Customer</th>
-                      <th className="px-6 py-4">Phone</th>
-                      <th className="px-6 py-4">Email</th>
-                      <th className="px-6 py-4">Location</th>
-                      <th className="px-6 py-4">Joined Date</th>
-                      <th className="px-6 py-4">Account Status</th>
-                      <th className="px-6 py-4 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="block md:table-row-group divide-y divide-primary/5 bg-background">
-                    {filtered.map((row) => (
-                      <CustomerRowView key={row.id} customer={row} onSelect={() => setSelected(row)} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex items-center justify-between">
-                <span>Showing {filtered.length} customer{filtered.length !== 1 ? 's' : ''} on this page</span>
-                <div className="flex items-center gap-4">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handlePrevPage} 
-                    disabled={currentPage === 0 || isLoading}
-                    className="font-bold text-primary hover:text-gold hover:bg-gold/10"
-                  >
-                    <ChevronLeft size={16} className="mr-1" /> Prev
-                  </Button>
-                  <span className="text-primary font-bold font-data text-xs bg-background px-3 py-1.5 rounded-lg border border-primary/10 shadow-sm">Page {currentPage + 1}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleNextPage} 
-                    disabled={!data?.lastDoc || isLoading}
-                    className="font-bold text-primary hover:text-gold hover:bg-gold/10"
-                  >
-                    Next <ChevronRight size={16} className="ml-1" />
-                  </Button>
-                </div>
-              </div>
+          <div className="space-y-4">
+            {/* Desktop Table View */}
+            <Card className="p-0 overflow-hidden shadow-md border-primary/20 hidden lg:block">
+              <table className="w-full text-left text-sm font-sans">
+                <thead className="bg-primary/5 text-text-muted font-bold text-[10px] uppercase tracking-wider border-b border-primary/10">
+                  <tr>
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4">Contact</th>
+                    <th className="px-6 py-4">Address</th>
+                    <th className="px-6 py-4">Partner/Zone</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5 bg-background">
+                  {filtered.map((row) => {
+                    const defaultAddress = row.addresses?.find((a: any) => a.id === row.defaultAddressId) || row.addresses?.[0];
+                    const locationText = defaultAddress ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(', ') : 'No address';
+                    const partner = deliveryPartners.find(p => p.id === row.deliveryPartnerId);
+                    
+                    return (
+                      <tr key={row.id} className="hover:bg-primary/5 transition-colors group cursor-pointer" onClick={() => setSelected(row)}>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-primary group-hover:text-gold transition-colors text-base">{row.fullName}</div>
+                          {row.displayId && <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">{row.displayId}</div>}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-data text-primary font-medium">{row.phone}</div>
+                          <div className="text-text-muted text-xs mt-0.5 truncate max-w-[150px]">{row.email}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-text-muted text-xs truncate max-w-[200px] flex items-center gap-1">
+                            <span className="text-[13px] leading-none">📍</span> {locationText}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {partner ? (
+                            <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 whitespace-nowrap">
+                              🚚 {partner.fullName}
+                            </Badge>
+                          ) : row.zoneId ? (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0.5 shadow-sm bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
+                              📍 Assigned to Zone
+                            </Badge>
+                          ) : (
+                            <Badge variant="warning" className="text-[10px] px-1.5 py-0.5 shadow-sm whitespace-nowrap">
+                              ⚠ Auto (Pincode)
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant={row.isActive ? 'success' : 'danger'} className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5">
+                            {row.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelected(row); }}>
+                            Manage
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </Card>
+
+            {/* Mobile / Tablet Card View */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+              {filtered.map((row) => (
+                <CustomerCardView 
+                  key={row.id} 
+                  customer={row} 
+                  onSelect={() => setSelected(row)} 
+                  deliveryPartners={deliveryPartners} 
+                />
+              ))}
+            </div>
+            
+            <div className="flex items-center justify-between px-2 pt-2">
+              <span className="text-sm font-medium text-text-muted">
+                Showing {filtered.length} customer{filtered.length !== 1 ? 's' : ''} on this page
+              </span>
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={handlePrevPage} 
+                  disabled={currentPage === 0 || isLoading}
+                >
+                  <ChevronLeft size={16} className="mr-1" /> Prev
+                </Button>
+                <span className="text-sm font-bold text-text-muted">
+                  Page {currentPage + 1}
+                </span>
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={handleNextPage} 
+                  disabled={!data?.lastDoc || isLoading}
+                >
+                  Next <ChevronRight size={16} className="ml-1" />
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

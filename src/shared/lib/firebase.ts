@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider } from 'firebase/app-check';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -9,7 +10,10 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
-import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
+import { getMessaging, isSupported as messagingSupported, type Messaging } from 'firebase/messaging';
+import { getAnalytics, isSupported as analyticsSupported, type Analytics } from 'firebase/analytics';
+import { getPerformance, type FirebasePerformance } from 'firebase/performance';
+import { getRemoteConfig, type RemoteConfig } from 'firebase/remote-config';
 
 
 // In Node/CI (automation scripts run via vite-node), import.meta.env keys
@@ -47,7 +51,75 @@ if (import.meta.env.DEV || (typeof process !== 'undefined' && process.env.NODE_E
 
 export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 
-export const auth: Auth = getAuth(firebaseApp);
+// ---------------------------------------------------------------------------
+// Firebase App Check
+//
+// Strategy (three-tier):
+//   1. Production: ReCaptchaV3 using VITE_APPCHECK_SITE_KEY.
+//   2. Local dev (emulator) with VITE_APPCHECK_DEBUG_TOKEN set: registered
+//      debug token (whitelist once in Firebase Console → App Check → Apps →
+//      Manage debug tokens).
+//   3. Local dev without VITE_APPCHECK_DEBUG_TOKEN: the SDK auto-generates a
+//      token and logs it as "[App Check] Debug token: <uuid>". Copy that UUID
+//      to Firebase Console to whitelist it for your dev machine.
+//
+// DO NOT set VITE_APPCHECK_SITE_KEY=undefined to skip production enforcement —
+// App Check is always active; it only switches provider based on environment.
+//
+// Deployment steps:
+//   1. Firebase Console → App Check → Register your web app with reCAPTCHA v3.
+//   2. Copy the site key to VITE_APPCHECK_SITE_KEY in your hosting environment.
+//   3. Enforce App Check: Firebase Console → App Check → Firestore/Auth/Storage
+//      → Enforce (after validating existing traffic shows in the dashboard).
+// ---------------------------------------------------------------------------
+const appCheckSiteKey = env('VITE_APPCHECK_SITE_KEY');
+const appCheckDebugToken = env('VITE_APPCHECK_DEBUG_TOKEN');
+const isEmulatorMode = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
+
+export const appCheck = (() => {
+  // Test environment (Vitest/jsdom): skip App Check entirely.
+  // firebase/app is mocked in vitest.setup.ts; initializeAppCheck would crash
+  // against the mocked undefined app. App Check security is verified in the
+  // Firestore/Storage security rule tests, not in unit tests.
+  if (import.meta.env.MODE === 'test') {
+    return null;
+  }
+
+  // Production path: real reCAPTCHA v3
+  if (appCheckSiteKey && !isEmulatorMode) {
+    return initializeAppCheck(firebaseApp, {
+      provider: new ReCaptchaV3Provider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  }
+
+  // Local / emulator path: use the official App Check debug provider.
+  // The SDK reads FIREBASE_APPCHECK_DEBUG_TOKEN if set, or auto-generates one
+  // and logs it at startup. Whitelist the token in Firebase Console once.
+  if (isEmulatorMode || import.meta.env.DEV) {
+    // Setting the global before initializeAppCheck activates the debug provider.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken ?? true;
+
+    return initializeAppCheck(firebaseApp, {
+      // CustomProvider is a no-op here; the SDK intercepts via the global debug flag.
+      provider: new CustomProvider({
+        getToken: () => Promise.resolve({ token: 'debug', expireTimeMillis: Date.now() + 3_600_000 }),
+      }),
+      isTokenAutoRefreshEnabled: true,
+    });
+  }
+
+  // Fallback: no App Check in non-emulator, non-production environments
+  // (e.g., Vitest/Node). Log to alert developers.
+  console.warn(
+    '[firebase] App Check not initialised — set VITE_APPCHECK_SITE_KEY for production ' +
+    'or VITE_USE_FIREBASE_EMULATORS=true for local development.',
+  );
+  return null;
+})();
+
+
 
 /**
  * Multi-tab IndexedDB persistence: Kitchen/Delivery/Accounts staff often
@@ -55,6 +127,8 @@ export const auth: Auth = getAuth(firebaseApp);
  * with weak wifi) — cached reads keep the UI usable, and queued writes
  * sync once back online.
  */
+export const auth: Auth = getAuth(firebaseApp);
+
 export const db: Firestore = initializeFirestore(firebaseApp, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
@@ -74,10 +148,39 @@ let messagingChecked = false;
 export async function getMessagingIfSupported(): Promise<Messaging | null> {
   if (messagingChecked) return messagingInstance;
   messagingChecked = true;
-  if (await isSupported()) {
+  if (await messagingSupported()) {
     messagingInstance = getMessaging(firebaseApp);
   }
   return messagingInstance;
+}
+
+// Analytics helper – returns Analytics instance if supported, otherwise null
+export async function initAnalytics(): Promise<Analytics | null> {
+  if (await analyticsSupported()) {
+    return getAnalytics(firebaseApp);
+  }
+  return null;
+}
+
+// Performance Monitoring helper – silently skips if not supported
+export async function initPerformance(): Promise<FirebasePerformance | null> {
+  try {
+    return getPerformance(firebaseApp);
+  } catch {
+    // Silently ignore if performance monitoring is not supported in the current environment
+    return null;
+  }
+}
+
+// Remote Config helper
+export function initRemoteConfig(): RemoteConfig | null {
+  try {
+    const rc = getRemoteConfig(firebaseApp);
+    rc.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 10000 : 3600000;
+    return rc;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

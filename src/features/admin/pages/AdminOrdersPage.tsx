@@ -1,66 +1,72 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Package, Filter, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Package, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
 import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-
 import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
+import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { OrderCard } from '@/shared/components/ui/OrderCard';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
 import type { OrderStatus, MealType } from '@/shared/types';
 import toast from 'react-hot-toast';
+import { useCustomerNameMap, useCustomerNameMap as usePartnerNameMap } from '@/features/admin/hooks/useAdmin';
+import { cn } from '@/shared/lib/cn';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// ----------------------------------------------------------------------------
-// Helper Components
-// ----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer detail fetcher (for OrderCard customer prop)
+// ─────────────────────────────────────────────────────────────────────────────
 
-function CustomerName({ customerId }: { customerId: string }) {
-  const { data: customer, isLoading } = useQuery({
-    queryKey: ['customer', customerId],
-    queryFn: () => userRepository.getById(customerId),
+function useCustomerMap(customerIds: string[]) {
+  return useQuery({
+    queryKey: ['customers-map', customerIds.join(',')],
+    queryFn: async () => {
+      const { where } = await import('firebase/firestore');
+      const users = await userRepository.list(where('role', '==', 'customer'));
+      return new Map(users.map(u => [u.id, u]));
+    },
     staleTime: 5 * 60 * 1000,
+    enabled: customerIds.length > 0,
   });
-
-  if (isLoading) return <span className="animate-pulse text-text-muted">Loading...</span>;
-  if (!customer) return <span className="text-text-muted">Unknown</span>;
-  return <span className="font-bold font-sans text-primary">{customer.fullName}</span>;
 }
 
-const statusColors: Record<OrderStatus, string> = {
-  scheduled: 'bg-primary/10 text-primary border-primary/20',
-  preparing: 'bg-gold/20 text-gold-dark border-gold/30',
-  ready_for_pickup: 'bg-blue-100 text-blue-800 border-blue-200',
-  out_for_delivery: 'bg-amber-100 text-amber-800 border-amber-200',
-  delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  skipped: 'bg-background-alt text-text-muted border-primary/10',
-  cancelled: 'bg-red-50 text-red-600 border-red-200',
-  failed_delivery: 'bg-red-600 text-white border-red-700',
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// KPI Status filter chips
+// ─────────────────────────────────────────────────────────────────────────────
 
-const statusLabels: Record<OrderStatus, string> = {
-  scheduled: 'Scheduled',
-  preparing: 'Preparing',
-  ready_for_pickup: 'Ready',
-  out_for_delivery: 'Out for Delivery',
-  delivered: 'Delivered',
-  skipped: 'Skipped',
-  cancelled: 'Cancelled',
-  failed_delivery: 'Failed',
-};
+const STATUS_KPI_CHIPS: Array<{
+  key: OrderStatus | 'all';
+  label: string;
+  color: string;
+  activeColor: string;
+}> = [
+  { key: 'all',              label: 'All',           color: 'bg-surface-2 text-text-muted border-border',                        activeColor: 'bg-primary text-white border-primary' },
+  { key: 'scheduled',        label: 'Scheduled',     color: 'bg-[#F3EBF7] text-[#6A1B9A] border-[#CE93D8]',                     activeColor: 'bg-[#6A1B9A] text-white border-[#6A1B9A]' },
+  { key: 'preparing',        label: 'Preparing',     color: 'bg-info-subtle text-info border-info/30',                           activeColor: 'bg-info text-white border-info' },
+  { key: 'ready_for_pickup', label: 'Ready',         color: 'bg-pastel-lavender text-secondary border-secondary/30',             activeColor: 'bg-secondary text-white border-secondary' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', color: 'bg-pastel-orange text-[#E65100] border-[#FFCC80]',              activeColor: 'bg-[#E65100] text-white border-[#E65100]' },
+  { key: 'delivered',        label: 'Delivered',     color: 'bg-success-subtle text-success border-success/30',                  activeColor: 'bg-success text-white border-success' },
+  { key: 'failed_delivery',  label: 'Failed',        color: 'bg-danger-subtle text-danger border-danger/30',                    activeColor: 'bg-danger text-white border-danger' },
+  { key: 'cancelled',        label: 'Cancelled',     color: 'bg-surface-3 text-text-muted border-border',                       activeColor: 'bg-text-muted text-white border-text-muted' },
+];
 
-function StatusBadge({ status }: { status: OrderStatus }) {
-  return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider border ${statusColors[status]}`}>
-      {statusLabels[status]}
-    </span>
-  );
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getDefaultMealType(): MealType | 'all' {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 16) return 'lunch';
+  if (hour >= 16 && hour < 23) return 'dinner';
+  return 'all';
 }
 
-// ----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Page
-// ----------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function AdminOrdersPage() {
   const queryClient = useQueryClient();
@@ -68,19 +74,40 @@ export function AdminOrdersPage() {
   
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [mealTypeFilter, setMealTypeFilter] = useState<MealType | 'all'>('all');
+  const [mealTypeFilter, setMealTypeFilter] = useState<MealType | 'all'>(getDefaultMealType());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const queryKey = useMemo(() => ['admin', 'orders', selectedDate], [selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    const unsubscribe = orderRepository.subscribeToDayOrders(
+      selectedDate,
+      (ordersData) => queryClient.setQueryData(queryKey, ordersData)
+    );
+    return () => unsubscribe();
+  }, [selectedDate, queryClient, queryKey]);
 
   const { data: orders = [], isLoading, error } = useQuery({
-    queryKey: ['admin', 'orders', selectedDate],
+    queryKey,
     queryFn: () => orderRepository.getByDate(selectedDate),
+    staleTime: 0,
   });
+
+  const allCustomerIds = useMemo(() => [...new Set(orders.map(o => o.customerId))], [orders]);
+  const allPartnerIds = useMemo(() => [...new Set(orders.map(o => o.deliveryPartnerId).filter(Boolean) as string[])], [orders]);
+  
+  const nameMap = useCustomerNameMap(allCustomerIds);
+  const { data: customerMap = new Map() } = useCustomerMap(allCustomerIds);
+  const partnerNameMap = usePartnerNameMap(allPartnerIds);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, newStatus }: { orderId: string, newStatus: OrderStatus }) => {
       await orderRepository.updateWorkflow(orderId, newStatus, 'Admin override');
     },
     onSuccess: () => {
-      toast.success('Status updated successfully');
+      toast.success('Status updated');
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders', selectedDate] });
     },
     onError: (err: unknown) => {
@@ -88,148 +115,197 @@ export function AdminOrdersPage() {
     }
   });
 
+  // Compute per-status counts for KPI chips
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: orders.length };
+    for (const o of orders) {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    }
+    return counts;
+  }, [orders]);
+
   if (error) {
     return <ErrorState title="Failed to load orders" onRetry={() => queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })} />;
   }
 
-  const filteredOrders = orders.filter(o => {
-    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
-    if (mealTypeFilter !== 'all' && o.mealType !== mealTypeFilter) return false;
-    return true;
-  });
+  const mealSortOrder: Record<string, number> = { breakfast: 1, lunch: 2, dinner: 3 };
+
+  const filteredOrders = orders
+    .filter(o => {
+      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (mealTypeFilter !== 'all' && o.mealType !== mealTypeFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const cName = (nameMap.get(o.customerId) || '').toLowerCase();
+        const customer = customerMap.get(o.customerId);
+        const displayId = (customer?.displayId || '').toLowerCase();
+        if (!cName.includes(q) && !displayId.includes(q) && !o.id.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.mealType !== b.mealType) {
+        return (mealSortOrder[a.mealType] || 99) - (mealSortOrder[b.mealType] || 99);
+      }
+      return (a.deliveryWindow?.start || '').localeCompare(b.deliveryWindow?.start || '');
+    });
+
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    await updateStatusMutation.mutateAsync({ orderId, newStatus });
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <PageHeader 
-        userName="Orders Management"
-        subtitle="Dashboard / Orders"
+        userName="Orders"
+        subtitle={`${selectedDate} · ${orders.length} total`}
+        actions={
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-auto text-sm h-9 px-3"
+          />
+        }
       />
 
-      {/* Filters Toolbar */}
-      <Card className="p-5">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-              <CalendarIcon size={14} /> Date
-            </label>
-            <Input 
-              type="date" 
-              value={selectedDate} 
-              onChange={(e) => setSelectedDate(e.target.value)} 
-              className="w-full sm:w-auto bg-background"
-            />
-          </div>
-          
-          <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-              <Filter size={14} /> Status
-            </label>
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'all')}
-              className="w-full rounded-xl border border-primary/20 bg-background px-4 py-2.5 text-sm font-sans shadow-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold text-primary font-medium transition-colors hover:border-gold/50"
+      {/* Search + Filter toggle row */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search customer, MP-A001..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 rounded-[14px] border border-border bg-card text-sm text-text placeholder:text-text-faint focus:border-secondary/60 focus:outline-none focus:ring-2 focus:ring-secondary/20 shadow-xs"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
             >
-              <option value="all">All Statuses</option>
-              {Object.keys(statusLabels).map(key => (
-                <option key={key} value={key}>{statusLabels[key as OrderStatus]}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-              <Package size={14} /> Meal Type
-            </label>
-            <select 
-              value={mealTypeFilter}
-              onChange={(e) => setMealTypeFilter(e.target.value as MealType | 'all')}
-              className="w-full rounded-xl border border-primary/20 bg-background px-4 py-2.5 text-sm font-sans shadow-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold text-primary font-medium transition-colors hover:border-gold/50"
-            >
-              <option value="all">All Meals</option>
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="dinner">Dinner</option>
-            </select>
-          </div>
+              <X size={14} />
+            </button>
+          )}
         </div>
-      </Card>
+        <Button
+          variant={showFilters ? 'tonal' : 'secondary'}
+          size="md"
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <SlidersHorizontal size={16} />
+          <span className="hidden sm:inline">Filters</span>
+        </Button>
+      </div>
 
-      {/* Results */}
+      {/* Expanded filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-card rounded-[20px] border border-border p-4 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Meal Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMealTypeFilter(m)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                        mealTypeFilter === m
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-surface-2 text-text-muted border-border hover:border-secondary/40'
+                      )}
+                    >
+                      {m === 'all' ? 'All Meals' : m.charAt(0).toUpperCase() + m.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Status KPI Filter Chips — horizontally scrollable */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        {STATUS_KPI_CHIPS.map(chip => {
+          const count = statusCounts[chip.key] || 0;
+          const isActive = statusFilter === chip.key;
+          return (
+            <button
+              key={chip.key}
+              onClick={() => setStatusFilter(chip.key as OrderStatus | 'all')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all shrink-0',
+                isActive ? chip.activeColor : chip.color,
+                'hover:shadow-xs'
+              )}
+            >
+              {chip.label}
+              {count > 0 && (
+                <span className={cn(
+                  'px-1.5 py-0.5 rounded-full text-[10px] font-bold',
+                  isActive ? 'bg-white/25' : 'bg-black/10'
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Orders List */}
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center rounded-2xl border border-dashed border-gold/30 bg-primary/5">
-          <Loader2 className="h-8 w-8 animate-spin text-gold" />
+        <div className="flex h-52 items-center justify-center rounded-[20px] border border-dashed border-secondary/30 bg-pastel-lavender/30">
+          <Loader2 className="h-7 w-7 animate-spin text-secondary" />
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gold/30 bg-primary/5 py-16 text-center">
-          <Package className="mb-4 h-12 w-12 text-primary/40" />
-          <h3 className="text-lg font-display font-bold text-primary">No Orders Found</h3>
-          <p className="mt-1 text-sm font-sans text-text-muted">
-            No orders match the selected date and filters.
+        <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-surface-2 py-16 text-center">
+          <Package className="mb-3 h-10 w-10 text-text-faint" />
+          <h3 className="text-base font-display font-bold text-text">No Orders Found</h3>
+          <p className="mt-1 text-sm text-text-muted max-w-xs">
+            No orders match the selected filters.
           </p>
         </div>
       ) : (
-          <Card className="p-0 overflow-hidden">
-            <div className="overflow-x-auto md:overflow-visible">
-              <table className="w-full text-left text-sm block md:table font-sans">
-                <thead className="hidden md:table-header-group bg-primary/5 text-[10px] font-bold uppercase tracking-wider text-text-muted border-b border-primary/10">
-                  <tr>
-                    <th className="px-6 py-4">Order ID</th>
-                    <th className="px-6 py-4">Customer</th>
-                    <th className="px-6 py-4">Meal & Tier</th>
-                    <th className="px-6 py-4">Amount</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="block md:table-row-group divide-y divide-primary/5 bg-background">
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="block md:table-row hover:bg-primary/5 p-4 md:p-0 space-y-3 md:space-y-0 transition-colors">
-                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Order ID</span>
-                        <div className="font-mono text-xs text-text-muted font-medium bg-background-alt px-2 py-1 rounded border border-primary/10" title={order.id}>
-                          {order.id.slice(0, 8)}
-                        </div>
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Customer</span>
-                        <div className="text-right md:text-left">
-                          <CustomerName customerId={order.customerId} />
-                        </div>
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Meal & Tier</span>
-                        <div className="text-right md:text-left">
-                          <div className="font-bold capitalize text-primary">{order.mealType}</div>
-                          <div className="text-xs font-medium text-text-muted">{order.planTier || 'One-time'}</div>
-                        </div>
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 font-bold text-primary">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Amount</span>
-                        ₹{order.price}
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Status</span>
-                        <StatusBadge status={order.status} />
-                      </td>
-                      <td className="flex justify-between items-center md:table-cell px-0 pt-3 md:pt-0 md:px-6 md:py-4 text-right border-t border-primary/10 md:border-0 mt-3 md:mt-0">
-                        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Actions</span>
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateStatusMutation.mutate({ orderId: order.id, newStatus: e.target.value as OrderStatus })}
-                          disabled={updateStatusMutation.isPending}
-                          className="text-xs rounded-lg border border-primary/20 bg-background py-1.5 pl-3 pr-8 shadow-sm focus:border-gold focus:ring-1 focus:ring-gold text-primary font-bold w-full md:w-auto cursor-pointer hover:border-gold/50 transition-colors"
-                        >
-                          {Object.keys(statusLabels).map(key => (
-                            <option key={key} value={key}>{statusLabels[key as OrderStatus]}</option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <AnimatePresence mode="popLayout">
+            {filteredOrders.map((order) => {
+              const customer = customerMap.get(order.customerId);
+              const addr = customer?.addresses?.find((a: any) => a.id === customer?.defaultAddressId) || customer?.addresses?.[0];
+              const addressText = addr ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') : undefined;
+              const planName = order.planTier ? order.planTier.charAt(0).toUpperCase() + order.planTier.slice(1) : null;
+
+              return (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  variant="admin"
+                  customer={customer ? {
+                    fullName: customer.fullName,
+                    displayId: customer.displayId,
+                    phone: customer.phone,
+                    photoUrl: customer.photoUrl,
+                    address: addressText,
+                  } : { fullName: nameMap.get(order.customerId) || order.customerId }}
+                  planName={planName}
+                  partnerName={order.deliveryPartnerId ? partnerNameMap.get(order.deliveryPartnerId) : null}
+                  onStatusChange={handleStatusChange}
+                  isAdvancing={updateStatusMutation.isPending && updateStatusMutation.variables?.orderId === order.id}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, PackageOpen, Settings, BookOpen, Activity, UserCheck, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, Settings, BookOpen, Activity, UserCheck, Map, type LucideIcon } from 'lucide-react';
 import { ROLES, type Role } from '@/shared/constants/roles';
 
 export interface NavItem {
@@ -29,7 +29,6 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: 'Orders', to: '/admin/orders', icon: Package },
         { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
-        { label: 'Inventory', to: '/admin/inventory', icon: PackageOpen },
         { label: 'Delivery', to: '/admin/delivery', icon: Truck },
       ],
     },
@@ -45,6 +44,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       groupLabel: 'System',
       items: [
         { label: 'Analytics', to: '/admin/analytics', icon: TrendingUp },
+        { label: 'Zones', to: '/admin/zones', icon: Map },
         { label: 'Settings', to: '/admin/settings', icon: Settings },
       ],
     },
@@ -78,7 +78,6 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: 'Production Board', to: '/kitchen/production', icon: ChefHat },
         { label: 'Daily Menus', to: '/kitchen/menus', icon: BookOpen },
-        { label: 'Inventory', to: '/kitchen/inventory', icon: PackageOpen },
       ],
     },
   ],

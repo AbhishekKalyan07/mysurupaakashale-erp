@@ -1,8 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
-
 /**
  * Scheduled Cron Job to generate monthly invoices for all active subscriptions.
  * Triggers at 00:00 on the 1st of every month.
@@ -10,6 +8,7 @@ const db = admin.firestore();
 export const generateMonthlyInvoices = functions.pubsub.schedule('0 0 1 * *')
   .timeZone('Asia/Kolkata')
   .onRun(async (_context) => {
+    const db = admin.firestore();
     console.log('Starting monthly invoice generation...');
     
     const now = new Date();

@@ -1,5 +1,6 @@
 import { db } from '@/shared/lib/firebase';
 import type { UserProfile } from '@/shared/types';
+import type { Role } from '@/shared/constants/roles';
 import { BaseRepository, createConverter } from './BaseRepository';
 
 import {
@@ -9,6 +10,8 @@ import {
   limit,
   startAfter,
   getDocs,
+  doc,
+  runTransaction,
   type QueryConstraint,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -43,6 +46,65 @@ class UserRepository extends BaseRepository<UserProfile> {
           ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<UserProfile>)
           : null,
     };
+  }
+
+  async generateNextDisplayId(role: Role, fullName?: string): Promise<string> {
+    const counterRef = doc(db, 'settings', 'userCounters');
+
+    if (role === 'customer' && fullName) {
+      const firstLetter = fullName.trim().charAt(0).toUpperCase();
+      const validLetter = /^[A-Z]$/.test(firstLetter) ? firstLetter : 'U';
+      const fieldName = `customer_${validLetter}`;
+
+      return runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        let count = 0;
+
+        if (counterDoc.exists()) {
+          const data = counterDoc.data();
+          if (typeof data[fieldName] === 'number') {
+            count = data[fieldName];
+          }
+        } else {
+          transaction.set(counterRef, { [fieldName]: count });
+        }
+
+        const newCount = count + 1;
+        transaction.set(counterRef, { [fieldName]: newCount }, { merge: true });
+
+        const paddedCount = newCount.toString().padStart(3, '0');
+        return `MP-${validLetter}${paddedCount}`;
+      });
+    }
+
+    const prefixMap: Record<Role, string> = {
+      customer: 'CUST',
+      admin: 'ADMIN',
+      kitchen: 'KTCH',
+      delivery_partner: 'DLVY',
+      accounts: 'ACCT'
+    };
+    const prefix = prefixMap[role] || 'USER';
+    
+    return runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      let count = 1000; // Starting number
+      
+      if (counterDoc.exists()) {
+        const data = counterDoc.data();
+        if (typeof data[role] === 'number') {
+          count = data[role];
+        }
+      } else {
+        // If the settings/userCounters document doesn't exist, create it
+        transaction.set(counterRef, { [role]: count });
+      }
+      
+      const newCount = count + 1;
+      transaction.set(counterRef, { [role]: newCount }, { merge: true });
+      
+      return `${prefix}-${newCount}`;
+    });
   }
 }
 

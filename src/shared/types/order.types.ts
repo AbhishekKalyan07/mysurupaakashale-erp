@@ -5,11 +5,16 @@ export type OrderStatus =
   | 'scheduled' // generated, delivery date in the future / prep not started
   | 'preparing'
   | 'ready_for_pickup'
+  | 'picked_up'
   | 'out_for_delivery'
   | 'delivered'
   | 'skipped'
   | 'cancelled'
-  | 'failed_delivery';
+  | 'failed_delivery'
+  | 'returned_delivery'
+  | 'locked'
+  | 'closed'
+  | 'reopened';
 
 export type OrderSource = 'subscription' | 'one_time';
 
@@ -22,6 +27,7 @@ export type OrderSource = 'subscription' | 'one_time';
  */
 export interface Order {
   id: ID;
+  displayId?: string;
   source: OrderSource;
   customerId: ID;
   subscriptionId: ID | null; // null for one-time orders
@@ -43,6 +49,10 @@ export interface Order {
   operatorId?: ID; // The kitchen staff member currently handling this order
   routeSequence?: number; // Future compatibility: sorting optimized routes
   proofOfDeliveryUrl?: string; // Future compatibility: image upload for PoD
+  deliveryResult?: {
+    reasonCode: string;
+    notes?: string;
+  }; // Structured result for terminal delivery states
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

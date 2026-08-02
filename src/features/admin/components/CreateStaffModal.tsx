@@ -10,7 +10,6 @@ import { toast } from 'react-hot-toast';
 
 const staffSchema = z.object({
   fullName: z.string().min(2, 'Name is required'),
-  staffId: z.string().min(2, 'Staff ID is required'),
   email: z.string().email('Invalid email'),
   phone: z.string().min(10, 'Phone is required (e.g. +919876543210)'),
   password: z.string()
@@ -78,11 +77,6 @@ export function CreateStaffModal({ onClose }: Props) {
               <label className="text-sm font-medium text-ink-700">Full Name</label>
               <input {...register('fullName')} placeholder="John Doe" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
               {errors.fullName && <p className="text-sm text-danger">{errors.fullName.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Staff ID / U_ID</label>
-              <input {...register('staffId')} placeholder="EMP-001" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 uppercase font-data" />
-              {errors.staffId && <p className="text-sm text-danger">{errors.staffId.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -50,7 +50,7 @@ service cloud.firestore {
     }
 
     function unchanged(field) {
-      return request.resource.data[field] == resource.data[field];
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
     }
 
     function onlyChangedFields(allowed) {
@@ -67,8 +67,13 @@ service cloud.firestore {
 
       // Owner may update their own profile, but never their own role or
       // id (that would be a privilege escalation) — role changes only
-      // ever happen through createStaffUser.
-      allow update: if (isOwner(userId) && unchanged('role') && unchanged('id')) || isAdmin();
+      // ever happen through createStaffUser. Delivery assignments are Admin only.
+      allow update: if (isOwner(userId) && 
+                        unchanged('role') && 
+                        unchanged('id') &&
+                        unchanged('deliveryPartnerId') &&
+                        unchanged('assignedAt') &&
+                        unchanged('assignedBy')) || isAdmin();
 
       // Staff are deactivated (isActive: false), never deleted — this
       // preserves order/invoice/audit history that references their uid.
@@ -80,10 +85,11 @@ service cloud.firestore {
     }
 
     // ---------- userPhones/{phone} ----------
-    // Phone number uniqueness registry. Used by the client to check if a phone
-    // number is already registered before creating a new account or updating profile.
+    // Phone number uniqueness registry. Read access is restricted to
+    // signed-in users only — allowing unauthenticated reads enables
+    // phone-number enumeration attacks (OWASP A01/IDOR).
     match /userPhones/{phone} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create: if (isSignedIn() && request.resource.data.uid == request.auth.uid) || isAdmin();
       allow update: if (isSignedIn() && resource.data.uid == request.auth.uid &&
                        request.resource.data.uid == request.auth.uid) || isAdmin();
@@ -177,8 +183,43 @@ service cloud.firestore {
       }
     }
 
+    // ---------- dailyProductionStates/{date} ----------
+    match /dailyProductionStates/{date} {
+      allow read: if isSignedIn();
+      
+      // Admins only. If day is closed, it's immutable EXCEPT for Reopen Day (changing status back to 'open')
+      allow create: if isAdmin();
+      allow update: if isAdmin() && 
+                      (resource.data.status != 'closed' || 
+                       (resource.data.status == 'closed' && request.resource.data.status == 'open'));
+      allow delete: if false;
+    }
+
     // ---------- orders/{orderId} ----------
     match /orders/{orderId} {
+      // Helper: Daily status lookup performs one document read per write.
+      // This is highly acceptable and performant for the current ERP scale.
+      // Note: Larger deployments may require backend-mediated writes or caching optimizations.
+      function getDayStatus(dateStr) {
+        let path = /databases/$(database)/documents/dailyProductionStates/$(dateStr);
+        return exists(path) ? get(path).data.status : 'open';
+      }
+
+      function isValidDeliveryTransition(oldStatus, newStatus) {
+        return (oldStatus == 'ready_for_pickup' && newStatus == 'picked_up') ||
+               (oldStatus == 'picked_up' && newStatus == 'out_for_delivery') ||
+               (oldStatus == 'out_for_delivery' && (newStatus == 'delivered' || newStatus == 'failed_delivery' || newStatus == 'returned_delivery'));
+      }
+
+      // Kitchen status transition guard: only forward movement within the
+      // kitchen lane is permitted. Prevents kitchen staff from jumping
+      // an order to 'delivered' or any billing/delivery state.
+      function isValidKitchenTransition(oldStatus, newStatus) {
+        return (oldStatus == 'scheduled' && newStatus == 'preparing') ||
+               (oldStatus == 'preparing' && newStatus == 'ready_for_pickup');
+      }
+
+
       allow read: if isSignedIn() &&
                      (resource.data.customerId == request.auth.uid ||
                       resource.data.deliveryPartnerId == request.auth.uid ||
@@ -193,17 +234,22 @@ service cloud.firestore {
                        request.resource.data.status == 'scheduled');
 
       // Each role can move status forward within its own lane:
-      //  - Kitchen: scheduled → preparing → ready_for_pickup
-      //  - Delivery Partner (their own assigned order): → out_for_delivery → delivered / failed_delivery
+      //  - Kitchen: scheduled → preparing → ready_for_pickup (explicit transitions)
+      //  - Delivery Partner (their own assigned order): ready_for_pickup → picked_up → out_for_delivery → delivered / failed_delivery
       //  - Customer (their own order, still 'scheduled'): → cancelled
       //  - Admin: anything
       allow update: if isAdmin() ||
-                      (isKitchen() && onlyChangedFields(['status', 'updatedAt'])) ||
+                      (isKitchen() && onlyChangedFields(['status', 'updatedAt']) && 
+                       isValidKitchenTransition(resource.data.status, request.resource.data.status) &&
+                       getDayStatus(resource.data.date) == 'open') ||
                       (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid &&
-                       onlyChangedFields(['status', 'updatedAt'])) ||
+                       onlyChangedFields(['status', 'updatedAt', 'deliveryResult', 'deliveryNotes']) && 
+                       isValidDeliveryTransition(resource.data.status, request.resource.data.status) &&
+                       getDayStatus(resource.data.date) != 'closed') ||
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled' &&
-                       onlyChangedFields(['status', 'updatedAt']));
+                       onlyChangedFields(['status', 'updatedAt']) && 
+                       getDayStatus(resource.data.date) == 'open');
 
       allow delete: if false;
 
@@ -226,12 +272,20 @@ service cloud.firestore {
                       resource.data.deliveryPartnerId == request.auth.uid ||
                       isAdmin() || isKitchen());
 
-      // Normally created by the same Cloud Function that confirms an
-      // order; Admin can also create one directly for manual overrides.
-      allow create: if isAdmin();
+      // Admin/System only writes
+      allow write: if isAdmin();
+    }
 
-      allow update: if isAdmin() || (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid);
-      allow delete: if false;
+    // ---------- dailyDeliveryStates/{date} ----------
+    match /dailyDeliveryStates/{date} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+      
+      match /driverSessions/{driverId} {
+        allow read: if isSignedIn();
+        // Driver can only update their own session
+        allow write: if isAdmin() || (isDeliveryPartner() && request.auth.uid == driverId);
+      }
     }
 
     // ---------- payments/{paymentId} ----------
@@ -291,14 +345,19 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read: if isSignedIn();
+      // Settings may contain internal configuration (pricing, cutoff times,
+      // zone config). Limit reads to operational staff — not customers.
+      allow read: if isAdmin() || isKitchen() || isDeliveryPartner() || isAccounts();
       allow write: if isAdmin(); // Phase 1: Settings updated by admin
     }
 
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      // Allow any user to create an audit log for their own actions
-      allow create: if isSignedIn() && request.resource.data.actorId == request.auth.uid;
+      // Allow any authenticated user to create an audit log for their own
+      // actions, but restrict the writable fields to prevent content injection.
+      allow create: if isSignedIn() &&
+                       request.resource.data.actorId == request.auth.uid &&
+                       request.resource.data.keys().hasOnly(['actorId', 'actorRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'ipAddress', 'sessionId']);
       allow update, delete: if false; // Audit logs must be immutable
     }
 
@@ -307,17 +366,31 @@ service cloud.firestore {
       allow write: if isAdmin(); // Phase 8: Automations
     }
 
+    // ---------- feedback/{feedbackId} ----------
+    match /feedback/{feedbackId} {
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
     // ---------- HR Module (Phase 2) ----------
     match /attendance/{recordId} {
       allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow create: if isSignedIn() && (request.resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow update: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      // Staff may only create attendance records for themselves (staffId must equal auth.uid).
+      // Prevents one staff member from creating records for another.
+      allow create: if isAdmin() || isAccounts() ||
+                       (isSignedIn() && request.resource.data.staffId == request.auth.uid);
+      allow update: if isAdmin() || isAccounts() ||
+                       (isSignedIn() && resource.data.staffId == request.auth.uid);
       allow delete: if isAdmin() || isAccounts();
     }
     match /leaves/{leaveId} {
       allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow create: if isSignedIn() && (request.resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow update: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
+      // Staff may only submit leave requests for themselves.
+      allow create: if isAdmin() || isAccounts() ||
+                       (isSignedIn() && request.resource.data.staffId == request.auth.uid);
+      allow update: if isAdmin() || isAccounts() ||
+                       (isSignedIn() && resource.data.staffId == request.auth.uid);
       allow delete: if isAdmin() || isAccounts();
     }
     match /payroll/{payrollId} {

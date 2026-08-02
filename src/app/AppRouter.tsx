@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { RequireCompleteProfile } from '@/features/customer/components/RequireCompleteProfile';
 import { AppShell } from '@/shared/components/layout/AppShell';
@@ -21,6 +22,8 @@ const AdminSubscriptionsPage = lazy(() => import('@/features/admin/pages/AdminSu
 const AdminOrdersPage = lazy(() => import('@/features/admin/pages/AdminOrdersPage').then(m => ({ default: m.AdminOrdersPage })));
 const AdminKitchenPage = lazy(() => import('@/features/admin/pages/AdminKitchenPage').then(m => ({ default: m.AdminKitchenPage })));
 const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage').then(m => ({ default: m.AdminAccountsPage })));
+const AdminComplaintsPage = lazy(() => import('@/features/admin/pages/AdminComplaintsPage').then(m => ({ default: m.AdminComplaintsPage })));
+const AdminZonesPage = lazy(() => import('@/features/admin/pages/AdminZonesPage').then(m => ({ default: m.AdminZonesPage })));
 const NotificationCenter = lazy(() => import('@/features/notifications/pages/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 const NotificationHistoryPage = lazy(() => import('@/features/notifications/pages/NotificationHistoryPage').then(m => ({ default: m.NotificationHistoryPage })));
 const BusinessAnalyticsPage = lazy(() => import('@/features/analytics/pages/BusinessAnalyticsPage').then(m => ({ default: m.BusinessAnalyticsPage })));
@@ -33,12 +36,13 @@ const CustomerDashboardPage = lazy(() => import('@/features/dashboard/pages/Cust
 const ProductionBoardPage = lazy(() => import('@/features/kitchen/pages/ProductionBoardPage').then(m => ({ default: m.ProductionBoardPage })));
 const DailyMenuListPage = lazy(() => import('@/features/kitchen/pages/DailyMenuListPage').then(m => ({ default: m.DailyMenuListPage })));
 const DailyMenuEditorPage = lazy(() => import('@/features/kitchen/pages/DailyMenuEditorPage').then(m => ({ default: m.DailyMenuEditorPage })));
-const InventoryPage = lazy(() => import('@/features/kitchen/pages/InventoryPage').then(m => ({ default: m.InventoryPage })));
 const DeliveryDashboardPage = lazy(() => import('@/features/delivery/pages/DeliveryDashboardPage').then(m => ({ default: m.DeliveryDashboardPage })));
 const DeliveryPartnerPage = lazy(() => import('@/features/delivery/pages/DeliveryPartnerPage').then(m => ({ default: m.DeliveryPartnerPage })));
 const AttendanceDashboardPage = lazy(() => import('@/features/hr/pages/AttendanceDashboardPage').then(m => ({ default: m.AttendanceDashboardPage })));
 const PayrollDashboardPage = lazy(() => import('@/features/hr/pages/PayrollDashboardPage').then(m => ({ default: m.PayrollDashboardPage })));
 const UnifiedDashboardPage = lazy(() => import('@/features/dashboard/pages/UnifiedDashboardPage').then(m => ({ default: m.UnifiedDashboardPage })));
+const TermsOfServicePage = lazy(() => import('@/features/auth/pages/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
+const PrivacyPolicyPage = lazy(() => import('@/features/auth/pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
 
 // Helper to wrap lazy components with Suspense
 const withSuspense = (Component: React.LazyExoticComponent<any>) => (
@@ -47,10 +51,14 @@ const withSuspense = (Component: React.LazyExoticComponent<any>) => (
   </Suspense>
 );
 
-const router = createBrowserRouter([
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouter(createBrowserRouter);
+
+const router = sentryCreateBrowserRouter([
   { path: '/', element: <RootRedirect /> },
   { path: '/login', element: withSuspense(LoginPage) },
   { path: '/signup', element: withSuspense(SignupPage) },
+  { path: '/terms', element: withSuspense(TermsOfServicePage) },
+  { path: '/privacy', element: withSuspense(PrivacyPolicyPage) },
   {
     element: <ProtectedRoute />, // Any authenticated user
     children: [
@@ -88,13 +96,13 @@ const router = createBrowserRouter([
           { path: '/admin/subscriptions', element: withSuspense(AdminSubscriptionsPage) },
           { path: '/admin/orders', element: withSuspense(AdminOrdersPage) },
           { path: '/admin/kitchen', element: withSuspense(AdminKitchenPage) },
-          { path: '/admin/inventory', element: withSuspense(InventoryPage) },
           { path: '/admin/delivery', element: withSuspense(DeliveryDashboardPage) },
           { path: '/admin/accounts', element: withSuspense(AdminAccountsPage) },
+          { path: '/admin/complaints', element: withSuspense(AdminComplaintsPage) },
           { path: '/admin/analytics', element: withSuspense(BusinessAnalyticsPage) },
           { path: '/admin/staff', element: withSuspense(StaffManagementPage) },
-          
           { path: '/admin/settings', element: withSuspense(BusinessSettingsPage) },
+          { path: '/admin/zones', element: withSuspense(AdminZonesPage) },
           { path: '/admin/audit', element: withSuspense(AuditLogsPage) },
           { path: '/admin/menus', element: withSuspense(DailyMenuListPage) },
           { path: '/admin/menus/new', element: withSuspense(DailyMenuEditorPage) },
@@ -139,7 +147,6 @@ const router = createBrowserRouter([
         children: [
           { path: '/kitchen/production', element: withSuspense(ProductionBoardPage) },
           { path: '/kitchen/menus', element: withSuspense(DailyMenuListPage) },
-          { path: '/kitchen/inventory', element: withSuspense(InventoryPage) },
           { path: '/kitchen/menus/new', element: withSuspense(DailyMenuEditorPage) },
           { path: '/kitchen/menus/:id/edit', element: withSuspense(DailyMenuEditorPage) },
         ],

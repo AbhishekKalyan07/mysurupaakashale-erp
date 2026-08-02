@@ -1,14 +1,17 @@
 import { Timestamp } from 'firebase/firestore';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useMySubscription, useSkipDay, useHasPastOrders, useSubscriptionAccruedBill } from '@/features/customer/hooks/useMySubscription';
+import { useMySubscription, useSkipDay, useHasPastOrders, useSubscriptionStats } from '@/features/customer/hooks/useMySubscription';
 import { useMealPlans } from '@/features/customer/hooks/useMealPlans';
 import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDeliveryPartnerProfile } from '@/features/delivery/hooks/useDeliveryPartnerProfile';
+import type { CustomerProfile } from '@/shared/types';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Order } from '@/shared/types';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
@@ -34,6 +37,7 @@ import {
 } from 'lucide-react';
 import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
 import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
+import { Truck } from 'lucide-react';
 
 const addressFormSchema = z.object({
   label: z.string().min(1, 'Label is required (e.g., Home, Office)').max(50),
@@ -48,7 +52,7 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 export function CustomerDashboardPage() {
   const navigate = useNavigate();
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, profile } = useAuth();
   const { data: subscription, isLoading: isSubLoading, error: subError, refetch: refetchSub } = useMySubscription();
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch: refetchPlans } = useMealPlans();
   const {
@@ -63,17 +67,34 @@ export function CustomerDashboardPage() {
   } = useCustomerAddresses();
 
   const { data: hasPastOrders } = useHasPastOrders();
-  const { data: accruedBill } = useSubscriptionAccruedBill(subscription?.id);
+  const { data: subStats } = useSubscriptionStats(subscription?.id, firebaseUser?.uid);
+  
+  const customerProfile = profile as CustomerProfile | null;
+  const { data: deliveryPartner } = useDeliveryPartnerProfile(customerProfile?.deliveryPartnerId);
 
   const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
-  const { data: todayOrders } = useQuery({
-    queryKey: ['customerTodayOrders', firebaseUser?.uid, today],
-    queryFn: async () => {
-      if (!firebaseUser?.uid) return [];
-      return orderRepository.getCustomerOrdersByDate(firebaseUser.uid, today);
-    },
-    enabled: !!firebaseUser?.uid,
-  });
+
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    if (!firebaseUser?.uid) return;
+    const unsubscribe = orderRepository.subscribeToCustomerOrders(
+      firebaseUser.uid,
+      (orders) => setCustomerOrders(orders)
+    );
+    return () => unsubscribe();
+  }, [firebaseUser?.uid]);
+
+  const todayOrders = useMemo(() => {
+    return customerOrders.filter(o => o.date === today);
+  }, [customerOrders, today]);
+
+  const accruedBill = useMemo(() => {
+    if (!subscription?.id) return 0;
+    return customerOrders
+      .filter(o => o.subscriptionId === subscription.id && o.status === 'delivered')
+      .reduce((sum, order) => sum + (order.price || 0), 0);
+  }, [customerOrders, subscription?.id]);
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -221,13 +242,33 @@ export function CustomerDashboardPage() {
                     {/* Next Delivery info */}
                     <div className="space-y-3 bg-background p-5 rounded-xl border border-primary/10">
                       <span className="text-text-muted font-bold uppercase tracking-wider block text-[10px]">
-                        Delivery Schedule
+                        Delivery Schedule & Stats
                       </span>
                       <div className="flex items-start gap-3 text-primary">
                         <Calendar size={18} className="text-gold shrink-0 mt-0.5" />
                         <div>
                           <p className="font-bold text-primary">Starts: {subscription.startDate}</p>
-                          <p className="text-text-muted mt-1 font-medium text-xs">3 deliveries daily (Breakfast, Lunch, Dinner)</p>
+                          <div className="text-text-muted mt-2 font-medium text-xs flex gap-4">
+                            <span><strong className="text-primary">{subStats?.daysOrdered || 0}</strong> Days Delivered</span>
+                            <span><strong className="text-primary">{subStats?.pausedDates?.length || 0}</strong> Pauses</span>
+                          </div>
+                          {subStats && subStats.pausedDates.length > 0 && (
+                            <p className="text-[10px] text-text-muted mt-1 italic">Paused on: {subStats.pausedDates.join(', ')}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3 text-primary mt-4 pt-4 border-t border-primary/5">
+                        <Truck size={18} className="text-gold shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-primary">Your Delivery Partner</p>
+                          <div className="text-text-muted mt-1 font-medium text-xs">
+                            {deliveryPartner ? (
+                              <span className="text-primary font-bold">{deliveryPartner.fullName}</span>
+                            ) : (
+                              <span className="italic">Unassigned</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -339,7 +380,7 @@ export function CustomerDashboardPage() {
                 {todayOrders.map((order) => (
                   <div key={order.id} className="flex justify-between items-center p-4 rounded-xl border border-primary/10 bg-primary/5 transition-all hover:bg-primary/10">
                     <div>
-                      <p className="font-bold font-sans text-primary text-base capitalize">{order.mealType} - {order.itemsLabel || 'Meal'}</p>
+                      <p className="font-bold font-sans text-primary text-base capitalize">{order.itemsLabel || order.mealType}</p>
                       <p className="text-sm text-text-muted mt-1 font-medium font-data">Price: ₹{order.price || 0}</p>
                     </div>
                     <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize font-sans px-3 py-1 font-bold text-xs tracking-wider">
@@ -573,6 +614,7 @@ function TrialMealModal({ onClose, uid, addresses, plans }: any) {
 
       await setDoc(doc(db, 'orders', orderId), {
         id: orderId,
+        displayId: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         source: 'one_time',
         customerId: uid,
         subscriptionId: null,

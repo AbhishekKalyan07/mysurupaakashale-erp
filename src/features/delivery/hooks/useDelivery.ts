@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { deliveryRepository } from '@/shared/services/firestore/deliveryRepository';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import type { Order } from '@/shared/types';
@@ -15,7 +15,7 @@ import {
 
 export function useUnassignedOrders(date: string) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.delivery.unassignedOrders(date);
+  const queryKey = useMemo(() => queryKeys.delivery.unassignedOrders(date), [date]);
 
   useEffect(() => {
     if (!date) return;
@@ -36,7 +36,7 @@ export function useUnassignedOrders(date: string) {
 
 export function useAssignedOrders(date: string) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.delivery.assignedOrders(date);
+  const queryKey = useMemo(() => queryKeys.delivery.assignedOrders(date), [date]);
 
   useEffect(() => {
     if (!date) return;

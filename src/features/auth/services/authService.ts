@@ -110,7 +110,10 @@ export async function signUpCustomer(
   // Save the phone number registry mapping
   setDoc(phoneDocRef, { uid: credential.user.uid }).catch(console.error);
   
+  const displayId = await userRepository.generateNextDisplayId('customer', fullName);
+
   userRepository.create({
+    displayId,
     role: 'customer',
     fullName,
     email,
@@ -171,7 +174,10 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
   // 2. Save the phone number registry mapping
   await setDoc(phoneDocRef, { uid: user.uid });
   
+  const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
+
   await userRepository.create({
+    displayId,
     role: 'customer',
     fullName: user.displayName || 'Google User',
     email: user.email,

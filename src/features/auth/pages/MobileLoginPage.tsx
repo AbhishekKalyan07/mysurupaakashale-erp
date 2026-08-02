@@ -253,8 +253,8 @@ export function MobileLoginPage() {
 
         <p className="mt-5 text-[10px] text-[#8c746a] text-center">
           By continuing, you agree to our{' '}
-          <a href="#" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</a> and{' '}
-          <a href="#" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</a>.
+          <Link to="/terms" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</Link> and{' '}
+          <Link to="/privacy" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</Link>.
         </p>
       </div>
     </MobileAuthLayout>

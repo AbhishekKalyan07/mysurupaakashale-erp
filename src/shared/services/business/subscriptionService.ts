@@ -20,6 +20,13 @@ class SubscriptionService {
     billingCycle: 'weekly' | 'monthly',
     endDate: string | null
   ): Promise<string> {
+    if (!customerId || !planId || !planTier || quantity <= 0 || !startDate || !deliveryAddressId) {
+      throw new Error('Invalid subscription data: Missing required fields or invalid quantity.');
+    }
+    if (!mealPreferences || mealPreferences.length === 0) {
+      throw new Error('At least one meal preference is required.');
+    }
+
     const subscriptionId = crypto.randomUUID();
     const settings = await settingsRepository.getBusinessSettings();
     const depositAmount = settings?.pricing.securityDepositAmount || 1000;
@@ -41,8 +48,8 @@ class SubscriptionService {
       latestPaymentId: null,
       creditBalance: 0,
       depositAmount,
-      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     }, subscriptionId);
     
     return subscriptionId;
@@ -50,15 +57,14 @@ class SubscriptionService {
 
   /**
    * Admin fast-path activation for a subscription that's still in
-   * 'draft' or 'pending_payment' (e.g. payment confirmed by another
-   * channel — cash handed over in person, a phone confirmation — without
-   * a formal payment record). For the normal flow where a customer
-   * submitted a payment screenshot, prefer paymentService.approvePayment(),
-   * which also verifies the payment record and generates the invoice.
+   * 'draft' or 'pending_payment'
    */
   async approveSubscription(subscription: Subscription): Promise<void> {
+    if (!subscription || !subscription.id) {
+      throw new Error('Valid subscription object is required.');
+    }
     if (subscription.status === 'active') {
-      throw new Error('Subscription is already active.');
+      return; // Idempotency: Already active
     }
     if (subscription.status === 'cancelled' || subscription.status === 'expired') {
       throw new Error(`Cannot approve a ${subscription.status} subscription — use renew instead.`);
@@ -79,7 +85,6 @@ class SubscriptionService {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
     
     if (subscription.startDate <= today) {
-      // Find which meals the customer has selected
       const mealTypes = subscription.mealPreferences.map(p => p.mealType);
       console.log(`[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for today (${today})...`);
       
@@ -93,6 +98,12 @@ class SubscriptionService {
 
   /** Cancels a subscription and rejects any pending payments. */
   async rejectSubscription(subscription: Subscription): Promise<void> {
+    if (!subscription || !subscription.id) {
+      throw new Error('Valid subscription object is required.');
+    }
+    if (subscription.status === 'cancelled') {
+      return; // Idempotency
+    }
     await subscriptionRepository.updateStatus(subscription.id, 'cancelled');
 
     // Reject any pending payments associated with this subscription
@@ -112,8 +123,14 @@ class SubscriptionService {
     pauseStartDate: string | null = null, 
     pauseEndDate: string | null = null
   ): Promise<void> {
+    if (!subscription || !subscription.id) {
+      throw new Error('Valid subscription object is required.');
+    }
     if (subscription.status !== 'active' && subscription.status !== 'paused' && shouldPauseNow) {
       throw new Error('Only an active or already paused subscription can be paused immediately.');
+    }
+    if (subscription.status === 'paused' && shouldPauseNow && subscription.pauseStartDate === pauseStartDate && subscription.pauseEndDate === pauseEndDate) {
+      return; // Idempotency
     }
     await subscriptionRepository.update(subscription.id, {
       status: shouldPauseNow ? 'paused' : 'active',
@@ -124,6 +141,12 @@ class SubscriptionService {
 
   /** Admin override of the customer's own resume action, clearing any schedules. */
   async resumeSubscription(subscription: Subscription): Promise<void> {
+    if (!subscription || !subscription.id) {
+      throw new Error('Valid subscription object is required.');
+    }
+    if (subscription.status === 'active' && !subscription.pauseStartDate && !subscription.pauseEndDate) {
+      return; // Idempotency
+    }
     await subscriptionRepository.update(subscription.id, {
       status: 'active',
       pauseStartDate: null,

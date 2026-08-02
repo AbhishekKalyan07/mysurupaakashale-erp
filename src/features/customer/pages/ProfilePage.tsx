@@ -302,10 +302,13 @@ export function ProfilePage() {
               </div>
             )}
             
-            <div className="pt-2">
-              <h3 className="text-sm font-medium text-leaf-900 mb-2">Change Password</h3>
-              <Button variant="ghost" className="w-full sm:w-auto text-danger border-danger hover:bg-danger-subtle">
-                Send Password Reset Email
+            <div className="flex items-center justify-between py-4">
+              <div>
+                <h3 className="text-sm font-medium text-leaf-900">Change Password</h3>
+                <p className="text-sm text-leaf-600 mt-1">Receive a secure link to reset your password.</p>
+              </div>
+              <Button variant="danger-tonal" className="shrink-0">
+                Send Reset Email
               </Button>
             </div>
           </div>

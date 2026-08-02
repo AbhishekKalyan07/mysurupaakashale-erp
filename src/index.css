@@ -1,72 +1,99 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /**
- * Design tokens for Mysuru Paakashale.
+ * Design System — Mysuru Paakashale ERP
+ * Premium Enterprise Redesign · MD3 Principles
  *
- * Palette is grounded in the actual product: home-style meals served on a
- * banana leaf (leaf green), turmeric rice and marigold garlands (turmeric
- * gold), and sambar/rasam (tamarind red-orange used sparingly). Status
- * colors are kept conventional/legible on purpose — Kitchen, Delivery and
- * Accounts staff read them at a glance dozens of times a day, so clarity
- * beats branding there.
- *
- * Tailwind v4 is CSS-first: every token below both becomes a CSS variable
- * (e.g. var(--color-leaf-700)) AND a generated utility class (bg-leaf-700,
- * text-leaf-700, border-leaf-700, ...). There is no tailwind.config.js.
+ * Palette: Royal Purple · Warm White · Gold Accents
+ * Status colors match order workflow states exactly.
  */
 @theme {
   /* ---------- Typography ---------- */
-  --font-display: "Playfair Display", ui-serif, Georgia, serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* ---------- Premium Identity ---------- */
-  --color-primary: #2A103F;
-  --color-secondary: #3B185F;
+  /* ---------- Brand Identity ---------- */
+  --color-primary: #4A235A;
+  --color-secondary: #7D3C98;
+  --color-accent: #D4AF37;
   --color-gold: #D4AF37;
   --color-gold-light: #F4E8D8;
-  --color-background: #FFFDF9;
+  --color-gold-pale: #FBF5E6;
+
+  /* ---------- Surfaces ---------- */
+  --color-background: #FAF9F6;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F5F3EF;
+  --color-surface-3: #EDEBE5;
+  --color-card: #FFFFFF;
   --color-cream: #FFF9F1;
   --color-beige: #F8F4EC;
-  --color-card: #FFFFFF;
-  --color-sidebar: #2A103F;
-  --color-text: #2B153F;
-  --color-text-muted: #6B665A;
 
-  /* ---------- Semantic Status ---------- */
-  --color-success: #14B86A;
-  --color-success-subtle: #E7F5EC;
-  --color-warning: #E8A317;
-  --color-warning-subtle: #FBF0DC;
-  --color-danger: #D9534F;
-  --color-danger-subtle: #FBEAE7;
-  --color-info: #2E6F9E;
-  --color-info-subtle: #E8F1F7;
+  /* ---------- Sidebar ---------- */
+  --color-sidebar: #2E0D3F;
+  --color-sidebar-secondary: #4A235A;
 
-  /* ---------- Pastel Gradients for Metric Cards ---------- */
-  --color-pastel-blue: #E8F1F7;
-  --color-pastel-mint: #E7F5EC;
-  --color-pastel-amber: #FDF6E8;
-  --color-pastel-lavender: #F4E8F7;
-  --color-pastel-rose: #FBEAE7;
-  
-  /* ---------- Shadows ---------- */
-  --shadow-sm: 0 2px 4px rgba(42, 16, 63, 0.04);
-  --shadow-md: 0 4px 12px rgba(42, 16, 63, 0.08);
-  --shadow-lg: 0 12px 24px rgba(42, 16, 63, 0.12);
-  --shadow-hover: 0 20px 40px rgba(42, 16, 63, 0.16);
-  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.15);
+  /* ---------- Text ---------- */
+  --color-text: #1C0D2B;
+  --color-text-secondary: #4A235A;
+  --color-text-muted: #7A6E82;
+  --color-text-faint: #B8B0C0;
 
-  /* ---------- Radius ---------- */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* ---------- Border ---------- */
+  --color-border: #ECECEC;
+  --color-border-strong: #D4C8DC;
+
+  /* ---------- Semantic Status (Base) ---------- */
+  --color-success: #2E7D32;
+  --color-success-subtle: #E8F5E9;
+  --color-warning: #ED8B00;
+  --color-warning-subtle: #FFF8E1;
+  --color-danger: #C62828;
+  --color-danger-subtle: #FFEBEE;
+  --color-info: #1565C0;
+  --color-info-subtle: #E3F2FD;
+
+  /* ---------- Pastel Gradients (KPI Cards) ---------- */
+  --color-pastel-blue: #E8F0FE;
+  --color-pastel-mint: #E8F5E9;
+  --color-pastel-amber: #FFF8E1;
+  --color-pastel-lavender: #F3E5F5;
+  --color-pastel-rose: #FCE4EC;
+  --color-pastel-indigo: #E8EAF6;
+  --color-pastel-teal: #E0F2F1;
+  --color-pastel-orange: #FFF3E0;
+
+  /* ---------- Meal Type Colors ---------- */
+  --color-meal-breakfast: #FF8F00;
+  --color-meal-breakfast-bg: #FFF8E1;
+  --color-meal-lunch: #2E7D32;
+  --color-meal-lunch-bg: #E8F5E9;
+  --color-meal-dinner: #1565C0;
+  --color-meal-dinner-bg: #E3F2FD;
+
+  /* ---------- Elevation Shadows (Subtle MD3) ---------- */
+  --shadow-xs:  0 1px 2px rgba(74, 35, 90, 0.04);
+  --shadow-sm:  0 2px 4px rgba(74, 35, 90, 0.06), 0 1px 2px rgba(74, 35, 90, 0.04);
+  --shadow-md:  0 4px 8px rgba(74, 35, 90, 0.08), 0 2px 4px rgba(74, 35, 90, 0.04);
+  --shadow-lg:  0 8px 16px rgba(74, 35, 90, 0.10), 0 4px 8px rgba(74, 35, 90, 0.06);
+  --shadow-xl:  0 16px 32px rgba(74, 35, 90, 0.12), 0 8px 16px rgba(74, 35, 90, 0.06);
+  --shadow-hover: 0 20px 40px rgba(74, 35, 90, 0.14);
+  --shadow-gold: 0 0 20px rgba(212, 175, 55, 0.20);
+  --shadow-card: 0 1px 3px rgba(74, 35, 90, 0.08), 0 1px 2px rgba(74, 35, 90, 0.06);
+
+  /* ---------- Border Radius (MD3: 18-22px for cards) ---------- */
+  --radius-xs:  0.25rem;
+  --radius-sm:  0.5rem;
+  --radius-md:  0.75rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.25rem;
   --radius-2xl: 1.5rem;
   --radius-3xl: 2rem;
+  --radius-full: 9999px;
 
-  /* ---------- Legacy Mappings (Preserved for incremental refactor) ---------- */
-  /* These map existing Tailwind classes back to the new palette to prevent breaking existing layouts */
+  /* ---------- Legacy Mappings (Preserved for existing code) ---------- */
   --color-leaf-50: var(--color-background);
   --color-leaf-100: var(--color-beige);
   --color-leaf-200: var(--color-cream);
@@ -79,6 +106,7 @@
   --color-leaf-900: var(--color-primary);
 
   --color-turmeric-50: var(--color-warning-subtle);
+  --color-turmeric-400: var(--color-gold);
   --color-turmeric-500: var(--color-warning);
   --color-turmeric-600: var(--color-warning);
   
@@ -94,39 +122,40 @@
   --color-ink-700: var(--color-text);
   --color-ink-900: var(--color-text);
 
-  /* ---------- Extra breakpoint for small phones ---------- */
-  --breakpoint-xs: 22.5rem; /* 360px */
+  /* ---------- Breakpoints ---------- */
+  --breakpoint-xs: 22.5rem;
 
-  /* ---------- Signature motion ---------- */
+  /* ---------- Animations ---------- */
   --animate-leaf-sway: leaf-sway 1.6s ease-in-out infinite;
 }
 
 @keyframes leaf-sway {
-  0%,
-  100% {
-    transform: rotate(-4deg);
-  }
-  50% {
-    transform: rotate(4deg);
-  }
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -400px 0;
-  }
-  100% {
-    background-position: 400px 0;
-  }
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Skeleton shimmer utility */
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    var(--color-rice-100) 25%,
-    var(--color-rice-50) 50%,
-    var(--color-rice-100) 75%
+    var(--color-beige) 25%,
+    var(--color-cream) 50%,
+    var(--color-beige) 75%
   );
   background-size: 800px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
@@ -136,18 +165,17 @@
   html {
     color-scheme: light;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-rice-50 text-ink-900 font-sans antialiased;
+    @apply bg-background text-text font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    @apply font-display text-ink-900;
+  h1, h2, h3, h4 {
+    @apply font-display text-text;
   }
 
   /* Tabular/data text: prices, quantities, order IDs, timestamps */
@@ -155,17 +183,15 @@
     @apply font-mono tabular-nums;
   }
 
-  /* Visible keyboard focus everywhere — never suppressed, for accessibility */
+  /* Visible keyboard focus — never suppressed */
   :focus-visible {
-    outline: 2px solid var(--color-turmeric-400);
+    outline: 2px solid var(--color-gold);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 4px;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -175,17 +201,49 @@
 }
 
 @layer utilities {
-  /* Thin styled scrollbar for dense data panels (Kitchen / Admin tables) */
+  /* Thin styled scrollbar for dense data panels */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-leaf-300) transparent;
+    scrollbar-color: var(--color-border-strong) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--color-leaf-300);
+    background-color: var(--color-border-strong);
     border-radius: 999px;
   }
+
+  /* Card hover lift */
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Frosted glass */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Bottom safe area for mobile nav */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Slide-up animation utility */
+  .animate-slide-up {
+    animation: slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Fade-in animation utility */
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
 }
+

@@ -5,6 +5,8 @@ import { orderRepository } from '../firestore/orderRepository';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
+import { mealPlanRepository } from '../firestore/mealPlanRepository';
+import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order } from '@/shared/types';
 import { format } from 'date-fns';
@@ -30,11 +32,17 @@ class OrderService {
     }
 
     try {
-      // 2. Fetch all active subscriptions and delivery partners
-      const [allSubscriptions, deliveryPartners] = await Promise.all([
+      // 2. Fetch all active subscriptions, delivery partners, meal plans, and customers
+      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners] = await Promise.all([
         subscriptionRepository.list(where('status', '==', 'active')),
-        userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true))
+        mealPlanRepository.list(),
+        userRepository.list(where('role', '==', 'customer')),
+        deliveryZoneRepository.list(),
+        userRepository.list(where('role', '==', 'delivery_partner'))
       ]);
+      const customerMap = new Map<string, import('@/shared/types').CustomerProfile>();
+      allCustomers.forEach(c => customerMap.set(c.id, c as import('@/shared/types').CustomerProfile));
+      const activePartners = allPartners.filter(p => p.isActive);
       const ordersToCreate: Partial<Order>[] = [];
 
       for (const sub of allSubscriptions) {
@@ -56,34 +64,66 @@ class OrderService {
         for (const pref of sub.mealPreferences) {
           if (skippedMeals.includes(pref.mealType)) continue;
 
-          // Auto-assign delivery partner by zone
-          let partnerId: string | null = null;
-          if (sub.zoneId) {
-            const matchingPartner = deliveryPartners.find(p => 
-              p.role === 'delivery_partner' && p.zoneIds?.includes(sub.zoneId!)
-            );
-            if (matchingPartner) partnerId = matchingPartner.id;
+          // --- PRIORITY ROUTING LOGIC ---
+          const customer = customerMap.get(sub.customerId);
+          
+          let partnerId = customer?.deliveryPartnerId ?? null;
+          let zoneId = customer?.zoneId ?? null;
+          
+          if (!partnerId) {
+            // Priority 2: Direct Zone fallback to Priority 3: Pincode Auto-match
+            if (!zoneId) {
+              const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
+              if (defaultAddress?.pincode) {
+                const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+                if (matchedZone) zoneId = matchedZone.id;
+              }
+            }
+            
+            // Look up partner assigned to this zone
+            if (zoneId) {
+              const partnerForZone = activePartners.find(p => (p as import('@/shared/types').DeliveryPartnerProfile).zoneIds?.includes(zoneId!));
+              if (partnerForZone) {
+                partnerId = partnerForZone.id;
+              }
+            }
+          }
+          
+          
+          // --------------------------------
+
+          // Find option label
+          let optionLabel = '';
+          const plan = mealPlans.find((p: import('@/shared/types').MealPlan) => p.id === sub.planId);
+          if (plan) {
+            const slot = plan.mealSlots.find((s: import('@/shared/types').MealSlotConfig) => s.mealType === pref.mealType);
+            let option = slot?.options?.find((o: import('@/shared/types').MealOption) => o.id === pref.selectedOptionId);
+            if (!option && slot && slot.options && slot.options.length > 0) {
+              option = slot.options[0];
+            }
+            if (option) optionLabel = ` (${option.label})`;
           }
 
           // Generate order
           ordersToCreate.push({
             id: `ord_${sub.id}_${today}_${pref.mealType}`,
+            displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
             source: 'subscription',
             customerId: sub.customerId,
             subscriptionId: sub.id,
             planTier: sub.planTier,
             mealType: pref.mealType,
             date: today,
-            itemsLabel: `Subscription - ${pref.mealType}`,
+            itemsLabel: `Subscription - ${pref.mealType}${optionLabel}`,
             selectedOptionId: pref.selectedOptionId,
-            price: sub.pricePerDaySnapshot,
+            price: Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
             currency: 'INR',
             status: 'scheduled',
             deliveryAddressId: sub.deliveryAddressId,
-            zoneId: sub.zoneId,
+            zoneId: zoneId,
             kitchenId: null,
             deliveryPartnerId: partnerId,
-            deliveryWindow: null,
+                        deliveryWindow: null,
             paymentId: sub.latestPaymentId,
           });
         }
@@ -155,40 +195,74 @@ class OrderService {
       return;
     }
 
-    // Fetch delivery partners for auto-assignment
-    const deliveryPartners = await userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true));
+    // Fetch meal plans and the customer
+    const [mealPlans, customer, allZones, allPartners] = await Promise.all([
+      mealPlanRepository.list(),
+      userRepository.getById(subscription.customerId),
+      deliveryZoneRepository.list(),
+      userRepository.list(where('role', '==', 'delivery_partner'))
+    ]);
+    
+    const activePartners = allPartners.filter(p => p.isActive);
     
     const ordersToCreate: Partial<Order>[] = [];
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
 
-      let partnerId: string | null = null;
-      if (subscription.zoneId) {
-        const matchingPartner = deliveryPartners.find(p => 
-          p.role === 'delivery_partner' && p.zoneIds?.includes(subscription.zoneId!)
-        );
-        if (matchingPartner) partnerId = matchingPartner.id;
+      // --- PRIORITY ROUTING LOGIC ---
+      let partnerId = (customer as import('@/shared/types').CustomerProfile)?.deliveryPartnerId ?? null;
+      let zoneId = (customer as import('@/shared/types').CustomerProfile)?.zoneId ?? null;
+      
+      if (!partnerId) {
+        if (!zoneId) {
+          const defaultAddress = (customer as import('@/shared/types').CustomerProfile)?.addresses?.find((a: any) => a.id === (customer as import('@/shared/types').CustomerProfile).defaultAddressId) || (customer as import('@/shared/types').CustomerProfile)?.addresses?.[0];
+          if (defaultAddress?.pincode) {
+            const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+            if (matchedZone) zoneId = matchedZone.id;
+          }
+        }
+        if (zoneId) {
+          const partnerForZone = activePartners.find(p => (p as import('@/shared/types').DeliveryPartnerProfile).zoneIds?.includes(zoneId!));
+          if (partnerForZone) {
+            partnerId = partnerForZone.id;
+          }
+        }
+      }
+      
+
+      // --------------------------------
+
+      let optionLabel = '';
+      const plan = mealPlans.find((p: import('@/shared/types').MealPlan) => p.id === subscription.planId);
+      if (plan) {
+        const slot = plan.mealSlots.find((s: import('@/shared/types').MealSlotConfig) => s.mealType === pref.mealType);
+        let option = slot?.options?.find((o: import('@/shared/types').MealOption) => o.id === pref.selectedOptionId);
+        if (!option && slot && slot.options && slot.options.length > 0) {
+          option = slot.options[0];
+        }
+        if (option) optionLabel = ` (${option.label})`;
       }
 
       ordersToCreate.push({
         id: `ord_${subscription.id}_${date}_${pref.mealType}`,
+        displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         source: 'subscription',
         customerId: subscription.customerId,
         subscriptionId: subscription.id,
         planTier: subscription.planTier,
         mealType: pref.mealType,
         date: date,
-        itemsLabel: `Subscription - ${pref.mealType}`,
+        itemsLabel: `Subscription - ${pref.mealType}${optionLabel}`,
         selectedOptionId: pref.selectedOptionId,
-        price: subscription.pricePerDaySnapshot,
+        price: Math.round((subscription.pricePerDaySnapshot * (subscription.quantity || 1)) / subscription.mealPreferences.length),
         currency: 'INR',
         status: 'scheduled',
         deliveryAddressId: subscription.deliveryAddressId,
-        zoneId: subscription.zoneId,
+        zoneId: zoneId,
         kitchenId: null,
         deliveryPartnerId: partnerId,
-        deliveryWindow: null,
+                deliveryWindow: null,
         paymentId: subscription.latestPaymentId,
       });
     }
@@ -223,9 +297,19 @@ class OrderService {
    * Standardize order lifecycle transitions
    */
   async updateOrderStatus(orderId: string, status: import('@/shared/types').OrderStatus): Promise<void> {
+    if (!orderId || !status) {
+      throw new Error('Order ID and Status are required.');
+    }
+    const order = await orderRepository.getById(orderId);
+    if (!order) {
+      throw new Error(`Order with ID ${orderId} not found.`);
+    }
+    if (order.status === status) {
+      return; // Idempotency
+    }
     await orderRepository.update(orderId, {
       status,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     });
     // Add additional workflow logic (e.g., notifications) here if needed later
   }

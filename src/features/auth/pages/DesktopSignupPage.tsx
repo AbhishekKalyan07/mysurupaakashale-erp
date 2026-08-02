@@ -229,7 +229,7 @@ export function DesktopSignupPage() {
 
             <label className="flex items-start gap-3 cursor-pointer text-[13px] text-[#5c4a42] font-medium">
               <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-[#e8ded2] text-[#5c1417] focus:ring-[#5c1417]" {...register('agreed')} />
-              <span className="leading-tight">I agree to the <a href="#" className="font-bold text-[#5c1417] hover:underline">Terms of Service</a> & <a href="#" className="font-bold text-[#5c1417] hover:underline">Privacy Policy</a></span>
+              <span className="leading-tight">I agree to the <Link to="/terms" className="font-bold text-[#5c1417] hover:underline">Terms of Service</Link> & <Link to="/privacy" className="font-bold text-[#5c1417] hover:underline">Privacy Policy</Link></span>
             </label>
             {errors.agreed && <p className="text-sm text-red-600 ml-7 -mt-2">{errors.agreed.message as string}</p>}
 

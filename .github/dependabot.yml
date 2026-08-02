@@ -1,0 +1,44 @@
+version: 2
+
+updates:
+  # npm dependencies — weekly scan
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "AbhishekKalyan07"
+    labels:
+      - "security"
+      - "dependencies"
+    # Group all non-breaking patch/minor updates into a single PR
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # These require manual review due to breaking changes:
+      # react-router 7.12+ has CSRF vulnerability but downgrade is breaking.
+      # uuid 11+ breaks exceljs compatibility. Document and accept risk.
+      - dependency-name: "react-router-dom"
+        versions: [">=7.12.0"]
+      - dependency-name: "exceljs"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions — keep action versions updated
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"

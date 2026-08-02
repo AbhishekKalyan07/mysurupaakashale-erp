@@ -75,6 +75,21 @@ class OrderRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Subscribes to all orders for a specific customer in real-time.
+   */
+  subscribeToCustomerOrders(
+    customerId: string,
+    onNext: (orders: Order[]) => void,
+    onError?: (error: Error) => void
+  ) {
+    return this.subscribeToList(
+      onNext,
+      onError,
+      where('customerId', '==', customerId)
+    );
+  }
+
+  /**
    * Retrieves all orders for a specific customer on a specific date.
    */
   async getCustomerOrdersByDate(customerId: string, date: string): Promise<Order[]> {
@@ -94,8 +109,9 @@ class OrderRepository extends BaseRepository<Order> {
     
     for (const orderData of orders) {
       const orderId = crypto.randomUUID();
+      const displayId = `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       const ref = doc(this.collectionRef, orderId);
-      batch.set(ref, { ...orderData, id: orderId } as Order);
+      batch.set(ref, { ...orderData, id: orderId, displayId } as Order);
     }
     
     await batch.commit();

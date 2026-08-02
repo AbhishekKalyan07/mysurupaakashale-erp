@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Compass,
   ChevronDown,
+  Truck,
+  MoreVertical,
 } from 'lucide-react';
 import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
@@ -24,9 +26,14 @@ import {
   useRejectSubscription,
   usePauseSubscription,
   useResumeSubscription,
+  useUpdateDeliveryPartner,
   type AdminStatusFilter,
   type SubscriptionRow,
 } from '../hooks/useAdminSubscriptions';
+import { useSubscriptionStats } from '@/features/customer/hooks/useMySubscription';
+import { usePaymentDetail } from '@/features/customer/hooks/usePayments';
+import { useQuery } from '@tanstack/react-query';
+import { userRepository } from '@/shared/services/firestore/userRepository';
 
 // ── Status → badge tone ──────────────────────────────────────────────────────
 const STATUS_TONE: Record<SubscriptionStatus, PremiumBadgeProps['variant']> = {
@@ -67,6 +74,19 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
   const reject = useRejectSubscription();
   const pause = usePauseSubscription();
   const resume = useResumeSubscription();
+  const updateDP = useUpdateDeliveryPartner();
+
+  const { data: subStats, isLoading: isStatsLoading } = useSubscriptionStats(subscription.id, subscription.customerId);
+  const { data: payment } = usePaymentDetail(subscription.latestPaymentId ?? null);
+
+  const { data: deliveryPartners } = useQuery({
+    queryKey: ['users', 'delivery_partner'],
+    queryFn: async () => {
+      const { where } = await import('firebase/firestore');
+      return userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true));
+    },
+    staleTime: 5 * 60_000,
+  });
 
   const isLoading = approve.isPending || reject.isPending || pause.isPending || resume.isPending;
 
@@ -98,7 +118,9 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-bold text-primary font-display">Subscription Details</h2>
-              <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">{subscription.id}</p>
+              {subscription.customerDisplayId && (
+                <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">{subscription.customerDisplayId}</p>
+              )}
             </div>
             <button onClick={onClose} className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10">
               <XCircle size={20} />
@@ -115,12 +137,19 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
               {subscription.customerAddress && (
                 <div className="text-primary text-xs mt-2 p-2 bg-background rounded border border-primary/10">{subscription.customerAddress}</div>
               )}
-              <div className="text-text-muted text-[10px] font-mono mt-2">{subscription.customerId}</div>
+              {subscription.customerDisplayId && (
+                <div className="text-text-muted text-[10px] font-mono mt-2">{subscription.customerDisplayId}</div>
+              )}
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Plan</div>
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Plan & Preferences</div>
               <div className="font-bold text-primary">{subscription.planName}</div>
               <div className="text-text-muted text-xs font-medium capitalize">{subscription.planTier} · Qty {subscription.quantity}</div>
+              {subscription.preferencesText && (
+                <div className="text-primary text-[11px] mt-2 font-medium bg-background border border-primary/5 px-2 py-1 rounded inline-block">
+                  {subscription.preferencesText}
+                </div>
+              )}
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Price / day</div>
@@ -142,6 +171,25 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Security Deposit</div>
               <div className="font-bold text-primary text-lg font-display">₹{subscription.depositAmount.toLocaleString('en-IN')}</div>
             </div>
+            
+            {/* Stats */}
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-2">Delivery Statistics</div>
+              {isStatsLoading ? (
+                <div className="text-xs text-text-muted animate-pulse">Loading stats...</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-4 text-sm font-medium">
+                    <span><strong className="text-primary">{subStats?.daysOrdered || 0}</strong> Days Delivered</span>
+                    <span><strong className="text-primary">{subStats?.pausedDates?.length || 0}</strong> Paused Days</span>
+                  </div>
+                  {subStats && subStats.pausedDates.length > 0 && (
+                    <div className="text-xs text-text-muted">Paused on: {subStats.pausedDates.join(', ')}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-2">Status</div>
               <div className="flex flex-col gap-3">
@@ -151,6 +199,40 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
                     Pause Scheduled: <strong>{formatDate(subscription.pauseStartDate)}</strong>
                     {subscription.pauseEndDate && <span> to <strong>{formatDate(subscription.pauseEndDate)}</strong></span>}
                   </div>
+                )}
+                {payment?.screenshotUrl && (
+                  <div className="mt-2 border-t border-primary/10 pt-3">
+                    <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-2">Payment Screenshot</div>
+                    <a href={payment.screenshotUrl} target="_blank" rel="noreferrer" className="block w-full max-w-sm rounded-xl overflow-hidden shadow-sm hover:opacity-90 transition-opacity">
+                      <img src={payment.screenshotUrl} alt="Payment" className="w-full h-auto object-contain max-h-64 bg-black/5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Delivery Partner Assignment */}
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5">
+                <Truck size={12} /> Delivery Partner
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <select
+                  value={subscription.deliveryPartnerId || ''}
+                  onChange={(e) => {
+                    const value = e.target.value || null;
+                    updateDP.mutate({ subscriptionId: subscription.id, deliveryPartnerId: value });
+                  }}
+                  disabled={updateDP.isPending}
+                  className="flex-1 w-full border border-primary/20 bg-background rounded-lg px-3 py-2 text-sm font-sans text-primary focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
+                >
+                  <option value="">Not Assigned</option>
+                  {deliveryPartners?.map(p => (
+                    <option key={p.id} value={p.id}>{p.fullName || p.id}</option>
+                  ))}
+                </select>
+                {subscription.deliveryPartnerName && (
+                  <Badge variant="info" className="text-[10px] shrink-0">Current: {subscription.deliveryPartnerName}</Badge>
                 )}
               </div>
             </div>
@@ -254,50 +336,83 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
   );
 }
 
-// ── Row ───────────────────────────────────────────────────────────────────────
-function SubscriptionRowView({ subscription, onSelect }: { subscription: SubscriptionRow; onSelect: () => void }) {
+// ── Subscription Card (Responsive Grid) ───────────────────────────────────────────────────
+function SubscriptionCardView({ subscription, onSelect }: { subscription: SubscriptionRow; onSelect: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
-    <tr
-      className="block md:table-row bg-background md:bg-transparent hover:bg-primary/5 cursor-pointer transition-colors border-b border-primary/10 last:border-0 p-4 md:p-0 space-y-3 md:space-y-0 group"
-      onClick={onSelect}
-    >
-      <td className="block md:table-cell md:px-6 md:py-5 text-sm font-sans">
-        <div className="font-bold text-primary group-hover:text-gold transition-colors">{subscription.customerName}</div>
-        <div className="text-text-muted text-[10px] font-mono truncate max-w-[140px] mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">{subscription.customerId}</div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell md:px-6 md:py-5 text-sm font-sans text-text-muted font-medium">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Phone</span>
-        {subscription.customerPhone}
-      </td>
-      <td className="flex justify-between items-start md:items-center md:table-cell md:px-6 md:py-5 text-sm font-sans text-text-muted font-medium max-w-full md:max-w-[200px]" title={subscription.customerAddress || 'No address'}>
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider mt-0.5">Address</span>
-        <div className="truncate text-right md:text-left max-w-[200px] md:max-w-[160px]">{subscription.customerAddress || <span className="italic text-text-muted/50">No address</span>}</div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell md:px-6 md:py-5 text-sm font-sans md:max-w-[140px]">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Plan</span>
-        <div className="text-right md:text-left truncate">
-          <div className="text-primary font-bold truncate" title={subscription.planName}>{subscription.planName}</div>
-          <div className="text-text-muted text-[10px] capitalize font-medium uppercase tracking-wider mt-0.5">{subscription.planTier}</div>
+    <Card elevated className="relative bg-card transition-colors hover:border-secondary/40 group overflow-visible">
+      {menuOpen && (
+        <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
+      )}
+      
+      <div 
+        className="p-3 flex flex-col gap-2 cursor-pointer h-[130px]" 
+        onClick={() => { if(!menuOpen) onSelect(); }}
+      >
+        {/* Top Header Row */}
+        <div className="flex justify-between items-start">
+          <div className="flex gap-2 items-center mt-1">
+            {subscription.customerDisplayId && (
+              <Badge variant="default" className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10">
+                {subscription.customerDisplayId}
+              </Badge>
+            )}
+            <Badge variant={STATUS_TONE[subscription.status]} className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 shadow-sm">
+              {subscription.status.replace('_', ' ')}
+            </Badge>
+          </div>
+          
+          <button 
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            className="w-12 h-12 -mr-3 -mt-3 flex items-center justify-center text-text-muted hover:text-primary transition-colors z-20 relative rounded-full hover:bg-surface-2 shrink-0"
+            aria-label="More actions"
+          >
+            <MoreVertical size={18} />
+          </button>
         </div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell md:px-6 md:py-5 text-text-muted font-medium font-sans text-xs">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Start Date</span>
-        <div className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block">{formatDate(subscription.startDate)}</div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell md:px-6 md:py-5 text-text-muted font-medium font-sans text-xs">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">End Date</span>
-        <div className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block">{formatDate(subscription.endDate)}</div>
-      </td>
-      <td className="flex justify-between items-center md:table-cell md:px-6 md:py-5">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Status</span>
-        <Badge variant={STATUS_TONE[subscription.status]} className="text-[10px] uppercase font-bold tracking-wider">{subscription.status.replace('_', ' ')}</Badge>
-      </td>
-      <td className="hidden md:table-cell px-6 py-5 text-right">
-        <Button variant="ghost" size="sm" onClick={onSelect} className="font-sans text-xs font-bold text-primary hover:text-gold hover:bg-gold/10">
-          View
-        </Button>
-      </td>
-    </tr>
+
+        {/* Overflow Menu Dropdown */}
+        {menuOpen && (
+          <div className="absolute top-11 right-3 z-30 bg-card border border-border shadow-xl rounded-xl w-44 overflow-hidden flex flex-col py-1">
+            <button className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSelect(); }}>View Details</button>
+          </div>
+        )}
+        
+        {/* Name Row */}
+        <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors line-clamp-2 -mt-1 pr-6">
+          👤 {subscription.customerName}
+        </h3>
+        
+        {/* Contact Info Inline */}
+        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium truncate mt-0.5">
+          <span className="flex items-center gap-1 shrink-0"><span className="text-[13px] leading-none">📞</span> {subscription.customerPhone}</span>
+          <span className="text-border">•</span>
+          <span className="flex items-center gap-1 truncate"><span className="text-[13px] leading-none">📍</span> <span className="truncate">{subscription.customerAddress || 'No address'}</span></span>
+        </div>
+
+        {/* Chips Row (Bottom) */}
+        <div className="flex gap-2 items-center mt-auto overflow-hidden pb-0.5">
+          <Badge variant="default" className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-text font-semibold shrink-0 whitespace-nowrap truncate max-w-[120px]" title={subscription.planName}>
+            🍛 {subscription.planName}
+          </Badge>
+          
+          {subscription.deliveryPartnerName ? (
+            <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[90px]">
+              🚚 {subscription.deliveryPartnerName}
+            </Badge>
+          ) : (
+            <Badge variant="warning" className="text-[10px] px-1.5 py-0.5 shadow-sm shrink-0 whitespace-nowrap">
+              ⚠ No Driver
+            </Badge>
+          )}
+
+          <div className="text-[10px] font-semibold text-text-muted shrink-0 ml-auto mr-1 truncate">
+            End: {formatDate(subscription.endDate)}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -368,37 +483,83 @@ export function AdminSubscriptionsPage() {
           description={search ? 'No subscriptions match your search.' : `No ${activeTab === 'all' ? '' : activeTab.replace('_', ' ') + ' '}subscriptions at this time.`}
         />
       ) : (
-        <Card className="border-primary/20 overflow-hidden p-0 shadow-md">
-          <div className="overflow-x-auto md:overflow-visible">
-            <table className="w-full text-left text-sm block md:table font-sans">
-              <thead className="hidden md:table-header-group bg-primary/5 border-b border-primary/10 text-text-muted text-[10px] font-bold uppercase tracking-wider">
+        <div className="space-y-4">
+          {/* Desktop Table View */}
+          <Card className="p-0 overflow-hidden shadow-md border-primary/20 hidden lg:block">
+            <table className="w-full text-left text-sm font-sans">
+              <thead className="bg-primary/5 text-text-muted font-bold text-[10px] uppercase tracking-wider border-b border-primary/10">
                 <tr>
-                  <th className="px-6 py-4 min-w-[160px]">Customer</th>
-                  <th className="px-6 py-4 min-w-[120px]">Phone</th>
-                  <th className="px-6 py-4 min-w-[180px]">Address</th>
-                  <th className="px-6 py-4 min-w-[150px]">Plan</th>
-                  <th className="px-6 py-4 min-w-[110px] whitespace-nowrap">Start Date</th>
-                  <th className="px-6 py-4 min-w-[110px] whitespace-nowrap">End Date</th>
-                  <th className="px-6 py-4 min-w-[100px]">Status</th>
-                  <th className="px-6 py-4 text-right min-w-[80px]">Action</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Plan Details</th>
+                  <th className="px-6 py-4">Dates</th>
+                  <th className="px-6 py-4">Status & Partner</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="block md:table-row-group bg-background divide-y divide-primary/5">
+              <tbody className="divide-y divide-primary/5 bg-background">
                 {rows.map((row) => (
-                  <SubscriptionRowView key={row.id} subscription={row} onSelect={() => setSelected(row)} />
+                  <tr key={row.id} className="hover:bg-primary/5 transition-colors group cursor-pointer" onClick={() => setSelected(row)}>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-primary group-hover:text-gold transition-colors text-base">{row.customerName}</div>
+                      <div className="text-text-muted text-xs flex items-center gap-1 mt-0.5">
+                        <span className="text-[13px] leading-none">📞</span> {row.customerPhone}
+                      </div>
+                      {row.customerDisplayId && <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">{row.customerDisplayId}</div>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-primary font-medium">{row.planName}</div>
+                      <div className="text-text-muted text-xs mt-0.5 capitalize">{row.planTier}</div>
+                      <div className="text-[10px] text-text-muted mt-0.5">{row.preferencesText}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-primary font-medium">Start: {formatDate(row.startDate)}</div>
+                      <div className="text-xs text-text-muted mt-0.5">End: {formatDate(row.endDate)}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="mb-1.5">
+                        <Badge variant={STATUS_TONE[row.status]} className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 shadow-sm">
+                          {row.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      {row.deliveryPartnerName ? (
+                        <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 whitespace-nowrap">
+                          🚚 {row.deliveryPartnerName}
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning" className="text-[10px] px-1.5 py-0.5 shadow-sm whitespace-nowrap">
+                          ⚠ No Driver
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelected(row); }}>
+                        Manage
+                      </Button>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
+          </Card>
+
+          {/* Mobile / Tablet Card View */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+            {rows.map((row) => (
+              <SubscriptionCardView key={row.id} subscription={row} onSelect={() => setSelected(row)} />
+            ))}
           </div>
-          <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex items-center justify-between">
-            <span>Showing <strong className="text-primary">{rows.length}</strong> subscription{rows.length !== 1 ? 's' : ''}</span>
+          
+          <div className="flex items-center justify-between px-2 pt-4 border-t border-primary/10 mt-4">
+            <span className="text-xs font-medium text-text-muted">
+              Showing <strong className="text-primary">{rows.length}</strong> subscription{rows.length !== 1 ? 's' : ''}
+            </span>
             {hasNextPage && (
               <Button variant="ghost" size="sm" onClick={() => fetchNextPage()} isLoading={isFetchingNextPage} className="gap-2 font-sans text-xs font-bold text-primary hover:text-gold hover:bg-gold/10">
                 Load more <ChevronDown size={16} />
               </Button>
             )}
           </div>
-        </Card>
+        </div>
       )}
 
       {selected && <SubscriptionDetailDialog subscription={selected} onClose={() => setSelected(null)} />}

@@ -252,8 +252,8 @@ export function DesktopLoginPage() {
 
         <p className="mt-4 text-[11px] text-[#8c746a] text-center px-4 leading-tight">
           By continuing, you agree to our{' '}
-          <a href="#" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</a> and{' '}
-          <a href="#" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</a>.
+          <Link to="/terms" className="font-semibold text-[#5c1417] hover:underline">Terms of Service</Link> and{' '}
+          <Link to="/privacy" className="font-semibold text-[#5c1417] hover:underline">Privacy Policy</Link>.
         </p>
       </div>
     </DesktopAuthLayout>

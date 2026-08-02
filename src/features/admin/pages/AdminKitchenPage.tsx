@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+// import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+// import { useQuery } from '@tanstack/react-query';
 import { 
   ChefHat, 
   BookOpen, 
-  AlertTriangle,
+
   ClipboardList,
   CheckCircle2,
   Package,
@@ -17,7 +17,6 @@ import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 
 import { useKitchenDashboard, getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
-import { inventoryRepository } from '@/shared/services/firestore/inventoryRepository';
 import type { MealType } from '@/shared/types';
 
 // ----------------------------------------------------------------------------
@@ -52,16 +51,6 @@ export function AdminKitchenPage() {
   const today = getTodayIST();
   
   const { dashboard, isLoading, isError, error, refetch } = useKitchenDashboard(today);
-
-  // Fetch low stock items
-  const { data: inventory = [], isLoading: isLoadingInventory } = useQuery({
-    queryKey: ['admin', 'inventory-alerts'],
-    queryFn: () => inventoryRepository.list(),
-  });
-
-  const lowStockItems = useMemo(() => {
-    return inventory.filter(item => item.quantity <= item.lowStockThreshold);
-  }, [inventory]);
 
   if (isError) {
     return (
@@ -140,41 +129,6 @@ export function AdminKitchenPage() {
               </div>
             </Card>
 
-            <Card hoverLift className="p-6 overflow-hidden relative">
-              <div className="absolute top-0 right-0 left-0 bg-red-500/20 h-1"></div>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-100">
-                  <AlertTriangle size={24} />
-                </div>
-                <div>
-                  <h3 className="font-display font-bold text-lg text-primary">Inventory Alerts</h3>
-                  <p className="text-xs text-text-muted uppercase tracking-wider">Low stock warnings</p>
-                </div>
-              </div>
-
-              {isLoadingInventory ? (
-                <div className="py-6 text-center text-sm font-sans font-medium text-text-muted flex items-center justify-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" /> Checking inventory...
-                </div>
-              ) : lowStockItems.length === 0 ? (
-                <div className="py-6 text-center rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold flex flex-col items-center justify-center gap-2">
-                  <CheckCircle2 size={24} className="text-emerald-500" />
-                  Inventory levels look good
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {lowStockItems.map(item => (
-                    <div key={item.id} className="flex justify-between items-center text-sm p-3 rounded-xl bg-red-50 border border-red-100 transition-colors hover:bg-red-100/50">
-                      <span className="font-bold font-sans text-red-900">{item.name}</span>
-                      <span className="text-red-700 font-bold bg-white px-2 py-1 rounded-md shadow-sm">{item.quantity} {item.unit}</span>
-                    </div>
-                  ))}
-                  <Button variant="ghost" className="w-full h-[42px] font-bold text-primary hover:text-gold hover:bg-gold/10" onClick={() => navigate('/kitchen/inventory')}>
-                    View All Inventory
-                  </Button>
-                </div>
-              )}
-            </Card>
           </div>
 
           {/* Meal Breakdown Column */}

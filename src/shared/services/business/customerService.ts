@@ -1,36 +1,117 @@
-import { Timestamp } from 'firebase/firestore';
-import { serverTimestamp } from 'firebase/firestore';
+import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { userRepository } from '../firestore/userRepository';
+import { auditRepository } from '../firestore/auditRepository';
+import type { CustomerProfile } from '@/shared/types';
 
 class CustomerService {
   /**
-   * Activate a customer profile.
+   * Assigns a delivery partner permanently to a customer.
+   * All future orders generated for this customer will inherit this assignment.
    */
-  async activateCustomer(customerId: string): Promise<void> {
+  async assignDeliveryPartner(
+    customerId: string,
+    partnerId: string,
+    adminId: string,
+    adminName: string
+  ): Promise<void> {
+    if (!customerId || !partnerId) {
+      throw new Error('Customer ID and Partner ID are required.');
+    }
+
+    const [customer, partner] = await Promise.all([
+      userRepository.getById(customerId),
+      userRepository.getById(partnerId)
+    ]);
+
+    if (!customer) {
+      throw new Error(`Customer with ID ${customerId} not found.`);
+    }
+    
+    if (!partner || partner.role !== 'delivery_partner') {
+      throw new Error(`Delivery partner with ID ${partnerId} not found or invalid role.`);
+    }
+    
+    if (!partner.isActive) {
+      throw new Error(`Cannot assign inactive delivery partner ${partner.fullName}.`);
+    }
+
+    const oldPartnerId = (customer as CustomerProfile).deliveryPartnerId || null;
+
+    // Idempotency check
+    if (oldPartnerId === partnerId) {
+      return;
+    }
+
+    // Update the customer record
     await userRepository.update(customerId, {
-      isActive: true,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-    });
+      deliveryPartnerId: partner.id,
+      assignedAt: serverTimestamp() as unknown as Timestamp,
+      assignedBy: adminId,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    } as any);
+
+    // Create an audit log
+    await auditRepository.logAction(
+      'delivery_partner_assigned',
+      adminId,
+      adminName,
+      customerId,
+      'user',
+      {
+        oldPartnerId,
+        newPartnerId: partner.id,
+        newPartnerName: partner.fullName
+      }
+    );
   }
 
   /**
-   * Deactivate a customer profile.
+   * Assigns a delivery zone permanently to a customer.
+   * All future orders generated for this customer will inherit this zone assignment.
    */
-  async deactivateCustomer(customerId: string): Promise<void> {
-    await userRepository.update(customerId, {
-      isActive: false,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-    });
-  }
+  async assignCustomerZone(
+    customerId: string,
+    zoneId: string,
+    adminId: string,
+    adminName: string
+  ): Promise<void> {
+    if (!customerId || !zoneId) {
+      throw new Error('Customer ID and Zone ID are required.');
+    }
 
-  /**
-   * Update customer profile details.
-   */
-  async updateCustomerProfile(customerId: string, data: { name?: string; phone?: string }): Promise<void> {
+    const customer = await userRepository.getById(customerId);
+
+    if (!customer) {
+      throw new Error(`Customer with ID ${customerId} not found.`);
+    }
+    
+    const oldZoneId = (customer as CustomerProfile).zoneId || null;
+
+    // Idempotency check
+    if (oldZoneId === zoneId) {
+      return;
+    }
+
+    // Update the customer record
     await userRepository.update(customerId, {
-      ...data,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-    });
+      zoneId,
+      assignedAt: serverTimestamp() as unknown as Timestamp,
+      assignedBy: adminId,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    } as any);
+
+    // Create an audit log
+    await auditRepository.logAction(
+      'customer_zone_assigned',
+      adminId,
+      adminName,
+      customerId,
+      'user',
+      {
+        oldZoneId,
+        newZoneId: zoneId
+      }
+    );
   }
 }
 
