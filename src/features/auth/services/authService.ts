@@ -89,19 +89,25 @@ export async function signUpCustomer(
   fullName: string,
   phone: string,
 ): Promise<UserCredential> {
-  // Check if phone number is already registered before trying to create an account
-  // This uses the unauthenticated-readable userPhones registry.
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+
+  // Check if phone number is already registered now that the user is authenticated
+  // (Security rules enforce isSignedIn() for the userPhones registry to prevent enumeration).
   const { doc, getDoc, setDoc } = await import('firebase/firestore');
   const { db } = await import('@/shared/lib/firebase');
   
   const phoneDocRef = doc(db, 'userPhones', phone);
   const existingPhone = await getDoc(phoneDocRef);
+  
   if (existingPhone.exists()) {
+    try {
+      await credential.user.delete();
+    } catch {
+      await firebaseSignOut(auth);
+    }
     throw new Error('An account with this mobile number already exists — try signing in instead.');
   }
 
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  
   // Fire and forget the profile updates so the user can be navigated instantly.
   // setDoc updates the local Firestore cache synchronously, so AuthContext will
   // see the new profile immediately and unlock the app.
