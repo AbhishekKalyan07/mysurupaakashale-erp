@@ -302,15 +302,30 @@ export function ProfilePage() {
               </div>
             )}
             
-            <div className="flex items-center justify-between py-4">
-              <div>
-                <h3 className="text-sm font-medium text-leaf-900">Change Password</h3>
-                <p className="text-sm text-leaf-600 mt-1">Receive a secure link to reset your password.</p>
+            {profile?.passwordCreated && (
+              <div className="flex items-center justify-between py-4">
+                <div>
+                  <h3 className="text-sm font-medium text-leaf-900">Change Password</h3>
+                  <p className="text-sm text-leaf-600 mt-1">Receive a secure link to reset your password.</p>
+                </div>
+                <Button 
+                  variant="danger-tonal" 
+                  className="shrink-0"
+                  onClick={async () => {
+                    if (!firebaseUser?.email) return;
+                    try {
+                      const { resetPassword } = await import('@/features/auth/services/authService');
+                      await resetPassword(firebaseUser.email);
+                      toast.success('Password reset email sent!');
+                    } catch (err: any) {
+                      toast.error('Failed to send reset email.');
+                    }
+                  }}
+                >
+                  Send Reset Email
+                </Button>
               </div>
-              <Button variant="danger-tonal" className="shrink-0">
-                Send Reset Email
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </Card>
