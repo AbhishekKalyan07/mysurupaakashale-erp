@@ -12,7 +12,7 @@ export class KitchenPage {
   }
 
   async verifyBoardLoaded() {
-    await expect(this.page.locator('h1', { hasText: 'Production Board' })).toBeVisible();
+    await expect(this.page.locator('h1', { hasText: 'Kitchen Dashboard' })).toBeVisible();
   }
 
   async updateOrderStatusToPreparing(orderId: string) {

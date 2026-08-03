@@ -8,8 +8,8 @@ test.describe('Customer Journey', () => {
     const page = new CustomerPage(customerPage);
     await page.gotoDashboard();
     await page.navigateToSubscriptions();
-    // Assuming UI handles empty states, we might see no subscriptions initially
-    await expect(customerPage.locator('text=Subscriptions')).toBeVisible();
+    // Page shows either active plan or "No Active Subscription" empty state
+    await expect(customerPage.locator('text=Subscription')).toBeVisible();
   });
 
   test('customer can pause and resume subscription', async ({ customerPage }) => {

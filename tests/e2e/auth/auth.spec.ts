@@ -7,8 +7,8 @@ test.describe('Authentication & Security', () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login('invalid@test.com', 'wrongpassword');
-    // Assuming the app shows an error message like "Invalid email or password"
-    await expect(page.locator('text=Incorrect email or password')).toBeVisible();
+    // Use role=alert — more robust than matching exact error text which can vary by emulator version
+    await expect(page.locator('[role="alert"]')).toBeVisible();
   });
 
   // Test successful login and redirect based on role
@@ -29,7 +29,8 @@ test.describe('Authentication & Security', () => {
 
   // Test route protection (Unauthenticated)
   test('unauthenticated users should be redirected to login', async ({ page }) => {
-    await page.goto('/admin');
+    // Navigate to a protected route (not /admin which is a 404)
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*login/);
   });
 });

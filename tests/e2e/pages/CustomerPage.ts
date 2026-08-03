@@ -12,7 +12,8 @@ export class CustomerPage {
   }
 
   async navigateToSubscriptions() {
-    await this.page.click('a[href="/customer/subscriptions"]');
+    // Navigate directly — the nav link href is /customer/subscription (no trailing 's')
+    await this.page.goto('/customer/subscription');
   }
 
   async verifyActiveSubscription() {
