@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=128m"
+
 jobs:
   # ─── Stage 1: Code Quality ────────────────────────────────────────────────
   quality:

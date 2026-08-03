@@ -88,7 +88,7 @@ export default defineConfig({
       }
     },
     {
-      command: 'npx firebase emulators:start --project demo-test --only auth,firestore,storage',
+      command: 'npx firebase emulators:start --project demo-test --only auth,firestore',
       port: 8080,
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
