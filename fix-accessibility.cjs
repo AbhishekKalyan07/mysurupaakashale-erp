@@ -7,8 +7,11 @@ function walk(dir, callback) {
   fs.readdirSync(dir).forEach(f => {
     let dirPath = path.join(dir, f);
     let isDirectory = fs.statSync(dirPath).isDirectory();
-    isDirectory ? 
-      walk(dirPath, callback) : callback(path.join(dir, f));
+      if (isDirectory) {
+        walk(dirPath, callback);
+      } else {
+        callback(path.join(dir, f));
+      }
   });
 }
 
@@ -35,7 +38,7 @@ function processFile(filePath) {
   });
 
   // Fix color contrast: text-[#8c746a] -> text-[#5a4a44]
-  content = content.replace(/text-\[\#8c746a\]/g, 'text-[#5a4a44]');
+  content = content.replace(/text-\[#8c746a\]/g, 'text-[#5a4a44]');
   content = content.replace(/text-ink-400/g, 'text-ink-500'); 
   
   if (content !== originalContent) {
