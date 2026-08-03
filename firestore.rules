@@ -345,6 +345,12 @@ service cloud.firestore {
       allow write: if isKitchen() || isAdmin();
     }
 
+    match /settings/userCounters {
+      // Allow any signed-in user to read and increment the user ID counter.
+      // This is required for client-side sign-up (since we don't have Cloud Functions).
+      allow read, write: if isSignedIn();
+    }
+
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config). Limit reads to operational staff — not customers.
