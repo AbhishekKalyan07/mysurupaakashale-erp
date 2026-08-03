@@ -1,0 +1,35 @@
+{
+  "cookies": [
+    {
+      "name": "_ga_QDDVNFM2JL",
+      "value": "GS2.1.s1785770229$o1$g0$t1785770229$j60$l0$h0",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1820330229.948545,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.1003446068.1785770230",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1820330229.949421,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:5174",
+      "localStorage": [
+        {
+          "name": "firebase:authUser:AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c:[DEFAULT]",
+          "value": "{\"uid\":\"6aBmnaLuN5yqJOxlVN41hAr77oWT\",\"email\":\"accounts@test.com\",\"emailVerified\":false,\"displayName\":\"Accounts User\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"accounts@test.com\",\"displayName\":\"Accounts User\",\"email\":\"accounts@test.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"eyJfQXV0aEVtdWxhdG9yUmVmcmVzaFRva2VuIjoiRE8gTk9UIE1PRElGWSIsImxvY2FsSWQiOiI2YUJtbmFMdU41eXFKT3hsVk40MWhBcjc3b1dUIiwicHJvdmlkZXIiOiJwYXNzd29yZCIsImV4dHJhQ2xhaW1zIjp7fSwicHJvamVjdElkIjoiZGVtby10ZXN0In0=\",\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJuYW1lIjoiQWNjb3VudHMgVXNlciIsImVtYWlsIjoiYWNjb3VudHNAdGVzdC5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImF1dGhfdGltZSI6MTc4NTc3MDIyOSwidXNlcl9pZCI6IjZhQm1uYUx1TjV5cUpPeGxWTjQxaEFyNzdvV1QiLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbImFjY291bnRzQHRlc3QuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifSwiaWF0IjoxNzg1NzcwMjI5LCJleHAiOjE3ODU3NzM4MjksImF1ZCI6ImRlbW8tdGVzdCIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9kZW1vLXRlc3QiLCJzdWIiOiI2YUJtbmFMdU41eXFKT3hsVk40MWhBcjc3b1dUIn0.\",\"expirationTime\":1785773829652},\"createdAt\":\"1785770215887\",\"lastLoginAt\":\"1785770229641\",\"apiKey\":\"AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c\",\"appName\":\"[DEFAULT]\"}"
+        }
+      ]
+    }
+  ]
+}

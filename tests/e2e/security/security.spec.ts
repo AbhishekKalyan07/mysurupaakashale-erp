@@ -3,7 +3,7 @@ import { test, expect } from '../shared/fixtures';
 test.describe('Security & Role Protection', () => {
   // Test customer trying to access admin
   test('customer cannot access admin pages', async ({ customerPage }) => {
-    await customerPage.goto('/admin');
+    await customerPage.goto('/admin/dashboard');
     // Assuming unauthorized access redirects to dashboard or login
     await expect(customerPage).not.toHaveURL(/.*admin/);
   });

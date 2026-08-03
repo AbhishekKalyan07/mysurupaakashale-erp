@@ -12,7 +12,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
   const isSignup = location.pathname.includes('signup');
 
   return (
-    <div className="relative flex min-h-screen w-full overflow-hidden font-sans bg-[#fbf5ed] selection:bg-amber-200 selection:text-amber-900">
+    <main className="relative flex min-h-screen w-full overflow-hidden font-sans bg-[#fbf5ed] selection:bg-amber-200 selection:text-amber-900">
 
       {/* Full Screen Background */}
       <div className="absolute inset-0 pointer-events-none z-0 hidden md:block">
@@ -82,6 +82,6 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
         </div>
 
       </div>
-    </div>
+    </main>
   );
 }

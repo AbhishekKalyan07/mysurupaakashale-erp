@@ -42,6 +42,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!user) {
           setRole(null);
           setStatus('unauthenticated');
+        } else {
+          setStatus('loading');
         }
       },
       (err) => {

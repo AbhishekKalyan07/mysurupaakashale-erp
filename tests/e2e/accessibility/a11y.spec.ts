@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 test.describe('Accessibility Checks', () => {
   test('Login page should not have any automatically detectable accessibility issues', async ({ page }) => {
     await page.goto('/login');
+    await page.waitForSelector('input[type="email"]');
     const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
     expect(accessibilityScanResults.violations).toEqual([]);
   });

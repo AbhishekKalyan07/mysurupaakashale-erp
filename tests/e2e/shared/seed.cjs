@@ -24,20 +24,29 @@ async function seedUsers() {
 
   console.log('Seeding users via external node script...');
   for (const u of users) {
+    let uid;
     try {
       const userRecord = await auth.createUser({
         email: u.email,
         password: u.password,
         displayName: u.fullName,
       });
+      uid = userRecord.uid;
+    } catch (err) {
+      if (err.code === 'auth/email-already-exists') {
+        const existingUser = await auth.getUserByEmail(u.email);
+        uid = existingUser.uid;
+      } else {
+        throw err;
+      }
+    }
 
-      // Field names MUST match the UserProfile type in src/shared/types/index.ts
-      // and what AuthContext's subscribeToDoc callback reads (isRole(data.role)).
-      await db.collection('users').doc(userRecord.uid).set({
-        id:          userRecord.uid,
+    if (uid) {
+      await db.collection('users').doc(uid).set({
+        id:          uid,
         email:       u.email,
-        role:        u.role,          // Must be one of ROLES values
-        fullName:    u.fullName,      // Used by HeroBanner & AuthContext profile
+        role:        u.role,
+        fullName:    u.fullName,
         displayId:   `TEST-${u.role.toUpperCase().replace('_', '')}-001`,
         isActive:    true,
         addresses:   [],
@@ -49,10 +58,6 @@ async function seedUsers() {
         createdAt:   new Date().toISOString(),
         updatedAt:   new Date().toISOString(),
       });
-    } catch (err) {
-      if (err.code !== 'auth/email-already-exists') {
-        throw err;
-      }
     }
   }
 }

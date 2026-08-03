@@ -88,8 +88,11 @@ export const appCheck = (() => {
     return null;
   }
 
+  const isNode = typeof window === 'undefined';
+
   // Production path: real reCAPTCHA v3
-  if (appCheckSiteKey && !isEmulatorMode) {
+  // Only attempt ReCaptcha if we are in a browser environment (window is defined).
+  if (appCheckSiteKey && !isEmulatorMode && !isNode) {
     return initializeAppCheck(firebaseApp, {
       provider: new ReCaptchaV3Provider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true,
@@ -97,12 +100,14 @@ export const appCheck = (() => {
   }
 
   // Local / emulator path: use the official App Check debug provider.
+  // Also used for Node.js automation scripts that must authenticate with a debug token.
   // The SDK reads FIREBASE_APPCHECK_DEBUG_TOKEN if set, or auto-generates one
   // and logs it at startup. Whitelist the token in Firebase Console once.
-  if (isEmulatorMode || import.meta.env.DEV) {
+  if (isEmulatorMode || import.meta.env.DEV || isNode) {
     // Setting the global before initializeAppCheck activates the debug provider.
+    // Using globalThis instead of self ensures compatibility with Node.js.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken ?? true;
+    (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken ?? true;
 
     return initializeAppCheck(firebaseApp, {
       // CustomProvider is a no-op here; the SDK intercepts via the global debug flag.
@@ -176,6 +181,9 @@ let messagingChecked = false;
  * features/notifications (Phase: Notifications).
  */
 export async function getMessagingIfSupported(): Promise<Messaging | null> {
+  if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    return null;
+  }
   if (messagingChecked) return messagingInstance;
   messagingChecked = true;
   if (await messagingSupported()) {
@@ -186,6 +194,10 @@ export async function getMessagingIfSupported(): Promise<Messaging | null> {
 
 // Analytics helper – returns Analytics instance if supported, otherwise null
 export async function initAnalytics(): Promise<Analytics | null> {
+  // Prevent unhandled rejections from Firebase SDK trying to fetch dynamic configs locally
+  if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    return null;
+  }
   if (await analyticsSupported()) {
     return getAnalytics(firebaseApp);
   }
@@ -194,6 +206,9 @@ export async function initAnalytics(): Promise<Analytics | null> {
 
 // Performance Monitoring helper – silently skips if not supported
 export async function initPerformance(): Promise<FirebasePerformance | null> {
+  if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    return null;
+  }
   try {
     return getPerformance(firebaseApp);
   } catch {
@@ -204,9 +219,12 @@ export async function initPerformance(): Promise<FirebasePerformance | null> {
 
 // Remote Config helper
 export function initRemoteConfig(): RemoteConfig | null {
+  if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    return null;
+  }
   try {
     const rc = getRemoteConfig(firebaseApp);
-    rc.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 10000 : 3600000;
+    rc.settings.minimumFetchIntervalMillis = 3600000;
     return rc;
   } catch {
     return null;
@@ -219,6 +237,7 @@ export function initRemoteConfig(): RemoteConfig | null {
 // what happens to be running in a teammate's terminal. See README.md.
 // ---------------------------------------------------------------------------
 if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+  // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
   connectStorageEmulator(storage, '127.0.0.1', 9199);

@@ -12,7 +12,7 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
   const isSignup = location.pathname.includes('signup');
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden selection:bg-turmeric-200 selection:text-leaf-900 font-sans bg-[#fdf7f0]">
+    <main className="relative flex min-h-dvh flex-col overflow-hidden selection:bg-turmeric-200 selection:text-leaf-900 font-sans bg-[#fdf7f0]">
       {/* Mobile Background Image */}
       <div 
         className="absolute inset-0 z-0 pointer-events-none"
@@ -50,6 +50,6 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
           {children}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

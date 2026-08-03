@@ -25,7 +25,7 @@ test.describe('Performance Checks', () => {
   test('Kitchen production board should load quickly', async ({ kitchenPage }) => {
     const startTime = Date.now();
     await kitchenPage.goto('/kitchen/production');
-    await kitchenPage.waitForSelector('h1:has-text("Production Board")');
+    await kitchenPage.waitForSelector('h1:has-text("Kitchen Dashboard")');
     const loadTime = Date.now() - startTime;
     expect(loadTime).toBeLessThan(MAX_LOAD_TIME_MS);
   });

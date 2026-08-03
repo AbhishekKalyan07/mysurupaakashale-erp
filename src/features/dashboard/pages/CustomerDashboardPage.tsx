@@ -233,7 +233,7 @@ export function CustomerDashboardPage() {
                       </Badge>
                       <div className="bg-primary/5 border border-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-sans text-right shadow-sm">
                         <span className="block font-bold text-text-muted mb-1 text-[10px] uppercase tracking-wider">Current Accrued Bill</span>
-                        <strong className="text-lg font-bold font-data text-gold">₹{accruedBill || 0}</strong>
+                        <strong className="text-lg font-bold font-data text-gold-dark">₹{accruedBill || 0}</strong>
                       </div>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ export function CustomerDashboardPage() {
                       <Button
                         variant="secondary"
                         onClick={() => setShowTrialModal(true)}
-                        className="font-sans font-bold uppercase tracking-wider text-[11px] px-6 py-2.5 bg-white text-gold border-gold/30 hover:bg-gold/5 hover:border-gold/50 shadow-sm transition-all w-full sm:w-auto"
+                        className="font-sans font-bold uppercase tracking-wider text-[11px] px-6 py-2.5 bg-white text-gold-dark border-gold/30 hover:bg-gold/5 hover:border-gold/50 shadow-sm transition-all w-full sm:w-auto"
                       >
                         Book a Trial Meal
                       </Button>
@@ -424,7 +424,7 @@ export function CustomerDashboardPage() {
                 <button
                   aria-label="Add new address"
                   onClick={() => setShowAddressForm(true)}
-                  className="text-gold hover:text-gold/80 text-xs font-sans font-bold flex items-center gap-1 transition-colors bg-gold/10 px-3 py-1.5 rounded-lg border border-gold/20"
+                  className="text-gold-dark hover:text-gold-dark/80 text-xs font-sans font-bold flex items-center gap-1 transition-colors bg-gold/10 px-3 py-1.5 rounded-lg border border-gold/20"
                 >
                   <Plus size={14} /> Add
                 </button>
