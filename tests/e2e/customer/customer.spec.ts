@@ -1,6 +1,5 @@
 import { test, expect } from '../shared/fixtures';
 import { CustomerPage } from '../pages/CustomerPage';
-import { createSubscription } from '../shared/api';
 
 test.describe('Customer Journey', () => {
   // Test relies on customer session existing
@@ -8,8 +7,10 @@ test.describe('Customer Journey', () => {
     const page = new CustomerPage(customerPage);
     await page.gotoDashboard();
     await page.navigateToSubscriptions();
-    // Page shows either active plan or "No Active Subscription" empty state
-    await expect(customerPage.locator('text=Subscription')).toBeVisible();
+    // The customer may have an active plan or the empty state, but must remain
+    // on the subscription page and render subscription content in the main area.
+    await expect(customerPage).toHaveURL(/\/customer\/subscription$/);
+    await expect(customerPage.locator('main').getByText(/Subscription/i).first()).toBeVisible();
   });
 
   test('customer can pause and resume subscription', async ({ customerPage }) => {

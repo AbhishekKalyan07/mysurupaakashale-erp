@@ -18,7 +18,7 @@ async function seedUsers() {
     { email: 'admin@test.com',    password: 'password123', role: 'admin',            fullName: 'Admin User' },
     { email: 'kitchen@test.com',  password: 'password123', role: 'kitchen',          fullName: 'Kitchen User' },
     { email: 'delivery@test.com', password: 'password123', role: 'delivery_partner', fullName: 'Delivery User' },
-    { email: 'customer@test.com', password: 'password123', role: 'customer',         fullName: 'Customer User' },
+    { email: 'customer@test.com', password: 'password123', role: 'customer',         fullName: 'Customer User', phone: '9876543210' },
     { email: 'accounts@test.com', password: 'password123', role: 'accounts',         fullName: 'Accounts User' },
   ];
 
@@ -47,6 +47,7 @@ async function seedUsers() {
         email:       u.email,
         role:        u.role,
         fullName:    u.fullName,
+        ...(u.phone ? { phone: u.phone } : {}),
         displayId:   `TEST-${u.role.toUpperCase().replace('_', '')}-001`,
         isActive:    true,
         addresses:   [],

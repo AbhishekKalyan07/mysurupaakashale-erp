@@ -93,7 +93,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-6 px-3 py-5 overflow-y-auto overflow-x-hidden scrollbar-thin">
+        <nav aria-label="Primary navigation" className="flex-1 space-y-6 px-3 py-5 overflow-y-auto overflow-x-hidden scrollbar-thin">
           {items.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-0.5">
               {group.groupLabel && (

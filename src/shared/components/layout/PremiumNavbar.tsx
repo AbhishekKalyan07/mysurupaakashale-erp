@@ -40,7 +40,7 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
         {/* Brand shown on mobile only (sidebar shows brand on desktop) */}
         <div className="lg:hidden">
           <p className="font-display text-sm font-bold text-primary leading-tight">Mysuru Paakashale</p>
-          <p className="text-[10px] uppercase tracking-widest text-gold font-semibold">{ROLE_LABELS[role]}</p>
+          <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold">{ROLE_LABELS[role]}</p>
         </div>
       </div>
 

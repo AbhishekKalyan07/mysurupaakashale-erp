@@ -222,8 +222,8 @@ service cloud.firestore {
 
 
       allow read: if isSignedIn() &&
-                     (resource.data.customerId == request.auth.uid ||
-                      resource.data.deliveryPartnerId == request.auth.uid ||
+                      (resource.data.get('customerId', null) == request.auth.uid ||
+                       resource.data.get('deliveryPartnerId', null) == request.auth.uid ||
                       isAdmin() || isAccounts() || isKitchen());
 
       // Phase 4: Admins can generate orders

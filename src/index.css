@@ -39,7 +39,7 @@
   /* ---------- Text ---------- */
   --color-text: #1C0D2B;
   --color-text-secondary: #4A235A;
-  --color-text-muted: #7A6E82;
+  --color-text-muted: #6B5F70;
   --color-text-faint: #B8B0C0;
 
   /* ---------- Border ---------- */
@@ -247,4 +247,3 @@
     animation: fade-in 0.2s ease-out;
   }
 }
-
