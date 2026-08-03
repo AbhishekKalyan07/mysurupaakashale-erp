@@ -101,6 +101,7 @@ export function MobileLoginPage() {
                 </div>
                 <input
                   type="email"
+                  aria-label="Email address for password reset"
                   placeholder="Email address"
                   required
                   autoCapitalize="none"
@@ -118,7 +119,7 @@ export function MobileLoginPage() {
               </p>
             )}
 
-            <button aria-label="Button action"
+            <button
               type="submit"
               disabled={resetLoading}
               className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-all mt-2 flex justify-center items-center"
@@ -126,7 +127,7 @@ export function MobileLoginPage() {
               {resetLoading ? <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" /> : 'Send reset link'}
             </button>
 
-            <button aria-label="Button action"
+            <button
               type="button"
               onClick={() => { setForgotPasswordMode(false); setFormError(null); }}
               className="mt-2 w-full text-center text-sm font-semibold text-[#5c1417] hover:underline"
@@ -138,7 +139,7 @@ export function MobileLoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="w-full flex flex-col gap-4">
             <div>
               <h1 className="font-display text-[28px] font-bold text-[#2c150c] tracking-tight leading-none flex items-center gap-2">
-                Welcome back <span className="text-2xl">👋</span>
+                Welcome back <span className="text-2xl" aria-hidden="true">👋</span>
               </h1>
               <p className="mt-1.5 text-sm text-[#6e584f] font-medium">
                 Sign in to manage today's tiffin.
@@ -153,6 +154,7 @@ export function MobileLoginPage() {
                   </div>
                   <input
                     type="email"
+                    aria-label="Email address"
                     placeholder="Email address"
                     autoComplete="email"
                     required
@@ -172,14 +174,16 @@ export function MobileLoginPage() {
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    aria-label="Password"
                     placeholder="Password"
                     autoComplete="current-password"
                     required
                     className="h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-11 pr-10 text-sm text-[#2c150c] placeholder:text-[#a08d85] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
                     {...register('password')}
                   />
-                  <button aria-label="Button action"
+                  <button
                     type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5"
                   >
@@ -191,7 +195,7 @@ export function MobileLoginPage() {
             </div>
 
             <div className="w-full flex justify-end -mt-2">
-              <button aria-label="Button action"
+              <button
                 type="button"
                 onClick={() => { setForgotPasswordMode(true); setFormError(null); }}
                 className="text-xs font-semibold text-[#5c1417] hover:underline"
@@ -206,7 +210,7 @@ export function MobileLoginPage() {
               </p>
             )}
 
-            <button aria-label="Button action"
+            <button
               type="submit"
               disabled={isSubmitting}
               className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-all flex justify-center items-center"
@@ -221,7 +225,7 @@ export function MobileLoginPage() {
               </span>
             </div>
 
-            <button aria-label="Button action"
+            <button
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
@@ -231,7 +235,7 @@ export function MobileLoginPage() {
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#8c746a] border-t-[#2c150c]" />
               ) : (
                 <>
-                  <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" />
                     <path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" />
                     <path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" />
