@@ -15,11 +15,11 @@ const auth = getAuth();
 
 async function seedUsers() {
   const users = [
-    { email: 'admin@test.com', password: 'password123', role: 'admin' },
-    { email: 'kitchen@test.com', password: 'password123', role: 'kitchen' },
-    { email: 'delivery@test.com', password: 'password123', role: 'delivery' },
-    { email: 'customer@test.com', password: 'password123', role: 'customer' },
-    { email: 'accounts@test.com', password: 'password123', role: 'accounts' }
+    { email: 'admin@test.com',    password: 'password123', role: 'admin',            fullName: 'Admin User' },
+    { email: 'kitchen@test.com',  password: 'password123', role: 'kitchen',          fullName: 'Kitchen User' },
+    { email: 'delivery@test.com', password: 'password123', role: 'delivery_partner', fullName: 'Delivery User' },
+    { email: 'customer@test.com', password: 'password123', role: 'customer',         fullName: 'Customer User' },
+    { email: 'accounts@test.com', password: 'password123', role: 'accounts',         fullName: 'Accounts User' },
   ];
 
   console.log('Seeding users via external node script...');
@@ -28,16 +28,26 @@ async function seedUsers() {
       const userRecord = await auth.createUser({
         email: u.email,
         password: u.password,
+        displayName: u.fullName,
       });
-      
+
+      // Field names MUST match the UserProfile type in src/shared/types/index.ts
+      // and what AuthContext's subscribeToDoc callback reads (isRole(data.role)).
       await db.collection('users').doc(userRecord.uid).set({
-        id: userRecord.uid,
-        email: u.email,
-        role: u.role,
-        name: `${u.role.charAt(0).toUpperCase() + u.role.slice(1)} User`,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        id:          userRecord.uid,
+        email:       u.email,
+        role:        u.role,          // Must be one of ROLES values
+        fullName:    u.fullName,      // Used by HeroBanner & AuthContext profile
+        displayId:   `TEST-${u.role.toUpperCase().replace('_', '')}-001`,
+        isActive:    true,
+        addresses:   [],
+        defaultAddressId: null,
+        photoUrl:    null,
+        googleConnected:  false,
+        passwordCreated:  true,
+        emailVerified:    false,
+        createdAt:   new Date().toISOString(),
+        updatedAt:   new Date().toISOString(),
       });
     } catch (err) {
       if (err.code !== 'auth/email-already-exists') {

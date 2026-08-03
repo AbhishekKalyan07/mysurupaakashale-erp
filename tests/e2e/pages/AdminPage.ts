@@ -9,6 +9,9 @@ export class AdminPage {
 
   async gotoDashboard() {
     await this.page.goto('/dashboard');
+    // Wait for the loading screen to clear before asserting content.
+    // The Firestore emulator WebChannel can take a few seconds on first connect.
+    await this.page.waitForSelector('h1', { timeout: 20000 });
   }
 
   async verifyDashboardKPIs() {

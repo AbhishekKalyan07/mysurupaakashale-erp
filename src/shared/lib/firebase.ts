@@ -1,11 +1,12 @@
 /// <reference types="node" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider } from 'firebase/app-check';
 import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  memoryLocalCache,
   connectFirestoreEmulator,
   type Firestore,
 } from 'firebase/firestore';
@@ -30,7 +31,9 @@ function env(key: string): string | undefined {
 const firebaseConfig = {
   apiKey:            env('VITE_FIREBASE_API_KEY'),
   authDomain:        env('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId:         env('VITE_FIREBASE_PROJECT_ID'),
+  projectId:         import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' 
+                       ? 'demo-test' 
+                       : env('VITE_FIREBASE_PROJECT_ID'),
   storageBucket:     env('VITE_FIREBASE_STORAGE_BUCKET'),
   messagingSenderId: env('VITE_FIREBASE_MESSAGING_SENDER_ID'),
   appId:             env('VITE_FIREBASE_APP_ID'),
@@ -129,9 +132,36 @@ export const appCheck = (() => {
  */
 export const auth: Auth = getAuth(firebaseApp);
 
-export const db: Firestore = initializeFirestore(firebaseApp, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-});
+// In emulator / E2E mode, switch Firebase Auth to localStorage persistence.
+// Playwright's storageState captures localStorage (not IndexedDB), so this is
+// required for saved auth states to survive across test file boundaries.
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+  setPersistence(auth, browserLocalPersistence).catch(console.error);
+}
+
+export const db: Firestore = initializeFirestore(firebaseApp,
+  import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true'
+    ? {
+        // In emulator/E2E mode:
+        // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).
+        // 2. Force HTTP long-polling instead of WebChannel/WebSocket.
+        //    Playwright's headless Chromium consistently fails the WebChannel
+        //    'Listen' stream on first connect (Name/Message: undefined),
+        //    causing the Firestore subscription to never fire. Long-polling uses
+        //    plain HTTP requests which work reliably in headless environments.
+        localCache: memoryLocalCache(),
+        experimentalForceLongPolling: true,
+      }
+    : {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      }
+);
+
+
+import { setLogLevel } from 'firebase/firestore';
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+  setLogLevel('debug');
+}
 
 export const storage: FirebaseStorage = getStorage(firebaseApp);
 

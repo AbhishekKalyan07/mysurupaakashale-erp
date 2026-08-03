@@ -1,9 +1,7 @@
-import { Timestamp } from 'firebase/firestore';
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/shared/lib/firebase';
 import { userRepository } from '@/shared/services/firestore/userRepository';
-import { serverTimestamp } from 'firebase/firestore';
 import { isRole, type Role } from '@/shared/constants/roles';
 import type { UserProfile } from '@/shared/types';
 import { signOutUser } from '../services/authService';
@@ -67,40 +65,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // We are signed in, but waiting for the profile to establish the role
     setStatus('loading');
 
-    // Safety timeout: if the profile hasn't resolved within 8 seconds (e.g. race
-    // condition where Google Sign-In fires onAuthStateChanged before the Firestore
-    // user doc has been created), try creating the profile once more and if that
-    // also fails, sign out so the user isn't stuck on a loading screen forever.
+    // Safety timeout: if the Firestore subscription hasn't resolved after an
+    // extended wait, sign out so the user isn't stuck on a loading screen.
+    // We intentionally do NOT create a fallback profile here — doing so would
+    // overwrite legitimate role-specific profiles (e.g. admin) with 'customer',
+    // breaking both production UX and E2E tests. The subscription will fire as
+    // soon as Firestore connects; we just need to give it enough time.
     const timeoutId = setTimeout(async () => {
+      console.error('[auth] Profile load timed out after 20s — signing out.');
+      setError('Could not load your profile. Please try signing in again.');
       try {
-        const existing = await userRepository.getById(uid);
-        if (!existing && firebaseUser) {
-          // Profile still missing — create it now as a fallback
-          await userRepository.create({
-            role: 'customer',
-            fullName: firebaseUser.displayName || 'New User',
-            email: firebaseUser.email || '',
-            phone: firebaseUser.phoneNumber || '',
-            photoUrl: firebaseUser.photoURL || null,
-            isActive: true,
-            addresses: [],
-            defaultAddressId: null,
-            createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-            updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-          } as Omit<UserProfile, 'id'>, uid);
-          // The onSnapshot below will pick up the newly-created doc automatically
-        } else if (!existing) {
-          // No user and no profile — sign out
-          console.error('[auth] Profile timeout: no profile found, signing out.');
-          setError('Could not load your profile. Please try signing in again.');
-          await signOutUser();
-        }
-      } catch (e) {
-        console.error('[auth] Profile timeout fallback failed:', e);
-        setError('Could not load your profile. Please try signing in again.');
+        await signOutUser();
+      } catch {
         setStatus('unauthenticated');
       }
-    }, 8000);
+    }, 20000);
 
     const unsubscribe = userRepository.subscribeToDoc(
       uid,

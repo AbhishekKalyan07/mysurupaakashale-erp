@@ -25,12 +25,22 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5174',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     video: 'on-first-retry',
     screenshot: 'only-on-failure',
+
+    /* Generous timeouts: Firestore emulator WebChannel can take several
+     * seconds to establish its first connection. Without this, tests that
+     * wait for data-driven UI (like dashboard KPI cards) fail spuriously. */
+    actionTimeout: 20000,
+  },
+
+  /* Global assertion timeout — overrides the default 5 s. */
+  expect: {
+    timeout: 20000,
   },
 
   /* Configure projects for major browsers */
@@ -69,8 +79,8 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
+      command: 'npm run dev -- --port 5174',
+      url: 'http://localhost:5174',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
       env: {
