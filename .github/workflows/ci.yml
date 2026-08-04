@@ -265,8 +265,14 @@ jobs:
           name: dist
           path: dist/
       - name: Set up Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > ${{ runner.temp }}/serviceAccount.json
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is empty or missing. Please add it to GitHub secrets."
+            exit 1
+          fi
+          echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ runner.temp }}/serviceAccount.json
       - name: Deploy to Firebase Hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/serviceAccount.json
