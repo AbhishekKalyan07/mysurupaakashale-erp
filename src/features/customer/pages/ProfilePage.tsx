@@ -317,7 +317,7 @@ export function ProfilePage() {
                       const { resetPassword } = await import('@/features/auth/services/authService');
                       await resetPassword(firebaseUser.email);
                       toast.success('Password reset email sent!');
-                    } catch (err: any) {
+                    } catch {
                       toast.error('Failed to send reset email.');
                     }
                   }}

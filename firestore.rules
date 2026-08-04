@@ -108,7 +108,9 @@ service cloud.firestore {
 
     // ---------- dailyMenus/{menuId} ----------
     match /dailyMenus/{menuId} {
-      allow read: if true;
+      // Published menus are public marketing content. Draft and archived
+      // menus contain internal planning information and are staff-only.
+      allow read: if resource.data.status == 'published' || isAdmin() || isKitchen();
 
       // Admin has full write access.
       // Kitchen can create and edit draft menus directly.

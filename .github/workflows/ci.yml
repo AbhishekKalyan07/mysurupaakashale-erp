@@ -15,6 +15,7 @@ concurrency:
 
 env:
   JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=128m"
+  NODE_OPTIONS: "--max-old-space-size=4096"
 
 jobs:
   # ─── Stage 1: Code Quality ────────────────────────────────────────────────
@@ -155,8 +156,8 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Run npm audit (fail on critical/high only)
-        run: npm audit --audit-level=critical
+      - name: Run npm audit (fail on high/critical)
+        run: npm audit --audit-level=high
         continue-on-error: false
       - name: Generate audit report
         if: always()

@@ -13,7 +13,8 @@ afterEach(() => {
 
 // Global mock for Firebase to ensure tests never connect to production
 vi.mock('firebase/storage', () => ({
-  getStorage: vi.fn(),
+  connectStorageEmulator: vi.fn(),
+  getStorage: vi.fn(() => ({})),
 }));
 
 vi.mock('firebase/app', () => {
@@ -33,17 +34,22 @@ vi.mock('firebase/app', () => {
 });
 
 vi.mock('firebase/auth', () => ({
+  browserLocalPersistence: {},
+  connectAuthEmulator: vi.fn(),
   getAuth: vi.fn(() => ({
     currentUser: { uid: 'test-user', email: 'test@example.com' },
     onAuthStateChanged: vi.fn(),
     signInWithEmailAndPassword: vi.fn(),
     signOut: vi.fn(),
   })),
+  setPersistence: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('firebase/firestore', () => ({
+  connectFirestoreEmulator: vi.fn(),
   getFirestore: vi.fn(),
   initializeFirestore: vi.fn(() => ({})),
+  memoryLocalCache: vi.fn(() => ({})),
   persistentLocalCache: vi.fn(),
   persistentMultipleTabManager: vi.fn(),
   collection: vi.fn(() => ({
@@ -81,6 +87,7 @@ vi.mock('firebase/firestore', () => ({
     };
     return await updateFunction(transaction);
   }),
+  setLogLevel: vi.fn(),
   serverTimestamp: vi.fn(() => ({ seconds: 0, nanoseconds: 0 })),
   Timestamp: class Timestamp {
     seconds: number;
@@ -99,4 +106,3 @@ vi.mock('firebase/firestore', () => ({
   },
   onSnapshot: vi.fn(),
 }));
-
