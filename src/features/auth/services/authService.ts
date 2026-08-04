@@ -50,24 +50,28 @@ export async function signInWithGoogle(): Promise<UserCredential> {
   const profile = await userRepository.getById(credential.user.uid);
   
   if (!profile) {
-    // If the account does not exist, we do not allow them to sign in directly.
-    // They MUST go through the standard signup flow which collects their phone number.
-    
-    // Attempt to clean up the orphaned Firebase Auth user
-    try {
-      await credential.user.delete();
-    } catch {
-      // Fallback to sign out if delete fails (e.g., if there's a permission issue)
-      await firebaseSignOut(auth);
-    }
-    
-    throw new Error('No account found with this Google email. Please create an account first.');
-  }
-  
-  if (!profile.googleConnected) {
+    // Automatically create a base customer profile for new Google signups
+    const displayId = await userRepository.generateNextDisplayId('customer', credential.user.displayName || 'Google User');
+    await userRepository.create({
+      displayId,
+      role: 'customer',
+      fullName: credential.user.displayName || 'Google User',
+      email: credential.user.email || '',
+      phone: '', // Collect during onboarding
+      photoUrl: credential.user.photoURL || null,
+      isActive: true,
+      addresses: [],
+      defaultAddressId: null,
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+      emailVerified: credential.user.emailVerified,
+      googleConnected: true,
+      passwordCreated: false,
+    } as Omit<UserProfile, 'id'>, credential.user.uid);
+  } else if (!profile.googleConnected) {
     await userRepository.update(credential.user.uid, {
       googleConnected: true,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     } as any);
   }
   
