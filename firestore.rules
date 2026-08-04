@@ -317,8 +317,9 @@ service cloud.firestore {
       // any other user.
       function isCustomerTriggerableNotification() {
         return request.resource.data.createdBy == request.auth.uid &&
-               request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'] &&
-               get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'admin';
+               (request.resource.data.recipientId == request.auth.uid ||
+                get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'admin') &&
+               request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'];
       }
 
       allow read: if isSignedIn() &&
@@ -355,8 +356,8 @@ service cloud.firestore {
 
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
-      // zone config). Limit reads to operational staff — not customers.
-      allow read: if isAdmin() || isKitchen() || isDeliveryPartner() || isAccounts();
+      // zone config).
+      allow read: if isSignedIn();
       allow write: if isAdmin(); // Phase 1: Settings updated by admin
     }
 
