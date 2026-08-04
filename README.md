@@ -15,8 +15,8 @@ The Mysuru Paakashale ERP centralizes operations across the entire meal delivery
 The application is a standard React SPA (Single Page Application) powered by Vite, utilizing Firebase as a Backend-as-a-Service (BaaS).
 
 ### Tech Stack
-- **Frontend Framework**: React 18 (Vite)
-- **Routing**: React Router v6 (using `createBrowserRouter` with lazy loading)
+- **Frontend Framework**: React 19 (Vite)
+- **Routing**: React Router v7 (using `createBrowserRouter` with lazy loading)
 - **Styling**: Tailwind CSS v4 (Utility-first) + Custom Design System
 - **State Management & Data Fetching**: TanStack React Query v5 + Zustand (UI State)
 - **Icons**: Lucide React
@@ -68,6 +68,21 @@ Authentication is handled by Firebase Auth, but **Authorization** is handled via
    ```bash
    npm run dev
    ```
+
+### CI/CD and secrets
+
+`.env.local` is for local development only and must never be committed. The
+GitHub Actions workflows inject the Firebase, App Check, Sentry, and
+automation values from repository secrets at build or automation runtime.
+
+The required repository secrets are listed in `.env.example`. Pull requests
+run validation without deploying. A merge to `main` runs the production build
+and deploys Firebase Hosting, Firestore rules, and Storage rules after all
+required checks pass.
+
+Scheduled workflows run the daily, weekly, and monthly automation tasks. The
+weekly workflow creates a database backup; the monthly workflow creates the
+Excel export, backup, and retention cleanup.
 
 ### Deployment
 To build for production:

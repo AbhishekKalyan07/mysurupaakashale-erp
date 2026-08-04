@@ -13,6 +13,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    // Keep memory usage predictable on developer machines and CI runners.
+    fileParallelism: false,
+    maxWorkers: 2,
     exclude: ['node_modules', 'dist', 'tests/**', 'src/shared/services/business/__tests__/paymentService.test.ts', 'functions/**', '**/*.int.test.ts'],
     coverage: {
       provider: 'v8',

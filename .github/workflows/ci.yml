@@ -5,9 +5,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# Avoid wasting runners on superseded pull-request commits. Runs on main are
+# never cancelled so a deployment already in progress is allowed to finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=128m"
+  NODE_OPTIONS: "--max-old-space-size=4096"
 
 jobs:
   # ─── Stage 1: Code Quality ────────────────────────────────────────────────
@@ -117,10 +125,13 @@ jobs:
           echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}" >> .env.local
           echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env.local
           echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env.local
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+      # Chromium provides the fast, representative blocking browser check.
+      # The complete cross-browser matrix remains available locally and can be
+      # run manually with: npm run test:e2e
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
       - name: Run Playwright E2E Tests (with Firebase Emulator)
-        run: npm run test:e2e
+        run: npx playwright test --project=chromium
         env:
           VITE_USE_FIREBASE_EMULATORS: 'true'
       - name: Upload Playwright HTML Report
@@ -135,7 +146,7 @@ jobs:
   dependency-audit:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
-    needs: e2e-tests
+    needs: security-tests
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -145,8 +156,8 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Run npm audit (fail on critical/high only)
-        run: npm audit --audit-level=critical
+      - name: Run production dependency audit (fail on high/critical)
+        run: npm audit --omit=dev --audit-level=high
         continue-on-error: false
       - name: Generate audit report
         if: always()
@@ -175,6 +186,14 @@ jobs:
         run: npm ci
       - name: Build for Lighthouse
         run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: "mock-api-key"
+          VITE_FIREBASE_AUTH_DOMAIN: "mock-auth-domain"
+          VITE_FIREBASE_PROJECT_ID: "demo-test"
+          VITE_FIREBASE_STORAGE_BUCKET: "mock-storage-bucket"
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "mock-messaging-sender-id"
+          VITE_FIREBASE_APP_ID: "mock-app-id"
+          VITE_USE_FIREBASE_EMULATORS: "true"
       - name: Run Lighthouse CI
         run: npx lhci autorun
       - name: Upload Lighthouse Report
@@ -189,7 +208,7 @@ jobs:
   build:
     name: Production Build
     runs-on: ubuntu-latest
-    needs: lighthouse-ci
+    needs: [e2e-tests, lighthouse-ci]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -202,9 +221,17 @@ jobs:
       - name: Build production bundle
         run: npm run build
         env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

@@ -134,6 +134,14 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
 
         // userPhones
         setDoc(doc(db, 'userPhones', '9876543210'), { uid: CUSTOMER_A_UID }),
+
+        // Daily menus
+        setDoc(doc(db, 'dailyMenus', 'menu-published'), {
+          date: '2025-01-15', status: 'published', title: 'Published menu',
+        }),
+        setDoc(doc(db, 'dailyMenus', 'menu-draft'), {
+          date: '2025-01-16', status: 'draft', title: 'Internal draft menu',
+        }),
       ]);
     });
   });
@@ -185,6 +193,21 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       });
       const db = env.unauthenticatedContext().firestore();
       await assertSucceeds(getDoc(doc(db, 'mealPlans', 'plan-1')));
+    });
+
+    it('ALLOW: anonymous can read published daily menus', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertSucceeds(getDoc(doc(db, 'dailyMenus', 'menu-published')));
+    });
+
+    it('DENY: anonymous cannot read draft daily menus', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(db, 'dailyMenus', 'menu-draft')));
+    });
+
+    it('ALLOW: kitchen staff can read draft daily menus', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'dailyMenus', 'menu-draft')));
     });
   });
 

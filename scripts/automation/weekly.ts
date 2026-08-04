@@ -2,16 +2,15 @@
 // before Firebase (or any module that reads import.meta.env) is imported.
 import './env';
 import { authenticateForAutomation } from './auth';
-// import { automationService } from '@/shared/services/firestore/automationService';
+import { automationService } from '@/shared/services/firestore/automationService';
 
 async function runWeeklyTasks() {
   try {
     console.log('--- Starting Weekly Automation Tasks ---');
     await authenticateForAutomation();
 
-    console.log('1. Generating Weekly Reports...');
-    // We can reuse the monthly logic or just log for now
-    console.log('Weekly logic completed.');
+    console.log('1. Exporting weekly database backup...');
+    await automationService.exportDatabaseBackup();
 
     console.log('--- Weekly Automation Tasks Completed Successfully ---');
     process.exit(0);
