@@ -268,10 +268,14 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > $HOME/serviceAccount.json
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is empty or missing. Please add it to GitHub secrets."
+            exit 1
+          fi
+          echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ runner.temp }}/serviceAccount.json
       - name: Deploy to Firebase Hosting
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: $HOME/serviceAccount.json
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/serviceAccount.json
         run: |
           npm install -g firebase-tools
           firebase deploy --only hosting,firestore:rules,storage
