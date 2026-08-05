@@ -44,7 +44,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
           <div className="flex flex-col items-center">
             {/* Using scale to visually enlarge it while keeping physical layout height very small */}
             <img 
-              src="/no_bg_logo.png" 
+              src="/mplogo.jpg" 
               alt="Mysuru Paakashale Logo" 
               className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-sm scale-[1.75] md:scale-[1.85] translate-y-2" 
             />
