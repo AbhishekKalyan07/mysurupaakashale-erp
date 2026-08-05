@@ -16,7 +16,8 @@
     "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview",
     "db:wipe": "vite-node scripts/wipeUserData.ts",
-    "db:seed-plans": "vite-node scripts/seedPlans.ts"
+    "db:seed-plans": "vite-node scripts/seedPlans.ts",
+    "emulators:start": "firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

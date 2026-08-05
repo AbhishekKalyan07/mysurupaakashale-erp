@@ -70,14 +70,14 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/favicon.svg',
+            src: '/mplogo.jpg',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/jpeg'
           },
           {
-            src: '/no_bg_logo.png',
+            src: '/mplogo.jpg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/jpeg'
           }
         ]
       }
