@@ -70,7 +70,7 @@ export function DesktopSignupPage() {
 
   return (
     <DesktopAuthLayout>
-      <div className="w-full bg-white/50 p-6 md:p-8 rounded-[32px] backdrop-blur-md border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in duration-500">
+      <div className="w-full bg-white p-6 md:p-8 rounded-[32px] border border-[#e8ded2] shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in duration-500">
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3 w-full">
           <div>
             <h1 className="font-display text-3xl font-bold text-[#2c150c] tracking-tight leading-none">
@@ -85,7 +85,7 @@ export function DesktopSignupPage() {
             <div>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-5 h-5" />
-                <input type="text" placeholder="Full Name" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('fullName')} />
+                <input type="text" placeholder="Full Name" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all" {...register('fullName')} />
               </div>
               {errors.fullName && <p className="text-sm text-red-600 ml-2 mt-1">{errors.fullName.message as string}</p>}
             </div>
@@ -93,7 +93,7 @@ export function DesktopSignupPage() {
             <div>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-5 h-5" />
-                <input type="email" autoCapitalize="none" autoCorrect="off" placeholder="Email address" className="lowercase h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('email')} />
+                <input type="email" autoCapitalize="none" autoCorrect="off" placeholder="Email address" className="lowercase h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all" {...register('email')} />
               </div>
               {errors.email && <p className="text-sm text-red-600 ml-2 mt-1">{errors.email.message as string}</p>}
             </div>
@@ -101,7 +101,7 @@ export function DesktopSignupPage() {
             <div>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-5 h-5" />
-                <input type="tel" placeholder="Mobile number" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('phone')} />
+                <input type="tel" placeholder="Mobile number" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all" {...register('phone')} />
               </div>
               {errors.phone && <p className="text-sm text-red-600 ml-2 mt-1">{errors.phone.message as string}</p>}
             </div>
@@ -109,7 +109,7 @@ export function DesktopSignupPage() {
             <div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-5 h-5" />
-                <input type={showPassword ? 'text' : 'password'} placeholder="Password" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('password')} />
+                <input type={showPassword ? 'text' : 'password'} placeholder="Password" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all" {...register('password')} />
                 <button aria-label="Button action" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
               </div>
               {errors.password && <p className="text-sm text-red-600 ml-2 mt-1">{errors.password.message as string}</p>}
@@ -118,7 +118,7 @@ export function DesktopSignupPage() {
             <div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-5 h-5" />
-                <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm Password" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('confirmPassword')} />
+                <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm Password" className="h-11 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all" {...register('confirmPassword')} />
                 <button aria-label="Button action" type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1">{showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
               </div>
               {errors.confirmPassword && <p className="text-sm text-red-600 ml-2 mt-1">{errors.confirmPassword.message as string}</p>}
@@ -139,12 +139,12 @@ export function DesktopSignupPage() {
 
           <div className="relative flex items-center justify-center w-full my-1">
             <div className="w-full border-t border-[#e8ded2]" />
-            <span className="absolute bg-[#f9f1e8] px-4 text-xs font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">Or</span>
+            <span className="absolute bg-[#f9f1e8] px-4 py-0.5 text-xs font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">Or</span>
           </div>
 
-          <button aria-label="Button action" type="button" onClick={handleGoogleSignUpClick} disabled={googleLoading} className="w-full h-11 rounded-xl border border-[#e8ded2] bg-white hover:bg-stone-50 text-[#2c150c] font-semibold text-[15px] flex items-center justify-center gap-3 shadow-sm transition-colors">
+          <button aria-label="Button action" type="button" onClick={handleGoogleSignUpClick} disabled={googleLoading} className="w-full h-11 rounded-xl border border-[#e8ded2] bg-white hover:bg-stone-50 text-[#2c150c] font-semibold text-[15px] flex items-center justify-center gap-3 shadow-sm transition-all">
             {googleLoading ? <span className="animate-spin h-5 w-5 border-2 border-[#8c746a] border-t-[#2c150c] rounded-full" /> : (
-              <><svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" /><path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" /><path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" /><path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" /></svg>Continue with Google</>
+              <><svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" /><path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" /><path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" /><path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" /></svg>Create account using Google</>
             )}
           </button>
         </form>

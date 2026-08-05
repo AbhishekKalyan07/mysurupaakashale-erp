@@ -17,9 +17,9 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
       {/* Full Screen Background */}
       <div className="absolute inset-0 pointer-events-none z-0 hidden md:block">
         <img
-          src="/auth_bg.webp"
+          src="/login-reference.webp"
           alt="Background"
-          className="w-full h-full object-cover opacity-20 mix-blend-multiply"
+          className="w-full h-full object-cover"
         />
       </div>
 
@@ -46,7 +46,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
             <img 
               src="/no_bg_logo.png" 
               alt="Mysuru Paakashale Logo" 
-              className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-sm scale-[1.5] md:scale-[1.6] translate-y-2" 
+              className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-sm scale-[1.75] md:scale-[1.85] translate-y-2" 
             />
           </div>
         </div>

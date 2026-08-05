@@ -57,6 +57,10 @@ export default defineConfig({
         disabled: true,
         config: false,
       },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       manifest: {
         name: 'Mysuru Paakashale ERP',
         short_name: 'Paakashale',

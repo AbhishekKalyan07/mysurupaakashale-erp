@@ -79,8 +79,8 @@ export function DesktopLoginPage() {
 
   return (
     <DesktopAuthLayout>
-      {/* FROSTED GLASS CARD */}
-      <div className="w-full bg-white/50 p-6 md:p-8 rounded-[32px] backdrop-blur-md border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in duration-500">
+      {/* SOLID CARD */}
+      <div className="w-full bg-white p-6 md:p-8 rounded-[32px] border border-[#e8ded2] shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in duration-500">
 
         {forgotPasswordMode ? (
           <form onSubmit={handleResetPassword} noValidate className="w-full flex flex-col gap-4">
@@ -107,7 +107,7 @@ export function DesktopLoginPage() {
                   autoCorrect="off"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value.toLowerCase())}
-                  className="lowercase h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
+                  className="lowercase h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all"
                 />
               </div>
             </div>
@@ -159,7 +159,7 @@ export function DesktopLoginPage() {
                     required
                     autoCapitalize="none"
                     autoCorrect="off"
-                    className="lowercase h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
+                    className="lowercase h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-4 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all"
                     {...register('email')}
                   />
                 </div>
@@ -177,7 +177,7 @@ export function DesktopLoginPage() {
                     placeholder="Password"
                     autoComplete="current-password"
                     required
-                    className="h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]"
+                    className="h-11 md:h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-12 pr-12 text-[15px] text-[#2c150c] placeholder:text-[#8c746a] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417] transition-all"
                     {...register('password')}
                   />
                   <button
@@ -219,7 +219,7 @@ export function DesktopLoginPage() {
 
             <div className="relative flex items-center justify-center w-full my-2">
               <div className="w-full border-t border-[#e8ded2]" />
-              <span className="absolute bg-[#f9f1e8] px-4 text-xs font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">
+              <span className="absolute bg-white px-4 text-xs font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">
                 Or
               </span>
             </div>
@@ -228,7 +228,7 @@ export function DesktopLoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
-              className="w-full h-11 md:h-12 rounded-xl border border-[#e8ded2] bg-white hover:bg-stone-50 text-[#2c150c] font-semibold text-[15px] flex items-center justify-center gap-3 shadow-sm transition-colors"
+              className="w-full h-11 md:h-12 rounded-xl border border-[#e8ded2] bg-white hover:bg-stone-50 text-[#2c150c] font-semibold text-[15px] flex items-center justify-center gap-3 shadow-sm transition-all"
             >
               {isGoogleLoading ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#8c746a] border-t-[#2c150c]" />
@@ -240,7 +240,7 @@ export function DesktopLoginPage() {
                     <path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" />
                     <path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" />
                   </svg>
-                  Continue with Google
+                  Sign in with Google
                 </>
               )}
             </button>

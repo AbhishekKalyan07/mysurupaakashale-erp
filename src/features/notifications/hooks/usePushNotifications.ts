@@ -35,7 +35,11 @@ export function usePushNotifications() {
           return;
         }
 
-        const currentToken = await getToken(messaging, { vapidKey });
+        const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready : undefined;
+        const currentToken = await getToken(messaging, { 
+          vapidKey,
+          serviceWorkerRegistration: registration,
+        });
         
         if (currentToken) {
           // Save the token to the user's document

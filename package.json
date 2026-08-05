@@ -14,7 +14,9 @@
     "test:security": "vitest run --test-timeout=30000 --config vitest.int.config.ts tests/security/",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:wipe": "vite-node scripts/wipeUserData.ts",
+    "db:seed-plans": "vite-node scripts/seedPlans.ts"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

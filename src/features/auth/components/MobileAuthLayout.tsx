@@ -17,7 +17,7 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
       <div 
         className="absolute inset-0 z-0 pointer-events-none"
         style={{
-          backgroundImage: "url('/Untitled%20design.png')",
+          backgroundImage: "url('/mobile_ui_loginbg.webp')",
           backgroundSize: '100% auto',
           backgroundPosition: 'top center',
           backgroundRepeat: 'no-repeat',
