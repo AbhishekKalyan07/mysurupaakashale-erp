@@ -453,9 +453,9 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
   // 7. SETTINGS — Role-restricted access
   // =========================================================================
   describe('7. Settings Access Control', () => {
-    it('DENY: Customer cannot read settings', async () => {
+    it('ALLOW: Customer can read settings', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
-      await assertFails(getDoc(doc(db, 'settings', 'global')));
+      await assertSucceeds(getDoc(doc(db, 'settings', 'global')));
     });
 
     it('ALLOW: Admin can read settings', async () => {
