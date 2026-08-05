@@ -6,6 +6,7 @@ import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { STAFF_ROLES } from '@/shared/constants/roles';
 import { useCreateStaffUser } from '../hooks/useAdmin';
+import { useDeliveryZones } from '../hooks/useDeliveryZones';
 import { toast } from 'react-hot-toast';
 
 const staffSchema = z.object({
@@ -21,14 +22,13 @@ const staffSchema = z.object({
   role: z.enum(STAFF_ROLES as [string, ...string[]]),
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
-  zoneIds: z.string().optional(),
+  zoneIds: z.array(z.string()).optional(),
 }).superRefine((data, ctx) => {
   if (data.role === 'kitchen' && !data.kitchenId) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['kitchenId'], message: 'Kitchen ID is required' });
   }
   if (data.role === 'delivery_partner') {
     if (!data.vehicleType) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['vehicleType'], message: 'Vehicle Type is required' });
-    if (!data.zoneIds) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['zoneIds'], message: 'Zone IDs required (comma separated)' });
   }
 });
 
@@ -41,17 +41,18 @@ interface Props {
 export function CreateStaffModal({ onClose }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
-    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ' }
+    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ', zoneIds: [] }
   });
 
   const selectedRole = watch('role');
   const createMutation = useCreateStaffUser();
+  const { data: zones = [], isLoading: isLoadingZones } = useDeliveryZones();
 
   const onSubmit = async (data: StaffForm) => {
     try {
       const payload: any = { ...data };
-      if (data.role === 'delivery_partner' && data.zoneIds) {
-        payload.zoneIds = data.zoneIds.split(',').map(s => s.trim()).filter(Boolean);
+      if (data.role === 'delivery_partner') {
+        payload.zoneIds = data.zoneIds || [];
       }
       await createMutation.mutateAsync(payload);
       toast.success('Staff account created successfully!');
@@ -127,9 +128,31 @@ export function CreateStaffModal({ onClose }: Props) {
                   </select>
                   {errors.vehicleType && <p className="text-xs text-danger">{errors.vehicleType.message}</p>}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-ink-700">Assigned Zone IDs (comma separated)</label>
-                  <input {...register('zoneIds')} placeholder="e.g. ZONE_MYQ_01, ZONE_MYQ_02" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-ink-700 flex justify-between items-center">
+                    <span>Assigned Zones</span>
+                    {isLoadingZones && <span className="text-xs text-ink-500 font-sans">Loading zones...</span>}
+                  </label>
+                  
+                  {zones.length === 0 ? (
+                    <div className="text-xs text-ink-500 italic py-2 bg-white rounded-lg px-3 border border-dashed border-rice-300">
+                      No delivery zones created yet. You can create staff now and assign zones later in staff edit view.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-rice-300 rounded-lg p-2.5 bg-white">
+                      {zones.map(zone => (
+                        <label key={zone.id} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            value={zone.id}
+                            {...register('zoneIds')}
+                            className="rounded border-rice-300 text-leaf-600 focus:ring-leaf-500"
+                          />
+                          <span className="truncate">{zone.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                   {errors.zoneIds && <p className="text-xs text-danger">{errors.zoneIds.message}</p>}
                 </div>
               </div>

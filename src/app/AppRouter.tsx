@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
+import { GuestRoute } from '@/features/auth/components/GuestRoute';
 import { RequireCompleteProfile } from '@/features/customer/components/RequireCompleteProfile';
 import { AppShell } from '@/shared/components/layout/AppShell';
 import { RouteErrorBoundary } from '@/shared/components/feedback/RouteErrorBoundary';
@@ -55,8 +56,13 @@ const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouter(createBrowserRo
 
 const router = sentryCreateBrowserRouter([
   { path: '/', element: <RootRedirect /> },
-  { path: '/login', element: withSuspense(LoginPage) },
-  { path: '/signup', element: withSuspense(SignupPage) },
+  {
+    element: <GuestRoute />,
+    children: [
+      { path: '/login', element: withSuspense(LoginPage) },
+      { path: '/signup', element: withSuspense(SignupPage) },
+    ],
+  },
   { path: '/terms', element: withSuspense(TermsOfServicePage) },
   { path: '/privacy', element: withSuspense(PrivacyPolicyPage) },
   {

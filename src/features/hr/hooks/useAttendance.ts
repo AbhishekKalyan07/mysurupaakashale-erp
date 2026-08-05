@@ -24,6 +24,14 @@ export function useAttendanceByDate(date: string) {
   });
 }
 
+export function useAttendanceRecord(staffId: string, date: string) {
+  return useQuery({
+    queryKey: queryKeys.attendance.record(staffId, date),
+    queryFn: () => attendanceRepository.getRecord(staffId, date),
+    enabled: !!staffId && !!date,
+  });
+}
+
 export function useAttendanceByStaff(staffId: string, startDate?: string, endDate?: string) {
   return useQuery({
     queryKey: [...queryKeys.attendance.byStaff(staffId), startDate, endDate],
