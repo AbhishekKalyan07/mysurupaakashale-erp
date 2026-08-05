@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 import { signIn, signInWithGoogle, mapAuthError, resetPassword } from '../services/authService';
 import { MobileAuthLayout } from '../components/MobileAuthLayout';
+import { DevLoginWidget } from '../components/__dev__/DevLoginWidget';
 import type { LoginFormValues } from '../types/auth.types';
 
 const loginSchema = z.object({
@@ -254,6 +255,8 @@ export function MobileLoginPage() {
             </p>
           </form>
         )}
+
+        <DevLoginWidget />
 
         <p className="mt-5 text-[10px] text-[#5a4a44] text-center">
           By continuing, you agree to our{' '}

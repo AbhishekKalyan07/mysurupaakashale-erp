@@ -60,7 +60,9 @@ service cloud.firestore {
 
     // ---------- users/{userId} ----------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin() || isAccounts() || (isSignedIn() && resource.data.role == 'delivery_partner');
+      allow read: if isOwner(userId) || isAdmin() || isAccounts() || 
+                     (isSignedIn() && resource.data.get('role', null) == 'delivery_partner') ||
+                     (isSignedIn() && resource.data.get('deliveryPartnerId', null) == request.auth.uid);
 
       // Phase 2: Client-side user creation allowed for customers
       // Phase 9: Admin can create staff users directly from the client
@@ -367,7 +369,7 @@ service cloud.firestore {
       // actions, but restrict the writable fields to prevent content injection.
       allow create: if isSignedIn() &&
                        request.resource.data.actorId == request.auth.uid &&
-                       request.resource.data.keys().hasOnly(['actorId', 'actorRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'ipAddress', 'sessionId']);
+                       request.resource.data.keys().hasOnly(['actorId', 'actorName', 'actorRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'ipAddress', 'sessionId']);
       allow update, delete: if false; // Audit logs must be immutable
     }
 

@@ -522,6 +522,7 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(addDoc(collection(db, 'auditLogs'), {
         actorId: CUSTOMER_A_UID,
+        actorName: 'Customer A',
         actorRole: 'customer',
         action: 'subscription_paused',
         entityType: 'subscription',

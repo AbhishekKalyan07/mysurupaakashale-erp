@@ -16,11 +16,15 @@ export function DeliveryPartnerPage() {
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
 
   const { data: customers = [] } = useQuery({
-    queryKey: ['users', 'customers'],
+    queryKey: ['users', 'customers', firebaseUser?.uid],
     queryFn: async () => {
       const { where } = await import('firebase/firestore');
-      return userRepository.list(where('role', '==', 'customer'));
+      return userRepository.list(
+        where('role', '==', 'customer'),
+        where('deliveryPartnerId', '==', firebaseUser?.uid)
+      );
     },
+    enabled: !!firebaseUser?.uid,
     staleTime: 1000 * 60 * 5,
   });
   
