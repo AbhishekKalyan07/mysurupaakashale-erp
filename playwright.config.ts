@@ -84,7 +84,9 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
       env: {
-        VITE_USE_FIREBASE_EMULATORS: 'true'
+        VITE_USE_FIREBASE_EMULATORS: 'true',
+        VITE_FIREBASE_PROJECT_ID: 'demo-test',
+        VITE_FIREBASE_API_KEY: 'fake-api-key'
       }
     },
     {
