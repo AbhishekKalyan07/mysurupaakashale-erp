@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { orderService } from '../orderService';
 import { deliveryService } from '../deliveryService';
-import { subscriptionService } from '../subscriptionService';
 import { customerService } from '../customerService';
 import { paymentService } from '../paymentService';
 import { billingService } from '../billingService';
@@ -75,13 +74,15 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
     id: `cust_${i + 1}`,
     displayId: `MP-CUST-${100 + i}`,
     fullName: `Customer ${i + 1}`,
+    email: `customer${i + 1}@example.com`,
     phone: `98765432${(i + 10).toString().padStart(2, '0')}`,
+    photoUrl: null,
     role: 'customer',
     isActive: true,
     zoneId: i < 15 ? 'zone_1' : 'zone_2',
     deliveryPartnerId: i < 15 ? 'driver_1' : 'driver_2',
     addresses: [
-      { id: `addr_${i + 1}`, label: 'Home', line1: `${i + 1} Main St`, city: 'Mysuru', state: 'Karnataka', pincode: i < 15 ? '570001' : '570002' }
+      { id: `addr_${i + 1}`, label: 'Home', line1: `${i + 1} Main St`, city: 'Mysuru', state: 'Karnataka', pincode: i < 15 ? '570001' : '570002', lat: null, lng: null, isDefault: true }
     ],
     defaultAddressId: `addr_${i + 1}`,
     createdAt: '2026-01-01' as any,
@@ -89,9 +90,9 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   }));
 
   const mockDrivers: DeliveryPartnerProfile[] = [
-    { id: 'driver_1', displayId: 'DP-01', fullName: 'Driver Ramesh', phone: '9900112233', role: 'delivery_partner', isActive: true, zoneIds: ['zone_1'], vehicleType: 'bike', createdAt: '' as any, updatedAt: '' as any },
-    { id: 'driver_2', displayId: 'DP-02', fullName: 'Driver Suresh', phone: '9900112234', role: 'delivery_partner', isActive: true, zoneIds: ['zone_2'], vehicleType: 'bike', createdAt: '' as any, updatedAt: '' as any },
-    { id: 'driver_3', displayId: 'DP-03', fullName: 'Driver Mahesh', phone: '9900112235', role: 'delivery_partner', isActive: true, zoneIds: ['zone_1', 'zone_2'], vehicleType: 'auto', createdAt: '' as any, updatedAt: '' as any },
+    { id: 'driver_1', displayId: 'DP-01', fullName: 'Driver Ramesh', email: 'driver1@example.com', photoUrl: null, phone: '9900112233', role: 'delivery_partner', isActive: true, zoneIds: ['zone_1'], vehicleType: 'bike', isAvailable: true, currentLocation: null, createdAt: '' as any, updatedAt: '' as any },
+    { id: 'driver_2', displayId: 'DP-02', fullName: 'Driver Suresh', email: 'driver2@example.com', photoUrl: null, phone: '9900112234', role: 'delivery_partner', isActive: true, zoneIds: ['zone_2'], vehicleType: 'bike', isAvailable: true, currentLocation: null, createdAt: '' as any, updatedAt: '' as any },
+    { id: 'driver_3', displayId: 'DP-03', fullName: 'Driver Mahesh', email: 'driver3@example.com', photoUrl: null, phone: '9900112235', role: 'delivery_partner', isActive: true, zoneIds: ['zone_1', 'zone_2'], vehicleType: 'bike', isAvailable: true, currentLocation: null, createdAt: '' as any, updatedAt: '' as any },
   ];
 
   const mockZones = [
@@ -117,6 +118,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
     billingCycle: 'monthly',
     autoRenew: true,
     deliveryAddressId: `addr_${i + 1}`,
+    zoneId: c.zoneId || null,
     latestPaymentId: `pay_${i + 1}`,
     creditBalance: 0,
     depositAmount: 1000,
@@ -199,6 +201,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
       source: 'subscription',
       customerId: 'cust_1',
       subscriptionId: 'sub_1',
+      planTier: 'regular',
       mealType: 'lunch',
       date: TEST_DATE,
       customerName: 'Customer 1',
@@ -206,6 +209,13 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
       deliveryPartnerId: 'driver_1',
       price: 150,
       currency: 'INR',
+      itemsLabel: 'Standard Lunch',
+      selectedOptionId: 'opt_thali',
+      deliveryAddressId: 'addr_1',
+      zoneId: 'zone_1',
+      kitchenId: 'kitch_1',
+      deliveryWindow: null,
+      paymentId: null,
       createdAt: '' as any,
       updatedAt: '' as any
     };
