@@ -161,7 +161,22 @@ export function useUpdateDeliveryStatus() {
           if (newStatus === 'out_for_delivery') {
             return notifyOrderOutForDelivery(order.customerId, orderId, mealType);
           } else if (newStatus === 'delivered') {
-            return notifyOrderDelivered(order.customerId, orderId, mealType);
+            notifyOrderDelivered(order.customerId, orderId, mealType).catch(console.error);
+            import('@/shared/services/firestore/notificationService').then(m => {
+              // Get accounts users and notify them
+              import('@/shared/services/firestore/userRepository').then(userRepo => {
+                userRepo.userRepository.list(import('firebase/firestore').then(f => f.where('role', '==', 'accounts')) as any)
+                  .then(accounts => {
+                    accounts.forEach(acc => m.notifyAccountsDelivered(acc.id, orderId, mealType).catch(console.error));
+                  }).catch(console.error);
+              }).catch(console.error);
+            }).catch(console.error);
+            
+            import('@/shared/services/firestore/auditRepository').then(m => {
+              m.auditRepository.logAction('order_delivered', order.deliveryPartnerId || 'system', 'Driver', orderId, 'order').catch(console.error);
+            }).catch(console.error);
+            
+            return;
           } else if (newStatus === 'failed_delivery') {
             return notifyDeliveryFailed(order.customerId, orderId, mealType);
           }

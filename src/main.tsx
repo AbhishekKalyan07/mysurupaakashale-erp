@@ -29,9 +29,9 @@ Sentry.init({
     }),
   ],
   // Performance Monitoring
-  tracesSampleRate: import.meta.env.PROD ? 0.2 : 1.0, 
+  tracesSampleRate: 1.0, 
   // Session Replay
-  replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 0.0, 
+  replaysSessionSampleRate: import.meta.env.PROD ? 1.0 : 0.0, 
   replaysOnErrorSampleRate: 1.0, 
 })
 

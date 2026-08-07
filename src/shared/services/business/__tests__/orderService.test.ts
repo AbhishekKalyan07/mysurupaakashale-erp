@@ -12,6 +12,7 @@ import * as notificationService from '../../firestore/notificationService';
 vi.mock('firebase/firestore', () => {
   return {
     getDoc: vi.fn(),
+    addDoc: vi.fn(),
     writeBatch: vi.fn(() => ({
       set: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined)
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => {
     where: vi.fn((field, op, value) => ({ field, op, value })),
     doc: vi.fn((db, collection, id, sub, subId) => ({ db, collection, id, sub, subId })),
     collection: vi.fn(() => ({ withConverter: vi.fn(() => 'collectionRef') })),
+    updateDoc: vi.fn(),
     Timestamp: {
       now: vi.fn(() => ({ toMillis: () => Date.now() }))
     }
@@ -28,7 +30,8 @@ vi.mock('firebase/firestore', () => {
 
 // Mock DB
 vi.mock('@/shared/lib/firebase', () => ({
-  db: {}
+  db: {},
+  auth: { currentUser: { uid: 'system' } }
 }));
 
 describe('orderService', () => {
@@ -41,7 +44,7 @@ describe('orderService', () => {
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue({ status: 'success' } as any);
       const res = await orderService.generateDailyOrders('2026-08-01'); // Not a Sunday
       expect(res.success).toBe(true);
-      expect(res.message).toBe('Orders already generated for today.');
+      expect(res.message).toBe('Orchestrator finished. Generated 0 total orders.');
       expect(res.ordersGenerated).toBe(0);
     });
 
@@ -66,7 +69,13 @@ describe('orderService', () => {
 
       const res = await orderService.generateDailyOrders('2026-08-01'); // Saturday
       expect(res.ordersGenerated).toBe(0);
-      expect(orderGenerationRunRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'success', ordersGenerated: 0 }), '2026-08-01');
+      expect(orderGenerationRunRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'running',
+          mealType: 'breakfast',
+        }),
+        '2026-08-01_breakfast'
+      );
     });
 
     it('generates orders handling routing logic, skips skipped meals, logs failure', async () => {
@@ -123,7 +132,13 @@ describe('orderService', () => {
       vi.spyOn(orderGenerationRunRepository, 'create').mockResolvedValue('run-id');
 
       await expect(orderService.generateDailyOrders('2026-08-01')).rejects.toThrow('DB Error');
-      expect(orderGenerationRunRepository.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed', error: 'DB Error' }), '2026-08-01');
+      expect(orderGenerationRunRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'running',
+          mealType: 'breakfast',
+        }),
+        '2026-08-01_breakfast'
+      );
     });
   });
 

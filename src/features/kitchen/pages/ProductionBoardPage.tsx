@@ -14,6 +14,7 @@ import { auditRepository } from '@/shared/services/firestore/auditRepository';
 // Sub-components
 import { KitchenSummaryCards } from '@/features/kitchen/components/KitchenSummaryCards';
 import { KitchenProductionTable } from '@/features/kitchen/components/KitchenProductionTable';
+import { KitchenProductionSummary } from '@/features/kitchen/components/KitchenProductionSummary';
 import { PackingList } from '@/features/kitchen/components/PackingList';
 import { PrintPackingSheet } from '@/features/kitchen/components/PrintPackingSheet';
 import { UnlockProductionModal } from '@/features/kitchen/components/UnlockProductionModal';
@@ -34,7 +35,7 @@ export function ProductionBoardPage() {
     profile
   } = useProductionBoard();
 
-  const [activeTab, setActiveTab] = useState<'production' | 'packing'>('production');
+  const [activeTab, setActiveTab] = useState<'summary' | 'production' | 'packing'>('summary');
   const [isUnlockModalOpen, setUnlockModalOpen] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
 
@@ -57,7 +58,6 @@ export function ProductionBoardPage() {
     if (!user) return;
     setIsLocking(true);
     try {
-      // Create snapshot using current summary + date + version
       const snapshot = { ...summary, date: today, version: 1 };
       await dailyProductionRepository.lockProduction(today, user.uid, snapshot);
       
@@ -174,6 +174,16 @@ export function ProductionBoardPage() {
       {/* ── Tabs ── */}
       <div className="flex border-b border-rice-200">
         <button aria-label="Button action"
+          onClick={() => setActiveTab('summary')}
+          className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
+            activeTab === 'summary' 
+              ? 'border-leaf-600 text-leaf-700' 
+              : 'border-transparent text-ink-500 hover:text-ink-700'
+          }`}
+        >
+          Production Summary
+        </button>
+        <button aria-label="Button action"
           onClick={() => setActiveTab('production')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'production' 
@@ -181,7 +191,7 @@ export function ProductionBoardPage() {
               : 'border-transparent text-ink-500 hover:text-ink-700'
           }`}
         >
-          Production Board
+          Packing List
         </button>
         <button aria-label="Button action"
           onClick={() => setActiveTab('packing')}
@@ -191,12 +201,16 @@ export function ProductionBoardPage() {
               : 'border-transparent text-ink-500 hover:text-ink-700'
           }`}
         >
-          Area-wise Packing List
+          Area-wise Packing
         </button>
       </div>
 
       {/* ── Tab Content ── */}
       <div className="mt-4">
+        {activeTab === 'summary' && (
+          <KitchenProductionSummary orders={orders} />
+        )}
+
         {activeTab === 'production' && (
           <KitchenProductionTable
             orders={orders}

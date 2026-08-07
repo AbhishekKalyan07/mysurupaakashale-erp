@@ -49,9 +49,10 @@ export function DeliveryPartnerTable({
     <div className="space-y-3">
       {orders.map((order, index) => {
         const customer = customerMap.get(order.customerId);
-        const customerName = customer?.fullName || 'Unknown Customer';
+        const customerName = order.customerName || customer?.fullName || 'Unknown Customer';
+        const phone = order.customerPhone || customer?.phone;
         const addr = customer?.addresses?.find((a: any) => a.id === customer?.defaultAddressId) || customer?.addresses?.[0];
-        const addressText = addr ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') : order.deliveryAddressId || undefined;
+        const addressText = order.address || (addr ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') : order.deliveryAddressId || undefined);
         const addressCoords = addr && addr.lat && addr.lng ? { lat: addr.lat, lng: addr.lng } : null;
 
         return (
@@ -62,12 +63,14 @@ export function DeliveryPartnerTable({
             sequenceNumber={index + 1}
             customer={{
               fullName: customerName,
-              displayId: customer?.displayId,
-              phone: customer?.phone,
+              displayId: order.customerCode || customer?.displayId,
+              phone: phone,
               photoUrl: customer?.photoUrl,
               address: addressText,
               addressCoords: addressCoords,
             }}
+            zoneName={order.zoneName}
+            planName={order.planName}
             onStatusChange={handleStatusChange}
             isAdvancing={isAdvancingId === order.id}
           />

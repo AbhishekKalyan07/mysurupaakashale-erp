@@ -208,61 +208,61 @@ export function CustomerDashboardPage() {
               <div className="absolute top-0 right-0 left-0 bg-gold h-1 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
             )}
             
-            <div className="p-6 md:p-8">
-              <h2 className="text-2xl font-display font-bold text-primary mb-6 flex items-center gap-3">
-                <UtensilsCrossed size={24} className="text-gold" /> Live Meal Subscription
+            <div className="p-4 md:p-5">
+              <h2 className="text-lg font-display font-bold text-primary mb-3 flex items-center gap-2">
+                <UtensilsCrossed size={18} className="text-gold" /> Live Meal Subscription
               </h2>
 
               {subscription ? (
-                <div className="space-y-8">
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-6 bg-background p-6 rounded-2xl border border-primary/10 shadow-sm">
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-background p-4 rounded-xl border border-primary/10 shadow-xs">
                     <div>
-                      <h3 className="font-sans font-bold text-primary text-lg flex items-center gap-3">
+                      <h3 className="font-sans font-bold text-primary text-base flex items-center gap-2">
                         {selectedPlan?.name || 'Loading plan details...'}
-                        <span className="text-xs text-primary font-bold bg-gold/20 px-3 py-1 rounded-full border border-gold/30">
+                        <span className="text-[10px] text-primary font-bold bg-gold/20 px-2.5 py-0.5 rounded-full border border-gold/30">
                           {subscription.quantity || 1} {subscription.quantity === 1 ? 'Person' : 'People'}
                         </span>
                       </h3>
-                      <p className="text-text-muted text-sm mt-2 font-medium">
-                        Post-paid monthly billing • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day total
+                      <p className="text-text-muted text-xs mt-1 font-medium">
+                        Post-paid monthly • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-3">
-                      <Badge variant={getStatusBadgeVariant(subscription.status)} className="capitalize font-sans px-4 py-1.5 font-bold text-xs tracking-wider">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
+                      <Badge variant={getStatusBadgeVariant(subscription.status)} className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider">
                         {subscription.status.replace('_', ' ')}
                       </Badge>
-                      <div className="bg-primary/5 border border-primary/10 text-primary px-4 py-2 rounded-xl text-xs font-sans text-right shadow-sm">
-                        <span className="block font-bold text-text-muted mb-1 text-[10px] uppercase tracking-wider">Current Accrued Bill</span>
-                        <strong className="text-lg font-bold font-data text-gold-dark">₹{accruedBill || 0}</strong>
+                      <div className="bg-primary/5 border border-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-sans text-right shadow-xs flex sm:flex-col items-center sm:items-end gap-1 sm:gap-0">
+                        <span className="font-bold text-text-muted text-[9px] uppercase tracking-wider">Accrued Bill:</span>
+                        <strong className="text-sm font-bold font-data text-gold-dark">₹{accruedBill || 0}</strong>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6 font-sans text-sm">
+                  <div className="grid sm:grid-cols-2 gap-3 font-sans text-xs">
                     {/* Next Delivery info */}
-                    <div className="space-y-3 bg-background p-5 rounded-xl border border-primary/10">
-                      <span className="text-text-muted font-bold uppercase tracking-wider block text-[10px]">
-                        Delivery Schedule & Stats
+                    <div className="space-y-2 bg-background p-3.5 rounded-xl border border-primary/10">
+                      <span className="text-text-muted font-bold uppercase tracking-wider block text-[9px]">
+                        Delivery Schedule &amp; Stats
                       </span>
-                      <div className="flex items-start gap-3 text-primary">
-                        <Calendar size={18} className="text-gold shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-2.5 text-primary">
+                        <Calendar size={16} className="text-gold shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-bold text-primary">Starts: {subscription.startDate}</p>
-                          <div className="text-text-muted mt-2 font-medium text-xs flex gap-4">
-                            <span><strong className="text-primary">{subStats?.daysOrdered || 0}</strong> Days Delivered</span>
+                          <p className="font-bold text-primary text-xs">Starts: {subscription.startDate}</p>
+                          <div className="text-text-muted mt-1 font-medium text-[11px] flex gap-3">
+                            <span><strong className="text-primary">{subStats?.daysOrdered || 0}</strong> Delivered</span>
                             <span><strong className="text-primary">{subStats?.pausedDates?.length || 0}</strong> Pauses</span>
                           </div>
                           {subStats && subStats.pausedDates.length > 0 && (
-                            <p className="text-[10px] text-text-muted mt-1 italic">Paused on: {subStats.pausedDates.join(', ')}</p>
+                            <p className="text-[10px] text-text-muted mt-0.5 italic">Paused: {subStats.pausedDates.join(', ')}</p>
                           )}
                         </div>
                       </div>
                       
-                      <div className="flex items-start gap-3 text-primary mt-4 pt-4 border-t border-primary/5">
-                        <Truck size={18} className="text-gold shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-2.5 text-primary mt-2 pt-2 border-t border-primary/5">
+                        <Truck size={16} className="text-gold shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-bold text-primary">Your Delivery Partner</p>
-                          <div className="text-text-muted mt-1 font-medium text-xs">
+                          <p className="font-bold text-primary text-xs">Delivery Partner</p>
+                          <div className="text-text-muted mt-0.5 font-medium text-[11px]">
                             {deliveryPartner ? (
                               <span className="text-primary font-bold">{deliveryPartner.fullName}</span>
                             ) : (
@@ -274,87 +274,87 @@ export function CustomerDashboardPage() {
                     </div>
 
                     {/* Drop-off Address info */}
-                    <div className="space-y-3 bg-background p-5 rounded-xl border border-primary/10">
-                      <span className="text-text-muted font-bold uppercase tracking-wider block text-[10px]">
+                    <div className="space-y-2 bg-background p-3.5 rounded-xl border border-primary/10">
+                      <span className="text-text-muted font-bold uppercase tracking-wider block text-[9px]">
                         Drop-off Address
                       </span>
-                      <div className="flex items-start gap-3 text-primary">
-                        <MapPin size={18} className="text-gold shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-2.5 text-primary">
+                        <MapPin size={16} className="text-gold shrink-0 mt-0.5" />
                         <div>
                           {activeAddress ? (
                             <>
-                              <p className="font-bold text-primary">{activeAddress.label}</p>
-                              <p className="text-text-muted mt-1 font-medium text-xs line-clamp-1">{activeAddress.line1}</p>
+                              <p className="font-bold text-primary text-xs">{activeAddress.label}</p>
+                              <p className="text-text-muted mt-0.5 font-medium text-[11px] line-clamp-2">{activeAddress.line1}</p>
                             </>
                           ) : (
-                            <p className="text-danger font-bold">Address details missing</p>
+                            <p className="text-danger font-bold text-xs">Address details missing</p>
                           )}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-primary/10 pt-6 flex flex-wrap justify-end gap-3">
+                  <div className="border-t border-primary/10 pt-3 flex flex-wrap justify-end gap-2">
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => setShowFeedbackModal(true)}
-                      className="text-primary border-primary/20 hover:bg-gold/10 hover:text-gold hover:border-gold/30 font-bold"
+                      className="text-primary border-primary/20 hover:bg-gold/10 hover:text-gold hover:border-gold/30 font-bold text-xs"
                     >
-                      Report Issue <MessageSquareWarning size={16} className="ml-2" />
+                      Report Issue <MessageSquareWarning size={14} className="ml-1.5" />
                     </Button>
                     {subscription.status === 'paused' ? (
                       <Button
                         variant="secondary"
+                        size="sm"
                         onClick={() => setShowResumeModal(true)}
-                        className="text-success border-success/30 hover:bg-success/10 font-bold"
+                        className="text-success border-success/30 hover:bg-success/10 font-bold text-xs"
                       >
-                        Resume Subscription <Play size={16} className="ml-2 fill-current" />
+                        Resume <Play size={14} className="ml-1.5 fill-current" />
                       </Button>
                     ) : (
                       <Button
                         variant="secondary"
+                        size="sm"
                         onClick={() => setShowPauseModal(true)}
-                        className="text-primary border-primary/20 hover:bg-primary/10 font-bold"
+                        className="text-primary border-primary/20 hover:bg-primary/10 font-bold text-xs"
                       >
-                        Pause Delivery <Calendar size={16} className="ml-2" />
+                        Pause <Calendar size={14} className="ml-1.5" />
                       </Button>
                     )}
                     <Button
                       variant="primary"
+                      size="sm"
                       onClick={() => navigate('/customer/subscription')}
-                      className="font-bold"
+                      className="font-bold text-xs"
                     >
-                      Manage Subscription <ExternalLink size={16} className="ml-2" />
+                      Manage <ExternalLink size={14} className="ml-1.5" />
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-10 px-4 flex flex-col items-center justify-center bg-gradient-to-b from-transparent to-primary/5 rounded-3xl border border-primary/10 mt-4 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-                  
-                  <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm border border-primary/10 mb-4 relative z-10">
-                    <UtensilsCrossed size={24} className="text-gold" />
-                  </div>
-                  
-                  <h3 className="text-xl font-display font-bold text-primary mb-2 relative z-10">Start Your Culinary Journey</h3>
-                  <p className="text-text-muted font-sans text-sm mb-6 max-w-sm mx-auto relative z-10 leading-relaxed">
-                    You don't have an active meal subscription yet. Discover our curated plans and experience the taste of authentic home-style Karnataka meals delivered to your door.
+                <div className="text-center py-4 px-3 flex flex-col items-center justify-center bg-background rounded-xl border border-primary/10">
+                  <h3 className="text-base font-display font-bold text-primary mb-1">Start Your Culinary Journey</h3>
+                  <p className="text-text-muted font-sans text-xs mb-3 max-w-sm mx-auto leading-normal">
+                    No active meal subscription. Discover our curated plans for authentic daily meals delivered to your door.
                   </p>
                   
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center w-full max-w-md relative z-10">
+                  <div className="flex flex-row gap-2 justify-center items-center w-full max-w-xs">
                     <Button
                       onClick={() => navigate('/customer/plans')}
-                      className="font-sans font-bold uppercase tracking-wider text-[11px] px-6 py-2.5 w-full sm:w-auto shadow-md hover:shadow-lg transition-all"
+                      size="sm"
+                      className="font-sans font-bold text-xs px-4 py-2 flex-1 shadow-xs"
                     >
-                      Explore Meal Plans
+                      Explore Plans
                     </Button>
                     {hasPastOrders === false && (
                       <Button
                         variant="secondary"
                         onClick={() => setShowTrialModal(true)}
-                        className="font-sans font-bold uppercase tracking-wider text-[11px] px-6 py-2.5 bg-white text-gold-dark border-gold/30 hover:bg-gold/5 hover:border-gold/50 shadow-sm transition-all w-full sm:w-auto"
+                        size="sm"
+                        className="font-sans font-bold text-xs px-4 py-2 bg-white text-gold-dark border-gold/30 hover:bg-gold/5 shadow-xs flex-1"
                       >
-                        Book a Trial Meal
+                        Book Trial
                       </Button>
                     )}
                   </div>
@@ -375,25 +375,101 @@ export function CustomerDashboardPage() {
                 </span>
               )}
             </h3>
-            {todayOrders && todayOrders.length > 0 ? (
-              <div className="space-y-4">
-                {todayOrders.map((order) => (
-                  <div key={order.id} className="flex justify-between items-center p-4 rounded-xl border border-primary/10 bg-primary/5 transition-all hover:bg-primary/10">
-                    <div>
-                      <p className="font-bold font-sans text-primary text-base capitalize">{order.itemsLabel || order.mealType}</p>
-                      <p className="text-sm text-text-muted mt-1 font-medium font-data">Price: ₹{order.price || 0}</p>
-                    </div>
-                    <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize font-sans px-3 py-1 font-bold text-xs tracking-wider">
-                      {order.status.replace('_', ' ')}
-                    </Badge>
+            {(() => {
+              if (!todayOrders || todayOrders.length === 0) {
+                return (
+                  <div className="bg-background-alt border border-primary/10 rounded-xl p-6 text-center">
+                    <p className="text-base font-sans text-text-muted font-medium">No deliveries scheduled for today.</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-background-alt border border-primary/10 rounded-xl p-6 text-center">
-                <p className="text-base font-sans text-text-muted font-medium">No deliveries scheduled for today.</p>
-              </div>
-            )}
+                );
+              }
+              
+              const mealOrder = ['breakfast', 'lunch', 'dinner'];
+              const grouped = todayOrders.reduce((acc, order) => {
+                const mt = order.mealType || 'other';
+                if (!acc[mt]) acc[mt] = [];
+                acc[mt].push(order);
+                return acc;
+              }, {} as Record<string, typeof todayOrders>);
+              
+              return (
+                <div className="relative border-l-2 border-gold/30 ml-3 pl-6 space-y-8 py-2">
+                  {mealOrder.map((mealType) => {
+                    const orders = grouped[mealType];
+                    if (!orders || orders.length === 0) return null;
+                    
+                    return (
+                      <div key={mealType} className="relative">
+                        {/* Timeline dot */}
+                        <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-gold border-4 border-background shadow-sm" />
+                        
+                        <h4 className="font-bold text-base text-primary capitalize tracking-wide font-sans mb-3">
+                          {mealType}
+                        </h4>
+                        
+                        <div className="grid gap-3">
+                          {orders.map((order) => (
+                            <div key={order.id} className="p-4 rounded-xl border border-primary/10 bg-primary/5 shadow-sm space-y-3">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-bold font-sans text-primary text-base capitalize">
+                                    {order.itemsLabel || order.mealType}
+                                  </p>
+                                  {order.mealQuantity && order.mealQuantity > 1 && (
+                                    <p className="text-xs text-gold-dark font-bold bg-gold/10 px-2 py-0.5 rounded border border-gold/20 inline-block mt-1">Qty: {order.mealQuantity}</p>
+                                  )}
+                                </div>
+                                <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider shrink-0">
+                                  {order.status === 'delivered' ? '✔ Delivered' : order.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+
+                              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                                {order.driverName ? (
+                                  <div className="flex flex-col">
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Driver</span>
+                                    <span className="text-primary font-medium">{order.driverName}</span>
+                                    {order.driverPhone && <span className="text-text-muted text-xs">{order.driverPhone}</span>}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Location</span>
+                                    <span className="text-text-muted font-medium">Kitchen / Processing</span>
+                                  </div>
+                                )}
+                                
+                                {order.estimatedETA && order.status !== 'delivered' && (
+                                  <div className="flex flex-col">
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">ETA</span>
+                                    <span className="text-gold-dark font-bold">{order.estimatedETA}</span>
+                                  </div>
+                                )}
+
+                                {order.status === 'delivered' && order.updatedAt && (
+                                  <div className="flex flex-col">
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Delivered At</span>
+                                    <span className="text-success-dark font-bold">
+                                      {new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: 'numeric', hour12: true }).format(order.updatedAt.toDate ? order.updatedAt.toDate() : new Date(order.updatedAt as any))}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {order.billingStatus && (
+                                  <div className="flex flex-col">
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Billing</span>
+                                    <span className="text-primary font-medium">{order.billingStatus}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </Card>
 
           {/* Quick info panel */}

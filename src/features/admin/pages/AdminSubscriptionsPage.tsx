@@ -347,7 +347,7 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
       )}
       
       <div 
-        className="p-3 flex flex-col gap-2 cursor-pointer h-[130px]" 
+        className="p-3.5 flex flex-col gap-2 cursor-pointer min-h-[140px]" 
         onClick={() => { if(!menuOpen) onSelect(); }}
       >
         {/* Top Header Row */}
@@ -549,7 +549,7 @@ export function AdminSubscriptionsPage() {
             ))}
           </div>
           
-          <div className="flex items-center justify-between px-2 pt-4 border-t border-primary/10 mt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-4 border-t border-primary/10 mt-4 text-center sm:text-left">
             <span className="text-xs font-medium text-text-muted">
               Showing <strong className="text-primary">{rows.length}</strong> subscription{rows.length !== 1 ? 's' : ''}
             </span>

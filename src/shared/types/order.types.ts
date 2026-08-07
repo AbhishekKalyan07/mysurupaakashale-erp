@@ -18,22 +18,56 @@ export type OrderStatus =
 
 export type OrderSource = 'subscription' | 'one_time';
 
+export type KitchenStatus = 'Preparing' | 'Packing' | 'Packed' | 'Ready';
+export type BillingStatus = 'Not Generated' | 'Generated' | 'Delivered' | 'Invoiced' | 'Paid';
+
 /**
  * Firestore: `orders/{orderId}`.
  * One document = one meal, one date, one customer. Subscription orders are
  * generated daily by a scheduled Cloud Function (Phase: Kitchen/Orders);
  * one-time orders are created directly by the customer (the business
  * explicitly offers "single meals / one-time orders" alongside plans).
+ * 
+ * This document acts as the Operational Snapshot for the Day.
  */
 export interface Order {
   id: ID;
-  displayId?: string;
+  displayId?: string; // e.g. Customer Code MP-001
   source: OrderSource;
+  
+  // Normalized IDs
   customerId: ID;
   subscriptionId: ID | null; // null for one-time orders
   planTier: PlanTier | null; // null for one-time orders
   mealType: MealType;
   date: ISODateString;
+  
+  // Denormalized Operational Snapshot (Added for Workflow Enhancements)
+  customerName?: string;
+  customerCode?: string;
+  customerPhone?: string;
+  address?: string; // Full address string
+  zoneName?: string;
+  planName?: string;
+  driverName?: string;
+  driverPhone?: string;
+  mealName?: string;
+  mealQuantity?: number;
+  specialInstructions?: string;
+  packingNotes?: string;
+  billingStatus?: BillingStatus;
+  kitchenStatus?: KitchenStatus;
+
+  // SLA Tracking
+  preparingAt?: Timestamp;
+  packingAt?: Timestamp;
+  packedAt?: Timestamp;
+  readyAt?: Timestamp;
+  outForDeliveryAt?: Timestamp;
+  deliveredAt?: Timestamp;
+  
+  estimatedETA?: string;
+
   /** Denormalized snapshot of what's included, frozen at creation time so later menu edits don't rewrite history. */
   itemsLabel: string;
   selectedOptionId: string | null;

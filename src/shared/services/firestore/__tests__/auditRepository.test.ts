@@ -15,8 +15,8 @@ describe('auditRepository', () => {
         expect.anything(),
         expect.objectContaining({
           action: 'CREATE',
-          actorId: 'user-1',
-          actorName: 'John Doe',
+          performedBy: 'user-1',
+          performedByRole: 'John Doe',
           entityId: 'entity-1',
           entityType: 'Order',
           details: { amount: 100 },

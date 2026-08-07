@@ -54,35 +54,32 @@ export function DeliveryDispatchTable({ groupedOrders, customerMap, onReassign, 
                 </div>
               )}
 
-              {areaGroup.orders.map(order => {
+              {areaGroup.orders.map((order, index) => {
                 const customer = customerMap.get(order.customerId);
-                const addr = customer?.addresses?.find((a: any) => a.id === customer?.defaultAddressId) || customer?.addresses?.[0];
-                const addressText = addr ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') : undefined;
-                const planName = order.planTier 
-                  ? order.planTier.charAt(0).toUpperCase() + order.planTier.slice(1) 
-                  : null;
-
                 return (
                   <OrderCard
                     key={order.id}
                     order={order}
                     variant="admin"
+                    sequenceNumber={index + 1}
                     customer={{
-                      fullName: customer?.fullName || 'Unknown Customer',
-                      displayId: customer?.displayId,
-                      phone: customer?.phone,
+                      fullName: order.customerName || customer?.fullName || 'Unknown Customer',
+                      displayId: order.customerCode || customer?.displayId,
+                      phone: order.customerPhone || customer?.phone,
                       photoUrl: customer?.photoUrl,
-                      address: addressText,
+                      address: order.address,
+                      addressCoords: undefined,
                     }}
                     partnerName={partnerGroup.partnerName !== 'Unassigned' ? partnerGroup.partnerName : null}
-                    planName={planName}
+                    planName={order.planName}
                     zoneName={areaGroup.areaName !== 'Unknown Area' ? areaGroup.areaName : undefined}
                     extraActions={
                       <select
-                        className="h-8 text-xs border border-border rounded-[10px] bg-white px-2 text-text focus:outline-none focus:ring-1 focus:ring-secondary/40"
+                        className="h-8 text-xs border border-border rounded-[10px] bg-white px-2 text-text focus:outline-none focus:ring-1 focus:ring-secondary/40 disabled:opacity-50 disabled:bg-gray-100"
                         value={order.deliveryPartnerId || ''}
                         onChange={(e) => onReassign(order.id, e.target.value || null)}
                         title="Reassign partner"
+                        disabled={['picked_up', 'out_for_delivery', 'delivered'].includes(order.status)}
                       >
                         <option value="">Unassign</option>
                         {partners.map(p => (

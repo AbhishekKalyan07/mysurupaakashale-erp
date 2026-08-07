@@ -56,8 +56,29 @@ export function DeliveryPartnerPage() {
           My Delivery Route
         </h1>
         <p className="text-sm text-ink-500 font-sans mt-1">
-          {today} | {orders?.length || 0} stops
+          {today} | {orders?.length || 0} assigned
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="bg-surface rounded-xl p-3 border border-border">
+          <p className="text-xs text-text-muted font-medium">Pending</p>
+          <p className="text-lg font-bold text-text">
+            {orders.filter(o => !['delivered', 'failed_delivery', 'returned_delivery', 'cancelled'].includes(o.status)).length}
+          </p>
+        </div>
+        <div className="bg-success-subtle rounded-xl p-3 border border-success/20">
+          <p className="text-xs text-success-dark font-medium">Delivered</p>
+          <p className="text-lg font-bold text-success-dark">
+            {orders.filter(o => o.status === 'delivered').length}
+          </p>
+        </div>
+        <div className="bg-danger-subtle rounded-xl p-3 border border-danger/20">
+          <p className="text-xs text-danger-dark font-medium">Failed / Returned</p>
+          <p className="text-lg font-bold text-danger-dark">
+            {orders.filter(o => ['failed_delivery', 'returned_delivery'].includes(o.status)).length}
+          </p>
+        </div>
       </div>
 
       <StaffAttendanceCard />

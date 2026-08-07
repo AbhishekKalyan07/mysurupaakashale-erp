@@ -18,8 +18,10 @@ type WorkflowStep = {
   variant: 'primary' | 'success-tonal' | 'warning-tonal' | 'success' | 'tonal';
 };
 
-const KITCHEN_WORKFLOW: Partial<Record<OrderStatus, WorkflowStep>> = {
-  // Purely observational. Auto-readiness removes the need for manual button clicks.
+const KITCHEN_WORKFLOW: Record<string, WorkflowStep> = {
+  'Preparing': { label: 'Start Packing', nextStatus: 'Packing' as OrderStatus, variant: 'tonal' },
+  'Packing':   { label: 'Mark as Packed', nextStatus: 'Packed' as OrderStatus, variant: 'primary' },
+  'Packed':    { label: 'Ready for Pickup', nextStatus: 'Ready' as OrderStatus, variant: 'success' },
 };
 
 const DELIVERY_WORKFLOW: Partial<Record<OrderStatus, WorkflowStep>> = {
@@ -33,7 +35,7 @@ const ADMIN_WORKFLOW: Partial<Record<OrderStatus, WorkflowStep>> = {
   ...DELIVERY_WORKFLOW,
 };
 
-const TERMINAL_STATUSES: OrderStatus[] = ['delivered', 'failed_delivery', 'returned_delivery', 'skipped', 'cancelled'];
+const TERMINAL_STATUSES: string[] = ['delivered', 'failed_delivery', 'returned_delivery', 'skipped', 'cancelled'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer Avatar
@@ -78,12 +80,13 @@ function CustomerAvatar({ name, photoUrl, size = 'md' }: {
 
 interface WorkflowTimelineProps {
   status: OrderStatus;
+  kitchenStatus?: string; // Add this
   variant: 'admin' | 'kitchen' | 'delivery';
   onStatusChange?: (newStatus: OrderStatus, extra?: { reasonCode: string; notes?: string }) => Promise<void> | void;
   isAdvancing?: boolean;
 }
 
-function WorkflowTimeline({ status, variant, onStatusChange, isAdvancing }: WorkflowTimelineProps) {
+function WorkflowTimeline({ status, kitchenStatus, variant, onStatusChange, isAdvancing }: WorkflowTimelineProps) {
   const [showFail, setShowFail] = useState(false);
   const [failReason, setFailReason] = useState('customer_unavailable');
   const [failNotes, setFailNotes] = useState('');
@@ -97,7 +100,8 @@ function WorkflowTimeline({ status, variant, onStatusChange, isAdvancing }: Work
   }
 
   const workflow = variant === 'kitchen' ? KITCHEN_WORKFLOW : variant === 'delivery' ? DELIVERY_WORKFLOW : ADMIN_WORKFLOW;
-  const step = workflow[status];
+  const currentKey = variant === 'kitchen' ? (kitchenStatus || 'Preparing') : status;
+  const step = (workflow as any)[currentKey as any];
 
   if (!step) return null;
 
@@ -314,6 +318,11 @@ export function OrderCard({
             </span>
           )}
           <DriverBadge partnerName={partnerName} compact />
+          {(variant === 'admin' || variant === 'delivery') && order.estimatedETA && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+              🕒 ETA: {order.estimatedETA}
+            </span>
+          )}
         </div>
       </div>
 
@@ -328,6 +337,7 @@ export function OrderCard({
             {handleStatusChange ? (
               <WorkflowTimeline
                 status={order.status}
+                kitchenStatus={order.kitchenStatus}
                 variant={variant}
                 onStatusChange={handleStatusChange}
                 isAdvancing={isAdvancing}
@@ -390,6 +400,12 @@ export function OrderCard({
                     <p className="text-text font-medium">{order.itemsLabel}</p>
                   </div>
                 )}
+                {(order.mealQuantity && order.mealQuantity > 1) ? (
+                  <div>
+                    <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5">Quantity</p>
+                    <p className="text-text font-bold text-turmeric-700">{order.mealQuantity}</p>
+                  </div>
+                ) : null}
                 {customer?.phone && (
                   <div>
                     <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5">Phone</p>
@@ -400,6 +416,18 @@ export function OrderCard({
                   <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5">Date</p>
                   <p className="text-text font-medium">{order.date}</p>
                 </div>
+                {order.specialInstructions && (
+                  <div className="col-span-2">
+                    <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5 text-warning">Special Instructions</p>
+                    <p className="text-warning-dark font-medium">{order.specialInstructions}</p>
+                  </div>
+                )}
+                {order.packingNotes && (
+                  <div className="col-span-2">
+                    <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5 text-info">Packing Notes</p>
+                    <p className="text-info-dark font-medium">{order.packingNotes}</p>
+                  </div>
+                )}
                 {order.deliveryWindow && (
                   <div>
                     <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5">Window</p>

@@ -11,7 +11,7 @@ interface Props {
   zoneMap: Map<string, string>;
   partnerMap: Map<string, string>;
   customerMap: Map<string, string>;
-  onAdvanceStatus: (orderId: string, status: KitchenWorkflowStatus) => Promise<void>;
+  onAdvanceStatus: (orderId: string, status: string) => Promise<void>;
   isAdvancing: boolean;
   isLocked: boolean;
 }
@@ -154,7 +154,7 @@ export function KitchenProductionTable({
                   planName={plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : undefined}
                   onStatusChange={async (id, st) => {
                     if (!isLocked) {
-                      await onAdvanceStatus(id, st as KitchenWorkflowStatus);
+                      await onAdvanceStatus(id, st);
                     }
                   }}
                   isAdvancing={isAdvancing}

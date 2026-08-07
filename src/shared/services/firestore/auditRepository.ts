@@ -22,18 +22,33 @@ class AuditRepository extends BaseRepository<AuditLog> {
   async logAction(
     action: string,
     actorId: string,
-    actorName: string,
+    actorName: string, // Treat as role for backward compatibility
     entityId: string,
     entityType: string,
     details?: any
   ): Promise<void> {
+    const previousValue = details?.previousValue ?? undefined;
+    const newValue = details?.newValue ?? undefined;
+    const reason = details?.reason ?? undefined;
+    
+    // Clean up details if we extracted the specific keys
+    const remainingDetails = details ? { ...details } : undefined;
+    if (remainingDetails) {
+      delete remainingDetails.previousValue;
+      delete remainingDetails.newValue;
+      delete remainingDetails.reason;
+    }
+
     await addDoc(this.collectionRef, {
       action,
-      actorId,
-      actorName,
+      performedBy: actorId,
+      performedByRole: actorName,
       entityId,
       entityType,
-      details: details || null,
+      previousValue,
+      newValue,
+      reason,
+      details: remainingDetails && Object.keys(remainingDetails).length > 0 ? remainingDetails : null,
       timestamp: serverTimestamp() as unknown as Timestamp,
       ipAddress: null, // Could be captured by functions, client-side it's not feasible reliably
     } as Partial<AuditLog>);
@@ -53,7 +68,7 @@ class AuditRepository extends BaseRepository<AuditLog> {
       constraints.push(where('action', '==', filters.action));
     }
     if (filters.userId) {
-      constraints.push(where('actorId', '==', filters.userId));
+      constraints.push(where('performedBy', '==', filters.userId));
     }
     
     // Note: Filtering by timestamp AND action/userId might require a composite index.

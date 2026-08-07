@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { customerService } from '../customerService';
+import { getDocs } from 'firebase/firestore';
 import { userRepository } from '../../firestore/userRepository';
 import { auditRepository } from '../../firestore/auditRepository';
+
+
 
 describe('customerService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getDocs).mockResolvedValue({ docs: [], forEach: vi.fn() } as any);
   });
 
   describe('assignDeliveryPartner', () => {

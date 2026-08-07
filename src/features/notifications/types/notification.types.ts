@@ -31,12 +31,17 @@ export type NotificationType =
   | 'subscription_paused'
   | 'subscription_resumed'
   | 'subscription_cancelled'
+  | 'subscription_approved'
   // Payment
   | 'payment_submitted'
   | 'payment_verified'
   | 'payment_rejected'
+  | 'payment_reminder'
+  // Billing
+  | 'invoice_generated'
   // Delivery
   | 'delivery_assigned'
+  | 'driver_assigned'
   | 'out_for_delivery'
   | 'delivered'
   | 'delivery_failed'
@@ -55,6 +60,7 @@ export type NotificationType =
   | 'payroll_generated'
   | 'salary_paid'
   // System
+  | 'system_alert'
   | 'system_error'
   | 'backup_completed';
 

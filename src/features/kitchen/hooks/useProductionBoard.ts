@@ -8,7 +8,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { getTodayIST } from './useKitchenDashboard';
 import type { Order, OrderStatus } from '@/shared/types';
 import { useReferenceData } from '@/shared/hooks/useReferenceData';
-import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 
 export { getTodayIST };
 
@@ -50,20 +50,33 @@ export function useProductionBoard() {
     return unsubscribe;
   }, [date]);
 
-  // 4. Status advancement with Audit Log
   const advanceStatus = async (
     orderId: string,
-    newStatus: KitchenWorkflowStatus
+    newStatus: string
   ): Promise<void> => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
 
-    const oldStatus = order.status;
+    const oldStatus = order.kitchenStatus || 'Preparing';
 
-    await orderRepository.update(orderId, { 
-      status: newStatus,
-      updatedAt: serverTimestamp() as unknown as Timestamp
-    });
+    const slaField = `${newStatus.toLowerCase()}At`;
+    const updatePayload: any = { 
+      kitchenStatus: newStatus,
+      [slaField]: serverTimestamp() as unknown as import('@/shared/types').Timestamp,
+      updatedAt: serverTimestamp() as unknown as import('@/shared/types').Timestamp
+    };
+
+    if (newStatus === 'Ready') {
+      updatePayload.status = 'ready_for_pickup';
+    }
+
+    await orderRepository.update(orderId, updatePayload);
+
+    if (newStatus === 'Ready' && order.deliveryPartnerId) {
+      import('@/shared/services/firestore/notificationService').then(m => {
+        m.notifyReadyForPickup(order.deliveryPartnerId!, orderId, order.mealType || 'meal').catch(console.error);
+      }).catch(console.error);
+    }
 
     if (firebaseUser) {
       await auditRepository.logAction(
@@ -74,6 +87,16 @@ export function useProductionBoard() {
         'order',
         { from: oldStatus, to: newStatus }
       );
+      
+      if (newStatus === 'Packed') {
+        await auditRepository.logAction(
+          'production_packed',
+          firebaseUser.uid,
+          profile?.role || 'kitchen',
+          orderId,
+          'order'
+        );
+      }
     }
   };
 

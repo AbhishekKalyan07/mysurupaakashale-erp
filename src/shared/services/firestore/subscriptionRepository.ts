@@ -15,9 +15,12 @@ import {
   updateDoc,
   increment,
   serverTimestamp,
+  onSnapshot,
   type QueryConstraint,
   type QueryDocumentSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore';
+
 
 export interface SubscriptionFilter {
   status?: SubscriptionStatus;
@@ -51,6 +54,31 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     uid: string,
     creditAmount: number
   ) {
+    // 1. Cutoff Validation
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    
+    if (date === today) {
+      const parts = new Intl.DateTimeFormat('en-US', { 
+        timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' 
+      }).formatToParts(now);
+      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+      const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+      const currentTimeMinutes = hour * 60 + minute;
+
+      for (const meal of mealTypes) {
+        if (meal === 'breakfast' && currentTimeMinutes >= 5 * 60) {
+          throw new Error("Cancellation window has closed for breakfast.");
+        }
+        if (meal === 'lunch' && currentTimeMinutes >= 10 * 60 + 30) {
+          throw new Error("Cancellation window has closed for lunch.");
+        }
+        if (meal === 'dinner' && currentTimeMinutes >= 16 * 60) {
+          throw new Error("Cancellation window has closed for dinner.");
+        }
+      }
+    }
+
     // Create the skip subcollection document
     const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
     await setDoc(skipRef, {
@@ -125,6 +153,38 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
       status,
       updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
+  }
+
+  /**
+   * Real-time listener for a customer's active subscription.
+   * Fires immediately and on every subsequent change so the customer page
+   * stays in sync (e.g. when admin assigns a delivery partner).
+   */
+  subscribeActiveSubscription(
+    customerId: string,
+    onNext: (sub: Subscription | null) => void,
+    onError?: (err: Error) => void,
+  ): Unsubscribe {
+    const converter = createConverter<Subscription>();
+    const colRef = collection(db, 'subscriptions').withConverter(converter);
+    const q = query(
+      colRef,
+      where('customerId', '==', customerId),
+      where('status', 'in', ['active', 'pending_payment', 'paused']),
+    );
+
+    return onSnapshot(
+      q,
+      (snap) => {
+        const subs = snap.docs.map((d) => d.data());
+        // Prefer active/paused over pending_payment (same priority as getActiveSubscriptionByCustomerId)
+        const best =
+          subs.find((s) => s.status === 'active' || s.status === 'paused') ??
+          (subs.length > 0 ? subs[0] : null);
+        onNext(best);
+      },
+      (err) => onError?.(err as Error),
+    );
   }
 }
 

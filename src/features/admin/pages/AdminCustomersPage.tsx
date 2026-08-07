@@ -246,7 +246,7 @@ function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: 
       )}
       
       <div 
-        className="p-3 flex flex-col gap-2 cursor-pointer h-[130px]" 
+        className="p-3.5 flex flex-col gap-2 cursor-pointer min-h-[140px]" 
         onClick={() => { if(!menuOpen) onSelect(); }}
       >
         {/* Top Header Row */}
@@ -295,13 +295,13 @@ function CustomerCardView({ customer, onSelect, deliveryPartners }: { customer: 
         </div>
 
         {/* Chips Row (Bottom) */}
-        <div className="flex gap-2 items-center mt-auto overflow-hidden pb-0.5">
+        <div className="flex flex-wrap gap-1.5 items-center mt-auto pt-1">
           <Badge variant="default" className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-text font-semibold shrink-0 whitespace-nowrap">
             🍛 Basic Plan
           </Badge>
           
           {partner ? (
-            <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[90px]">
+            <Badge variant="info" className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[120px]">
               🚚 {partner.fullName}
             </Badge>
           ) : (
@@ -539,9 +539,9 @@ export function AdminCustomersPage() {
               ))}
             </div>
             
-            <div className="flex items-center justify-between px-2 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-4 border-t border-primary/10 mt-2 text-center sm:text-left">
               <span className="text-sm font-medium text-text-muted">
-                Showing {filtered.length} customer{filtered.length !== 1 ? 's' : ''} on this page
+                Showing <strong className="text-primary">{filtered.length}</strong> customer{filtered.length !== 1 ? 's' : ''} on this page
               </span>
               <div className="flex items-center gap-3">
                 <Button 

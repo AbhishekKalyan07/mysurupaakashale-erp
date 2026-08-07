@@ -33,8 +33,14 @@ export interface DailySummary {
 export interface OrderGenerationRun {
   id: ID;
   date: ISODateString;
-  status: 'success' | 'failed';
+  mealType: 'breakfast' | 'lunch' | 'dinner';
+  startedAt: Timestamp;
+  completedAt?: Timestamp;
+  durationMs?: number;
   ordersGenerated: number;
-  runAt: Timestamp;
+  ordersSkipped: number;
+  ordersCancelled: number;
+  ordersFailed: number;
+  status: 'success' | 'partial' | 'failed' | 'running';
   error?: string;
 }

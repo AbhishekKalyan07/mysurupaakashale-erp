@@ -71,24 +71,29 @@ function PaymentDetailDialog({
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
-    if (confirmAction === 'approve') {
-      let meta;
-      if (user && subscription && plan) {
-        meta = {
-          customerEmail: user.email,
-          customerName: user.fullName,
-          planName: plan.name,
-          planTier: plan.tier,
-          deliveryAddress: `Address ID: ${subscription.deliveryAddressId}`,
-          pricePerDay: subscription.pricePerDaySnapshot,
-          quantity: subscription.quantity || 1,
-        };
+    try {
+      if (confirmAction === 'approve') {
+        let meta;
+        if (user && subscription && plan) {
+          meta = {
+            customerEmail: user.email,
+            customerName: user.fullName,
+            planName: plan.name,
+            planTier: plan.tier,
+            deliveryAddress: `Address ID: ${subscription.deliveryAddressId}`,
+            pricePerDay: subscription.pricePerDaySnapshot,
+            quantity: subscription.quantity || 1,
+          };
+        }
+        await approvePayment.mutateAsync({ paymentId: payment.id, notes, meta });
+      } else {
+        await rejectPayment.mutateAsync({ paymentId: payment.id, notes });
       }
-      await approvePayment.mutateAsync({ paymentId: payment.id, notes, meta });
-    } else {
-      await rejectPayment.mutateAsync({ paymentId: payment.id, notes });
+    } catch {
+      // Handled by onError callback in hook (shows toast)
+    } finally {
+      onClose();
     }
-    onClose();
   };
 
   const parsedDate = parseFirestoreDate(payment.createdAt);
@@ -494,7 +499,7 @@ export function PaymentVerificationPage() {
                 </tbody>
               </table>
             </div>
-            <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex items-center justify-between">
+            <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
               <span>Showing <strong className="text-primary">{sorted.length}</strong> payment{sorted.length !== 1 ? 's' : ''} on this page</span>
               <div className="flex items-center gap-4">
                 <Button 

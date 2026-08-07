@@ -8,31 +8,74 @@ import { userRepository } from '../firestore/userRepository';
 import { mealPlanRepository } from '../firestore/mealPlanRepository';
 import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
-import type { Order } from '@/shared/types';
+import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
 import { format } from 'date-fns';
 
 class OrderService {
   /**
-   * Automatically generate daily orders based on active subscriptions.
+   * Orchestrator for all daily orders.
+   * Keeps legacy compatibility by running all meal generations.
    */
   async generateDailyOrders(dateOverride?: string): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
     const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
-
-    // 1. Check if it already ran today
-    const existingRun = await orderGenerationRunRepository.getById(today);
-    if (existingRun && existingRun.status === 'success') {
-      return { success: true, message: 'Orders already generated for today.', ordersGenerated: 0 };
-    }
-
-    // Sunday Holiday Check
+    
     const isSunday = new Date(today).getDay() === 0;
     if (isSunday) {
       console.log(`[orderService] Today (${today}) is Sunday. Skipping order generation.`);
       return { success: true, message: 'Today is Sunday (Holiday). No orders generated.', ordersGenerated: 0 };
     }
 
+    let totalGenerated = 0;
+    totalGenerated += await this.generateBreakfastOrders(today);
+    totalGenerated += await this.generateLunchOrders(today);
+    totalGenerated += await this.generateDinnerOrders(today);
+
+    return { success: true, message: `Orchestrator finished. Generated ${totalGenerated} total orders.`, ordersGenerated: totalGenerated };
+  }
+
+  async generateBreakfastOrders(dateOverride?: string): Promise<number> {
+    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    return this.generateMealOrders(today, 'breakfast');
+  }
+
+  async generateLunchOrders(dateOverride?: string): Promise<number> {
+    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    return this.generateMealOrders(today, 'lunch');
+  }
+
+  async generateDinnerOrders(dateOverride?: string): Promise<number> {
+    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    return this.generateMealOrders(today, 'dinner');
+  }
+
+  private async generateMealOrders(today: string, mealType: 'breakfast' | 'lunch' | 'dinner'): Promise<number> {
+    const runId = `${today}_${mealType}`;
+    const existingRun = await orderGenerationRunRepository.getById(runId);
+    
+    if (existingRun && existingRun.status === 'success') {
+      console.log(`[orderService] ${mealType} orders already successfully generated for ${today}.`);
+      return 0;
+    }
+
+    const startedAt = serverTimestamp() as unknown as Timestamp;
+    let ordersGenerated = 0;
+    let ordersSkipped = 0;
+    let ordersCancelled = 0;
+    let ordersFailed = 0;
+
+    await orderGenerationRunRepository.create({
+      date: today,
+      mealType,
+      status: 'running',
+      startedAt,
+      ordersGenerated: 0,
+      ordersSkipped: 0,
+      ordersCancelled: 0,
+      ordersFailed: 0
+    }, runId);
+
     try {
-      // 2. Fetch all active subscriptions, delivery partners, meal plans, and customers
+      // 1. Fetch data
       const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners] = await Promise.all([
         subscriptionRepository.list(where('status', '==', 'active')),
         mealPlanRepository.list(),
@@ -40,96 +83,80 @@ class OrderService {
         deliveryZoneRepository.list(),
         userRepository.list(where('role', '==', 'delivery_partner'))
       ]);
-      const customerMap = new Map<string, import('@/shared/types').CustomerProfile>();
-      allCustomers.forEach(c => customerMap.set(c.id, c as import('@/shared/types').CustomerProfile));
-      const activePartners = allPartners.filter(p => p.isActive);
+      const customerMap = new Map<string, CustomerProfile>(allCustomers.map(c => [c.id, c as CustomerProfile]));
+      const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
+      const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
+      const zoneMap = new Map(allZones.map(z => [z.id, z]));
+
       const ordersToCreate: Partial<Order>[] = [];
 
       for (const sub of allSubscriptions) {
-        if (sub.endDate && sub.endDate < today) continue; // expired
-        if (sub.startDate > today) continue; // hasn't started
-
-        // Check if skipped today
-        const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
-        let skippedMeals: string[] = [];
-        try {
-          const skipDoc = await getDoc(skipRef);
-          if (skipDoc.exists()) {
-            skippedMeals = skipDoc.data().mealTypes || [];
-          }
-        } catch (error) {
-          console.error(`Error fetching skips for subscription ${sub.id}:`, error);
+        if (sub.endDate && sub.endDate < today) {
+          ordersSkipped++;
+          continue;
+        }
+        if (sub.startDate > today) {
+          ordersSkipped++;
+          continue;
         }
 
-        for (const pref of sub.mealPreferences) {
-          if (skippedMeals.includes(pref.mealType)) continue;
-
-          // --- PRIORITY ROUTING LOGIC ---
-          const customer = customerMap.get(sub.customerId);
-          
-          let partnerId = customer?.deliveryPartnerId ?? null;
-          let zoneId = customer?.zoneId ?? null;
-          
-          if (!partnerId) {
-            // Priority 2: Direct Zone fallback to Priority 3: Pincode Auto-match
-            if (!zoneId) {
-              const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
-              if (defaultAddress?.pincode) {
-                const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
-                if (matchedZone) zoneId = matchedZone.id;
-              }
+        let attempts = 0;
+        let success = false;
+        while (attempts < 3 && !success) {
+          try {
+            const pref = sub.mealPreferences.find(p => p.mealType === mealType);
+            if (!pref) {
+               success = true;
+               continue; // Not subscribed to this meal
             }
-            
-            // Look up partner assigned to this zone
-            if (zoneId) {
-              const partnerForZone = activePartners.find(p => (p as import('@/shared/types').DeliveryPartnerProfile).zoneIds?.includes(zoneId!));
-              if (partnerForZone) {
-                partnerId = partnerForZone.id;
-              }
+
+            // Check cancellation (skips)
+            const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
+            const skipDoc = await getDoc(skipRef);
+            if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
+              ordersCancelled++;
+              success = true;
+              continue;
+            }
+
+            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans);
+            ordersToCreate.push(order);
+            success = true;
+          } catch (err) {
+            attempts++;
+            if (attempts >= 3) {
+              console.error(`[orderService] Failed generating ${mealType} for customer ${sub.customerId} after 3 attempts:`, err);
+              ordersFailed++;
+              
+              import('@/shared/services/firestore/failureQueueRepository').then(m => {
+                m.failureQueueRepository.logFailure(
+                  sub.customerId,
+                  sub.id,
+                  mealType,
+                  today,
+                  err instanceof Error ? err.message : String(err),
+                  err instanceof Error ? err.stack : undefined
+                ).catch(console.error);
+              }).catch(console.error);
+
+              // Admin Alert
+              import('@/shared/services/firestore/notificationService').then(m => {
+                import('@/shared/services/firestore/userRepository').then(ur => {
+                  ur.userRepository.list(import('firebase/firestore').then(f => f.where('role', '==', 'admin')) as any)
+                    .then(admins => {
+                      m.notifyAdminAlert(admins.map(a => a.id), 'Order Generation Failed', `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`);
+                    }).catch(console.error);
+                }).catch(console.error);
+              }).catch(console.error);
+            } else {
+              // Wait a bit before retrying
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
           }
-          
-          
-          // --------------------------------
-
-          // Find option label
-          let optionLabel = '';
-          const plan = mealPlans.find((p: import('@/shared/types').MealPlan) => p.id === sub.planId);
-          if (plan) {
-            const slot = plan.mealSlots.find((s: import('@/shared/types').MealSlotConfig) => s.mealType === pref.mealType);
-            let option = slot?.options?.find((o: import('@/shared/types').MealOption) => o.id === pref.selectedOptionId);
-            if (!option && slot && slot.options && slot.options.length > 0) {
-              option = slot.options[0];
-            }
-            if (option) optionLabel = ` (${option.label})`;
-          }
-
-          // Generate order
-          ordersToCreate.push({
-            id: `ord_${sub.id}_${today}_${pref.mealType}`,
-            displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-            source: 'subscription',
-            customerId: sub.customerId,
-            subscriptionId: sub.id,
-            planTier: sub.planTier,
-            mealType: pref.mealType,
-            date: today,
-            itemsLabel: `Subscription - ${pref.mealType}${optionLabel}`,
-            selectedOptionId: pref.selectedOptionId,
-            price: Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
-            currency: 'INR',
-            status: 'scheduled',
-            deliveryAddressId: sub.deliveryAddressId,
-            zoneId: zoneId,
-            kitchenId: null,
-            deliveryPartnerId: partnerId,
-                        deliveryWindow: null,
-            paymentId: sub.latestPaymentId,
-          });
         }
       }
 
-      // 3. Save to Firestore via writeBatch
+      // 3. Batch write
       const BATCH_SIZE = 400;
       for (let i = 0; i < ordersToCreate.length; i += BATCH_SIZE) {
         const batchOrders = ordersToCreate.slice(i, i + BATCH_SIZE);
@@ -138,46 +165,153 @@ class OrderService {
           const ref = doc(db, 'orders', order.id!);
           batch.set(ref, {
             ...order,
-            createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+            createdAt: serverTimestamp() as unknown as Timestamp,
             updatedAt: serverTimestamp() as unknown as Timestamp
           }, { merge: true });
         });
         await batch.commit();
-      }
+        ordersGenerated += batchOrders.length;
 
-      // 4. Save run status
-      await orderGenerationRunRepository.create({
-        date: today,
-        status: 'success',
-        ordersGenerated: ordersToCreate.length,
-        runAt: serverTimestamp() as unknown as Timestamp,
-      }, today);
-
-      // 5. Notify kitchen staff
-      if (ordersToCreate.length > 0) {
-        userRepository
-          .list(where('role', '==', 'kitchen'), where('isActive', '==', true))
-          .then((kitchenStaff) => {
-            const ids = kitchenStaff.map((s) => s.id);
-            if (ids.length > 0) {
-              return notifyDailyOrdersGenerated(ids, today, ordersToCreate.length);
+        // Trigger notifications asynchronously
+        import('@/shared/services/firestore/notificationService').then(m => {
+          batchOrders.forEach(o => {
+            m.notifyOrderGeneratedCustomer(o.customerId!, o.mealType || 'meal', o.date!).catch(console.error);
+            if (o.deliveryPartnerId) {
+              m.notifyOrderGeneratedDriver(o.deliveryPartnerId, o.id!, o.mealType || 'meal', o.customerName || 'Unknown', o.date!).catch(console.error);
             }
-          })
-          .catch((err) => console.error('[orderService] kitchen notification failed:', err));
+          });
+        }).catch(console.error);
+        
+        import('@/shared/services/firestore/auditRepository').then(m => {
+          m.auditRepository.logAction('orders_generated', 'system', 'System Auto-Generator', runId, 'system', {
+            date: today,
+            mealType,
+            count: batchOrders.length
+          }).catch(console.error);
+        }).catch(console.error);
       }
 
-      return { success: true, message: `Successfully generated ${ordersToCreate.length} orders.`, ordersGenerated: ordersToCreate.length };
+      const completedAt = serverTimestamp() as unknown as Timestamp;
+      const finalStatus = ordersFailed > 0 ? (ordersGenerated > 0 ? 'partial' : 'failed') : 'success';
 
-    } catch (error: unknown) {
-      await orderGenerationRunRepository.create({
-        date: today,
+      await orderGenerationRunRepository.update(runId, {
+        status: finalStatus,
+        completedAt,
+        ordersGenerated,
+        ordersSkipped,
+        ordersCancelled,
+        ordersFailed
+      } as any);
+
+      if (ordersGenerated > 0) {
+        try {
+          const kitchenStaff = await userRepository.list(where('role', '==', 'kitchen'), where('isActive', '==', true));
+          const ids = kitchenStaff.map((s) => s.id);
+          if (ids.length > 0) {
+            await notifyDailyOrdersGenerated(ids, today, ordersGenerated);
+          }
+        } catch (err) {
+          console.error('[orderService] kitchen notification failed:', err);
+        }
+      }
+
+      return ordersGenerated;
+
+    } catch (error: any) {
+      const completedAt = serverTimestamp() as unknown as Timestamp;
+      await orderGenerationRunRepository.update(runId, {
         status: 'failed',
-        ordersGenerated: 0,
-        runAt: serverTimestamp() as unknown as Timestamp,
-        error: (error as Error).message
-      }, today);
+        completedAt,
+        error: error.message
+      } as any);
       throw error;
     }
+  }
+
+  private buildOrderSnapshot(
+    sub: Subscription,
+    pref: any,
+    mealType: 'breakfast' | 'lunch' | 'dinner',
+    date: string,
+    customerMap: Map<string, CustomerProfile>,
+    partnerMap: Map<string, DeliveryPartnerProfile>,
+    zoneMap: Map<string, any>,
+    activePartners: DeliveryPartnerProfile[],
+    allZones: any[],
+    mealPlans: MealPlan[]
+  ): Partial<Order> {
+    const customer = customerMap.get(sub.customerId);
+    
+    let partnerId = customer?.deliveryPartnerId ?? null;
+    let zoneId = customer?.zoneId ?? null;
+    
+    if (!partnerId) {
+      if (!zoneId) {
+        const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
+        if (defaultAddress?.pincode) {
+          const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+          if (matchedZone) zoneId = matchedZone.id;
+        }
+      }
+      if (zoneId) {
+        const partnerForZone = activePartners.find(p => p.zoneIds?.includes(zoneId!));
+        if (partnerForZone) {
+          partnerId = partnerForZone.id;
+        }
+      }
+    }
+
+    const plan = mealPlans.find(p => p.id === sub.planId);
+    let optionLabel = '';
+    if (plan) {
+      const slot = plan.mealSlots.find(s => s.mealType === mealType);
+      let option = slot?.options?.find(o => o.id === pref.selectedOptionId);
+      if (!option && slot && slot.options && slot.options.length > 0) {
+        option = slot.options[0];
+      }
+      if (option) optionLabel = option.label;
+    }
+
+    const driver = partnerMap.get(partnerId || '');
+    const addr = customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) || customer?.addresses?.[0];
+    const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
+
+    return {
+      id: `ord_${sub.id}_${date}_${mealType}`,
+      displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      source: 'subscription',
+      customerId: sub.customerId,
+      subscriptionId: sub.id,
+      planTier: sub.planTier,
+      mealType: mealType,
+      date: date,
+      
+      // Denormalized Operational Snapshot
+      customerName: customer?.fullName || 'Unknown Customer',
+      customerCode: customer?.displayId,
+      customerPhone: customer?.phone,
+      address: addressStr,
+      zoneName: zoneId ? zoneMap.get(zoneId)?.name : undefined,
+      planName: plan?.name || 'Unknown Plan',
+      driverName: driver?.fullName,
+      driverPhone: driver?.phone,
+      mealName: optionLabel || mealType,
+      mealQuantity: sub.quantity || 1,
+      billingStatus: 'Generated',
+      kitchenStatus: 'Preparing',
+
+      itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
+      selectedOptionId: pref.selectedOptionId,
+      price: Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
+      currency: 'INR',
+      status: 'scheduled',
+      deliveryAddressId: sub.deliveryAddressId,
+      zoneId: zoneId,
+      kitchenId: null,
+      deliveryPartnerId: partnerId,
+      deliveryWindow: null,
+      paymentId: sub.latestPaymentId,
+    };
   }
 
   /**
@@ -195,7 +329,6 @@ class OrderService {
       return;
     }
 
-    // Fetch meal plans and the customer
     const [mealPlans, customer, allZones, allPartners] = await Promise.all([
       mealPlanRepository.list(),
       userRepository.getById(subscription.customerId),
@@ -203,68 +336,18 @@ class OrderService {
       userRepository.list(where('role', '==', 'delivery_partner'))
     ]);
     
-    const activePartners = allPartners.filter(p => p.isActive);
+    const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
+    const customerMap = new Map<string, CustomerProfile>();
+    if (customer) customerMap.set(customer.id, customer as CustomerProfile);
+    const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
+    const zoneMap = new Map(allZones.map(z => [z.id, z]));
     
     const ordersToCreate: Partial<Order>[] = [];
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
-
-      // --- PRIORITY ROUTING LOGIC ---
-      let partnerId = (customer as import('@/shared/types').CustomerProfile)?.deliveryPartnerId ?? null;
-      let zoneId = (customer as import('@/shared/types').CustomerProfile)?.zoneId ?? null;
-      
-      if (!partnerId) {
-        if (!zoneId) {
-          const defaultAddress = (customer as import('@/shared/types').CustomerProfile)?.addresses?.find((a: any) => a.id === (customer as import('@/shared/types').CustomerProfile).defaultAddressId) || (customer as import('@/shared/types').CustomerProfile)?.addresses?.[0];
-          if (defaultAddress?.pincode) {
-            const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
-            if (matchedZone) zoneId = matchedZone.id;
-          }
-        }
-        if (zoneId) {
-          const partnerForZone = activePartners.find(p => (p as import('@/shared/types').DeliveryPartnerProfile).zoneIds?.includes(zoneId!));
-          if (partnerForZone) {
-            partnerId = partnerForZone.id;
-          }
-        }
-      }
-      
-
-      // --------------------------------
-
-      let optionLabel = '';
-      const plan = mealPlans.find((p: import('@/shared/types').MealPlan) => p.id === subscription.planId);
-      if (plan) {
-        const slot = plan.mealSlots.find((s: import('@/shared/types').MealSlotConfig) => s.mealType === pref.mealType);
-        let option = slot?.options?.find((o: import('@/shared/types').MealOption) => o.id === pref.selectedOptionId);
-        if (!option && slot && slot.options && slot.options.length > 0) {
-          option = slot.options[0];
-        }
-        if (option) optionLabel = ` (${option.label})`;
-      }
-
-      ordersToCreate.push({
-        id: `ord_${subscription.id}_${date}_${pref.mealType}`,
-        displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        source: 'subscription',
-        customerId: subscription.customerId,
-        subscriptionId: subscription.id,
-        planTier: subscription.planTier,
-        mealType: pref.mealType,
-        date: date,
-        itemsLabel: `Subscription - ${pref.mealType}${optionLabel}`,
-        selectedOptionId: pref.selectedOptionId,
-        price: Math.round((subscription.pricePerDaySnapshot * (subscription.quantity || 1)) / subscription.mealPreferences.length),
-        currency: 'INR',
-        status: 'scheduled',
-        deliveryAddressId: subscription.deliveryAddressId,
-        zoneId: zoneId,
-        kitchenId: null,
-        deliveryPartnerId: partnerId,
-                deliveryWindow: null,
-        paymentId: subscription.latestPaymentId,
-      });
+      const order = this.buildOrderSnapshot(subscription, pref, pref.mealType, date, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans);
+      ordersToCreate.push(order);
     }
 
     if (ordersToCreate.length === 0) return;
@@ -281,7 +364,6 @@ class OrderService {
     
     await batch.commit();
 
-    // Notify kitchen staff
     try {
       const kitchenStaff = await userRepository.list(where('role', '==', 'kitchen'), where('isActive', '==', true));
       const ids = kitchenStaff.map((s) => s.id);
@@ -293,9 +375,6 @@ class OrderService {
     }
   }
 
-  /**
-   * Standardize order lifecycle transitions
-   */
   async updateOrderStatus(orderId: string, status: import('@/shared/types').OrderStatus): Promise<void> {
     if (!orderId || !status) {
       throw new Error('Order ID and Status are required.');
@@ -305,13 +384,125 @@ class OrderService {
       throw new Error(`Order with ID ${orderId} not found.`);
     }
     if (order.status === status) {
-      return; // Idempotency
+      return; 
     }
     await orderRepository.update(orderId, {
       status,
       updatedAt: serverTimestamp() as unknown as Timestamp,
     });
-    // Add additional workflow logic (e.g., notifications) here if needed later
+  }
+
+  /**
+   * Synchronize today's active orders whenever a customer's zone or delivery partner changes.
+   * This is called by CustomerService to maintain consistency without relying on Firestore Triggers.
+   */
+  async syncCustomerActiveOrders(customerId: string): Promise<void> {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    
+    // Fetch today's orders for this customer
+    const activeOrders = await orderRepository.list(
+      where('customerId', '==', customerId),
+      where('date', '==', today)
+    );
+    
+    // We only update orders that are not terminal (delivered, cancelled, skipped)
+    const TERMINAL_STATUSES = ['delivered', 'failed_delivery', 'returned_delivery', 'skipped', 'cancelled'];
+    const ordersToSync = activeOrders.filter(o => !TERMINAL_STATUSES.includes(o.status));
+    
+    if (ordersToSync.length === 0) return;
+
+    // Fetch required references
+    const [customer, allZones, allPartners] = await Promise.all([
+      userRepository.getById(customerId),
+      deliveryZoneRepository.list(),
+      userRepository.list(where('role', '==', 'delivery_partner'))
+    ]);
+
+    if (!customer) return;
+
+    const activePartners = allPartners.filter(p => p.isActive) as import('@/shared/types').DeliveryPartnerProfile[];
+    const zoneMap = new Map(allZones.map(z => [z.id, z]));
+    const partnerMap = new Map(activePartners.map(p => [p.id, p]));
+
+    let partnerId = (customer as CustomerProfile).deliveryPartnerId ?? null;
+    let zoneId = (customer as CustomerProfile).zoneId ?? null;
+    
+    if (!partnerId) {
+      if (!zoneId) {
+        const custProfile = customer as CustomerProfile;
+        const defaultAddress = custProfile.addresses?.find((a: any) => a.id === custProfile.defaultAddressId) || custProfile.addresses?.[0];
+        if (defaultAddress?.pincode) {
+          const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+          if (matchedZone) zoneId = matchedZone.id;
+        }
+      }
+      if (zoneId) {
+        const partnerForZone = activePartners.find(p => p.zoneIds?.includes(zoneId!));
+        if (partnerForZone) {
+          partnerId = partnerForZone.id;
+        }
+      }
+    }
+
+    const driver = partnerMap.get(partnerId || '');
+    const zoneName = zoneId ? zoneMap.get(zoneId)?.name : undefined;
+
+    const batch = writeBatch(db);
+    ordersToSync.forEach(order => {
+      const ref = doc(db, 'orders', order.id!);
+      batch.update(ref, {
+        deliveryPartnerId: partnerId,
+        zoneId: zoneId,
+        driverName: driver?.fullName || undefined,
+        driverPhone: driver?.phone || undefined,
+        zoneName: zoneName || undefined,
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      });
+    });
+
+    await batch.commit();
+    console.log(`[orderService] Synced ${ordersToSync.length} active orders for customer ${customerId}`);
+  }
+
+  /**
+   * Applies Kitchen Lock and cancels generated orders for a skipped day.
+   */
+  async cancelOrdersForSkipDay(customerId: string, date: string, mealTypes: string[]): Promise<void> {
+    const orders = await orderRepository.list(
+      where('customerId', '==', customerId),
+      where('date', '==', date),
+      where('mealType', 'in', mealTypes)
+    );
+
+    const lockedStatuses = ['packing', 'packed', 'ready_for_pickup'];
+    const lockedOrders = orders.filter(o => lockedStatuses.includes(o.kitchenStatus || ''));
+
+    if (lockedOrders.length > 0) {
+      throw new Error('Order is already being prepared by the kitchen and cannot be cancelled.');
+    }
+
+    const batch = writeBatch(db);
+    orders.forEach(order => {
+      const ref = doc(db, 'orders', order.id!);
+      batch.update(ref, {
+        status: 'cancelled',
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      });
+    });
+
+    if (orders.length > 0) {
+      await batch.commit();
+      console.log(`[orderService] Cancelled ${orders.length} orders for skipped day ${date}`);
+      
+      import('@/shared/services/firestore/auditRepository').then(m => {
+        orders.forEach(o => {
+          m.auditRepository.logAction('meal_cancelled', customerId, 'Customer', o.id!, 'order', {
+            date,
+            mealType: o.mealType
+          }).catch(console.error);
+        });
+      }).catch(console.error);
+    }
   }
 }
 

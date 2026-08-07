@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { subscriptionRepository } from '../subscriptionRepository';
-import { getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { getDocs, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
 describe('subscriptionRepository', () => {
   const customerId = 'cust-1';
@@ -115,4 +115,54 @@ describe('subscriptionRepository', () => {
       );
     });
   });
+
+  describe('subscribeActiveSubscription', () => {
+    it('calls onSnapshot and returns unsubscribe function', () => {
+      const mockUnsub = vi.fn();
+      vi.mocked(onSnapshot).mockReturnValueOnce(mockUnsub as any);
+
+      const onNext = vi.fn();
+      const unsub = subscriptionRepository.subscribeActiveSubscription(customerId, onNext);
+
+      expect(onSnapshot).toHaveBeenCalledTimes(1);
+      expect(typeof unsub).toBe('function');
+    });
+
+    it('prefers active/paused over pending_payment in snapshot callback', () => {
+      let capturedCallback: ((snap: any) => void) | undefined;
+      vi.mocked(onSnapshot).mockImplementationOnce((_q, cb: any) => {
+        capturedCallback = cb;
+        return vi.fn() as any;
+      });
+
+      const onNext = vi.fn();
+      subscriptionRepository.subscribeActiveSubscription(customerId, onNext);
+
+      // Simulate snapshot with mixed statuses — active should win
+      capturedCallback!({
+        docs: [
+          { data: () => ({ id: 'sub-p', status: 'pending_payment' }) },
+          { data: () => ({ id: 'sub-a', status: 'active' }) },
+        ]
+      });
+
+      expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ status: 'active' }));
+    });
+
+    it('returns null when snapshot is empty', () => {
+      let capturedCallback: ((snap: any) => void) | undefined;
+      vi.mocked(onSnapshot).mockImplementationOnce((_q, cb: any) => {
+        capturedCallback = cb;
+        return vi.fn() as any;
+      });
+
+      const onNext = vi.fn();
+      subscriptionRepository.subscribeActiveSubscription(customerId, onNext);
+
+      capturedCallback!({ docs: [] });
+
+      expect(onNext).toHaveBeenCalledWith(null);
+    });
+  });
 });
+

@@ -5,7 +5,8 @@ import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, SubmitPaymentInput } from '@/shared/types';
 import { paymentRepository } from '../firestore/paymentRepository';
 import { userRepository } from '../firestore/userRepository';
-import { notifyPaymentSubmitted } from '../firestore/notificationService';
+import { notifyPaymentSubmitted, notifyPaymentVerified, notifyPaymentReminder, notifyInvoiceGenerated } from '../firestore/notificationService';
+import { auditRepository } from '../firestore/auditRepository';
 import { generateInvoicePdf, type InvoiceData } from '@/shared/utils/generateInvoicePdf';
 import { sendInvoiceEmail } from '@/shared/services/email/sendInvoiceEmail';
 
@@ -84,7 +85,9 @@ class PaymentService {
       if (!paymentSnap.exists()) throw new Error('Payment not found');
 
       const payment = paymentSnap.data() as ManualPayment;
-      if (payment.status !== 'pending') throw new Error('Payment already processed');
+      if (payment.status !== 'pending') {
+        throw new Error('This payment has already been processed or verified.');
+      }
 
       const subRef = doc(db, 'subscriptions', payment.subscriptionId);
 
@@ -117,6 +120,7 @@ class PaymentService {
       });
 
       capturedPayment = payment;
+      (capturedPayment as any)._invoiceIdForLogging = invoiceId;
     });
 
     // ── Auto-generate initial orders if subscription starts today or earlier ──
@@ -182,6 +186,34 @@ class PaymentService {
       }
     }
 
+    // Send notification and log audit action
+    try {
+      await notifyPaymentVerified(capturedPayment.customerId, paymentId, capturedPayment.amount);
+      await auditRepository.logAction(
+        'payment_received',
+        adminUid,
+        'Admin',
+        paymentId,
+        'payment',
+        { amount: capturedPayment.amount, method: capturedPayment.paymentMethod }
+      );
+
+      const invoiceId = (capturedPayment as any)._invoiceIdForLogging;
+      if (invoiceId) {
+        await notifyInvoiceGenerated(capturedPayment.customerId, invoiceId, capturedPayment.amount, capturedPayment.billingMonth ?? 'N/A');
+        await auditRepository.logAction(
+          'invoice_generated',
+          adminUid,
+          'Admin',
+          invoiceId,
+          'invoice',
+          { amount: capturedPayment.amount }
+        );
+      }
+    } catch (err) {
+      console.warn('[PaymentService] Failed to send notification or log audit:', err);
+    }
+
     return capturedPayment;
   }
 
@@ -226,6 +258,31 @@ class PaymentService {
     }
 
     return capturedPayment;
+  }
+  /**
+   * Triggers payment reminders for pending payments.
+   */
+  async sendPaymentReminders(): Promise<void> {
+    const { payments } = await paymentRepository.getPaymentsPaginated({ status: 'pending' }, 100);
+    const today = new Date();
+    
+    for (const payment of payments) {
+      const dueDate = new Date(payment.createdAt.toMillis());
+      dueDate.setDate(dueDate.getDate() + 3); // Grace period
+      
+      // If overdue or near due
+      if (today >= dueDate) {
+        try {
+          await notifyPaymentReminder(
+            payment.customerId, 
+            payment.amount, 
+            dueDate.toLocaleDateString()
+          );
+        } catch (err) {
+          console.warn(`[PaymentService] Failed to send reminder for payment ${payment.id}:`, err);
+        }
+      }
+    }
   }
 }
 

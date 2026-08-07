@@ -37,10 +37,13 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
           <Menu size={22} />
         </button>
 
-        {/* Brand shown on mobile only (sidebar shows brand on desktop) */}
-        <div className="lg:hidden">
-          <p className="font-display text-sm font-bold text-primary leading-tight">Mysuru Paakashale</p>
-          <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold">{ROLE_LABELS[role]}</p>
+        {/* Brand shown on mobile only */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" className="h-7 w-auto shrink-0" />
+          <div>
+            <p className="font-display text-sm font-bold text-primary leading-tight">Mysuru Paakashale</p>
+            <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold">{ROLE_LABELS[role]}</p>
+          </div>
         </div>
       </div>
 

@@ -172,7 +172,7 @@ export function AuditLogsPage() {
                     <td className="flex justify-between items-start md:items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-right md:text-left">
                       <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider mt-0.5">Actor/Entity</span>
                       <div>
-                        {log.actorId && <div className="text-[10px] font-mono text-primary bg-background-alt px-1.5 py-0.5 rounded border border-primary/5 inline-block mb-1 break-all max-w-[200px]"><span className="text-text-muted font-sans font-bold uppercase tracking-wider text-[8px]">Actor: </span> {log.actorId}</div>}
+                        {log.performedBy && <div className="text-[10px] font-mono text-primary bg-background-alt px-1.5 py-0.5 rounded border border-primary/5 inline-block mb-1 break-all max-w-[200px]"><span className="text-text-muted font-sans font-bold uppercase tracking-wider text-[8px]">Actor: </span> {log.performedBy}</div>}
                         {log.entityId && <div className="text-[10px] font-mono text-primary bg-background-alt px-1.5 py-0.5 rounded border border-primary/5 inline-block break-all max-w-[200px]"><span className="text-text-muted font-sans font-bold uppercase tracking-wider text-[8px]">Entity: </span> {log.entityId}</div>}
                       </div>
                     </td>

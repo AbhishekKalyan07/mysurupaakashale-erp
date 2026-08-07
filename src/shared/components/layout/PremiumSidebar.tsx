@@ -47,7 +47,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
         className={cn(
           'fixed inset-y-0 left-0 z-50 flex flex-col',
           'bg-gradient-to-b from-sidebar to-sidebar-secondary',
-          'border-r border-white/8 shadow-xl lg:static',
+          'border-r border-primary/10 shadow-xl lg:static',
           'overflow-hidden',
           // Mobile: hidden off-screen by default, slides in when isOpen
           isOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0',
@@ -55,19 +55,19 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-5 shrink-0 border-b border-white/10">
+        <div className="flex h-16 items-center justify-between px-5 shrink-0 border-b border-primary/10">
           <div className="flex items-center gap-3 overflow-hidden">
-            <img src="/favicon.svg" alt="Logo" className="h-7 w-7 shrink-0 drop-shadow" />
+            <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" className="h-8 w-auto shrink-0 drop-shadow-sm" />
             <motion.div
               initial={false}
               animate={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : 'auto' }}
               transition={{ duration: 0.18 }}
               className="leading-tight overflow-hidden whitespace-nowrap"
             >
-              <p className="font-display text-[14px] font-bold text-white tracking-wide leading-tight">
+              <p className="font-display text-[14px] font-bold text-primary tracking-wide leading-tight">
                 Mysuru Paakashale
               </p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-gold font-semibold leading-tight">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-primary/80 font-semibold leading-tight">
                 {ROLE_LABELS[role]}
               </p>
             </motion.div>
@@ -76,7 +76,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           {/* Desktop collapse toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden lg:flex w-7 h-7 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+            className="hidden lg:flex w-7 h-7 items-center justify-center rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
             aria-label="Toggle Sidebar"
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -85,7 +85,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           {/* Mobile close button */}
           <button
             onClick={onClose}
-            className="lg:hidden flex w-7 h-7 items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0 ml-auto"
+            className="lg:hidden flex w-7 h-7 items-center justify-center rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors shrink-0 ml-auto"
             aria-label="Close Sidebar"
           >
             <X size={18} />
@@ -100,7 +100,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                 <motion.div
                   initial={false}
                   animate={{ opacity: isCollapsed ? 0 : 1, height: isCollapsed ? 0 : 'auto' }}
-                  className="px-3 text-[9px] font-bold uppercase tracking-[0.18em] text-white/35 mb-1 overflow-hidden"
+                  className="px-3 text-[9px] font-bold uppercase tracking-[0.18em] text-primary/40 mb-1 overflow-hidden"
                 >
                   {group.groupLabel}
                 </motion.div>
@@ -118,8 +118,8 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                         'flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-medium',
                         'transition-all duration-150 group relative',
                         isActive
-                          ? 'bg-white/12 text-white'
-                          : 'text-white/60 hover:bg-white/8 hover:text-white',
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-primary/60 hover:bg-primary/5 hover:text-primary',
                         isCollapsed ? 'justify-center' : 'justify-start'
                       )
                     }
@@ -129,7 +129,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                         {isActive && (
                           <motion.div
                             layoutId="sidebarActiveIndicator"
-                            className="absolute left-0 top-2 bottom-2 w-0.5 bg-gold rounded-r-full"
+                            className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full"
                             transition={{ duration: 0.2 }}
                           />
                         )}
@@ -138,7 +138,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                           strokeWidth={isActive ? 2.5 : 1.8}
                           className={cn(
                             'shrink-0 transition-colors',
-                            isActive ? 'text-gold' : 'text-white/60 group-hover:text-white'
+                            isActive ? 'text-primary' : 'text-primary/60 group-hover:text-primary'
                           )}
                         />
                         <motion.span
@@ -158,14 +158,14 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
         </nav>
 
         {/* Footer branding dot */}
-        <div className="px-5 py-4 border-t border-white/10 shrink-0">
+        <div className="px-5 py-4 border-t border-primary/10 shrink-0">
           <motion.div
             initial={false}
             animate={{ opacity: isCollapsed ? 0 : 1 }}
             className="flex items-center gap-2"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0" />
-            <span className="text-[10px] text-white/35 font-medium truncate">System Online</span>
+            <span className="text-[10px] text-primary/50 font-medium truncate">System Online</span>
           </motion.div>
         </div>
       </motion.aside>

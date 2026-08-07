@@ -94,6 +94,27 @@ class SubscriptionService {
         console.error(`[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`, err);
       }
     }
+
+    try {
+      const { notifySubscriptionApproved } = await import('../firestore/notificationService');
+      const { auditRepository } = await import('../firestore/auditRepository');
+      const { auth } = await import('@/shared/lib/firebase');
+      await notifySubscriptionApproved(
+        subscription.customerId,
+        subscription.id,
+        subscription.planTier,
+        subscription.startDate
+      );
+      await auditRepository.logAction(
+        'subscription_approved',
+        auth.currentUser?.uid || 'system',
+        'Admin',
+        subscription.id,
+        'subscription'
+      );
+    } catch (err) {
+      console.warn('[SubscriptionService] Failed to send notification or audit:', err);
+    }
   }
 
   /** Cancels a subscription and rejects any pending payments. */

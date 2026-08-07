@@ -1,33 +1,12 @@
 {
-  "cookies": [
-    {
-      "name": "_ga_QDDVNFM2JL",
-      "value": "GS2.1.s1785770223$o1$g0$t1785770223$j60$l0$h0",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1820330223.904136,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_ga",
-      "value": "GA1.1.2044342539.1785770224",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1820330223.906248,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    }
-  ],
+  "cookies": [],
   "origins": [
     {
       "origin": "http://localhost:5174",
       "localStorage": [
         {
-          "name": "firebase:authUser:AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c:[DEFAULT]",
-          "value": "{\"uid\":\"s8WeQz9anyi2tVuU09bLeP75vZnc\",\"email\":\"delivery@test.com\",\"emailVerified\":false,\"displayName\":\"Delivery User\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"delivery@test.com\",\"displayName\":\"Delivery User\",\"email\":\"delivery@test.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"eyJfQXV0aEVtdWxhdG9yUmVmcmVzaFRva2VuIjoiRE8gTk9UIE1PRElGWSIsImxvY2FsSWQiOiJzOFdlUXo5YW55aTJ0VnVVMDliTGVQNzV2Wm5jIiwicHJvdmlkZXIiOiJwYXNzd29yZCIsImV4dHJhQ2xhaW1zIjp7fSwicHJvamVjdElkIjoiZGVtby10ZXN0In0=\",\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJuYW1lIjoiRGVsaXZlcnkgVXNlciIsImVtYWlsIjoiZGVsaXZlcnlAdGVzdC5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImF1dGhfdGltZSI6MTc4NTc3MDIyNCwidXNlcl9pZCI6InM4V2VRejlhbnlpMnRWdVUwOWJMZVA3NXZabmMiLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbImRlbGl2ZXJ5QHRlc3QuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifSwiaWF0IjoxNzg1NzcwMjI0LCJleHAiOjE3ODU3NzM4MjQsImF1ZCI6ImRlbW8tdGVzdCIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9kZW1vLXRlc3QiLCJzdWIiOiJzOFdlUXo5YW55aTJ0VnVVMDliTGVQNzV2Wm5jIn0.\",\"expirationTime\":1785773824153},\"createdAt\":\"1785770215851\",\"lastLoginAt\":\"1785770224147\",\"apiKey\":\"AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c\",\"appName\":\"[DEFAULT]\"}"
+          "name": "firebase:authUser:fake-api-key:[DEFAULT]",
+          "value": "{\"uid\":\"JpbBODdgUXdNE4Vz9iMXxLKmSaCq\",\"email\":\"delivery@test.com\",\"emailVerified\":false,\"displayName\":\"Delivery User\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"delivery@test.com\",\"displayName\":\"Delivery User\",\"email\":\"delivery@test.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"eyJfQXV0aEVtdWxhdG9yUmVmcmVzaFRva2VuIjoiRE8gTk9UIE1PRElGWSIsImxvY2FsSWQiOiJKcGJCT0RkZ1VYZE5FNFZ6OWlNWHhMS21TYUNxIiwicHJvdmlkZXIiOiJwYXNzd29yZCIsImV4dHJhQ2xhaW1zIjp7fSwicHJvamVjdElkIjoiZGVtby10ZXN0In0=\",\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJuYW1lIjoiRGVsaXZlcnkgVXNlciIsImVtYWlsIjoiZGVsaXZlcnlAdGVzdC5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImF1dGhfdGltZSI6MTc4NTk1NTU0OSwidXNlcl9pZCI6IkpwYkJPRGRnVVhkTkU0Vno5aU1YeExLbVNhQ3EiLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbImRlbGl2ZXJ5QHRlc3QuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifSwiaWF0IjoxNzg1OTU1NTQ5LCJleHAiOjE3ODU5NTkxNDksImF1ZCI6ImRlbW8tdGVzdCIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9kZW1vLXRlc3QiLCJzdWIiOiJKcGJCT0RkZ1VYZE5FNFZ6OWlNWHhMS21TYUNxIn0.\",\"expirationTime\":1785959149617},\"createdAt\":\"1785955540552\",\"lastLoginAt\":\"1785955549597\",\"apiKey\":\"fake-api-key\",\"appName\":\"[DEFAULT]\"}"
         }
       ]
     }
