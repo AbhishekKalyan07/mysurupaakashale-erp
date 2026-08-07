@@ -25,6 +25,7 @@ import type {
   NotificationPriority,
 } from '@/shared/types';
 import { auth } from '@/shared/lib/firebase';
+import { NotificationTemplates } from './templates';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core send helper
@@ -86,6 +87,27 @@ export async function notifySubscriptionActivated(
     'subscription_activated',
     'Subscription activated!',
     `Your ${planTier} meal plan is now active from ${startDate}. Enjoy your meals!`,
+    {
+      priority: 'high',
+      relatedEntityType: 'subscription',
+      relatedEntityId: subscriptionId,
+    },
+  );
+}
+
+export async function notifySubscriptionApproved(
+  customerId: string,
+  subscriptionId: string,
+  planTier: string,
+  startDate: string,
+): Promise<void> {
+  const tpl = NotificationTemplates.SubscriptionApproved(planTier, startDate);
+  await send(
+    customerId,
+    'customer',
+    'subscription_approved',
+    tpl.title,
+    tpl.message,
     {
       priority: 'high',
       relatedEntityType: 'subscription',
@@ -217,16 +239,56 @@ export async function notifyPaymentVerified(
   paymentId: string,
   amount: number,
 ): Promise<void> {
+  const tpl = NotificationTemplates.PaymentReceived(amount);
   await send(
     customerId,
     'customer',
     'payment_verified',
-    'Payment approved ✓',
-    `Your payment of ₹${amount} has been verified. Your subscription is now active.`,
+    tpl.title,
+    tpl.message,
     {
       priority: 'high',
       relatedEntityType: 'payment',
       relatedEntityId: paymentId,
+    },
+  );
+}
+
+export async function notifyPaymentReminder(
+  customerId: string,
+  amount: number,
+  dueDate: string,
+): Promise<void> {
+  const tpl = NotificationTemplates.PaymentReminder(amount, dueDate);
+  await send(
+    customerId,
+    'customer',
+    'payment_reminder',
+    tpl.title,
+    tpl.message,
+    {
+      priority: 'high',
+    },
+  );
+}
+
+export async function notifyInvoiceGenerated(
+  customerId: string,
+  invoiceId: string,
+  amount: number,
+  billingMonth: string,
+): Promise<void> {
+  const tpl = NotificationTemplates.InvoiceGenerated(amount, billingMonth);
+  await send(
+    customerId,
+    'customer',
+    'invoice_generated',
+    tpl.title,
+    tpl.message,
+    {
+      priority: 'normal',
+      relatedEntityType: 'invoice',
+      relatedEntityId: invoiceId,
     },
   );
 }
@@ -254,6 +316,23 @@ export async function notifyPaymentRejected(
 // ─────────────────────────────────────────────────────────────────────────────
 // Delivery notifications
 // ─────────────────────────────────────────────────────────────────────────────
+
+export async function notifyDriverAssigned(
+  customerId: string,
+  orderId: string,
+  driverName: string,
+  mealType: string,
+): Promise<void> {
+  const tpl = NotificationTemplates.DriverAssigned(driverName, mealType);
+  await send(
+    customerId,
+    'customer',
+    'driver_assigned',
+    tpl.title,
+    tpl.message,
+    { relatedEntityType: 'order', relatedEntityId: orderId },
+  );
+}
 
 export async function notifyOrderOutForDelivery(
   customerId: string,
@@ -301,6 +380,87 @@ export async function notifyDeliveryFailed(
       relatedEntityType: 'order',
       relatedEntityId: orderId,
     },
+  );
+}
+
+export async function notifyOrderGeneratedCustomer(
+  customerId: string,
+  mealType: string,
+  date: string,
+): Promise<void> {
+  await send(
+    customerId,
+    'customer',
+    'system_alert',
+    `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} order generated`,
+    `Your ${mealType} order for ${date} has been generated and sent to the kitchen.`,
+    { priority: 'normal' },
+  );
+}
+
+export async function notifyOrderGeneratedDriver(
+  driverId: string,
+  orderId: string,
+  mealType: string,
+  customerName: string,
+  date: string,
+): Promise<void> {
+  await send(
+    driverId,
+    'delivery',
+    'system_alert',
+    `New ${mealType} delivery assigned`,
+    `You have been assigned a new ${mealType} delivery for ${customerName} on ${date}.`,
+    { priority: 'normal', relatedEntityType: 'order', relatedEntityId: orderId },
+  );
+}
+
+export async function notifyReadyForPickup(
+  driverId: string,
+  orderId: string,
+  mealType: string,
+): Promise<void> {
+  await send(
+    driverId,
+    'delivery',
+    'system_alert',
+    `${mealType} ready for pickup`,
+    `A ${mealType} order is packed and ready for you to pick up from the kitchen.`,
+    { priority: 'high', relatedEntityType: 'order', relatedEntityId: orderId },
+  );
+}
+
+export async function notifyAccountsDelivered(
+  accountId: string,
+  orderId: string,
+  mealType: string,
+): Promise<void> {
+  await send(
+    accountId,
+    'accounts',
+    'system_alert',
+    `${mealType} delivered`,
+    `A ${mealType} order has been delivered and is ready for invoice processing.`,
+    { priority: 'normal', relatedEntityType: 'order', relatedEntityId: orderId },
+  );
+}
+
+export async function notifyAdminAlert(
+  adminIds: string[],
+  title: string,
+  message: string,
+): Promise<void> {
+  await Promise.all(
+    adminIds.map((adminId) =>
+      send(
+        adminId,
+        'admin',
+        'system_alert',
+        title,
+        message,
+        { priority: 'high' }
+      )
+    )
   );
 }
 

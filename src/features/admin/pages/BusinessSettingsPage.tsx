@@ -43,6 +43,11 @@ const settingsSchema = z.object({
       lunch: z.object({ start: z.string(), end: z.string() }),
       dinner: z.object({ start: z.string(), end: z.string() }),
     }),
+    cancellationCutoffTimes: z.object({
+      breakfast: z.string(),
+      lunch: z.string(),
+      dinner: z.string(),
+    }),
     businessHolidays: z.string(), // We'll handle array conversion back and forth
   }),
   payroll: z.object({
@@ -72,6 +77,11 @@ export function BusinessSettingsPage() {
         pricing: settings.pricing,
         operations: {
           ...settings.operations,
+          cancellationCutoffTimes: settings.operations.cancellationCutoffTimes ?? {
+            breakfast: '05:00',
+            lunch: '10:30',
+            dinner: '16:00',
+          },
           businessHolidays: settings.operations.businessHolidays.join(', '),
         },
         payroll: settings.payroll || {
@@ -156,6 +166,28 @@ export function BusinessSettingsPage() {
             </div>
             <div className="md:col-span-2">
               <Input label="Business Holidays (YYYY-MM-DD, comma separated)" placeholder="2025-01-01, 2025-08-15" {...register('operations.businessHolidays')} />
+            </div>
+          </div>
+
+          {/* Cancellation Cutoff Times */}
+          <div>
+            <h3 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
+              <Clock size={16} className="text-rose-500" /> Cancellation Cutoff Times
+            </h3>
+            <p className="text-xs text-text-muted mb-4">Customers must cancel before these times for each meal type to avoid being charged.</p>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <p className="text-xs font-bold text-primary mb-2">Breakfast cutoff</p>
+                <Input label="Cancel before" type="time" {...register('operations.cancellationCutoffTimes.breakfast')} />
+              </div>
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <p className="text-xs font-bold text-primary mb-2">Lunch cutoff</p>
+                <Input label="Cancel before" type="time" {...register('operations.cancellationCutoffTimes.lunch')} />
+              </div>
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <p className="text-xs font-bold text-primary mb-2">Dinner cutoff</p>
+                <Input label="Cancel before" type="time" {...register('operations.cancellationCutoffTimes.dinner')} />
+              </div>
             </div>
           </div>
         </Card>

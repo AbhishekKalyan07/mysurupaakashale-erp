@@ -135,6 +135,20 @@ describe('notificationService', () => {
       );
     });
 
+    it('notifyPaymentReminder', async () => {
+      await notificationService.notifyPaymentReminder('cust-1', 1500, '2026-08-05');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'payment_reminder', priority: 'high' })
+      );
+    });
+
+    it('notifyInvoiceGenerated', async () => {
+      await notificationService.notifyInvoiceGenerated('cust-1', 'inv-1', 1500, 'August 2026');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'invoice_generated', priority: 'normal', relatedEntityId: 'inv-1' })
+      );
+    });
+
     it('notifyPaymentRejected with notes', async () => {
       await notificationService.notifyPaymentRejected('cust-1', 'pay-1', 1500, 'Blurry image');
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
@@ -157,6 +171,13 @@ describe('notificationService', () => {
   });
 
   describe('Delivery Notifications', () => {
+    it('notifyDriverAssigned', async () => {
+      await notificationService.notifyDriverAssigned('cust-1', 'ord-1', 'Driver A', 'lunch');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'driver_assigned', relatedEntityId: 'ord-1' })
+      );
+    });
+
     it('notifyOrderOutForDelivery', async () => {
       await notificationService.notifyOrderOutForDelivery('cust-1', 'ord-1', 'lunch');
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
@@ -175,6 +196,34 @@ describe('notificationService', () => {
       await notificationService.notifyDeliveryFailed('cust-1', 'ord-1', 'lunch');
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'delivery_failed', priority: 'high' })
+      );
+    });
+
+    it('notifyOrderGeneratedCustomer', async () => {
+      await notificationService.notifyOrderGeneratedCustomer('cust-1', 'lunch', '2026-08-01');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'customer' })
+      );
+    });
+
+    it('notifyOrderGeneratedDriver', async () => {
+      await notificationService.notifyOrderGeneratedDriver('driver-1', 'ord-1', 'lunch', 'Cust 1', '2026-08-01');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'delivery' })
+      );
+    });
+
+    it('notifyReadyForPickup', async () => {
+      await notificationService.notifyReadyForPickup('driver-1', 'ord-1', 'lunch');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'system_alert', priority: 'high', recipientRole: 'delivery' })
+      );
+    });
+
+    it('notifyAccountsDelivered', async () => {
+      await notificationService.notifyAccountsDelivered('account-1', 'ord-1', 'lunch');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'accounts' })
       );
     });
   });
@@ -212,6 +261,16 @@ describe('notificationService', () => {
           type: 'staff_account_created',
           priority: 'high',
         })
+      );
+    });
+
+    it('notifyAdminAlert notifies multiple admins', async () => {
+      await notificationService.notifyAdminAlert(['admin-1', 'admin-2'], 'Alert', 'Message');
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientId: 'admin-1', recipientRole: 'admin', type: 'system_alert' })
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientId: 'admin-2', recipientRole: 'admin', type: 'system_alert' })
       );
     });
   });

@@ -26,8 +26,8 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
       {/* Subtle Grid overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#5c1417_1px,transparent_1px)] [background-size:24px_24px] z-0" />
 
-      {/* Centered Content Container - Shifted up slightly for better optical centering */}
-      <div className="relative z-10 flex flex-col w-full md:w-[450px] lg:w-[480px] px-6 lg:px-0 py-10 min-h-screen items-center justify-center mx-auto md:-translate-y-4 lg:-translate-y-8">
+      {/* Centered Content Container */}
+      <div className="relative z-10 flex flex-col w-full md:w-[450px] lg:w-[480px] px-6 lg:px-0 py-6 min-h-screen items-center justify-center mx-auto md:-translate-y-2 lg:-translate-y-4">
 
         {/* Header / Logo */}
         <div className="relative flex items-center justify-center w-full mb-0 shrink-0 z-20">
@@ -42,17 +42,16 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
           )}
 
           <div className="flex flex-col items-center">
-            {/* Using scale to visually enlarge it while keeping physical layout height very small */}
             <img 
               src="/no_bg_logo.png" 
               alt="Mysuru Paakashale Logo" 
-              className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-sm scale-[1.75] md:scale-[1.85] translate-y-2" 
+              className="h-28 md:h-32 lg:h-36 w-auto object-contain drop-shadow-sm" 
             />
           </div>
         </div>
 
-        {/* Form Content - Removed flex-grow to prevent huge gap */}
-        <div className="w-full flex flex-col justify-center">
+        {/* Form Content (Moved up relative to logo) */}
+        <div className="w-full flex flex-col justify-center -mt-4 md:-mt-6 lg:-mt-8 z-10">
           {children}
         </div>
 

@@ -111,6 +111,20 @@ export class DeliveryService {
           }
           return (a.deliveryWindow?.start || '').localeCompare(b.deliveryWindow?.start || '');
         });
+
+        // Route Optimization Simulation (assigns ETAs sequentially)
+        let currentTime = new Date();
+        const mealType = sortedOrders[0]?.mealType;
+        if (mealType === 'breakfast') currentTime.setHours(8, 0, 0, 0);
+        else if (mealType === 'lunch') currentTime.setHours(13, 0, 0, 0);
+        else if (mealType === 'dinner') currentTime.setHours(19, 0, 0, 0);
+
+        sortedOrders.forEach((order, index) => {
+          // Assign 15 mins per stop
+          const stopTime = new Date(currentTime.getTime() + index * 15 * 60000);
+          order.estimatedETA = stopTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+
         return { areaName, orders: sortedOrders };
       });
 
@@ -127,11 +141,25 @@ export class DeliveryService {
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
+    if (['picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
+      throw new Error(`Cannot reassign driver: order is already ${order.status}.`);
+    }
     if (order.deliveryPartnerId === driverId) return; // Idempotency
     
     await orderRepository.update(orderId, { deliveryPartnerId: driverId });
     const { auditRepository } = await import('../firestore/auditRepository');
+    const { userRepository } = await import('../firestore/userRepository');
+    const { notifyDriverAssigned } = await import('../firestore/notificationService');
+    
     await auditRepository.logAction('driver_assigned', adminId, 'Admin', orderId, 'order', { oldDriverId: order.deliveryPartnerId, newDriverId: driverId });
+
+    try {
+      const driver = await userRepository.getById(driverId);
+      const driverName = driver?.fullName || 'A delivery partner';
+      await notifyDriverAssigned(order.customerId, order.id, driverName, order.mealType);
+    } catch (err) {
+      console.warn('[DeliveryService] Failed to notify driver assigned:', err);
+    }
   }
 
   /**

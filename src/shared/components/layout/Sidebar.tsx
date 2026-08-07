@@ -21,8 +21,8 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 items-center gap-2 px-5">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
+        <div className="flex items-center gap-3 px-5 py-4">
+          <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" className="h-8 w-auto shrink-0" />
           <div className="leading-tight">
             <p className="font-display text-sm">Mysuru Paakashale</p>
             <p className="text-xs text-leaf-300">{ROLE_LABELS[role]}</p>

@@ -31,7 +31,7 @@ export function useExportAuditLogs() {
       const header = ["Timestamp", "Action", "Actor", "Details"].join(",");
       const rows = allLogs.map(log => {
         const date = log.timestamp ? new Date(log.timestamp.seconds * 1000).toISOString() : '';
-        return `"${date}","${log.action}","${log.actorId}","${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
+        return `"${date}","${log.action}","${log.performedBy}","${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
       });
       
       return [header, ...rows].join("\n");

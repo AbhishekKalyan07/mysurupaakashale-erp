@@ -104,6 +104,14 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Reassigns an order to a different delivery partner.
    */
   async reassignOrder(orderId: string, partnerId: string | null): Promise<void> {
+    const order = await this.getById(orderId);
+    if (!order) throw new Error('Order not found');
+
+    const lockedStatuses = ['picked_up', 'out_for_delivery', 'delivered', 'failed_delivery', 'returned_delivery'];
+    if (lockedStatuses.includes(order.status)) {
+      throw new Error(`Cannot reassign order in status: ${order.status}`);
+    }
+
     // Phase 1: Client-side reassignment
     await this.update(orderId, { 
       deliveryPartnerId: partnerId,

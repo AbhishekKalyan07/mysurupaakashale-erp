@@ -1,33 +1,12 @@
 {
-  "cookies": [
-    {
-      "name": "_ga_QDDVNFM2JL",
-      "value": "GS2.1.s1785770221$o1$g0$t1785770221$j60$l0$h0",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1820330221.027335,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "_ga",
-      "value": "GA1.1.86568176.1785770221",
-      "domain": "localhost",
-      "path": "/",
-      "expires": 1820330221.028281,
-      "httpOnly": false,
-      "secure": false,
-      "sameSite": "Lax"
-    }
-  ],
+  "cookies": [],
   "origins": [
     {
       "origin": "http://localhost:5174",
       "localStorage": [
         {
-          "name": "firebase:authUser:AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c:[DEFAULT]",
-          "value": "{\"uid\":\"xyoPD7hQawHurKkVavwQCtM2urPe\",\"email\":\"kitchen@test.com\",\"emailVerified\":false,\"displayName\":\"Kitchen User\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"kitchen@test.com\",\"displayName\":\"Kitchen User\",\"email\":\"kitchen@test.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"eyJfQXV0aEVtdWxhdG9yUmVmcmVzaFRva2VuIjoiRE8gTk9UIE1PRElGWSIsImxvY2FsSWQiOiJ4eW9QRDdoUWF3SHVyS2tWYXZ3UUN0TTJ1clBlIiwicHJvdmlkZXIiOiJwYXNzd29yZCIsImV4dHJhQ2xhaW1zIjp7fSwicHJvamVjdElkIjoiZGVtby10ZXN0In0=\",\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJuYW1lIjoiS2l0Y2hlbiBVc2VyIiwiZW1haWwiOiJraXRjaGVuQHRlc3QuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJhdXRoX3RpbWUiOjE3ODU3NzAyMjEsInVzZXJfaWQiOiJ4eW9QRDdoUWF3SHVyS2tWYXZ3UUN0TTJ1clBlIiwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJlbWFpbCI6WyJraXRjaGVuQHRlc3QuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifSwiaWF0IjoxNzg1NzcwMjIxLCJleHAiOjE3ODU3NzM4MjEsImF1ZCI6ImRlbW8tdGVzdCIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9kZW1vLXRlc3QiLCJzdWIiOiJ4eW9QRDdoUWF3SHVyS2tWYXZ3UUN0TTJ1clBlIn0.\",\"expirationTime\":1785773821146},\"createdAt\":\"1785770215833\",\"lastLoginAt\":\"1785770221137\",\"apiKey\":\"AIzaSyAtj1NNHz9UvtRNiptELqIMtAuwzNVJl-c\",\"appName\":\"[DEFAULT]\"}"
+          "name": "firebase:authUser:fake-api-key:[DEFAULT]",
+          "value": "{\"uid\":\"OL6nGBoSG1LQswL0iI7q9qKyDds5\",\"email\":\"kitchen@test.com\",\"emailVerified\":false,\"displayName\":\"Kitchen User\",\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"kitchen@test.com\",\"displayName\":\"Kitchen User\",\"email\":\"kitchen@test.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"eyJfQXV0aEVtdWxhdG9yUmVmcmVzaFRva2VuIjoiRE8gTk9UIE1PRElGWSIsImxvY2FsSWQiOiJPTDZuR0JvU0cxTFFzd0wwaUk3cTlxS3lEZHM1IiwicHJvdmlkZXIiOiJwYXNzd29yZCIsImV4dHJhQ2xhaW1zIjp7fSwicHJvamVjdElkIjoiZGVtby10ZXN0In0=\",\"accessToken\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJuYW1lIjoiS2l0Y2hlbiBVc2VyIiwiZW1haWwiOiJraXRjaGVuQHRlc3QuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJhdXRoX3RpbWUiOjE3ODU5NTU1NDcsInVzZXJfaWQiOiJPTDZuR0JvU0cxTFFzd0wwaUk3cTlxS3lEZHM1IiwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJlbWFpbCI6WyJraXRjaGVuQHRlc3QuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifSwiaWF0IjoxNzg1OTU1NTQ3LCJleHAiOjE3ODU5NTkxNDcsImF1ZCI6ImRlbW8tdGVzdCIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9kZW1vLXRlc3QiLCJzdWIiOiJPTDZuR0JvU0cxTFFzd0wwaUk3cTlxS3lEZHM1In0.\",\"expirationTime\":1785959147226},\"createdAt\":\"1785955540519\",\"lastLoginAt\":\"1785955547211\",\"apiKey\":\"fake-api-key\",\"appName\":\"[DEFAULT]\"}"
         }
       ]
     }

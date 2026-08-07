@@ -365,12 +365,28 @@ service cloud.firestore {
 
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      // Allow any authenticated user to create an audit log for their own
-      // actions, but restrict the writable fields to prevent content injection.
+      // Allow any authenticated user to create an audit log.
+      // Field allowlist is aligned with the AuditLog TypeScript type and
+      // auditRepository.ts (which writes performedBy / performedByRole —
+      // NOT the old actorId / actorName / actorRole field names).
       allow create: if isSignedIn() &&
-                       request.resource.data.actorId == request.auth.uid &&
-                       request.resource.data.keys().hasOnly(['actorId', 'actorName', 'actorRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'ipAddress', 'sessionId']);
+                       ('performedBy' in request.resource.data) &&
+                       request.resource.data.performedBy == request.auth.uid &&
+                       request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
       allow update, delete: if false; // Audit logs must be immutable
+    }
+
+    // ---------- failureQueue/{recordId} ----------
+    // Written by orderService when order generation fails after 3 retries.
+    // Only admins may read and resolve queue entries.
+    // Any signed-in context (automation / system / admin) may create records;
+    // updates (e.g. marking resolved) are admin-only. Deletion is never allowed
+    // so there is a full history of all past generation failures.
+    match /failureQueue/{recordId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if false;
     }
 
     match /analytics/{docId} {

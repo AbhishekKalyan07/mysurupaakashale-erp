@@ -34,7 +34,7 @@ function StaffCardView({
       {menuOpen && (
         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
       )}
-      <div className="p-3 flex flex-col gap-2 relative h-[130px]">
+      <div className="p-3.5 flex flex-col gap-2 relative min-h-[140px] pb-3">
         {/* Top Header Row */}
         <div className="flex justify-between items-start">
           <div className="flex gap-2 items-center mt-1">

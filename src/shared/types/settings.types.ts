@@ -36,6 +36,12 @@ export interface BusinessSettings {
       lunch: { start: string; end: string };
       dinner: { start: string; end: string };
     };
+    /** Cancellation deadline for each meal type (HH:mm, 24h, IST) */
+    cancellationCutoffTimes: {
+      breakfast: string; // e.g. '05:00' – must cancel before 5 AM
+      lunch: string;     // e.g. '10:30' – must cancel before 10:30 AM
+      dinner: string;    // e.g. '16:00' – must cancel before 4 PM
+    };
     businessHolidays: string[]; // YYYY-MM-DD
   };
   payroll: {

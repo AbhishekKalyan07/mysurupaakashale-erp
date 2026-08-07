@@ -49,6 +49,10 @@ class CustomerService {
       assignedBy: adminId,
       updatedAt: serverTimestamp() as unknown as Timestamp,
     } as any);
+    
+    // Synchronize today's active orders with the new partner
+    const { orderService } = await import('@/shared/services/business/orderService');
+    await orderService.syncCustomerActiveOrders(customerId);
 
     // Create an audit log
     await auditRepository.logAction(
@@ -99,6 +103,10 @@ class CustomerService {
       assignedBy: adminId,
       updatedAt: serverTimestamp() as unknown as Timestamp,
     } as any);
+
+    // Synchronize today's active orders with the new zone
+    const { orderService } = await import('@/shared/services/business/orderService');
+    await orderService.syncCustomerActiveOrders(customerId);
 
     // Create an audit log
     await auditRepository.logAction(

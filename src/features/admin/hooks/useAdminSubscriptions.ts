@@ -143,7 +143,7 @@ export function useAdminSubscriptions(status: AdminStatusFilter) {
     },
     initialPageParam: undefined as QueryDocumentSnapshot<Subscription> | undefined,
     getNextPageParam: (lastPage) => lastPage.lastDoc ?? undefined,
-    staleTime: 15_000,
+    staleTime: 0,
   });
 }
 
@@ -334,6 +334,9 @@ export function useUpdateDeliveryPartner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions', 'admin'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      // Invalidate all customer-specific subscription caches so SubscriptionDetailsPage
+      // also gets the updated delivery partner even when using real-time onSnapshot.
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       toast.success('Delivery partner updated.');
     },
     onError: (err: unknown) => {
