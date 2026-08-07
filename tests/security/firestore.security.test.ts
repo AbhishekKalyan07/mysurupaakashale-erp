@@ -521,9 +521,8 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Customer can create valid audit log for their own actions', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(addDoc(collection(db, 'auditLogs'), {
-        actorId: CUSTOMER_A_UID,
-        actorName: 'Customer A',
-        actorRole: 'customer',
+        performedBy: CUSTOMER_A_UID,
+        performedByRole: 'customer',
         action: 'subscription_paused',
         entityType: 'subscription',
         entityId: 'sub-a',
