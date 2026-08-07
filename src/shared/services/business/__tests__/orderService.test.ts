@@ -241,4 +241,93 @@ describe('orderService', () => {
       expect(orderRepository.update).toHaveBeenCalledWith('ord1', expect.objectContaining({ status: 'delivered' }));
     });
   });
+
+  describe('syncCustomerActiveOrders', () => {
+    it('syncs active orders with new delivery partner and zone', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([
+        { id: 'ord1', status: 'scheduled' },
+        { id: 'ord2', status: 'out_for_delivery' }
+      ] as any);
+      
+      const { deliveryZoneRepository } = await import('../../firestore/deliveryZoneRepository');
+      vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([{ id: 'z1', name: 'Zone 1' } as any]);
+      const { userRepository } = await import('../../firestore/userRepository');
+      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, role: 'delivery_partner' } as any]);
+      vi.spyOn(userRepository, 'getById').mockResolvedValue({ id: 'c1', deliveryPartnerId: 'p1', zoneId: 'z1' } as any);
+      
+      const { writeBatch } = await import('firebase/firestore');
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      const batchUpdate = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        update: batchUpdate,
+        commit: batchCommit,
+        set: vi.fn(),
+        delete: vi.fn(),
+      } as any);
+
+      await orderService.syncCustomerActiveOrders('c1');
+
+      expect(batchUpdate).toHaveBeenCalledTimes(2);
+      expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        deliveryPartnerId: 'p1',
+        driverName: 'Partner 1',
+        driverPhone: '123',
+        zoneId: 'z1',
+        zoneName: 'Zone 1'
+      }));
+      expect(batchCommit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing if no active orders to sync', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
+      
+      const { deliveryZoneRepository } = await import('../../firestore/deliveryZoneRepository');
+      vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([{ id: 'z1', name: 'Zone 1' } as any]);
+      const { userRepository } = await import('../../firestore/userRepository');
+      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, role: 'delivery_partner' } as any]);
+      vi.spyOn(userRepository, 'getById').mockResolvedValue({ id: 'c1', deliveryPartnerId: 'p1', zoneId: 'z1' } as any);
+      
+      const { writeBatch } = await import('firebase/firestore');
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(writeBatch).mockReturnValue({ commit: batchCommit } as any);
+
+      await orderService.syncCustomerActiveOrders('c1');
+      expect(batchCommit).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('cancelOrdersForSkipDay', () => {
+    it('cancels orders if they are not locked by kitchen', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([
+        { id: 'ord1', kitchenStatus: 'pending' },
+        { id: 'ord2', kitchenStatus: undefined }
+      ] as any);
+      
+      const { writeBatch } = await import('firebase/firestore');
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      const batchUpdate = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        update: batchUpdate,
+        commit: batchCommit,
+        set: vi.fn(),
+        delete: vi.fn(),
+      } as any);
+
+      await orderService.cancelOrdersForSkipDay('c1', '2026-08-01', ['lunch']);
+
+      expect(batchUpdate).toHaveBeenCalledTimes(2);
+      expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'cancelled' }));
+      expect(batchCommit).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws error if any order is locked by kitchen', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([
+        { id: 'ord1', kitchenStatus: 'pending' },
+        { id: 'ord2', kitchenStatus: 'packing' }
+      ] as any);
+
+      await expect(orderService.cancelOrdersForSkipDay('c1', '2026-08-01', ['lunch']))
+        .rejects.toThrow('Order is already being prepared by the kitchen and cannot be cancelled.');
+    });
+  });
 });

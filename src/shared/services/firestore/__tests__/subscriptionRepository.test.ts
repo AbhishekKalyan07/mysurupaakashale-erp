@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { subscriptionRepository } from '../subscriptionRepository';
 import { getDocs, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 
@@ -50,10 +50,49 @@ describe('subscriptionRepository', () => {
   });
 
   describe('addSkip', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('adds skip document and increments credit', async () => {
-      await subscriptionRepository.addSkip(subId, '2026-08-01', ['lunch'], 'holiday', 'admin-1', 150);
+      const date = '2026-08-01';
+      // Set time to 4:00 AM (before breakfast cutoff)
+      vi.setSystemTime(new Date(`${date}T04:00:00+05:30`));
+      
+      await subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1', 150);
       expect(setDoc).toHaveBeenCalledTimes(1);
       expect(updateDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws error if cancellation window has closed for breakfast', async () => {
+      const date = '2026-08-01';
+      // Set time to 5:01 AM (after breakfast cutoff)
+      vi.setSystemTime(new Date(`${date}T05:01:00+05:30`));
+      
+      await expect(subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1', 150))
+        .rejects.toThrow('Cancellation window has closed for breakfast.');
+    });
+
+    it('throws error if cancellation window has closed for lunch', async () => {
+      const date = '2026-08-01';
+      // Set time to 10:31 AM (after lunch cutoff)
+      vi.setSystemTime(new Date(`${date}T10:31:00+05:30`));
+      
+      await expect(subscriptionRepository.addSkip(subId, date, ['lunch'], 'holiday', 'admin-1', 150))
+        .rejects.toThrow('Cancellation window has closed for lunch.');
+    });
+
+    it('throws error if cancellation window has closed for dinner', async () => {
+      const date = '2026-08-01';
+      // Set time to 16:01 (after dinner cutoff)
+      vi.setSystemTime(new Date(`${date}T16:01:00+05:30`));
+      
+      await expect(subscriptionRepository.addSkip(subId, date, ['dinner'], 'holiday', 'admin-1', 150))
+        .rejects.toThrow('Cancellation window has closed for dinner.');
     });
   });
 
@@ -162,6 +201,23 @@ describe('subscriptionRepository', () => {
       capturedCallback!({ docs: [] });
 
       expect(onNext).toHaveBeenCalledWith(null);
+    });
+
+    it('calls onError callback on error', () => {
+      let capturedErrorCallback: ((err: any) => void) | undefined;
+      vi.mocked(onSnapshot).mockImplementationOnce((_q, _cb: any, errCb: any) => {
+        capturedErrorCallback = errCb;
+        return vi.fn() as any;
+      });
+
+      const onNext = vi.fn();
+      const onError = vi.fn();
+      subscriptionRepository.subscribeActiveSubscription(customerId, onNext, onError);
+
+      const mockError = new Error('Test error');
+      capturedErrorCallback!(mockError);
+
+      expect(onError).toHaveBeenCalledWith(mockError);
     });
   });
 });
