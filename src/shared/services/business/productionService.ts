@@ -200,7 +200,7 @@ export class ProductionService {
       const partnerId = o.deliveryPartnerId;
       const deliveryPartner = partnerId ? (partnerMap.get(partnerId) || partnerId) : 'Unassigned';
 
-      const customerName = customerMap.get(o.customerId) || o.customerId;
+      const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
       
       let plan = 'One-Time';
       if (o.source === 'subscription' && o.planTier) {
