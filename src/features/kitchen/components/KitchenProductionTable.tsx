@@ -136,7 +136,7 @@ export function KitchenProductionTable({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filteredOrders.map(order => {
-              const customerName = customerMap.get(order.customerId) || order.customerId;
+              const customerName = order.customerName || customerMap.get(order.customerId) || order.customerId;
               const area = order.zoneId ? zoneMap.get(order.zoneId) || order.zoneId : undefined;
               const partner = order.deliveryPartnerId ? partnerMap.get(order.deliveryPartnerId) || order.deliveryPartnerId : undefined;
               const plan = order.source === 'subscription' ? order.planTier : 'One-Time';
@@ -148,6 +148,7 @@ export function KitchenProductionTable({
                   variant="kitchen"
                   customer={{
                     fullName: customerName,
+                    displayId: order.customerCode,
                   }}
                   partnerName={partner}
                   zoneName={area}
