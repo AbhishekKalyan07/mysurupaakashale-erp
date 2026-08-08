@@ -3,8 +3,7 @@ import { usePartnerBoard } from '../hooks/usePartnerBoard';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { Truck, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { useQuery } from '@tanstack/react-query';
+
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
