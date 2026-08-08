@@ -841,7 +841,7 @@ function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
           onChange={e => {
             const newDate = e.target.value;
             setDate(newDate);
-            setSelectedMeals(getEligibleMeals(newDate));
+            setSelectedMeals(newDate ? subscription.mealPreferences.map((p: any) => p.mealType) : []);
           }}
           className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-6 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm font-data"
         />

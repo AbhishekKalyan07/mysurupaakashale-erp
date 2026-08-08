@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { failureQueueRepository } from '../failureQueueRepository';
-import { db } from '@/shared/lib/firebase';
-import { addDoc, collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 // Mock Firebase
 vi.mock('firebase/firestore', () => {
