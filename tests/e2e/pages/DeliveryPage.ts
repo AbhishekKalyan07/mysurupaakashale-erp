@@ -12,7 +12,7 @@ export class DeliveryPage {
   }
 
   async verifyDashboardLoaded() {
-    await expect(this.page.locator('h1', { hasText: 'Dispatch Team' })).toBeVisible();
+    await expect(this.page.locator('h1', { hasText: 'My Delivery Route' })).toBeVisible();
   }
 
   async pickupOrder(orderId: string) {
