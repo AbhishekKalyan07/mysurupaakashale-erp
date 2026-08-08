@@ -3,7 +3,7 @@ import { ROLES } from '@/shared/constants/roles';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import { CustomerDashboardPage } from './CustomerDashboardPage';
 import { KitchenDashboardPage } from './KitchenDashboardPage';
-import { DeliveryDashboardPage } from '@/features/delivery/pages/DeliveryDashboardPage';
+import { DeliveryPartnerPage } from '@/features/delivery/pages/DeliveryPartnerPage';
 import { AccountsDashboardPage } from './AccountsDashboardPage';
 
 /**
@@ -22,7 +22,7 @@ export function UnifiedDashboardPage() {
     case ROLES.KITCHEN:
       return <KitchenDashboardPage />;
     case ROLES.DELIVERY_PARTNER:
-      return <DeliveryDashboardPage />;
+      return <DeliveryPartnerPage />;
     case ROLES.ACCOUNTS:
       return <AccountsDashboardPage />;
     default:
