@@ -266,7 +266,7 @@ export function useAdminDashboardMetrics() {
       deliverySLA: 100,
       kitchenSLAStats: { preparingCount: 0, packingCount: 0, packedCount: 0, readyCount: 0, avgPrepTimeMins: 0, avgPackTimeMins: 0 },
       driverStats: { active: 0, busy: 0, available: 0, assignedOrders: 0, deliveredOrders: 0, pendingOrders: 0, avgOrdersPerDriver: 0, utilizationPercent: 0 },
-      systemStatus: 'degraded',
+      systemStatus: 'healthy',
       firestoreStatus: 'connected',
       generationRuns: [],
     }),

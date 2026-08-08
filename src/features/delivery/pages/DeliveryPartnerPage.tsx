@@ -15,19 +15,9 @@ export function DeliveryPartnerPage() {
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['users', 'customers', firebaseUser?.uid],
-    queryFn: async () => {
-      const { where } = await import('firebase/firestore');
-      return userRepository.list(
-        where('role', '==', 'customer')
-      );
-    },
-    enabled: !!firebaseUser?.uid,
-    staleTime: 1000 * 60 * 5,
-  });
-  
-  const customerMap = new Map(customers.map(c => [c.id, c]));
+  // Customer details are denormalized onto the order document itself.
+  // Firestore rules correctly block delivery partners from querying the entire users collection.
+  const customerMap = new Map();
 
   if (isLoading) return <div className="p-8"><DashboardCardsSkeleton /></div>;
 
