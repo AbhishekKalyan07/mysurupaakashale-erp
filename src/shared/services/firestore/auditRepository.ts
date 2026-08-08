@@ -27,12 +27,12 @@ class AuditRepository extends BaseRepository<AuditLog> {
     entityType: string,
     details?: any
   ): Promise<void> {
-    const previousValue = details?.previousValue ?? undefined;
-    const newValue = details?.newValue ?? undefined;
-    const reason = details?.reason ?? undefined;
+    const previousValue = details?.previousValue ?? null;
+    const newValue = details?.newValue ?? null;
+    const reason = details?.reason ?? null;
     
     // Clean up details if we extracted the specific keys
-    const remainingDetails = details ? { ...details } : undefined;
+    const remainingDetails = details ? { ...details } : null;
     if (remainingDetails) {
       delete remainingDetails.previousValue;
       delete remainingDetails.newValue;

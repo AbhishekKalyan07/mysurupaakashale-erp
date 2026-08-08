@@ -539,20 +539,21 @@ export function AdminCustomersPage() {
               ))}
             </div>
             
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 pt-4 border-t border-primary/10 mt-2 text-center sm:text-left">
-              <span className="text-sm font-medium text-text-muted">
+            <div className="flex flex-col items-center justify-center sm:flex-row sm:justify-between gap-4 px-2 pt-4 border-t border-border mt-2">
+              <span className="text-sm font-medium text-text-muted text-center sm:text-left">
                 Showing <strong className="text-primary">{filtered.length}</strong> customer{filtered.length !== 1 ? 's' : ''} on this page
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Button 
                   variant="secondary" 
                   size="sm"
                   onClick={handlePrevPage} 
                   disabled={currentPage === 0 || isLoading}
+                  className="flex-1 sm:flex-none"
                 >
                   <ChevronLeft size={16} className="mr-1" /> Prev
                 </Button>
-                <span className="text-sm font-bold text-text-muted">
+                <span className="text-sm font-bold text-text-muted px-2">
                   Page {currentPage + 1}
                 </span>
                 <Button 
@@ -560,6 +561,7 @@ export function AdminCustomersPage() {
                   size="sm"
                   onClick={handleNextPage} 
                   disabled={!data?.lastDoc || isLoading}
+                  className="flex-1 sm:flex-none"
                 >
                   Next <ChevronRight size={16} className="ml-1" />
                 </Button>

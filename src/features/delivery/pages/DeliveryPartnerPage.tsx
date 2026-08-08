@@ -20,8 +20,7 @@ export function DeliveryPartnerPage() {
     queryFn: async () => {
       const { where } = await import('firebase/firestore');
       return userRepository.list(
-        where('role', '==', 'customer'),
-        where('deliveryPartnerId', '==', firebaseUser?.uid)
+        where('role', '==', 'customer')
       );
     },
     enabled: !!firebaseUser?.uid,
