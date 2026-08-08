@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
-import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider } from 'firebase/app-check';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -92,7 +92,7 @@ export const appCheck = (() => {
   // Only attempt ReCaptcha if we are in a browser environment (window is defined).
   if (appCheckSiteKey && !isEmulatorMode && !isNode) {
     return initializeAppCheck(firebaseApp, {
-      provider: new ReCaptchaV3Provider(appCheckSiteKey),
+      provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true,
     });
   }
