@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
 import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
-import { Truck } from 'lucide-react';
+import { Truck, XCircle } from 'lucide-react';
 
 const addressFormSchema = z.object({
   label: z.string().min(1, 'Label is required (e.g., Home, Office)').max(50),
@@ -98,6 +98,7 @@ export function CustomerDashboardPage() {
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showTrialModal, setShowTrialModal] = useState(false);
@@ -313,14 +314,24 @@ export function CustomerDashboardPage() {
                         Resume <Play size={14} className="ml-1.5 fill-current" />
                       </Button>
                     ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setShowPauseModal(true)}
-                        className="text-primary border-primary/20 hover:bg-primary/10 font-bold text-xs"
-                      >
-                        Pause <Calendar size={14} className="ml-1.5" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowCancelTodayModal(true)}
+                          className="text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-bold text-xs"
+                        >
+                          Cancel Today <XCircle size={14} className="ml-1.5" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowPauseModal(true)}
+                          className="text-primary border-primary/20 hover:bg-primary/10 font-bold text-xs"
+                        >
+                          Schedule Pause <Calendar size={14} className="ml-1.5" />
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="primary"
@@ -371,7 +382,7 @@ export function CustomerDashboardPage() {
               </span>
               {todayOrders && todayOrders.length > 0 && (
                 <span className="text-xs font-sans font-bold text-gold bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
-                  Total: ₹{todayOrders.reduce((sum, order) => sum + (order.price || 0), 0)}
+                  Total: ₹{todayOrders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.price || 0), 0)}
                 </span>
               )}
             </h3>
@@ -483,7 +494,7 @@ export function CustomerDashboardPage() {
                 <li className="flex justify-between items-center border-t border-primary/5 pt-2"><strong className="text-primary font-bold">Dinner:</strong> <span className="text-text-muted font-data font-medium">07:00 PM - 09:00 PM</span></li>
               </ul>
               <p className="text-text-muted mt-4 text-xs font-medium leading-relaxed bg-primary/5 p-3 rounded-lg border border-primary/10">
-                To pause or skip deliveries for a single day, please visit your subscription details page before 10:00 PM the night prior.
+                To cancel a specific meal, please do so before the cut-off time: Breakfast (5 AM), Lunch (10:30 AM), Dinner (4 PM).
               </p>
             </div>
           </Card>
@@ -650,6 +661,14 @@ export function CustomerDashboardPage() {
           onClose={() => setShowFeedbackModal(false)}
         />
 
+        {showCancelTodayModal && subscription && (
+          <CancelTodayModal 
+            subscription={subscription} 
+            onClose={() => setShowCancelTodayModal(false)} 
+            skipDay={skipDay}
+          />
+        )}
+
         {showPauseModal && subscription && (
           <PauseDeliveryModal 
             subscription={subscription} 
@@ -772,22 +791,32 @@ function TrialMealModal({ onClose, uid, addresses, plans }: any) {
 }
 
 function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
+  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const nowInIndia = new Date(nowStr);
+  const minPauseDate = new Date(nowInIndia);
+  minPauseDate.setDate(minPauseDate.getDate() + 1); // Strictly tomorrow
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+  const minDateStr = formatter.format(minPauseDate);
+
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const [selectedMeals, setSelectedMeals] = useState<string[]>([]);
+
+  // For future dates, all preferred meals are eligible
+  const eligibleMealsForSelected = date ? subscription.mealPreferences.map((p: any) => p.mealType) : [];
+  const totalPreferredMeals = subscription.mealPreferences?.length || 1;
+  const fullDailyValue = subscription.pricePerDaySnapshot * (subscription.quantity || 1);
+  const creditAmount = Math.round((fullDailyValue / totalPreferredMeals) * selectedMeals.length);
 
   const handlePause = async () => {
-    if (!date) return;
+    if (!date || selectedMeals.length === 0) return;
     try {
-      // Calculate credit amount based on total daily value
-      const dailyValue = subscription.pricePerDaySnapshot * (subscription.quantity || 1);
-      
       await skipDay.mutateAsync({
         subscriptionId: subscription.id,
         date,
-        mealTypes: ['breakfast', 'lunch', 'dinner'], // pausing the whole day
+        mealTypes: selectedMeals,
         reason: reason || 'Customer requested pause',
-        creditAmount: dailyValue
+        creditAmount: creditAmount
       });
       onClose();
     } catch (err) {
@@ -799,19 +828,58 @@ function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-background rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-primary/20">
-        <h2 className="text-2xl font-bold font-display text-primary mb-4">Pause Delivery</h2>
+        <h2 className="text-2xl font-bold font-display text-primary mb-4">Schedule Pause</h2>
         <p className="text-sm font-sans text-text-muted mb-6 font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/10">
-          Select a date to pause your delivery. You will receive a credit of <strong className="text-gold">₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}</strong> on your next month's bill.
+          Select a future date to pause deliveries. You can choose which specific meals to cancel for that day.
         </p>
 
         <label className="block text-xs font-bold text-primary mb-2 font-sans uppercase tracking-wider">Select Date</label>
         <input 
           type="date" 
           value={date} 
-          min={tomorrow}
-          onChange={e => setDate(e.target.value)}
+          min={minDateStr}
+          onChange={e => {
+            const newDate = e.target.value;
+            setDate(newDate);
+            setSelectedMeals(newDate ? subscription.mealPreferences.map((p: any) => p.mealType) : []);
+          }}
           className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-6 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm font-data"
         />
+
+        {date && eligibleMealsForSelected.length > 0 && (
+          <div className="mb-6 bg-primary/5 p-4 rounded-xl border border-primary/10">
+            <label className="block text-xs font-bold text-primary mb-3 font-sans uppercase tracking-wider">Select Meals to Cancel</label>
+            <div className="space-y-3">
+              {eligibleMealsForSelected.map((meal: string) => (
+                <label key={meal} className="flex items-center gap-3 text-sm font-sans text-primary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedMeals.includes(meal)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedMeals([...selectedMeals, meal]);
+                      } else {
+                        setSelectedMeals(selectedMeals.filter(m => m !== meal));
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-primary/20 text-gold focus:ring-gold cursor-pointer"
+                  />
+                  <span className="capitalize font-bold">{meal}</span>
+                </label>
+              ))}
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-primary/10">
+              <p className="text-xs font-sans text-text-muted">
+                {selectedMeals.length > 0 ? (
+                  <>You will receive a credit of <strong className="text-gold text-sm">₹{creditAmount}</strong> on your next month's bill.</>
+                ) : (
+                  <span className="text-danger font-medium">Please select at least one meal to cancel.</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         <label className="block text-xs font-bold text-primary mb-2 font-sans uppercase tracking-wider">Reason (Optional)</label>
         <input 
@@ -824,7 +892,121 @@ function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
 
         <div className="flex gap-4">
           <Button variant="secondary" className="flex-1 font-bold" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1 font-bold" onClick={handlePause} isLoading={skipDay.isPending} disabled={!date}>Confirm Pause</Button>
+          <Button className="flex-1 font-bold" onClick={handlePause} isLoading={skipDay.isPending} disabled={!date || selectedMeals.length === 0}>Confirm Pause</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CancelTodayModal({ subscription, onClose, skipDay }: any) {
+  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const nowInIndia = new Date(nowStr);
+  const currentHour = nowInIndia.getHours();
+  const currentMinute = nowInIndia.getMinutes();
+  const timeInMinutes = currentHour * 60 + currentMinute;
+  
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(nowInIndia);
+
+  const preferredMeals = subscription.mealPreferences.map((p: any) => p.mealType);
+  const eligibleMeals = preferredMeals.filter((meal: string) => {
+    if (meal === 'breakfast') return timeInMinutes < 5 * 60;
+    if (meal === 'lunch') return timeInMinutes < 10 * 60 + 30;
+    if (meal === 'dinner') return timeInMinutes < 16 * 60;
+    return true;
+  });
+
+  const [selectedMeals, setSelectedMeals] = useState<string[]>(eligibleMeals);
+  const [reason, setReason] = useState('');
+
+  const totalPreferredMeals = subscription.mealPreferences?.length || 1;
+  const fullDailyValue = subscription.pricePerDaySnapshot * (subscription.quantity || 1);
+  const creditAmount = Math.round((fullDailyValue / totalPreferredMeals) * selectedMeals.length);
+
+  const handleCancel = async () => {
+    if (selectedMeals.length === 0) return;
+    try {
+      await skipDay.mutateAsync({
+        subscriptionId: subscription.id,
+        date: todayStr,
+        mealTypes: selectedMeals,
+        reason: reason || 'Customer requested same-day cancel',
+        creditAmount: creditAmount
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to cancel today:', err);
+      alert('Failed to cancel today.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-background rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-primary/20">
+        <h2 className="text-2xl font-bold font-display text-danger mb-4">Cancel Today's Meals</h2>
+        
+        {eligibleMeals.length === 0 ? (
+          <div className="mb-6">
+            <p className="text-danger font-bold bg-danger/10 p-4 rounded-xl border border-danger/20 text-sm">
+              It is too late to cancel any meals for today based on the cut-off times.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-6 bg-primary/5 p-4 rounded-xl border border-primary/10">
+            <p className="text-sm font-sans text-text-muted mb-4 font-medium leading-relaxed">
+              Select which meals you want to cancel for today.
+            </p>
+            <div className="space-y-3">
+              {eligibleMeals.map((meal: string) => (
+                <label key={meal} className="flex items-center gap-3 text-sm font-sans text-primary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedMeals.includes(meal)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedMeals([...selectedMeals, meal]);
+                      } else {
+                        setSelectedMeals(selectedMeals.filter(m => m !== meal));
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-primary/20 text-danger focus:ring-danger cursor-pointer"
+                  />
+                  <span className="capitalize font-bold">{meal}</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-primary/10">
+              <p className="text-xs font-sans text-text-muted">
+                {selectedMeals.length > 0 ? (
+                  <>You will receive a credit of <strong className="text-gold text-sm">₹{creditAmount}</strong> on your next month's bill.</>
+                ) : (
+                  <span className="text-danger font-medium">Please select at least one meal to cancel.</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {eligibleMeals.length > 0 && (
+          <>
+            <label className="block text-xs font-bold text-primary mb-2 font-sans uppercase tracking-wider">Reason (Optional)</label>
+            <input 
+              type="text" 
+              value={reason} 
+              placeholder="e.g. Eating out"
+              onChange={e => setReason(e.target.value)}
+              className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-8 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm placeholder:text-text-muted/50"
+            />
+          </>
+        )}
+
+        <div className="flex gap-4">
+          <Button variant="secondary" className="flex-1 font-bold" onClick={onClose}>Close</Button>
+          {eligibleMeals.length > 0 && (
+            <Button className="flex-1 font-bold !bg-danger hover:!bg-danger-dark !text-white !border-danger-dark" onClick={handleCancel} isLoading={skipDay.isPending} disabled={selectedMeals.length === 0}>
+              Confirm Cancel
+            </Button>
+          )}
         </div>
       </div>
     </div>

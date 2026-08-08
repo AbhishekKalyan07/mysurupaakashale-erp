@@ -4,6 +4,8 @@ import { useMySubscription } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { useMyPayments } from '../hooks/usePayments';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { CustomerProfile } from '@/shared/types';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -40,6 +42,8 @@ export function SubscriptionDetailsPage() {
   const { addresses } = useCustomerAddresses();
   const { data: payments } = useMyPayments();
   const { data: settings, isLoading: isSettingsLoading } = useBusinessSettings();
+  const { profile } = useAuth();
+  const customerProfile = profile as CustomerProfile | null;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(false);
@@ -47,7 +51,29 @@ export function SubscriptionDetailsPage() {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const nowInIndia = new Date(nowStr);
+  const currentHour = nowInIndia.getHours();
+  const currentMinute = nowInIndia.getMinutes();
+  const timeInMinutes = currentHour * 60 + currentMinute;
+  
+  let canCancelToday = false;
+  if (subscription?.mealPreferences) {
+     const prefs = subscription.mealPreferences.map(p => p.mealType);
+     if (prefs.includes('breakfast') && timeInMinutes < 5 * 60) canCancelToday = true;
+     if (prefs.includes('lunch') && timeInMinutes < 10 * 60 + 30) canCancelToday = true;
+     if (prefs.includes('dinner') && timeInMinutes < 16 * 60) canCancelToday = true;
+  }
+  
+  const minPauseDate = new Date(nowInIndia);
+  if (!canCancelToday) {
+    minPauseDate.setDate(minPauseDate.getDate() + 1);
+  }
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+  const minDateStr = formatter.format(minPauseDate);
+
+  const [pauseStartDate, setPauseStartDate] = useState(minDateStr);
   const [pauseEndDate, setPauseEndDate] = useState('');
 
   const isLoading = isSubLoading || isPlansLoading || isSettingsLoading;
@@ -316,7 +342,7 @@ export function SubscriptionDetailsPage() {
                   {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
                 </p>
                 <p className="text-xs text-ink-500 mt-3 flex items-center gap-1.5">
-                  <Clock size={12} /> Zone Code: {subscription.zoneId || 'Unassigned'}
+                  <Clock size={12} /> Zone Code: {customerProfile?.zoneId || subscription.zoneId || 'Unassigned'}
                 </p>
               </div>
             ) : (
@@ -436,7 +462,7 @@ export function SubscriptionDetailsPage() {
                 <input
                   type="date"
                   value={pauseStartDate}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minDateStr}
                   onChange={(e) => setPauseStartDate(e.target.value)}
                   className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
@@ -447,7 +473,7 @@ export function SubscriptionDetailsPage() {
                 <input
                   type="date"
                   value={pauseEndDate}
-                  min={pauseStartDate || new Date().toISOString().split('T')[0]}
+                  min={pauseStartDate || minDateStr}
                   onChange={(e) => setPauseEndDate(e.target.value)}
                   className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
