@@ -5,6 +5,7 @@ import { Truck, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { useQuery } from '@tanstack/react-query';
+import { where } from 'firebase/firestore';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
@@ -18,7 +19,6 @@ export function DeliveryPartnerPage() {
   const { data: customers = [] } = useQuery({
     queryKey: ['users', 'customers', firebaseUser?.uid],
     queryFn: async () => {
-      const { where } = await import('firebase/firestore');
       return userRepository.list(
         where('role', '==', 'customer')
       );
