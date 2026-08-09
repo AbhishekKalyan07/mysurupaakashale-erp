@@ -33,51 +33,57 @@
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #2B381A 0%, #17210E 100%);
-          color: #ffffff;
+          background: #FDF7F0;
+          color: #2C150C;
           font-family: 'Outfit', 'Inter', system-ui, sans-serif;
           overflow: hidden;
         }
         .pwa-splash-ring {
           position: absolute;
-          width: 220px;
-          height: 220px;
+          width: 210px;
+          height: 210px;
           border-radius: 50%;
-          border: 2px dashed rgba(229, 169, 60, 0.35);
-          animation: spinRing 12s linear infinite;
+          border: 2px solid transparent;
+          border-top-color: #D4AF37;
+          border-right-color: rgba(212, 175, 55, 0.4);
+          border-bottom-color: #B37D14;
+          border-left-color: rgba(212, 175, 55, 0.15);
+          box-shadow: 0 0 20px rgba(212, 175, 55, 0.2), inset 0 0 10px rgba(212, 175, 55, 0.1);
+          animation: spinRing 4s linear infinite;
+          will-change: transform;
+          transform: translateZ(0);
         }
         .pwa-splash-logo-box {
           position: relative;
-          width: 110px;
-          height: 110px;
+          width: 120px;
+          height: 120px;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 28px;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+          background: #FFFFFF;
+          border: 1px solid rgba(212, 175, 55, 0.35);
+          border-radius: 50%;
+          box-shadow: 0 12px 30px rgba(44, 21, 12, 0.12);
           animation: pulseBox 2s ease-in-out infinite alternate;
         }
         .pwa-splash-logo {
-          width: 80px;
-          height: 80px;
+          width: 105px;
+          height: 105px;
           object-fit: contain;
-          border-radius: 16px;
+          border-radius: 50%;
         }
         .pwa-splash-title {
           margin-top: 24px;
           font-size: 22px;
           font-weight: 700;
           letter-spacing: -0.02em;
-          color: #FFFFFF;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+          color: #2C150C;
         }
         .pwa-splash-subtitle {
           margin-top: 6px;
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.65);
+          color: #8C5A18;
+          font-weight: 600;
           letter-spacing: 0.06em;
           text-transform: uppercase;
         }
@@ -85,7 +91,7 @@
           margin-top: 36px;
           width: 140px;
           height: 4px;
-          background: rgba(255, 255, 255, 0.12);
+          background: rgba(44, 21, 12, 0.1);
           border-radius: 99px;
           overflow: hidden;
           position: relative;
@@ -95,7 +101,7 @@
           top: 0;
           bottom: 0;
           width: 50%;
-          background: linear-gradient(90deg, #E5A93C 0%, #F5C56B 100%);
+          background: linear-gradient(90deg, #D4AF37 0%, #E5A93C 100%);
           border-radius: 99px;
           animation: loadingBar 1.5s ease-in-out infinite;
         }
@@ -104,8 +110,8 @@
           100% { transform: rotate(360deg); }
         }
         @keyframes pulseBox {
-          0% { transform: scale(0.96); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25); }
-          100% { transform: scale(1.04); box-shadow: 0 24px 48px rgba(229, 169, 60, 0.25); }
+          0% { transform: scale(0.96); box-shadow: 0 6px 18px rgba(44, 21, 12, 0.08); }
+          100% { transform: scale(1.04); box-shadow: 0 16px 36px rgba(212, 175, 55, 0.25); }
         }
         @keyframes loadingBar {
           0% { left: -50%; width: 30%; }
@@ -116,7 +122,7 @@
       <div class="pwa-splash">
         <div class="pwa-splash-ring"></div>
         <div class="pwa-splash-logo-box">
-          <img src="/mp_logoi1.png" alt="Mysuru Paakashale Logo" class="pwa-splash-logo" />
+          <img src="/pwa_gold.png" alt="Mysuru Paakashale Logo" class="pwa-splash-logo" />
         </div>
         <div class="pwa-splash-title">Mysuru Paakashale</div>
         <div class="pwa-splash-subtitle">Fresh & Homemade · Subscriptions</div>

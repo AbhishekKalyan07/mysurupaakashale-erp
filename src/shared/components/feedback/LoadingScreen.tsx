@@ -6,9 +6,9 @@ export function LoadingScreen({ message = 'Loading...' }: { message?: string }) 
       <div className="relative flex items-center justify-center h-20 w-20 rounded-3xl bg-surface-1 shadow-md border border-border/80">
         <div className="absolute inset-0 rounded-3xl border-2 border-secondary/30 animate-ping opacity-25" />
         <img
-          src="/mp_logoi1.png"
+          src="/pwa_gold.png"
           alt="Loading..."
-          className="h-12 w-12 object-contain rounded-xl animate-pulse"
+          className="h-14 w-14 object-contain rounded-full animate-pulse"
         />
         <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white shadow-sm">
           <LeafSpinner size={16} className="animate-spin" />
