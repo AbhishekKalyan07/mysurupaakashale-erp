@@ -16,6 +16,14 @@ export class DeliveryPage {
   }
 
   async verifyDashboardLoaded() {
+    await expect(this.page.locator('h1', { hasText: 'Delivery Performance' })).toBeVisible();
+  }
+
+  async gotoMyRoute() {
+    await this.page.goto('/delivery');
+  }
+
+  async verifyMyRouteLoaded() {
     await expect(this.page.locator('h1', { hasText: 'My Delivery Route' })).toBeVisible();
   }
 

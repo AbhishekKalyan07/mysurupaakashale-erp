@@ -10,7 +10,8 @@ test.describe('Delivery Journey', () => {
 
   test('driver can pickup and deliver an order', async ({ deliveryPage }) => {
     const page = new DeliveryPage(deliveryPage);
-    await page.gotoDashboard();
+    await page.gotoMyRoute();
+    await page.verifyMyRouteLoaded();
     
     // Find an order card with a "Confirm Pickup" button
     const pickupBtn = deliveryPage.locator('button', { hasText: /Confirm Pickup|Mark as Picked Up/i }).first();
