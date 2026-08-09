@@ -22,7 +22,109 @@
     <title>Mysuru Paakashale — Subscription Kitchen</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Animated Launch Splash Screen (replaced seamlessly when React hydrates) -->
+      <style>
+        .pwa-splash {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #2B381A 0%, #17210E 100%);
+          color: #ffffff;
+          font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+          overflow: hidden;
+        }
+        .pwa-splash-ring {
+          position: absolute;
+          width: 220px;
+          height: 220px;
+          border-radius: 50%;
+          border: 2px dashed rgba(229, 169, 60, 0.35);
+          animation: spinRing 12s linear infinite;
+        }
+        .pwa-splash-logo-box {
+          position: relative;
+          width: 110px;
+          height: 110px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 28px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+          animation: pulseBox 2s ease-in-out infinite alternate;
+        }
+        .pwa-splash-logo {
+          width: 80px;
+          height: 80px;
+          object-fit: contain;
+          border-radius: 16px;
+        }
+        .pwa-splash-title {
+          margin-top: 24px;
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #FFFFFF;
+          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        .pwa-splash-subtitle {
+          margin-top: 6px;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.65);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .pwa-splash-bar-bg {
+          margin-top: 36px;
+          width: 140px;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 99px;
+          overflow: hidden;
+          position: relative;
+        }
+        .pwa-splash-bar-fill {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 50%;
+          background: linear-gradient(90deg, #E5A93C 0%, #F5C56B 100%);
+          border-radius: 99px;
+          animation: loadingBar 1.5s ease-in-out infinite;
+        }
+        @keyframes spinRing {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes pulseBox {
+          0% { transform: scale(0.96); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25); }
+          100% { transform: scale(1.04); box-shadow: 0 24px 48px rgba(229, 169, 60, 0.25); }
+        }
+        @keyframes loadingBar {
+          0% { left: -50%; width: 30%; }
+          50% { left: 35%; width: 60%; }
+          100% { left: 100%; width: 30%; }
+        }
+      </style>
+      <div class="pwa-splash">
+        <div class="pwa-splash-ring"></div>
+        <div class="pwa-splash-logo-box">
+          <img src="/mp_logoi1.png" alt="Mysuru Paakashale Logo" class="pwa-splash-logo" />
+        </div>
+        <div class="pwa-splash-title">Mysuru Paakashale</div>
+        <div class="pwa-splash-subtitle">Fresh & Homemade · Subscriptions</div>
+        <div class="pwa-splash-bar-bg">
+          <div class="pwa-splash-bar-fill"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
