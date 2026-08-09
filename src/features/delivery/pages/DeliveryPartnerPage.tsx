@@ -4,11 +4,11 @@ import { APP_CONFIG } from '@/shared/config/appConfig';
 import { Truck, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 import { userRepository } from '@/shared/services/firestore/userRepository';
-import { useQuery } from '@tanstack/react-query';
 import { where } from 'firebase/firestore';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
+import { useEffect, useState, useMemo } from 'react';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser } = useAuth();
@@ -16,18 +16,14 @@ export function DeliveryPartnerPage() {
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['users', 'customers', firebaseUser?.uid],
-    queryFn: async () => {
-      return userRepository.list(
-        where('role', '==', 'customer')
-      );
-    },
-    enabled: !!firebaseUser?.uid,
-    staleTime: 1000 * 60 * 5,
-  });
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!firebaseUser?.uid) return;
+    userRepository.list(where('role', '==', 'customer')).then(data => setCustomers(data)).catch(console.error);
+  }, [firebaseUser?.uid]);
   
-  const customerMap = new Map(customers.map(c => [c.id, c]));
+  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
 
   if (isLoading) return <div className="p-8"><DashboardCardsSkeleton /></div>;
 
