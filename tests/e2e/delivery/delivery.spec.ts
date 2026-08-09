@@ -12,16 +12,22 @@ test.describe('Delivery Journey', () => {
     const page = new DeliveryPage(deliveryPage);
     await page.gotoDashboard();
     
-    // Find an order card with a "Pick Up" button
-    const pickupBtn = deliveryPage.locator('button:has-text("Pick Up")').first();
+    // Find an order card with a "Confirm Pickup" button
+    const pickupBtn = deliveryPage.locator('button', { hasText: /Confirm Pickup|Mark as Picked Up/i }).first();
     if (await pickupBtn.isVisible()) {
       await pickupBtn.click();
-      await expect(deliveryPage.locator('text=Out for Delivery').first()).toBeVisible();
+      await expect(deliveryPage.locator('text=Picked Up').first()).toBeVisible();
       
-      const deliverBtn = deliveryPage.locator('button:has-text("Mark Delivered")').first();
-      if (await deliverBtn.isVisible()) {
-        await deliverBtn.click();
-        await expect(deliveryPage.locator('text=Delivered').first()).toBeVisible();
+      const outBtn = deliveryPage.locator('button', { hasText: 'Start Delivery' }).first();
+      if (await outBtn.isVisible()) {
+        await outBtn.click();
+        await expect(deliveryPage.locator('text=Out for Delivery').first()).toBeVisible();
+        
+        const deliverBtn = deliveryPage.locator('button', { hasText: 'Mark as Delivered' }).first();
+        if (await deliverBtn.isVisible()) {
+          await deliverBtn.click();
+          await expect(deliveryPage.locator('text=Delivered').first()).toBeVisible();
+        }
       }
     }
   });
