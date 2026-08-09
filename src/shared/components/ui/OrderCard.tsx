@@ -290,7 +290,7 @@ export function OrderCard({
 
         {/* Address Row */}
         {address && (
-          <div className="flex items-center gap-1.5 mt-2 text-xs text-text-muted">
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-text-muted min-w-0">
             <MapPin size={12} className="shrink-0 text-secondary" />
             <span className="truncate">{address}</span>
           </div>
