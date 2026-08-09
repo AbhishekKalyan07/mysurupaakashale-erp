@@ -67,7 +67,7 @@ function queueNonCriticalInitialization() {
       // rejection that Sentry reports as "Error: Rejected".
       const updateSW = registerSW({
         immediate: true,
-        onRegisterError(error) {
+        onRegisterError(error: unknown) {
           console.warn('Service worker registration blocked by environment:', error)
         }
       })
