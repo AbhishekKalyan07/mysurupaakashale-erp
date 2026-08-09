@@ -14,9 +14,31 @@ functions/node_modules
 # Build output
 dist
 dist-ssr
+dev-dist
 coverage
 functions/lib
 *.tsbuildinfo
+
+# Logs
+logs
+*.log
+hs_err_pid*.log
+replay_pid*.log
+build_output.log
+firebase-debug.log
+firestore-debug.log
+
+# Testing and Reports
+playwright-report/
+test-results/
+tests/e2e/.auth/
+bundle-stats.html
+desktop.json
+mobile.json
+npm-audit-report.json
+
+# Scratch Files
+fix_ts*.cjs
 
 # Env files — never commit real secrets/config (see .env.example)
 *.local

@@ -68,7 +68,7 @@ export class BaseRepository<T extends { id: string }> {
 
   async getById(id: string): Promise<T | null> {
     const snapshot = await getDoc(doc(this.collectionRef, id));
-    return snapshot.exists() ? snapshot.data() : null;
+    return snapshot?.exists() ? snapshot.data() : null;
   }
 
   async list(...constraints: QueryConstraint[]): Promise<T[]> {
@@ -110,7 +110,7 @@ export class BaseRepository<T extends { id: string }> {
   subscribeToDoc(id: string, onNext: (data: T | null) => void, onError?: (error: Error) => void): Unsubscribe {
     return onSnapshot(
       doc(this.collectionRef, id),
-      (snapshot) => onNext(snapshot.exists() ? snapshot.data() : null),
+      (snapshot) => onNext(snapshot?.exists() ? snapshot.data() : null),
       onError,
     );
   }
