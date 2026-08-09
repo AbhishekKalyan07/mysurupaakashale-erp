@@ -79,19 +79,29 @@ export default defineConfig({
         name: 'Mysuru Paakashale ERP',
         short_name: 'Paakashale',
         description: 'ERP for Mysuru Paakashale',
+        start_url: '/',
+        scope: '/',
         theme_color: '#3A4D23',
-        background_color: '#FDF7F0',
+        background_color: '#ffffff',
         display: 'standalone',
         icons: [
           {
-            src: '/pwa_gold.png',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: '/pwa_gold.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }

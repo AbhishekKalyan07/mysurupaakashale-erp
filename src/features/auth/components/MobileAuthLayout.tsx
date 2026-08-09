@@ -32,23 +32,17 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
       <div className="relative z-10 flex flex-col flex-grow w-full max-w-md mx-auto px-6 py-4">
         
         {/* Header Section */}
-        <div className="relative flex items-center justify-center w-full min-h-[5.5rem] mb-0 pt-1 shrink-0">
+        <div className="relative flex items-center justify-between w-full min-h-[3rem] mb-0 pt-1 shrink-0">
           {/* Back Arrow (Visible on Signup) */}
-          {isSignup && (
+          {isSignup ? (
             <button 
               onClick={() => navigate('/login')}
-              className="absolute left-0 top-3 text-ink-900 hover:text-leaf-700 transition-colors p-1"
+              className="text-ink-900 hover:text-leaf-700 transition-colors p-1"
               aria-label="Back"
             >
               <ChevronLeft size={24} strokeWidth={2.5} />
             </button>
-          )}
-          {/* Logo */}
-          <img
-            src="/mp_logoi1.png"
-            alt="Mysuru Paakashale Logo"
-            className="h-20 w-auto object-contain drop-shadow-sm rounded-2xl"
-          />
+          ) : <div />}
         </div>
 
         {/* Content Body (Form moved up relative to logo) */}

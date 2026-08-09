@@ -106,48 +106,53 @@ export function BottomNav({ role }: BottomNavProps) {
 
   return (
     <>
-      {/* More Drawer Backdrop */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-primary/40 backdrop-blur-sm lg:hidden transition-opacity duration-300',
-          showMore ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        )}
-        onClick={() => setShowMore(false)}
-      />
-
-      {/* More Drawer */}
-      <div
-        className={cn(
-          'fixed bottom-[60px] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-transform duration-300 ease-in-out',
-          showMore ? 'translate-y-0' : 'translate-y-full'
-        )}
-      >
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h2 className="font-display font-bold text-base text-text">More</h2>
-          <button aria-label="Button action"
+      {/* More Drawer & Backdrop (rendered ONLY if role has more menu items) */}
+      {hasMore && (
+        <>
+          <div
+            className={cn(
+              'fixed inset-0 z-40 bg-primary/40 backdrop-blur-sm lg:hidden transition-all duration-300',
+              showMore ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none invisible'
+            )}
             onClick={() => setShowMore(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
+          />
+
+          <div
+            className={cn(
+              'fixed bottom-[60px] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-all duration-300 ease-in-out',
+              showMore ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none invisible'
+            )}
           >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="px-4 pb-4 grid grid-cols-3 gap-2">
-          {moreItems.map((item) => (
-            <button aria-label="Button action"
-              key={item.to}
-              onClick={() => { navigate(item.to); setShowMore(false); }}
-              className="flex flex-col items-center gap-1.5 p-3 rounded-[16px] bg-surface-2 hover:bg-pastel-lavender hover:text-secondary transition-colors group"
-            >
-              <item.icon size={22} className="text-text-muted group-hover:text-secondary transition-colors" />
-              <span className="text-xs font-semibold text-text-muted group-hover:text-secondary transition-colors leading-tight text-center">
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </div>
-        {/* Safe area */}
-        <div className="h-safe" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
-      </div>
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <h2 className="font-display font-bold text-base text-text">More</h2>
+              <button
+                aria-label="Close menu"
+                onClick={() => setShowMore(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-4 pb-4 grid grid-cols-3 gap-2">
+              {moreItems.map((item) => (
+                <button
+                  aria-label={item.label}
+                  key={item.to}
+                  onClick={() => { navigate(item.to); setShowMore(false); }}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-[16px] bg-surface-2 hover:bg-pastel-lavender hover:text-secondary transition-colors group"
+                >
+                  <item.icon size={22} className="text-text-muted group-hover:text-secondary transition-colors" />
+                  <span className="text-xs font-semibold text-text-muted group-hover:text-secondary transition-colors leading-tight text-center">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {/* Safe area */}
+            <div className="h-safe" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+          </div>
+        </>
+      )}
 
       {/* Bottom Tab Bar */}
       <nav aria-label="Mobile navigation" className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-card/95 backdrop-blur-md border-t border-border"
