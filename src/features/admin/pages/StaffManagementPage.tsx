@@ -34,10 +34,10 @@ function StaffCardView({
       {menuOpen && (
         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
       )}
-      <div className="p-3.5 flex flex-col gap-2 relative min-h-[140px] pb-3">
+      <div className="p-3.5 flex flex-col gap-2 relative min-h-[140px] pb-3 min-w-0">
         {/* Top Header Row */}
-        <div className="flex justify-between items-start">
-          <div className="flex gap-2 items-center mt-1">
+        <div className="flex justify-between items-start min-w-0">
+          <div className="flex gap-2 items-center mt-1 min-w-0">
             {user.displayId ? (
               <Badge variant="default" className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10">
                 {user.displayId}
@@ -79,14 +79,14 @@ function StaffCardView({
         </h3>
 
         {/* Contact Info Inline */}
-        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium truncate mt-0.5">
+        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium mt-0.5 min-w-0">
           <span className="flex items-center gap-1 shrink-0"><span className="text-[13px] leading-none">📞</span> {user.phone}</span>
           <span className="text-border">•</span>
           <span className="truncate">{user.email}</span>
         </div>
 
         {/* Chips Row (Bottom) */}
-        <div className="flex gap-2 items-center mt-auto overflow-hidden pb-0.5">
+        <div className="flex gap-2 items-center mt-auto overflow-hidden pb-0.5 min-w-0">
           <Badge variant="default" className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-text font-semibold shrink-0 whitespace-nowrap capitalize flex items-center gap-1">
             {roleIcon[user.role as keyof typeof roleIcon]} {user.role.replace('_', ' ')}
           </Badge>

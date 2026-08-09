@@ -347,7 +347,7 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
       )}
       
       <div 
-        className="p-3.5 flex flex-col gap-2 cursor-pointer min-h-[140px]" 
+        className="p-3.5 flex flex-col gap-2 cursor-pointer min-h-[140px] min-w-0" 
         onClick={() => { if(!menuOpen) onSelect(); }}
       >
         {/* Top Header Row */}
@@ -385,10 +385,10 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
         </h3>
         
         {/* Contact Info Inline */}
-        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium truncate mt-0.5">
+        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium mt-0.5 min-w-0">
           <span className="flex items-center gap-1 shrink-0"><span className="text-[13px] leading-none">📞</span> {subscription.customerPhone}</span>
-          <span className="text-border">•</span>
-          <span className="flex items-center gap-1 truncate"><span className="text-[13px] leading-none">📍</span> <span className="truncate">{subscription.customerAddress || 'No address'}</span></span>
+          <span className="text-border shrink-0">•</span>
+          <span className="flex items-center gap-1 truncate min-w-0"><span className="text-[13px] leading-none shrink-0">📍</span> <span className="truncate">{subscription.customerAddress || 'No address'}</span></span>
         </div>
 
         {/* Chips Row (Bottom) */}

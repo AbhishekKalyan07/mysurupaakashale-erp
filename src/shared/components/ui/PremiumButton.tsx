@@ -1,6 +1,5 @@
 import { forwardRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/shared/lib/cn';
 import { LeafSpinner } from './LeafSpinner';
 
@@ -49,7 +48,7 @@ const buttonVariants = cva(
 );
 
 export interface PremiumButtonProps
-  extends Omit<HTMLMotionProps<'button'>, 'ref'>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   isLoading?: boolean;
 }
@@ -57,17 +56,15 @@ export interface PremiumButtonProps
 export const PremiumButton = forwardRef<HTMLButtonElement, PremiumButtonProps>(
   ({ className, variant, size, isLoading, children, disabled, ...props }, ref) => {
     return (
-      <motion.button
+      <button
         ref={ref}
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size, className }), 'active:scale-95')}
         disabled={disabled || isLoading}
-        whileHover={disabled || isLoading ? {} : { scale: 1.01 }}
-        whileTap={disabled || isLoading ? {} : { scale: 0.98 }}
         {...props}
       >
         {isLoading && <LeafSpinner size={15} className="shrink-0" />}
-        {children as any}
-      </motion.button>
+        {children}
+      </button>
     );
   }
 );

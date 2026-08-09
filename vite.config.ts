@@ -53,12 +53,26 @@ export default defineConfig({
       filename: 'service-worker.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      injectManifest: {
+        // Exclude massive vendor chunks and reports/charts from precache
+        // These will load dynamically when the user actually visits those routes!
+        globIgnores: [
+          '**/node_modules/**/*',
+          '**/vendor-charts-*.js',
+          '**/vendor-reports-*.js',
+          '**/html2canvas-*.js',
+          '**/vendor-maps-*.js',
+          '**/vendor-sentry-*.js',
+          '**/*.map'
+        ],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
       pwaAssets: {
         disabled: true,
         config: false,
       },
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module',
       },
       manifest: {

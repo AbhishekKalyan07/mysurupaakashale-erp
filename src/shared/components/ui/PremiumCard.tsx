@@ -1,8 +1,7 @@
 import { forwardRef } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/shared/lib/cn';
 
-export interface PremiumCardProps extends Omit<HTMLMotionProps<'div'>, 'ref'> {
+export interface PremiumCardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverLift?: boolean;
   elevated?: boolean;
 }
@@ -10,7 +9,7 @@ export interface PremiumCardProps extends Omit<HTMLMotionProps<'div'>, 'ref'> {
 export const PremiumCard = forwardRef<HTMLDivElement, PremiumCardProps>(
   ({ className, hoverLift = false, elevated = false, children, ...props }, ref) => {
     return (
-      <motion.div
+      <div
         ref={ref}
         className={cn(
           'bg-card rounded-[20px] border border-border/80 overflow-hidden',
@@ -21,7 +20,7 @@ export const PremiumCard = forwardRef<HTMLDivElement, PremiumCardProps>(
         {...props}
       >
         {children}
-      </motion.div>
+      </div>
     );
   }
 );
