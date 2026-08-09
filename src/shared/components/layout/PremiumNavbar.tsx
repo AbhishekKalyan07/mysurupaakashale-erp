@@ -31,7 +31,7 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="p-2 -ml-1 text-text-muted hover:text-primary hover:bg-surface-2 transition-colors rounded-[10px]"
+          className="p-2 -ml-1 text-text-muted hover:text-primary hover:bg-surface-2 transition-colors rounded-[10px] lg:hidden"
           aria-label="Open menu"
         >
           <Menu size={22} />
