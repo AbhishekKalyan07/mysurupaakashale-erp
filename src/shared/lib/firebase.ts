@@ -143,9 +143,9 @@ if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
 }
 
 export const db: Firestore = initializeFirestore(firebaseApp,
-  import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true'
+  (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' || typeof window === 'undefined')
     ? {
-        // In emulator/E2E mode:
+        // In emulator/E2E/Node mode:
         // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).
         // 2. Force HTTP long-polling instead of WebChannel/WebSocket.
         //    Playwright's headless Chromium consistently fails the WebChannel

@@ -2,7 +2,8 @@
 // from process.env are mapped into import.meta.env before Firebase initialises.
 import './env';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/shared/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/shared/lib/firebase';
 
 export async function authenticateForAutomation() {
   // Since vite-node natively loads .env.local into import.meta.env,
@@ -17,6 +18,25 @@ export async function authenticateForAutomation() {
     );
   }
 
-  await signInWithEmailAndPassword(auth, email, password);
+  const userCred = await signInWithEmailAndPassword(auth, email, password);
+  
+  // Ensure the automation user has an admin role in Firestore so storage rules pass
+  const userDocRef = doc(db, 'users', userCred.user.uid);
+  const userDoc = await getDoc(userDocRef);
+  
+  if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
+    await setDoc(userDocRef, {
+      id: userCred.user.uid,
+      email: userCred.user.email,
+      role: 'admin',
+      firstName: 'Automation',
+      lastName: 'Service',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }, { merge: true });
+    console.log('Upserted admin role for automation user in Firestore.');
+  }
+
   console.log('Authenticated as automation admin.');
 }
