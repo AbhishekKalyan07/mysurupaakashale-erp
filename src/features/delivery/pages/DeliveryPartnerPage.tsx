@@ -3,12 +3,9 @@ import { usePartnerBoard } from '../hooks/usePartnerBoard';
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import { Truck, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { where } from 'firebase/firestore';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
-import { useEffect, useState, useMemo } from 'react';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser } = useAuth();
@@ -16,14 +13,9 @@ export function DeliveryPartnerPage() {
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
 
-  const [customers, setCustomers] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!firebaseUser?.uid) return;
-    userRepository.list(where('role', '==', 'customer')).then(data => setCustomers(data)).catch(console.error);
-  }, [firebaseUser?.uid]);
-  
-  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
+  // Customer details are denormalized onto the order document itself.
+  // Firestore rules correctly block delivery partners from querying the entire users collection.
+  const customerMap = new Map();
 
   if (isLoading) return <div className="p-8"><DashboardCardsSkeleton /></div>;
 
