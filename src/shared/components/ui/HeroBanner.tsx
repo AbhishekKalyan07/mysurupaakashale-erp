@@ -1,6 +1,3 @@
-import { motion } from 'framer-motion';
-import { animations } from '@/theme/animations';
-
 interface HeroBannerProps {
   userName?: string;
   subtitle?: string;
@@ -12,11 +9,8 @@ export function HeroBanner({ userName, title, subtitle = 'Mysuru Paakashale ERP'
   const displayTitle = title || userName || 'Dashboard';
 
   return (
-    <motion.div
-      variants={animations.motion.heroSlideUp}
-      initial="initial"
-      animate="animate"
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6"
+    <div
+      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
     >
       <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-display font-bold text-text leading-tight truncate">
@@ -32,6 +26,6 @@ export function HeroBanner({ userName, title, subtitle = 'Mysuru Paakashale ERP'
           {actions}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

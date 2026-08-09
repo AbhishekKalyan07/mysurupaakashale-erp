@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@/shared/lib/cn';
 
 interface PremiumTableProps {
@@ -80,9 +79,7 @@ export function PremiumTableRow({
   onClick?: () => void;
 }) {
   return (
-    <motion.tr
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <tr
       className={cn(
         'transition-colors hover:bg-background/50',
         onClick && 'cursor-pointer',
@@ -91,7 +88,7 @@ export function PremiumTableRow({
       onClick={onClick}
     >
       {children}
-    </motion.tr>
+    </tr>
   );
 }
 

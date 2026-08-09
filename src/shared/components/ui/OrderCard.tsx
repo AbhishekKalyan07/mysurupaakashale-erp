@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { MapPin, IndianRupee, ChevronDown, ChevronUp, Phone, Navigation } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/shared/lib/cn';
 import { StatusChip } from './StatusChip';
 import { DriverBadge } from './DriverBadge';
@@ -148,15 +147,14 @@ function WorkflowTimeline({ status, kitchenStatus, variant, onStatusChange, isAd
         )}
       </div>
 
-      <AnimatePresence>
-        {showFail && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-danger-subtle rounded-[12px] p-3 space-y-2 border border-danger/20">
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          showFail ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="bg-danger-subtle rounded-[12px] p-3 space-y-2 border border-danger/20">
               <p className="text-xs font-semibold text-danger">Failure Reason</p>
               <select
                 value={failReason}
@@ -183,10 +181,9 @@ function WorkflowTimeline({ status, kitchenStatus, variant, onStatusChange, isAd
                   Cancel
                 </PremiumButton>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -245,14 +242,9 @@ export function OrderCard({
     : undefined;
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
+    <div
       className={cn(
-        'bg-card rounded-[20px] border border-border shadow-card overflow-hidden',
-        'transition-shadow duration-200 hover:shadow-md',
+        'bg-card rounded-[20px] border border-border shadow-card overflow-hidden transition-all duration-200 hover:shadow-md animate-in fade-in slide-in-from-bottom-2',
         isTerminal && 'opacity-70',
         className
       )}
@@ -383,16 +375,14 @@ export function OrderCard({
       </div>
 
       {/* Expanded details */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 pt-1 space-y-2 border-t border-border bg-surface-2">
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 pt-1 space-y-2 border-t border-border bg-surface-2">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {order.itemsLabel && (
                   <div>
@@ -444,10 +434,9 @@ export function OrderCard({
                   </div>
                 )}
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

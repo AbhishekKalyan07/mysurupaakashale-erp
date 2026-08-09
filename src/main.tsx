@@ -29,10 +29,10 @@ Sentry.init({
     }),
   ],
   // Performance Monitoring
-  tracesSampleRate: 1.0, 
+  tracesSampleRate: 0.1, // Reduced to 10% for performance
   // Session Replay
-  replaysSessionSampleRate: import.meta.env.PROD ? 1.0 : 0.0, 
-  replaysOnErrorSampleRate: 1.0, 
+  replaysSessionSampleRate: 0.0, // Disabled standard session replays to save CPU/Battery
+  replaysOnErrorSampleRate: 1.0, // Only record sessions when an error actually occurs
 })
 
 const rootElement = document.getElementById('root')
@@ -40,18 +40,36 @@ if (!rootElement) {
   throw new Error('Root element #root not found in index.html.')
 }
 
-async function bootstrap() {
-  await initAnalytics()
-  await initPerformance()
-  if (rootElement) {
-    createRoot(rootElement).render(
-      <StrictMode>
-        <GlobalErrorBoundary>
-          <App />
-        </GlobalErrorBoundary>
-      </StrictMode>,
-    )
+function renderApplication() {
+  createRoot(rootElement!).render(
+    <StrictMode>
+      <GlobalErrorBoundary>
+        <App />
+      </GlobalErrorBoundary>
+    </StrictMode>,
+  )
+}
+
+function queueNonCriticalInitialization() {
+  const init = async () => {
+    try {
+      await initAnalytics()
+      await initPerformance()
+    } catch (e) {
+      console.warn("Non-critical Firebase init failed:", e)
+    }
+  }
+
+  // Defer initialization to avoid blocking First Paint
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => init())
+  } else {
+    setTimeout(init, 2000)
   }
 }
 
-bootstrap()
+// Render UI immediately
+renderApplication()
+
+// Initialize telemetry in the background
+queueNonCriticalInitialization()

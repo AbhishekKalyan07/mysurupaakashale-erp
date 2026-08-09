@@ -1,5 +1,4 @@
 import { forwardRef } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/shared/lib/cn';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -40,7 +39,7 @@ const ICON_BG_COLORS: Record<string, string> = {
 };
 
 export interface MetricCardProps
-  extends Omit<HTMLMotionProps<'div'>, 'ref' | 'color'>,
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'color'>,
     VariantProps<typeof metricCardVariants> {
   title: string;
   value: string | number;
@@ -54,7 +53,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
     const iconStyle = ICON_BG_COLORS[color ?? 'cream'] ?? 'bg-primary/5 text-primary';
 
     return (
-      <motion.div
+      <div
         ref={ref}
         className={cn(
           metricCardVariants({ color }),
@@ -87,7 +86,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 );

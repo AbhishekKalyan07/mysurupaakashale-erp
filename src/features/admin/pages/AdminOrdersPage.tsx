@@ -13,7 +13,6 @@ import type { OrderStatus, MealType } from '@/shared/types';
 import toast from 'react-hot-toast';
 import { useCustomerNameMap, useCustomerNameMap as usePartnerNameMap } from '@/features/admin/hooks/useAdmin';
 import { cn } from '@/shared/lib/cn';
-import { AnimatePresence, motion } from 'framer-motion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer detail fetcher (for OrderCard customer prop)
@@ -200,16 +199,14 @@ export function AdminOrdersPage() {
       </div>
 
       {/* Expanded filters */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-card rounded-[20px] border border-border p-4 space-y-3">
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="bg-card rounded-[20px] border border-border p-4 space-y-3">
               <div>
                 <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Meal Type</label>
                 <div className="flex flex-wrap gap-2">
@@ -229,10 +226,9 @@ export function AdminOrdersPage() {
                   ))}
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
 
       {/* Status KPI Filter Chips — horizontally scrollable */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
@@ -278,7 +274,6 @@ export function AdminOrdersPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <AnimatePresence mode="popLayout">
             {filteredOrders.map((order) => {
               const customer = customerMap.get(order.customerId);
               const addr = customer?.addresses?.find((a: any) => a.id === customer?.defaultAddressId) || customer?.addresses?.[0];
@@ -304,7 +299,6 @@ export function AdminOrdersPage() {
                 />
               );
             })}
-          </AnimatePresence>
         </div>
       )}
     </div>
