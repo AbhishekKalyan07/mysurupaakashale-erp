@@ -14,11 +14,16 @@ process.env.VITE_FIREBASE_API_KEY = 'demo-key';
 
 afterEach(async () => {
   try {
-    // Clear firestore emulator between tests
-    await fetch('http://127.0.0.1:8080/emulator/v1/projects/demo-test/databases/(default)/documents', {
+    // Clear firestore emulator between tests if emulator is reachable
+    const res = await fetch('http://127.0.0.1:8080/emulator/v1/projects/demo-test/databases/(default)/documents', {
       method: 'DELETE',
     });
-  } catch (error) {
-    console.error('Failed to clear emulator database:', error);
+    if (!res.ok) {
+      // non-200 response
+    }
+  } catch (error: any) {
+    if (error?.cause?.code !== 'ECONNREFUSED' && error?.code !== 'ECONNREFUSED') {
+      console.error('Failed to clear emulator database:', error);
+    }
   }
 });

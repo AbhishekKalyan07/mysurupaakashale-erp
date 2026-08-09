@@ -45,15 +45,14 @@ export function usePartnerDashboardStats(partnerId: string | undefined, todayDat
 
     const fetchMonthly = async () => {
       try {
-        const dateObj = new Date(`${todayDate}T00:00:00+05:30`);
-        const year = dateObj.getFullYear();
-        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-        const startDate = `${year}-${month}-01`;
+        const [yearStr, monthStr] = todayDate.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10);
+        const startDate = `${yearStr}-${monthStr}-01`;
         
-        // Calculate last day of the month
-        const nextMonth = new Date(year, dateObj.getMonth() + 1, 1);
-        const lastDay = new Date(nextMonth.getTime() - 1);
-        const endDate = `${year}-${month}-${lastDay.getDate().toString().padStart(2, '0')}`;
+        // Calculate last day of the month without timezone conversion drift
+        const lastDayNum = new Date(year, month, 0).getDate();
+        const endDate = `${yearStr}-${monthStr}-${lastDayNum.toString().padStart(2, '0')}`;
 
         const monthlyDeliveredOrders = await deliveryRepository.getMonthlyDeliveries(partnerId, startDate, endDate);
         

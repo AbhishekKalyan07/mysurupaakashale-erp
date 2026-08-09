@@ -9,10 +9,13 @@ import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
 import * as notificationService from '../../firestore/notificationService';
 
 // Mock Firebase
-vi.mock('firebase/firestore', () => {
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
+    ...actual,
     getDoc: vi.fn(),
     addDoc: vi.fn(),
+    setDoc: vi.fn().mockResolvedValue(undefined),
     writeBatch: vi.fn(() => ({
       set: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined)

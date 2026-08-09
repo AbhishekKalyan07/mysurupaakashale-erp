@@ -74,10 +74,10 @@ class AuditRepository extends BaseRepository<AuditLog> {
     // Note: Filtering by timestamp AND action/userId might require a composite index.
     // If startDate/endDate is passed, we assume the index exists in firestore.indexes.json
     if (filters.startDate) {
-      constraints.push(where('timestamp', '>=', new Date(`${filters.startDate}T00:00:00`)));
+      constraints.push(where('timestamp', '>=', new Date(`${filters.startDate}T00:00:00+05:30`)));
     }
     if (filters.endDate) {
-      constraints.push(where('timestamp', '<=', new Date(`${filters.endDate}T23:59:59`)));
+      constraints.push(where('timestamp', '<=', new Date(`${filters.endDate}T23:59:59+05:30`)));
     }
 
     constraints.push(orderBy('timestamp', 'desc'));

@@ -13,7 +13,7 @@ import type { CustomerProfile } from '@/shared/types';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Order } from '@/shared/types';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+import { getTodayIST } from '@/shared/utils/dateUtils';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
@@ -72,7 +72,7 @@ export function CustomerDashboardPage() {
   const customerProfile = profile as CustomerProfile | null;
   const { data: deliveryPartner } = useDeliveryPartnerProfile(customerProfile?.deliveryPartnerId);
 
-  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+  const today = getTodayIST();
 
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
 
