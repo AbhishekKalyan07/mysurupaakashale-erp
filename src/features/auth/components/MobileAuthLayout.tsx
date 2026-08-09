@@ -45,9 +45,9 @@ export function MobileAuthLayout({ children }: AuthLayoutProps) {
           )}
           {/* Logo */}
           <img
-            src="/no_bg_logo.png"
+            src="/mp_logoi1.png"
             alt="Mysuru Paakashale Logo"
-            className="h-20 w-auto object-contain drop-shadow-sm"
+            className="h-20 w-auto object-contain drop-shadow-sm rounded-2xl"
           />
         </div>
 
