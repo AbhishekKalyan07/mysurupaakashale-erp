@@ -52,7 +52,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'service-worker.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: null,
       injectManifest: {
         // Exclude massive vendor chunks and reports/charts from precache
         // These will load dynamically when the user actually visits those routes!
@@ -80,16 +80,16 @@ export default defineConfig({
         short_name: 'Paakashale',
         description: 'ERP for Mysuru Paakashale',
         theme_color: '#3A4D23',
-        background_color: '#ffffff',
+        background_color: '#FDF7F0',
         display: 'standalone',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: '/pwa_gold.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/mp_logoi1.png',
+            src: '/pwa_gold.png',
             sizes: '512x512',
             type: 'image/png'
           }
