@@ -16,6 +16,13 @@ import {
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
+  ignoreErrors: [
+    // Firebase / IndexedDB internal noise
+    /Connection is closing because of: Force close delete origin/i,
+    /The transaction was aborted, so the request cannot be fulfilled/i,
+    /IndexedDB persistence is only available on platforms that support LocalStorage/i,
+    /QuotaExceededError/i,
+  ],
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect,

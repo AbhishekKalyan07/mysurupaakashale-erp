@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMySubscription } from '../hooks/useMySubscription';
+import { useMySubscription, useSkipDay } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { useMyPayments } from '../hooks/usePayments';
@@ -33,6 +33,9 @@ import {
 import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
 import { ResumeDeliveryModal } from '../components/ResumeDeliveryModal';
 import { EditSubscriptionModal } from '../components/EditSubscriptionModal';
+import { PauseSubscriptionModal } from '../components/PauseSubscriptionModal';
+import { PauseDeliveryModal } from '../components/PauseDeliveryModal';
+import { CancelTodayModal } from '../components/CancelTodayModal';
 import { Edit2 } from 'lucide-react';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
@@ -49,33 +52,13 @@ export function SubscriptionDetailsPage() {
   const [updating, setUpdating] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
+  const [showSkipDayModal, setShowSkipDayModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
-  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  const nowInIndia = new Date(nowStr);
-  const currentHour = nowInIndia.getHours();
-  const currentMinute = nowInIndia.getMinutes();
-  const timeInMinutes = currentHour * 60 + currentMinute;
+  const skipDay = useSkipDay();
   
-  let canCancelToday = false;
-  if (subscription?.mealPreferences) {
-     const prefs = subscription.mealPreferences.map(p => p.mealType);
-     if (prefs.includes('breakfast') && timeInMinutes < 5 * 60) canCancelToday = true;
-     if (prefs.includes('lunch') && timeInMinutes < 10 * 60 + 30) canCancelToday = true;
-     if (prefs.includes('dinner') && timeInMinutes < 16 * 60) canCancelToday = true;
-  }
-  
-  const minPauseDate = new Date(nowInIndia);
-  if (!canCancelToday) {
-    minPauseDate.setDate(minPauseDate.getDate() + 1);
-  }
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
-  const minDateStr = formatter.format(minPauseDate);
-
-  const [pauseStartDate, setPauseStartDate] = useState(minDateStr);
-  const [pauseEndDate, setPauseEndDate] = useState('');
-
   const isLoading = isSubLoading || isPlansLoading || isSettingsLoading;
   const hasError = subError || plansError;
 
@@ -140,33 +123,6 @@ export function SubscriptionDetailsPage() {
     } catch (err: unknown) {
       console.error('Failed to update subscription status:', err);
       toast.error((err as Error).message || 'Failed to update subscription.');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handlePauseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pauseStartDate) { toast.error('Start date is required'); return; }
-    
-    setUpdating(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const shouldPauseNow = pauseStartDate <= today;
-
-      await subscriptionRepository.update(subscription.id, {
-        status: shouldPauseNow ? 'paused' : 'active',
-        pauseStartDate,
-        pauseEndDate: pauseEndDate || null,
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.subscriptions.active(subscription.customerId),
-      });
-      setShowPauseModal(false);
-      toast.success(shouldPauseNow ? 'Subscription paused' : 'Pause scheduled successfully');
-    } catch (err: unknown) {
-      console.error('Failed to pause subscription:', err);
-      toast.error((err as Error).message || 'Failed to pause subscription.');
     } finally {
       setUpdating(false);
     }
@@ -403,10 +359,26 @@ export function SubscriptionDetailsPage() {
                       <Edit2 size={16} /> Edit Preferences
                     </Button>
                     <Button
-                      onClick={() => setShowPauseModal(true)}
+                      onClick={() => setShowCancelTodayModal(true)}
+                      disabled={updating}
+                      variant="secondary"
+                      className="w-full justify-start gap-2.5 text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-sans font-semibold py-2.5"
+                    >
+                      <XCircle size={16} /> Cancel Today
+                    </Button>
+                    <Button
+                      onClick={() => setShowSkipDayModal(true)}
                       disabled={updating}
                       variant="secondary"
                       className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                    >
+                      <Calendar size={16} /> Skip a Day
+                    </Button>
+                    <Button
+                      onClick={() => setShowPauseModal(true)}
+                      disabled={updating}
+                      variant="secondary"
+                      className="w-full justify-start gap-2.5 text-amber-800 border-amber-300 hover:bg-amber-50 font-sans font-semibold py-2.5"
                     >
                       <Pause size={16} /> Pause Subscription
                     </Button>
@@ -448,44 +420,26 @@ export function SubscriptionDetailsPage() {
 
       {/* Pause Modal */}
       {showPauseModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="max-w-md w-full bg-white p-6 relative">
-            <button aria-label="Button action" onClick={() => setShowPauseModal(false)} className="absolute top-4 right-4 text-ink-500 hover:text-ink-600">
-              <XCircle size={20} />
-            </button>
-            <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Pause Subscription</h2>
-            <p className="text-ink-600 text-sm font-sans mb-6">Select the dates during which you want to pause your meal deliveries. Deliveries will automatically resume after the end date.</p>
-            
-            <form onSubmit={handlePauseSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-ink-700 mb-1.5 font-sans uppercase tracking-wider">Pause Start Date</label>
-                <input
-                  type="date"
-                  value={pauseStartDate}
-                  min={minDateStr}
-                  onChange={(e) => setPauseStartDate(e.target.value)}
-                  className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-ink-700 mb-1.5 font-sans uppercase tracking-wider">Pause End Date (Optional)</label>
-                <input
-                  type="date"
-                  value={pauseEndDate}
-                  min={pauseStartDate || minDateStr}
-                  onChange={(e) => setPauseEndDate(e.target.value)}
-                  className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <p className="text-[10px] text-ink-500 mt-1">Leave empty to pause indefinitely.</p>
-              </div>
-              <div className="pt-2 flex gap-3">
-                <Button type="button" variant="secondary" className="flex-1 font-sans" onClick={() => setShowPauseModal(false)}>Cancel</Button>
-                <Button type="submit" className="flex-1 font-sans" isLoading={updating}>Confirm Pause</Button>
-              </div>
-            </form>
-          </Card>
-        </div>
+        <PauseSubscriptionModal
+          subscription={subscription}
+          onClose={() => setShowPauseModal(false)}
+        />
+      )}
+
+      {showCancelTodayModal && (
+        <CancelTodayModal 
+          subscription={subscription} 
+          onClose={() => setShowCancelTodayModal(false)} 
+          skipDay={skipDay}
+        />
+      )}
+
+      {showSkipDayModal && (
+        <PauseDeliveryModal 
+          subscription={subscription} 
+          onClose={() => setShowSkipDayModal(false)} 
+          skipDay={skipDay}
+        />
       )}
 
       {showResumeModal && (

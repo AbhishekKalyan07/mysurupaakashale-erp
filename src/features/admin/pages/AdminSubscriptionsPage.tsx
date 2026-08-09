@@ -98,7 +98,8 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
     if (confirmAction === 'approve') await approve.mutateAsync(subscription);
     else if (confirmAction === 'reject') await reject.mutateAsync({ subscription, reason: reason || undefined });
     else if (confirmAction === 'pause') {
-      const today = new Date().toISOString().split('T')[0];
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+      const today = formatter.format(new Date());
       const shouldPauseNow = !pauseStartDate || pauseStartDate <= today;
       await pause.mutateAsync({ 
         subscription, 

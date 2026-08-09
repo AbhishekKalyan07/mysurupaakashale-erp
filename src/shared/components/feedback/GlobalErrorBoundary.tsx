@@ -31,14 +31,17 @@ export class GlobalErrorBoundary extends Component<Props, State> {
                              
     if (isChunkLoadError) {
       const reloadKey = 'app-reloaded-from-chunk-error';
-      const hasReloaded = sessionStorage.getItem(reloadKey);
+      let hasReloaded = false;
+      try {
+        hasReloaded = sessionStorage.getItem(reloadKey) === 'true';
+      } catch (e) { /* ignore */ }
       
       if (!hasReloaded) {
-        sessionStorage.setItem(reloadKey, 'true');
+        try { sessionStorage.setItem(reloadKey, 'true'); } catch (e) { /* ignore */ }
         window.location.reload();
       } else {
         // If already reloaded once and still failing, clear the flag and show error UI
-        sessionStorage.removeItem(reloadKey);
+        try { sessionStorage.removeItem(reloadKey); } catch (e) { /* ignore */ }
       }
     }
   }
