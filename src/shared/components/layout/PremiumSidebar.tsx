@@ -14,11 +14,20 @@ interface PremiumSidebarProps {
 export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
   const items = NAV_ITEMS_BY_ROLE[role];
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem('sidebar_collapsed') === 'true';
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    } catch (error) {
+      return false;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('sidebar_collapsed', isCollapsed.toString());
+    try {
+      localStorage.setItem('sidebar_collapsed', isCollapsed.toString());
+    } catch (error) {
+      // Ignore QuotaExceededError or storage disabled errors
+      console.warn('Failed to save sidebar state to localStorage', error);
+    }
   }, [isCollapsed]);
 
   const desktopWidth = isCollapsed ? 'w-[72px]' : 'w-[260px]';
