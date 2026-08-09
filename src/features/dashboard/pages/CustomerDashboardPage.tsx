@@ -486,12 +486,21 @@ export function CustomerDashboardPage() {
           {/* Quick info panel */}
           <Card className="p-6 md:p-8 border-gold/30 bg-gradient-to-br from-gold/5 to-gold/10 flex gap-4 items-start shadow-sm">
             <Info className="text-gold shrink-0 mt-1" size={24} />
-            <div className="font-sans text-primary text-sm w-full">
+            <div className="font-sans text-primary text-sm w-full min-w-0">
               <h4 className="font-bold text-primary text-lg mb-3">Daily Delivery Times:</h4>
-              <ul className="space-y-2 mt-2 bg-background p-4 rounded-xl border border-gold/20 shadow-sm">
-                <li className="flex justify-between items-center"><strong className="text-primary font-bold">Breakfast:</strong> <span className="text-text-muted font-data font-medium">07:00 AM - 09:00 AM</span></li>
-                <li className="flex justify-between items-center border-t border-primary/5 pt-2"><strong className="text-primary font-bold">Lunch:</strong> <span className="text-text-muted font-data font-medium">12:30 PM - 02:30 PM</span></li>
-                <li className="flex justify-between items-center border-t border-primary/5 pt-2"><strong className="text-primary font-bold">Dinner:</strong> <span className="text-text-muted font-data font-medium">07:00 PM - 09:00 PM</span></li>
+              <ul className="space-y-3 mt-2 bg-background p-4 rounded-xl border border-gold/20 shadow-sm">
+                <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 pb-3 border-b border-primary/5">
+                  <strong className="text-primary font-bold flex items-center gap-1.5">🌅 <span className="tracking-wide">Breakfast</span></strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">07:00 AM - 09:00 AM</span>
+                </li>
+                <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 pb-3 border-b border-primary/5">
+                  <strong className="text-primary font-bold flex items-center gap-1.5">☀️ <span className="tracking-wide">Lunch</span></strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">12:30 PM - 02:30 PM</span>
+                </li>
+                <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
+                  <strong className="text-primary font-bold flex items-center gap-1.5">🌙 <span className="tracking-wide">Dinner</span></strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">07:00 PM - 09:00 PM</span>
+                </li>
               </ul>
               <p className="text-text-muted mt-4 text-xs font-medium leading-relaxed bg-primary/5 p-3 rounded-lg border border-primary/10">
                 To cancel a specific meal, please do so before the cut-off time: Breakfast (5 AM), Lunch (10:30 AM), Dinner (4 PM).

@@ -71,7 +71,7 @@ export function DeliveryPartnerPage() {
       <StaffAttendanceCard />
 
       <DeliveryPartnerTable 
-        orders={orders}
+        orders={orders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped')}
         customerMap={customerMap}
         onAdvance={handleAdvance}
         isAdvancingId={updateMutation.isPending ? updateMutation.variables?.orderId || null : null}

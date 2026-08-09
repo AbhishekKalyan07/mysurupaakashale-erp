@@ -13,7 +13,6 @@ interface Props {
   customerMap: Map<string, string>;
   onAdvanceStatus: (orderId: string, status: string) => Promise<void>;
   isAdvancing: boolean;
-  isLocked: boolean;
 }
 
 export function KitchenProductionTable({
@@ -22,8 +21,7 @@ export function KitchenProductionTable({
   partnerMap,
   customerMap,
   onAdvanceStatus,
-  isAdvancing,
-  isLocked
+  isAdvancing
 }: Props) {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,9 +152,7 @@ export function KitchenProductionTable({
                   zoneName={area}
                   planName={plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : undefined}
                   onStatusChange={async (id, st) => {
-                    if (!isLocked) {
-                      await onAdvanceStatus(id, st);
-                    }
+                    await onAdvanceStatus(id, st);
                   }}
                   isAdvancing={isAdvancing}
                 />

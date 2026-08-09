@@ -86,6 +86,19 @@ class DeliveryRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Fetch all delivered orders for a delivery partner within a date range.
+   * Used for monthly dashboard statistics.
+   */
+  async getMonthlyDeliveries(partnerId: string, startDate: string, endDate: string): Promise<Order[]> {
+    return this.list(
+      where('deliveryPartnerId', '==', partnerId),
+      where('status', '==', 'delivered'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    );
+  }
+
+  /**
    * Assigns multiple orders to a specific delivery partner.
    */
   async assignOrders(orderIds: string[], partnerId: string): Promise<void> {
