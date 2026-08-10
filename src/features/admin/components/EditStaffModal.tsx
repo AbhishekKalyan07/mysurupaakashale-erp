@@ -13,6 +13,8 @@ import type { UserProfile } from '@/shared/types';
 const staffSchema = z.object({
   fullName: z.string().min(2, 'Name is required'),
   phone: z.string().min(10, 'Phone is required (e.g. +919876543210)'),
+  email: z.string().email('Invalid email address'),
+  role: z.enum(['admin', 'kitchen', 'delivery_partner', 'support']),
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.array(z.string()).optional(),
@@ -26,9 +28,11 @@ interface Props {
 }
 
 export function EditStaffModal({ user, onClose }: Props) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<StaffForm>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
   });
+
+  const currentRole = watch('role');
 
   const { data: zones = [], isLoading: isLoadingZones } = useDeliveryZones();
 
@@ -36,6 +40,8 @@ export function EditStaffModal({ user, onClose }: Props) {
     reset({
       fullName: user.fullName,
       phone: user.phone,
+      email: user.email,
+      role: user.role as any,
       kitchenId: user.role === 'kitchen' ? user.kitchenId : '',
       vehicleType: user.role === 'delivery_partner' ? user.vehicleType : 'bike',
       zoneIds: user.role === 'delivery_partner' ? user.zoneIds || [] : [],
@@ -49,13 +55,15 @@ export function EditStaffModal({ user, onClose }: Props) {
       const payload: any = {
         fullName: data.fullName,
         phone: data.phone,
+        email: data.email,
+        role: data.role,
       };
       
-      if (user.role === 'kitchen' && data.kitchenId) {
+      if (data.role === 'kitchen' && data.kitchenId) {
         payload.kitchenId = data.kitchenId;
       }
       
-      if (user.role === 'delivery_partner') {
+      if (data.role === 'delivery_partner') {
         payload.vehicleType = data.vehicleType;
         payload.zoneIds = data.zoneIds || [];
       }
@@ -94,24 +102,30 @@ export function EditStaffModal({ user, onClose }: Props) {
 
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Email Address</label>
-              <input type="email" value={user.email} disabled className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 bg-rice-50 text-ink-500 cursor-not-allowed" />
-              <p className="text-xs text-ink-500">Email addresses cannot be changed.</p>
+              <input type="email" {...register('email')} className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
+              {errors.email && <p className="text-xs text-danger">{errors.email.message}</p>}
+              <p className="text-[10px] text-amber-600 font-medium">Note: Changing this only updates the database profile. Authentication emails can only be changed by the user.</p>
             </div>
 
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Role</label>
-              <input type="text" value={user.role.replace('_', ' ')} disabled className="w-full h-10 px-3 rounded-lg border border-rice-300 bg-rice-50 text-ink-500 cursor-not-allowed capitalize" />
-              <p className="text-xs text-ink-500">Roles cannot be changed. Create a new account if the role needs to change.</p>
+              <select {...register('role')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 capitalize bg-white">
+                <option value="admin">Admin</option>
+                <option value="kitchen">Kitchen</option>
+                <option value="delivery_partner">Delivery Partner</option>
+                <option value="support">Support</option>
+              </select>
+              {errors.role && <p className="text-xs text-danger">{errors.role.message}</p>}
             </div>
 
-            {user.role === 'kitchen' && (
+            {currentRole === 'kitchen' && (
               <div className="space-y-1 bg-rice-50 p-4 rounded-lg border border-rice-200">
                 <label className="text-sm font-medium text-ink-700">Kitchen Assignment ID</label>
                 <input {...register('kitchenId')} placeholder="e.g. KITCHEN_CENTRAL" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
               </div>
             )}
 
-            {user.role === 'delivery_partner' && (
+            {currentRole === 'delivery_partner' && (
               <div className="space-y-4 bg-rice-50 p-4 rounded-lg border border-rice-200">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-ink-700">Vehicle Type</label>
