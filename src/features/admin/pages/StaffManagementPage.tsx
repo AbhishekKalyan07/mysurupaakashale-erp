@@ -6,6 +6,7 @@ import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useStaffUsers, useToggleStaffStatus } from '../hooks/useAdmin';
+import { useDeliveryZones } from '../hooks/useDeliveryZones';
 import { Plus, Shield, ChefHat, Truck, Receipt, MoreVertical } from 'lucide-react';
 import { CreateStaffModal } from '../components/CreateStaffModal';
 import { EditStaffModal } from '../components/EditStaffModal';
@@ -16,10 +17,12 @@ function StaffCardView({
   user,
   onEdit,
   onToggleStatus,
+  zones,
 }: {
   user: UserProfile;
   onEdit: () => void;
   onToggleStatus: () => void;
+  zones: any[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const roleIcon = {
@@ -96,6 +99,11 @@ function StaffCardView({
                Kitchen: {user.kitchenId}
             </Badge>
           )}
+          {user.role === 'delivery_partner' && user.zoneIds && user.zoneIds.length > 0 && (
+            <Badge variant="default" className="text-[10px] px-1.5 py-0.5 shadow-sm text-amber-800 bg-amber-100 border border-amber-200 shrink-0 whitespace-nowrap truncate max-w-[120px]" title={zones.filter((z: any) => user.zoneIds.includes(z.id)).map((z: any) => z.name).join(', ')}>
+               Zones: {zones.filter((z: any) => user.zoneIds.includes(z.id)).map((z: any) => z.name).join(', ')}
+            </Badge>
+          )}
           
           <div className="text-[10px] font-semibold text-text-muted shrink-0 ml-auto mr-1 truncate">
              Joined: {user.createdAt?.toDate ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system).format(user.createdAt.toDate()) : 'N/A'}
@@ -108,6 +116,7 @@ function StaffCardView({
 
 export function StaffManagementPage() {
   const { data: staff, isLoading, isError } = useStaffUsers();
+  const { data: zones = [] } = useDeliveryZones();
   const toggleMutation = useToggleStaffStatus();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -171,6 +180,11 @@ export function StaffManagementPage() {
                         {user.role.replace('_', ' ')}
                       </div>
                       {(user.role === 'kitchen' && user.kitchenId) && <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mt-1">Kitchen: {user.kitchenId}</div>}
+                      {(user.role === 'delivery_partner' && user.zoneIds && user.zoneIds.length > 0) && (
+                        <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-1 truncate max-w-[150px]" title={zones.filter((z: any) => user.zoneIds.includes(z.id)).map((z: any) => z.name).join(', ')}>
+                          Zones: {zones.filter((z: any) => user.zoneIds.includes(z.id)).map((z: any) => z.name).join(', ')}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-data text-primary font-medium">{user.phone}</div>
@@ -233,6 +247,7 @@ export function StaffManagementPage() {
                     toggleMutation.mutate({ uid: user.id, isActive: !user.isActive });
                   }
                 }}
+                zones={zones}
               />
             ))}
           </div>
