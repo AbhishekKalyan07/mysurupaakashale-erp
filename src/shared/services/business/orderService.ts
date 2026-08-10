@@ -9,7 +9,7 @@ import { mealPlanRepository } from '../firestore/mealPlanRepository';
 import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
-import { format } from 'date-fns';
+import { getTodayInTimezone } from '@/shared/lib/date';
 
 class OrderService {
   /**
@@ -17,7 +17,7 @@ class OrderService {
    * Keeps legacy compatibility by running all meal generations.
    */
   async generateDailyOrders(dateOverride?: string): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
-    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    const today = dateOverride || getTodayInTimezone();
     
     const isSunday = new Date(today).getDay() === 0;
     if (isSunday) {
@@ -34,17 +34,17 @@ class OrderService {
   }
 
   async generateBreakfastOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, 'breakfast');
   }
 
   async generateLunchOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, 'lunch');
   }
 
   async generateDinnerOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, 'dinner');
   }
 
@@ -397,7 +397,7 @@ class OrderService {
    * This is called by CustomerService to maintain consistency without relying on Firestore Triggers.
    */
   async syncCustomerActiveOrders(customerId: string): Promise<void> {
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = getTodayInTimezone();
     
     // Fetch today's orders for this customer
     const activeOrders = await orderRepository.list(

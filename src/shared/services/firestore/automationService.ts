@@ -7,14 +7,16 @@ import { analyticsRepository, orderGenerationRunRepository } from './analyticsRe
 import { userRepository } from './userRepository';
 import { notifySubscriptionExpired, notifySubscriptionRenewalReminder } from './notificationService';
 import type { DailySummary } from '@/shared/types';
+import { formatInTimeZone } from 'date-fns-tz';
 import { format, addDays } from 'date-fns';
+import { getTodayInTimezone } from '@/shared/lib/date';
 
 export class AutomationService {
   /**
    * Generate daily sales and operational summary
    */
   async generateDailySummary(dateOverride?: string) {
-    const today = dateOverride || format(new Date(), 'yyyy-MM-dd');
+    const today = dateOverride || getTodayInTimezone();
     
     // 1. Fetch today's orders
     const todayOrders = await orderRepository.getByDate(today);
@@ -66,10 +68,10 @@ export class AutomationService {
    * Subscription Expiry Reminders
    */
   async checkSubscriptionExpiry() {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
-    const in3Days = format(addDays(new Date(), 3), 'yyyy-MM-dd');
-    const in7Days = format(addDays(new Date(), 7), 'yyyy-MM-dd');
+    const today = getTodayInTimezone();
+    const tomorrow = formatInTimeZone(addDays(new Date(), 1), 'Asia/Kolkata', 'yyyy-MM-dd');
+    const in3Days = formatInTimeZone(addDays(new Date(), 3), 'Asia/Kolkata', 'yyyy-MM-dd');
+    const in7Days = formatInTimeZone(addDays(new Date(), 7), 'Asia/Kolkata', 'yyyy-MM-dd');
 
     const allSubs = await subscriptionRepository.list(where('status', '==', 'active'));
     
@@ -108,7 +110,7 @@ export class AutomationService {
    */
   async processScheduledPauses() {
     console.log("Processing scheduled pauses and resumes...");
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = getTodayInTimezone();
     
     const activeSubs = await subscriptionRepository.list(where('status', '==', 'active'));
     const pausedSubs = await subscriptionRepository.list(where('status', '==', 'paused'));
@@ -142,7 +144,7 @@ export class AutomationService {
    */
   async exportDatabaseBackup() {
     console.log("Starting database backup...");
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+    const timestamp = formatInTimeZone(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd_HH-mm-ss');
     const backupData: Record<string, any> = {};
 
     // List of core collections to back up
@@ -222,7 +224,7 @@ export class AutomationService {
     payments.forEach(p => paymentsSheet.addRow({ id: p.id, customerId: p.customerId, amount: p.amount, status: p.status, date: p.createdAt }));
 
     // Revenue, Kitchen, Delivery from Analytics
-    const currMonthStr = format(new Date(), 'yyyy-MM');
+    const currMonthStr = formatInTimeZone(new Date(), 'Asia/Kolkata', 'yyyy-MM');
     const analytics = await analyticsRepository.list();
     // Filter for current month using JS since date format is yyyy-MM-dd
     const monthAnalytics = analytics.filter(a => a.date.startsWith(currMonthStr));
@@ -242,7 +244,7 @@ export class AutomationService {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
-    const timestamp = format(new Date(), 'yyyy-MM');
+    const timestamp = formatInTimeZone(new Date(), 'Asia/Kolkata', 'yyyy-MM');
     const { storage } = await import('@/shared/lib/firebase');
     const { ref, uploadBytes } = await import('firebase/storage');
     
