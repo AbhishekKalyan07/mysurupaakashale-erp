@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, setPersistence, browserLocalPersistence, type Auth } from 'firebase/auth';
-import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider } from 'firebase/app-check';
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -86,13 +86,15 @@ export const appCheck = (() => {
     return null;
   }
 
-  const isNode = typeof window === 'undefined';
+const isNode = typeof globalThis.window === 'undefined';
+
+  const isNodeEnv = isNode;
 
   // Production path: real reCAPTCHA v3
   // Only attempt ReCaptcha if we are in a browser environment (window is defined).
-  if (appCheckSiteKey && !isEmulatorMode && !isNode) {
+  if (appCheckSiteKey && !isEmulatorMode && !isNodeEnv) {
     return initializeAppCheck(firebaseApp, {
-      provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+      provider: new ReCaptchaV3Provider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true,
     });
   }
@@ -101,7 +103,7 @@ export const appCheck = (() => {
   // Also used for Node.js automation scripts that must authenticate with a debug token.
   // The SDK reads FIREBASE_APPCHECK_DEBUG_TOKEN if set, or auto-generates one
   // and logs it at startup. Whitelist the token in Firebase Console once.
-  if (isEmulatorMode || import.meta.env.DEV || isNode) {
+  if (isEmulatorMode || import.meta.env.DEV || isNodeEnv) {
     // Setting the global before initializeAppCheck activates the debug provider.
     // Using globalThis instead of self ensures compatibility with Node.js.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +145,7 @@ if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
 }
 
 export const db: Firestore = initializeFirestore(firebaseApp,
-  (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' || typeof window === 'undefined')
+  (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' || typeof globalThis.window === 'undefined')
     ? {
         // In emulator/E2E/Node mode:
         // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).
