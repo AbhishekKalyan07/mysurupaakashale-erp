@@ -41,14 +41,69 @@ class BillingService {
     const customerOrders = await orderRepository.getCustomerOrders(subscription.customerId);
     
     // Calculate total bill for the ended cycle
-    const cycleOrders = customerOrders.filter(
+    const terminalStatuses = ['skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];
+    const billableOrders = customerOrders.filter(
       (o) => o.subscriptionId === subscription.id && 
-             o.status !== 'cancelled' && 
+             !terminalStatuses.includes(o.status) && 
              o.date >= subscription.startDate && 
              o.date <= subscription.endDate!
     );
     
-    const totalAmount = cycleOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+    const PRICING_MATRIX = {
+      basic: {
+        'breakfast': 60,
+        'lunch': 65,
+        'dinner': 65,
+        'breakfast_lunch': 115,
+        'lunch_dinner': 115,
+        'breakfast_dinner': 115, 
+        'breakfast_lunch_dinner': 159
+      },
+      regular: {
+        'breakfast': 60,
+        'lunch': 85,
+        'dinner': 85,
+        'breakfast_lunch': 140,
+        'lunch_dinner': 140,  
+        'breakfast_dinner': 140, 
+        'breakfast_lunch_dinner': 210
+      }
+    };
+
+    // Group by date
+    const ordersByDate = new Map<string, typeof billableOrders>();
+    billableOrders.forEach(o => {
+      if (!ordersByDate.has(o.date)) ordersByDate.set(o.date, []);
+      ordersByDate.get(o.date)!.push(o);
+    });
+
+    let totalAmount = 0;
+    const tier = subscription.planTier as 'basic' | 'regular';
+    const matrix = PRICING_MATRIX[tier] || PRICING_MATRIX.basic;
+
+    for (const [_, dailyOrders] of Array.from(ordersByDate.entries())) {
+      const meals = dailyOrders.map(o => o.mealType);
+      let key = '';
+      if (meals.includes('breakfast') && meals.includes('lunch') && meals.includes('dinner')) {
+        key = 'breakfast_lunch_dinner';
+      } else if (meals.includes('breakfast') && meals.includes('lunch')) {
+        key = 'breakfast_lunch';
+      } else if (meals.includes('lunch') && meals.includes('dinner')) {
+        key = 'lunch_dinner';
+      } else if (meals.includes('breakfast') && meals.includes('dinner')) {
+        key = 'breakfast_dinner';
+      } else if (meals.includes('breakfast')) {
+        key = 'breakfast';
+      } else if (meals.includes('lunch')) {
+        key = 'lunch';
+      } else if (meals.includes('dinner')) {
+        key = 'dinner';
+      }
+
+      if (key && (matrix as any)[key]) {
+        totalAmount += (matrix as any)[key] * (subscription.quantity || 1);
+      }
+    }
 
     const batch = writeBatch(db);
 
