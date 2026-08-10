@@ -34,14 +34,14 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       let hasReloaded = false;
       try {
         hasReloaded = sessionStorage.getItem(reloadKey) === 'true';
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
       
       if (!hasReloaded) {
-        try { sessionStorage.setItem(reloadKey, 'true'); } catch (e) { /* ignore */ }
+        try { sessionStorage.setItem(reloadKey, 'true'); } catch { /* ignore */ }
         window.location.reload();
       } else {
         // If already reloaded once and still failing, clear the flag and show error UI
-        try { sessionStorage.removeItem(reloadKey); } catch (e) { /* ignore */ }
+        try { sessionStorage.removeItem(reloadKey); } catch { /* ignore */ }
       }
     }
   }

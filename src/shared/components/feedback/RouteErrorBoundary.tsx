@@ -25,13 +25,13 @@ export function RouteErrorBoundary() {
       let hasReloaded = false;
       try {
         hasReloaded = sessionStorage.getItem(reloadKey) === 'true';
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
       
       if (!hasReloaded) {
-        try { sessionStorage.setItem(reloadKey, 'true'); } catch (e) { /* ignore */ }
+        try { sessionStorage.setItem(reloadKey, 'true'); } catch { /* ignore */ }
         window.location.reload();
       } else {
-        try { sessionStorage.removeItem(reloadKey); } catch (e) { /* ignore */ }
+        try { sessionStorage.removeItem(reloadKey); } catch { /* ignore */ }
       }
     }
   }
