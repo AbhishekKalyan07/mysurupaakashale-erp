@@ -16,7 +16,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebar_collapsed') === 'true';
-    } catch (error) {
+    } catch {
       return false;
     }
   });
