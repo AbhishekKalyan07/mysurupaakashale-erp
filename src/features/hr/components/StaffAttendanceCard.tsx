@@ -3,11 +3,12 @@ import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { useAttendanceRecord, useCheckIn, useCheckOut } from '@/features/hr/hooks/useAttendance';
 import { LogIn, LogOut, CheckCircle, Clock } from 'lucide-react';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function StaffAttendanceCard() {
   const { firebaseUser: user } = useAuth();
-  const date = new Date().toISOString().split('T')[0];
+  const date = getTodayInTimezone();
   const { data: myRecord, isLoading } = useAttendanceRecord(user?.uid || '', date);
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();

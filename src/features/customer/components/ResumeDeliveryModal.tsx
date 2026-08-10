@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { toast } from 'react-hot-toast';
 import type { Subscription, MealType } from '@/shared/types';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { XCircle } from 'lucide-react';
 
 interface ResumeDeliveryModalProps {
@@ -21,7 +22,7 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayInTimezone();
   const now = new Date();
   const currentHour = now.getHours() + now.getMinutes() / 60; // e.g. 9.5 for 9:30 AM
 

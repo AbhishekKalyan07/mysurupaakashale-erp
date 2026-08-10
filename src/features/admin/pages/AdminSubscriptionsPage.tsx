@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import {
   Search,
   CheckCircle,
@@ -66,7 +67,7 @@ function formatDate(value: string | null): string {
 // ── Detail Dialog ────────────────────────────────────────────────────────────
 function SubscriptionDetailDialog({ subscription, onClose }: { subscription: SubscriptionRow; onClose: () => void }) {
   const [reason, setReason] = useState('');
-  const [pauseStartDate, setPauseStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pauseStartDate, setPauseStartDate] = useState(getTodayInTimezone());
   const [pauseEndDate, setPauseEndDate] = useState('');
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'pause' | 'resume' | null>(null);
 
@@ -98,8 +99,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
     if (confirmAction === 'approve') await approve.mutateAsync(subscription);
     else if (confirmAction === 'reject') await reject.mutateAsync({ subscription, reason: reason || undefined });
     else if (confirmAction === 'pause') {
-      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
-      const today = formatter.format(new Date());
+      const today = getTodayInTimezone();
       const shouldPauseNow = !pauseStartDate || pauseStartDate <= today;
       await pause.mutateAsync({ 
         subscription, 
@@ -296,7 +296,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
                         <input
                           type="date"
                           value={pauseStartDate}
-                          min={new Date().toISOString().split('T')[0]}
+                          min={getTodayInTimezone()}
                           onChange={(e) => setPauseStartDate(e.target.value)}
                           className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm font-sans focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white text-amber-900"
                         />
@@ -306,7 +306,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
                         <input
                           type="date"
                           value={pauseEndDate}
-                          min={pauseStartDate || new Date().toISOString().split('T')[0]}
+                          min={pauseStartDate || getTodayInTimezone()}
                           onChange={(e) => setPauseEndDate(e.target.value)}
                           className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm font-sans focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white text-amber-900"
                         />

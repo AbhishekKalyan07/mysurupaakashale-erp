@@ -4,6 +4,7 @@ import { payrollRepository, salaryProfileRepository } from '@/shared/services/fi
 import type { PayrollRecord, EmployeeSalaryProfile, PayrollStatus } from '@/shared/types';
 import { serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
 import toast from 'react-hot-toast';
@@ -170,7 +171,7 @@ export function usePaySalary() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const paymentDate = new Date().toISOString().split('T')[0];
+      const paymentDate = getTodayInTimezone();
       await payrollRepository.update(id, {
         status: 'paid',
         paymentDate,

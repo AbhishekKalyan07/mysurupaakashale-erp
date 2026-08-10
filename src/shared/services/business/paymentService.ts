@@ -4,6 +4,7 @@ import { runTransaction, doc, serverTimestamp, where } from 'firebase/firestore'
 import { db } from '@/shared/lib/firebase';
 import type { ManualPayment, SubmitPaymentInput } from '@/shared/types';
 import { paymentRepository } from '../firestore/paymentRepository';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { userRepository } from '../firestore/userRepository';
 import { notifyPaymentSubmitted, notifyPaymentVerified, notifyPaymentReminder, notifyInvoiceGenerated } from '../firestore/notificationService';
 import { auditRepository } from '../firestore/auditRepository';
@@ -130,7 +131,7 @@ class PaymentService {
       const subscription = await subscriptionRepository.getById(capturedPayment.subscriptionId);
       
       if (subscription) {
-        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+        const today = getTodayInTimezone();
         if (subscription.startDate <= today) {
           const mealTypes = subscription.mealPreferences.map(p => p.mealType);
           console.log(`[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`);

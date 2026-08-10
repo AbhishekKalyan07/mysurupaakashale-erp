@@ -1,6 +1,6 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePartnerBoard } from '../hooks/usePartnerBoard';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { Truck, AlertCircle } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
@@ -9,7 +9,7 @@ import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser } = useAuth();
-  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+  const today = getTodayInTimezone();
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
 

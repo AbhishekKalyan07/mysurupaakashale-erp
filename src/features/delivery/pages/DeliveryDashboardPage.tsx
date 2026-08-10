@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { useDeliveryBoard } from '../hooks/useDeliveryBoard';
 import { DeliverySummaryCards } from '../components/DeliverySummaryCards';
@@ -13,7 +13,7 @@ import { MapPin } from 'lucide-react';
 import { PremiumCard } from '@/shared/components/ui/PremiumCard';
 
 export function DeliveryDashboardPage() {
-  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+  const today = getTodayInTimezone();
 
   const { allOrders, summary, isLoading, reassignMutation } = useDeliveryBoard(today);
 

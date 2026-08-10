@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { subscriptionService } from '../subscriptionService';
 import { subscriptionRepository } from '../../firestore/subscriptionRepository';
 import { settingsRepository } from '../../firestore/settingsRepository';
@@ -103,7 +104,7 @@ describe('subscriptionService', () => {
       vi.spyOn(subscriptionRepository, 'updateStatus').mockResolvedValue(undefined);
       vi.mocked(paymentRepository.getPaymentsPaginated).mockResolvedValue({ payments: [], lastDoc: null });
       
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      const today = getTodayInTimezone();
 
       await subscriptionService.approveSubscription({ 
         id: 'sub1', 

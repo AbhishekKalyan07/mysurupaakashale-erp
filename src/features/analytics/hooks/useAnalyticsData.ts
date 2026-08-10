@@ -6,6 +6,7 @@ import { paymentRepository } from '@/shared/services/firestore/paymentRepository
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
+import { getTodayInTimezone } from '@/shared/lib/date';
 
 export type DateRangeFilter = 
   | 'today' | 'yesterday' | 'last7' | 'last30' 
@@ -89,7 +90,7 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
       const endIso = range.end.toISOString().split('T')[0];
 
       
-      const todayIso = new Date().toISOString().split('T')[0];
+      const todayIso = getTodayInTimezone();
 
       // 1. Fetch Payments in range (and also this month for monthly KPI)
       // To save reads for MVP, we might fetch a broader range, but let's stick to the selected range

@@ -1,13 +1,13 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePartnerDashboardStats } from '@/features/delivery/hooks/usePartnerDashboardStats';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { Truck, PackageCheck, AlertCircle, PackageX, Package, XCircle, BarChart3 } from 'lucide-react';
 
 export function DeliveryPartnerDashboardPage() {
   const { firebaseUser } = useAuth();
-  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+  const today = getTodayInTimezone();
 
   const { today: todayStats, month: monthStats, loading, error } = usePartnerDashboardStats(firebaseUser?.uid, today);
 

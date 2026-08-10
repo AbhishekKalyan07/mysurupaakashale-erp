@@ -12,10 +12,11 @@ import {
   XCircle,
   CheckCircle,
 } from 'lucide-react';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import type { PaymentMethod } from '@/shared/types';
 
 function getCurrentBillingMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return getTodayInTimezone().slice(0, 7);
 }
 
 function formatBillingMonthLong(month: string) {
@@ -53,7 +54,7 @@ export function ManualPaymentPanel({
   const [form, setForm] = useState<PaymentFormData>({
     paymentMethod: 'upi',
     referenceNumber: '',
-    paymentDate: new Date().toISOString().split('T')[0],
+    paymentDate: getTodayInTimezone(),
   });
 
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
@@ -225,7 +226,7 @@ export function ManualPaymentPanel({
           <input
             type="date"
             value={form.paymentDate}
-            max={new Date().toISOString().split('T')[0]}
+            max={getTodayInTimezone()}
             onChange={(e) => setForm((f) => ({ ...f, paymentDate: e.target.value }))}
             className="w-full border border-ink-400 rounded-lg px-3 py-2 text-sm font-sans text-ink-900 focus:outline-none focus:ring-2 focus:ring-turmeric-400"
           />
