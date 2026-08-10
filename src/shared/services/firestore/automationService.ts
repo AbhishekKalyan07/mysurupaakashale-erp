@@ -8,7 +8,7 @@ import { userRepository } from './userRepository';
 import { notifySubscriptionExpired, notifySubscriptionRenewalReminder } from './notificationService';
 import type { DailySummary } from '@/shared/types';
 import { addDays } from 'date-fns';
-import { getTodayInTimezone, formatInTimezone } from '@/shared/lib/date';
+import { getTodayInTimezone } from '@/shared/lib/date';
 
 export class AutomationService {
   /**
@@ -68,9 +68,9 @@ export class AutomationService {
    */
   async checkSubscriptionExpiry() {
     const today = getTodayInTimezone();
-    const tomorrow = formatInTimezone(addDays(new Date(), 1), 'Asia/Kolkata', 'yyyy-MM-dd');
-    const in3Days = formatInTimezone(addDays(new Date(), 3), 'Asia/Kolkata', 'yyyy-MM-dd');
-    const in7Days = formatInTimezone(addDays(new Date(), 7), 'Asia/Kolkata', 'yyyy-MM-dd');
+    const tomorrow = getTodayInTimezone('Asia/Kolkata', addDays(new Date(), 1));
+    const in3Days = getTodayInTimezone('Asia/Kolkata', addDays(new Date(), 3));
+    const in7Days = getTodayInTimezone('Asia/Kolkata', addDays(new Date(), 7));
 
     const allSubs = await subscriptionRepository.list(where('status', '==', 'active'));
     
@@ -143,7 +143,8 @@ export class AutomationService {
    */
   async exportDatabaseBackup() {
     console.log("Starting database backup...");
-    const timestamp = formatInTimezone(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd_HH-mm-ss');
+    const now = new Date();
+    const timestamp = `${getTodayInTimezone('Asia/Kolkata', now)}_${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
     const backupData: Record<string, any> = {};
 
     // List of core collections to back up
@@ -223,7 +224,7 @@ export class AutomationService {
     payments.forEach(p => paymentsSheet.addRow({ id: p.id, customerId: p.customerId, amount: p.amount, status: p.status, date: p.createdAt }));
 
     // Revenue, Kitchen, Delivery from Analytics
-    const currMonthStr = formatInTimezone(new Date(), 'Asia/Kolkata', 'yyyy-MM');
+    const currMonthStr = getTodayInTimezone('Asia/Kolkata', new Date()).substring(0, 7);
     const analytics = await analyticsRepository.list();
     // Filter for current month using JS since date format is yyyy-MM-dd
     const monthAnalytics = analytics.filter(a => a.date.startsWith(currMonthStr));
@@ -243,7 +244,7 @@ export class AutomationService {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
-    const timestamp = formatInTimezone(new Date(), 'Asia/Kolkata', 'yyyy-MM');
+    const timestamp = getTodayInTimezone('Asia/Kolkata', new Date()).substring(0, 7);
     const { storage } = await import('@/shared/lib/firebase');
     const { ref, uploadBytes } = await import('firebase/storage');
     
@@ -259,7 +260,7 @@ export class AutomationService {
     console.log(`Starting log cleanup (retention: ${retentionDays} days)...`);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-    const cutoffDateStr = formatInTimezone(cutoffDate, 'Asia/Kolkata', 'yyyy-MM-dd');
+    const cutoffDateStr = getTodayInTimezone('Asia/Kolkata', cutoffDate);
 
     // 1. Clean up old OrderGenerationRuns (which use ISODateString for date)
     const oldRuns = await orderGenerationRunRepository.list(where('date', '<', cutoffDateStr));

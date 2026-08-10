@@ -8,7 +8,7 @@ import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 import { useAccountsDashboard, useGenerateDailyReport, useGenerateMonthlyReport } from '@/features/accounts/hooks/useAccounts';
 import { FileText, IndianRupee, ShoppingBag, Receipt, CheckCircle2, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/shared/utils/currency';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { toast } from 'react-hot-toast';
 
 export function AccountsDashboardPage() {
@@ -50,11 +50,11 @@ export function AccountsDashboardPage() {
     setGeneratingReport(type);
     try {
       if (type === 'daily') {
-        const todayStr = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { timeZone: APP_CONFIG.timezone }).format(new Date());
+        const todayStr = getTodayInTimezone();
         const result = await dailyReportMutation.mutateAsync(todayStr);
         toast.success(`Report generated: ${result.downloadUrl}`);
       } else {
-        const monthStr = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { year: 'numeric', month: '2-digit', timeZone: APP_CONFIG.timezone }).format(new Date()).slice(0, 7);
+        const monthStr = getTodayInTimezone().slice(0, 7);
         const result = await monthlyReportMutation.mutateAsync(monthStr);
         toast.success(`Report generated: ${result.downloadUrl}`);
       }

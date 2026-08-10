@@ -2,8 +2,9 @@ import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { where, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+
 import type { Order } from '@/shared/types';
+import { getTodayInTimezone } from '@/shared/lib/date';
 
 export interface AdminMetrics {
   totalCustomers: number;
@@ -51,9 +52,7 @@ export interface AdminMetrics {
 
 export function useAdminDashboardMetrics() {
   const queryClient = useQueryClient();
-  const today = new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, { 
-    timeZone: APP_CONFIG.timezone 
-  }).format(new Date());
+  const today = getTodayInTimezone();
 
   const queryKey = useMemo(() => ['admin', 'dashboard', 'metrics', today], [today]);
 

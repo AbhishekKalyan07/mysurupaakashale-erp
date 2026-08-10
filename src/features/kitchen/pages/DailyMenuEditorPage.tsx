@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { toast } from 'react-hot-toast';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,7 +44,7 @@ export function DailyMenuEditorPage() {
   const form = useForm<MenuFormValues>({
     resolver: zodResolver(menuSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayInTimezone(),
       status: 'draft',
       breakfast: { name: '', description: '', items: [{ value: '' }], isAvailable: true },
       lunch: { name: '', description: '', items: [{ value: '' }], isAvailable: true },

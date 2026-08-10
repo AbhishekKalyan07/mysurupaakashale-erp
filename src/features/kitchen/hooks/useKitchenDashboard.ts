@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { APP_CONFIG } from '@/shared/config/appConfig';
+
 import type { Order, MealType, OrderStatus } from '@/shared/types';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -15,14 +15,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
  * frontend and backend always agree on which business day "today" is.
  * Modern browsers fully support IANA timezone IDs — no polyfill needed.
  */
-export function getTodayIST(): string {
-  return new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system, {
-    timeZone: APP_CONFIG.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
+export { getTodayInTimezone as getTodayIST } from '@/shared/lib/date';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

@@ -37,11 +37,4 @@ export function parseFirestoreDate(ts: unknown): Date | null {
  * Returns today's date as YYYY-MM-DD in Asia/Kolkata timezone.
  * Guarantees frontend and backend business date string alignment.
  */
-export function getTodayIST(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
+export { getTodayInTimezone as getTodayIST } from '@/shared/lib/date';

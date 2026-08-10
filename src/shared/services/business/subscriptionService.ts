@@ -1,5 +1,5 @@
-import { Timestamp } from 'firebase/firestore';
-import { serverTimestamp } from 'firebase/firestore';
+import { Timestamp, serverTimestamp } from 'firebase/firestore';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { settingsRepository } from '../firestore/settingsRepository';
 import type { MealPreference, PlanTier, Subscription } from '@/shared/types';
@@ -82,7 +82,7 @@ class SubscriptionService {
 
     // Immediately generate orders for today if the subscription starts today or earlier
     const { orderService } = await import('./orderService');
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const today = getTodayInTimezone();
     
     if (subscription.startDate <= today) {
       const mealTypes = subscription.mealPreferences.map(p => p.mealType);

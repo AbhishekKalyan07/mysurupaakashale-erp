@@ -1,17 +1,15 @@
-import { TZDate } from '@date-fns/tz';
-import { format } from 'date-fns';
-
 /**
- * Returns today's date in the specified IANA time zone formatted as 'yyyy-MM-dd'.
- * Default time zone is Asia/Kolkata (IST).
+ * Returns the current date string (YYYY-MM-DD) in the specified IANA timezone.
  */
-export const getTodayInTimezone = (timeZone: string = 'Asia/Kolkata'): string => {
-  return format(new TZDate(new Date(), timeZone), 'yyyy-MM-dd');
+export const getTodayInTimezone = (
+  timezone: string = 'Asia/Kolkata',
+  date: Date = new Date()
+): string => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 };
 
-/**
- * Formats any date in the specified IANA time zone.
- */
-export const formatInTimezone = (date: Date, timeZone: string, fmt: string): string => {
-  return format(new TZDate(date, timeZone), fmt);
-};
