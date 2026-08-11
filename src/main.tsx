@@ -22,6 +22,7 @@ Sentry.init({
     /The transaction was aborted, so the request cannot be fulfilled/i,
     /IndexedDB persistence is only available on platforms that support LocalStorage/i,
     /QuotaExceededError/i,
+    /IndexedDbTransactionError/i,
   ],
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({

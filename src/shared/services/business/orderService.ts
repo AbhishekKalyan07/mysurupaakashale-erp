@@ -142,7 +142,7 @@ class OrderService {
               // Admin Alert
               import('@/shared/services/firestore/notificationService').then(m => {
                 import('@/shared/services/firestore/userRepository').then(ur => {
-                  ur.userRepository.list(import('firebase/firestore').then(f => f.where('role', '==', 'admin')) as any)
+                  ur.userRepository.list(where('role', '==', 'admin'))
                     .then(admins => {
                       m.notifyAdminAlert(admins.map(a => a.id), 'Order Generation Failed', `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`);
                     }).catch(console.error);

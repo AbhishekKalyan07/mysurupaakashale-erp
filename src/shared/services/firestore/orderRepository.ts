@@ -101,6 +101,18 @@ class OrderRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Retrieves all orders for a specific customer within a date range.
+   */
+  async getCustomerOrdersInRange(customerId: string, startDate: string, endDate: string): Promise<Order[]> {
+    return this.list(
+      where('customerId', '==', customerId),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'asc')
+    );
+  }
+
+  /**
    * Batch create multiple orders. Used by the daily order generation script.
    */
   async batchCreate(orders: Omit<Order, 'id'>[]): Promise<void> {

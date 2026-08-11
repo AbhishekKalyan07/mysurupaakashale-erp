@@ -5,6 +5,7 @@ import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import type { Order } from '@/shared/types';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { getAuth } from 'firebase/auth';
+import { where } from 'firebase/firestore';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import toast from 'react-hot-toast';
 import {
@@ -165,7 +166,7 @@ export function useUpdateDeliveryStatus() {
             import('@/shared/services/firestore/notificationService').then(m => {
               // Get accounts users and notify them
               import('@/shared/services/firestore/userRepository').then(userRepo => {
-                userRepo.userRepository.list(import('firebase/firestore').then(f => f.where('role', '==', 'accounts')) as any)
+                userRepo.userRepository.list(where('role', '==', 'accounts'))
                   .then(accounts => {
                     accounts.forEach(acc => m.notifyAccountsDelivered(acc.id, orderId, mealType).catch(console.error));
                   }).catch(console.error);

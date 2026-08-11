@@ -22,7 +22,7 @@ class PaymentService {
     customerName: string,
   ): Promise<string> {
     const billingMonth =
-      input.billingMonth ?? new Date().toISOString().slice(0, 7); // fallback: "YYYY-MM"
+      input.billingMonth ?? getTodayInTimezone().slice(0, 7); // fallback: "YYYY-MM"
 
     const paymentId = await paymentRepository.create({
       subscriptionId: input.subscriptionId,
@@ -32,7 +32,7 @@ class PaymentService {
       currency: 'INR',
       paymentMethod: input.paymentMethod,
       referenceNumber: input.referenceNumber,
-      paymentDate: input.paymentDate || new Date().toISOString().split('T')[0],
+      paymentDate: input.paymentDate || getTodayInTimezone(),
       screenshotUrl: input.screenshotUrl ?? null,
       billingMonth,
       status: 'pending',
@@ -113,7 +113,7 @@ class PaymentService {
         subscriptionId: payment.subscriptionId,
         customerId: payment.customerId,
         amount: payment.amount,
-        billingMonth: payment.billingMonth ?? new Date().toISOString().slice(0, 7),
+        billingMonth: payment.billingMonth ?? getTodayInTimezone().slice(0, 7),
         status: 'paid',
         issuedAt: serverTimestamp(),
         paidAt: serverTimestamp(),
@@ -146,7 +146,7 @@ class PaymentService {
     if (meta) {
       try {
         const invoiceNumber = `INV-${Date.now()}`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayInTimezone();
         const billingMonth = capturedPayment.billingMonth ?? today.slice(0, 7);
 
         const invoiceData: InvoiceData = {

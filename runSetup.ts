@@ -1,1 +1,0 @@
-import { setupData } from './tests/e2e/shared/setupData.ts'; setupData().catch(e => console.error(e));

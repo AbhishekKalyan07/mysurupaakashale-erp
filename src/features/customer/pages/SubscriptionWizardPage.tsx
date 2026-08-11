@@ -113,8 +113,21 @@ export function SubscriptionWizardPage() {
   };
 
   const selectedMealsCount = Object.values(enabledMeals).filter(Boolean).length;
-  const pricePerMeal = plan ? Math.round(plan.pricePerDay / 3) : 0;
-  const calculatedDailyPrice = pricePerMeal * selectedMealsCount;
+  
+  let calculatedDailyPrice = 0;
+  if (plan) {
+    if (plan.pricingMatrix) {
+      const activeMeals = [];
+      if (enabledMeals.breakfast) activeMeals.push('breakfast');
+      if (enabledMeals.lunch) activeMeals.push('lunch');
+      if (enabledMeals.dinner) activeMeals.push('dinner');
+      const key = activeMeals.join('_') as keyof typeof plan.pricingMatrix;
+      calculatedDailyPrice = plan.pricingMatrix[key] || plan.pricePerDay;
+    } else {
+      const pricePerMeal = Math.round(plan.pricePerDay / 3);
+      calculatedDailyPrice = pricePerMeal * selectedMealsCount;
+    }
+  }
 
   // Address creation UI state
   const [showAddressForm, setShowAddressForm] = useState(false);

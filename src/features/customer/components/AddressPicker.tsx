@@ -38,23 +38,33 @@ interface AddressPickerProps {
 
 // Reverse geocode lat/lng → address via Nominatim
 async function reverseGeocode(lat: number, lng: number): Promise<NominatimResult | null> {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': 'MysurPaakashale-ERP/1.0' },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&email=admin@mysurupaakashale.in`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept-Language': 'en' },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error('Nominatim reverse geocode error:', error);
+    return null;
+  }
 }
 
 // Forward geocode query → suggestions
 async function searchAddress(query: string): Promise<NominatimResult[]> {
   if (query.length < 3) return [];
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Mysuru India')}&addressdetails=1&limit=6&countrycodes=in`;
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': 'MysurPaakashale-ERP/1.0' },
-  });
-  if (!res.ok) return [];
-  return res.json();
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Mysuru India')}&addressdetails=1&limit=6&countrycodes=in&email=admin@mysurupaakashale.in`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept-Language': 'en' },
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error('Nominatim search error:', error);
+    return [];
+  }
 }
 
 function parseNominatim(result: NominatimResult): PickedAddress {
