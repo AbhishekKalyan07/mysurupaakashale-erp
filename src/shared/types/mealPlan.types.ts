@@ -27,6 +27,16 @@ export interface MealSlotConfig {
   options: MealOption[];
 }
 
+export interface MealPlanPricing {
+  breakfast: number;
+  lunch: number;
+  dinner: number;
+  breakfast_lunch: number;
+  lunch_dinner: number;
+  breakfast_dinner: number;
+  breakfast_lunch_dinner: number;
+}
+
 /**
  * Firestore: `mealPlans/{planId}`.
  * Publicly readable (no auth) so prospective customers can browse pricing
@@ -37,7 +47,8 @@ export interface MealPlan {
   tier: PlanTier;
   name: string;
   description: string;
-  pricePerDay: number; // INR
+  pricePerDay: number; // Legacy total bundle price (INR)
+  pricingMatrix?: MealPlanPricing; // Exact combination pricing (INR)
   currency: 'INR';
   mealSlots: MealSlotConfig[];
   deliveryIncluded: boolean;

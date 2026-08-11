@@ -38,7 +38,11 @@ class BillingService {
   }
 
   private async processSubscriptionEnd(subscription: Subscription, today: string): Promise<void> {
-    const customerOrders = await orderRepository.getCustomerOrders(subscription.customerId);
+    const customerOrders = await orderRepository.getCustomerOrdersInRange(
+      subscription.customerId,
+      subscription.startDate,
+      subscription.endDate!
+    );
     
     // Calculate total bill for the ended cycle
     const terminalStatuses = ['skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];

@@ -20,6 +20,15 @@ async function seedPlans() {
     name: 'Basic Plan',
     description: 'Including 3 times food with 3 times separate delivery.',
     pricePerDay: 159,
+    pricingMatrix: {
+      breakfast: 60,
+      lunch: 65,
+      dinner: 65,
+      breakfast_lunch: 115,
+      lunch_dinner: 115,
+      breakfast_dinner: 115,
+      breakfast_lunch_dinner: 159
+    },
     currency: 'INR',
     deliveryIncluded: true,
     isActive: true,
@@ -88,6 +97,15 @@ async function seedPlans() {
     name: 'Regular Plan',
     description: 'Including 3 times food with 3 times separate delivery.',
     pricePerDay: 210,
+    pricingMatrix: {
+      breakfast: 60,
+      lunch: 85,
+      dinner: 85,
+      breakfast_lunch: 140,
+      lunch_dinner: 140,
+      breakfast_dinner: 140,
+      breakfast_lunch_dinner: 210
+    },
     currency: 'INR',
     deliveryIncluded: true,
     isActive: true,
