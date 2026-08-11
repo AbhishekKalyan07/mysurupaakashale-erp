@@ -8,10 +8,16 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
 
 export function DeliveryPartnerPage() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, profile } = useAuth();
   const today = getTodayInTimezone();
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
+
+  const assignedZones = profile?.role === 'delivery_partner' && profile.zoneIds?.length > 0 
+    ? profile.zoneIds.join(', ') 
+    : 'None';
+
+  const uniqueCustomersToday = new Set(orders.map(o => o.customerId)).size;
 
   // Customer details are denormalized onto the order document itself.
   // Firestore rules correctly block delivery partners from querying the entire users collection.
@@ -43,8 +49,13 @@ export function DeliveryPartnerPage() {
           My Delivery Route
         </h1>
         <p className="text-sm text-ink-500 font-sans mt-1">
-          {today} | {orders?.length || 0} assigned
+          {today} | {orders?.length || 0} assigned orders | {uniqueCustomersToday} unique customers
         </p>
+        {profile?.role === 'delivery_partner' && (
+          <p className="text-sm text-ink-600 font-medium mt-1">
+            Assigned Zones: {assignedZones}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
