@@ -89,7 +89,7 @@ export function BrowsePlansPage() {
                 {/* Image Header */}
                 <div className="relative h-36 w-full bg-gray-200 rounded-t-[22px] overflow-hidden">
                   <img
-                    src={isRegular ? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&q=80&w=800&h=400' : 'https://images.unsplash.com/photo-1626776876729-bab4369a5a5a?auto=format&fit=crop&q=80&w=800&h=400'}
+                    src={isRegular ? '/images/meal_plan_regular.png' : '/images/meal_plan_basic.png'}
                     alt={plan.name}
                     className="w-full h-full object-cover"
                   />
