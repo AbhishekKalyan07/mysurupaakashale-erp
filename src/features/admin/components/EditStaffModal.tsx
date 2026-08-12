@@ -18,6 +18,7 @@ const staffSchema = z.object({
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.array(z.string()).optional(),
+  shifts: z.array(z.string()).optional(),
 });
 
 type StaffForm = z.infer<typeof staffSchema>;
@@ -45,6 +46,7 @@ export function EditStaffModal({ user, onClose }: Props) {
       kitchenId: user.role === 'kitchen' ? user.kitchenId : '',
       vehicleType: user.role === 'delivery_partner' ? user.vehicleType : 'bike',
       zoneIds: user.role === 'delivery_partner' ? user.zoneIds || [] : [],
+      shifts: user.role === 'delivery_partner' ? (user.shifts || ['breakfast', 'lunch', 'dinner']) : [],
     });
   }, [user, reset]);
 
@@ -66,6 +68,7 @@ export function EditStaffModal({ user, onClose }: Props) {
       if (data.role === 'delivery_partner') {
         payload.vehicleType = data.vehicleType;
         payload.zoneIds = data.zoneIds || [];
+        payload.shifts = data.shifts || ['breakfast', 'lunch', 'dinner'];
       }
       
       await updateMutation.mutateAsync({ uid: user.id, data: payload });
@@ -161,6 +164,22 @@ export function EditStaffModal({ user, onClose }: Props) {
                       ))}
                     </div>
                   )}
+                </div>
+                <div className="space-y-2 pt-2 border-t border-rice-200">
+                  <label className="text-sm font-medium text-ink-700">Eligible Shifts</label>
+                  <div className="grid grid-cols-3 gap-2 bg-white border border-rice-300 rounded-lg p-2.5">
+                    {['breakfast', 'lunch', 'dinner'].map((shift) => (
+                      <label key={shift} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          value={shift}
+                          {...register('shifts')}
+                          className="rounded border-rice-300 text-leaf-600 focus:ring-leaf-500"
+                        />
+                        <span className="capitalize truncate">{shift}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

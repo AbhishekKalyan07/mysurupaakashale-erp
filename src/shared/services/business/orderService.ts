@@ -76,17 +76,25 @@ class OrderService {
 
     try {
       // 1. Fetch data
-      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners] = await Promise.all([
+      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners, todaysOrders] = await Promise.all([
         subscriptionRepository.list(where('status', '==', 'active')),
         mealPlanRepository.list(),
         userRepository.list(where('role', '==', 'customer')),
         deliveryZoneRepository.list(),
-        userRepository.list(where('role', '==', 'delivery_partner'))
+        userRepository.list(where('role', '==', 'delivery_partner')),
+        orderRepository.list(where('date', '==', today))
       ]);
       const customerMap = new Map<string, CustomerProfile>(allCustomers.map(c => [c.id, c as CustomerProfile]));
       const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
       const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
       const zoneMap = new Map(allZones.map(z => [z.id, z]));
+
+      const workloadMap = new Map<string, number>();
+      todaysOrders.forEach(o => {
+        if (o.deliveryPartnerId && o.status !== 'cancelled' && o.status !== 'skipped') {
+          workloadMap.set(o.deliveryPartnerId, (workloadMap.get(o.deliveryPartnerId) || 0) + 1);
+        }
+      });
 
       const ordersToCreate: Partial<Order>[] = [];
 
@@ -119,9 +127,24 @@ class OrderService {
               continue;
             }
 
-            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans);
+            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap);
             ordersToCreate.push(order);
             success = true;
+
+            if (!order.deliveryPartnerId) {
+              import('@/shared/services/firestore/auditRepository').then(m => {
+                m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
+                  orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
+                }).catch(console.error);
+              }).catch(console.error);
+              import('@/shared/services/firestore/notificationService').then(m => {
+                import('@/shared/services/firestore/userRepository').then(ur => {
+                  ur.userRepository.list(where('role', '==', 'admin')).then(admins => {
+                    m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`);
+                  }).catch(console.error);
+                }).catch(console.error);
+              }).catch(console.error);
+            }
           } catch (err) {
             attempts++;
             if (attempts >= 3) {
@@ -238,26 +261,37 @@ class OrderService {
     zoneMap: Map<string, any>,
     activePartners: DeliveryPartnerProfile[],
     allZones: any[],
-    mealPlans: MealPlan[]
+    mealPlans: MealPlan[],
+    workloadMap: Map<string, number>
   ): Partial<Order> {
     const customer = customerMap.get(sub.customerId);
     
-    let partnerId = customer?.deliveryPartnerId ?? null;
     let zoneId = customer?.zoneId ?? null;
-    
-    if (!partnerId) {
-      if (!zoneId) {
-        const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
-        if (defaultAddress?.pincode) {
-          const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
-          if (matchedZone) zoneId = matchedZone.id;
-        }
+    if (!zoneId) {
+      const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
+      if (defaultAddress?.pincode) {
+        const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+        if (matchedZone) zoneId = matchedZone.id;
       }
-      if (zoneId) {
-        const partnerForZone = activePartners.find(p => p.zoneIds?.includes(zoneId!));
-        if (partnerForZone) {
-          partnerId = partnerForZone.id;
-        }
+    }
+
+    let partnerId: string | null = null;
+    if (zoneId) {
+      const eligiblePartners = activePartners.filter(p => 
+        p.isAvailable &&
+        p.zoneIds?.includes(zoneId!) &&
+        (!p.shifts || p.shifts.length === 0 || p.shifts.includes(mealType))
+      );
+
+      if (eligiblePartners.length > 0) {
+        eligiblePartners.sort((a, b) => {
+          const aLoad = workloadMap.get(a.id) || 0;
+          const bLoad = workloadMap.get(b.id) || 0;
+          if (aLoad !== bLoad) return aLoad - bLoad;
+          return a.id.localeCompare(b.id);
+        });
+        partnerId = eligiblePartners[0].id;
+        workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
       }
     }
 
@@ -329,11 +363,12 @@ class OrderService {
       return;
     }
 
-    const [mealPlans, customer, allZones, allPartners] = await Promise.all([
+    const [mealPlans, customer, allZones, allPartners, todaysOrders] = await Promise.all([
       mealPlanRepository.list(),
       userRepository.getById(subscription.customerId),
       deliveryZoneRepository.list(),
-      userRepository.list(where('role', '==', 'delivery_partner'))
+      userRepository.list(where('role', '==', 'delivery_partner')),
+      orderRepository.list(where('date', '==', date))
     ]);
     
     const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
@@ -341,13 +376,35 @@ class OrderService {
     if (customer) customerMap.set(customer.id, customer as CustomerProfile);
     const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
     const zoneMap = new Map(allZones.map(z => [z.id, z]));
+
+    const workloadMap = new Map<string, number>();
+    todaysOrders.forEach(o => {
+      if (o.deliveryPartnerId && o.status !== 'cancelled' && o.status !== 'skipped') {
+        workloadMap.set(o.deliveryPartnerId, (workloadMap.get(o.deliveryPartnerId) || 0) + 1);
+      }
+    });
     
     const ordersToCreate: Partial<Order>[] = [];
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
-      const order = this.buildOrderSnapshot(subscription, pref, pref.mealType, date, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans);
+      const order = this.buildOrderSnapshot(subscription, pref, pref.mealType, date, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap);
       ordersToCreate.push(order);
+
+      if (!order.deliveryPartnerId) {
+        import('@/shared/services/firestore/auditRepository').then(m => {
+          m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
+            orderId: order.id, customerId: subscription.customerId, zoneId: order.zoneId, mealType: order.mealType, date, reason: 'No eligible partner available for this zone and shift'
+          }).catch(console.error);
+        }).catch(console.error);
+        import('@/shared/services/firestore/notificationService').then(m => {
+          import('@/shared/services/firestore/userRepository').then(ur => {
+            ur.userRepository.list(where('role', '==', 'admin')).then(admins => {
+              m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${pref.mealType} could not be automatically assigned. Please assign manually.`);
+            }).catch(console.error);
+          }).catch(console.error);
+        }).catch(console.error);
+      }
     }
 
     if (ordersToCreate.length === 0) return;
@@ -405,9 +462,9 @@ class OrderService {
       where('date', '==', today)
     );
     
-    // We only update orders that are not terminal (delivered, cancelled, skipped)
-    const TERMINAL_STATUSES = ['delivered', 'failed_delivery', 'returned_delivery', 'skipped', 'cancelled'];
-    const ordersToSync = activeOrders.filter(o => !TERMINAL_STATUSES.includes(o.status));
+    // We only update orders that are not terminal and not locked by drivers
+    const TERMINAL_AND_LOCKED_STATUSES = ['delivered', 'failed_delivery', 'returned_delivery', 'skipped', 'cancelled', 'picked_up', 'out_for_delivery'];
+    const ordersToSync = activeOrders.filter(o => !TERMINAL_AND_LOCKED_STATUSES.includes(o.status));
     
     if (ordersToSync.length === 0) return;
 
@@ -424,31 +481,54 @@ class OrderService {
     const zoneMap = new Map(allZones.map(z => [z.id, z]));
     const partnerMap = new Map(activePartners.map(p => [p.id, p]));
 
-    let partnerId = (customer as CustomerProfile).deliveryPartnerId ?? null;
+    const workloadMap = new Map<string, number>();
+    activeOrders.forEach(o => {
+      if (o.deliveryPartnerId && o.status !== 'cancelled' && o.status !== 'skipped') {
+        workloadMap.set(o.deliveryPartnerId, (workloadMap.get(o.deliveryPartnerId) || 0) + 1);
+      }
+    });
+
     let zoneId = (customer as CustomerProfile).zoneId ?? null;
     
-    if (!partnerId) {
-      if (!zoneId) {
-        const custProfile = customer as CustomerProfile;
-        const defaultAddress = custProfile.addresses?.find((a: any) => a.id === custProfile.defaultAddressId) || custProfile.addresses?.[0];
-        if (defaultAddress?.pincode) {
-          const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
-          if (matchedZone) zoneId = matchedZone.id;
-        }
-      }
-      if (zoneId) {
-        const partnerForZone = activePartners.find(p => p.zoneIds?.includes(zoneId!));
-        if (partnerForZone) {
-          partnerId = partnerForZone.id;
-        }
+    if (!zoneId) {
+      const custProfile = customer as CustomerProfile;
+      const defaultAddress = custProfile.addresses?.find((a: any) => a.id === custProfile.defaultAddressId) || custProfile.addresses?.[0];
+      if (defaultAddress?.pincode) {
+        const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+        if (matchedZone) zoneId = matchedZone.id;
       }
     }
 
-    const driver = partnerMap.get(partnerId || '');
     const zoneName = zoneId ? zoneMap.get(zoneId)?.name : undefined;
 
     const batch = writeBatch(db);
     ordersToSync.forEach(order => {
+      let partnerId: string | null = null;
+      if (zoneId) {
+        const eligiblePartners = activePartners.filter(p => 
+          p.isAvailable &&
+          p.zoneIds?.includes(zoneId!) &&
+          (!p.shifts || p.shifts.length === 0 || p.shifts.includes(order.mealType))
+        );
+        if (eligiblePartners.length > 0) {
+          eligiblePartners.sort((a, b) => {
+            const aLoad = workloadMap.get(a.id) || 0;
+            const bLoad = workloadMap.get(b.id) || 0;
+            if (aLoad !== bLoad) return aLoad - bLoad;
+            return a.id.localeCompare(b.id);
+          });
+          partnerId = eligiblePartners[0].id;
+          
+          if (order.deliveryPartnerId !== partnerId) {
+            if (order.deliveryPartnerId) {
+              workloadMap.set(order.deliveryPartnerId, Math.max(0, (workloadMap.get(order.deliveryPartnerId) || 0) - 1));
+            }
+            workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+          }
+        }
+      }
+
+      const driver = partnerMap.get(partnerId || '');
       const ref = doc(db, 'orders', order.id!);
       batch.update(ref, {
         deliveryPartnerId: partnerId,

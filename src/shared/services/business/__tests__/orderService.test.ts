@@ -62,6 +62,7 @@ describe('orderService', () => {
     it('skips expired and future subscriptions', async () => {
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue(null);
       vi.spyOn(orderGenerationRunRepository, 'create').mockResolvedValue('run-id');
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
       vi.spyOn(subscriptionRepository, 'list').mockResolvedValue([
         { id: 'sub-expired', endDate: '2026-07-01', startDate: '2026-06-01' } as any,
         { id: 'sub-future', endDate: null, startDate: '2026-09-01' } as any,
@@ -90,6 +91,7 @@ describe('orderService', () => {
 
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue(null);
       vi.spyOn(orderGenerationRunRepository, 'create').mockResolvedValue('run-id');
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
       
       const subscriptions = [
         { 
@@ -160,6 +162,7 @@ describe('orderService', () => {
       }] as any);
       vi.spyOn(userRepository, 'getById').mockResolvedValue({ id: 'c1', deliveryPartnerId: 'p2' } as any);
       vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([]);
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
       vi.spyOn(userRepository, 'list').mockImplementation(async (queryParam) => {
         if ((queryParam as any)?.value === 'delivery_partner') {
           return [{ id: 'p2', isActive: true, fullName: 'Partner 2' }] as any;
@@ -193,6 +196,7 @@ describe('orderService', () => {
         addresses: [{ id: 'addr1', pincode: '570002' }] 
       } as any);
       vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([{ id: 'z2', pincodes: ['570002'] }] as any);
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
       vi.spyOn(userRepository, 'list').mockImplementation(async (queryParam) => {
         if ((queryParam as any)?.value === 'delivery_partner') {
           return [{ id: 'p3', isActive: true, zoneIds: ['z2'], fullName: 'Partner 3' }] as any;
@@ -255,7 +259,7 @@ describe('orderService', () => {
       const { deliveryZoneRepository } = await import('../../firestore/deliveryZoneRepository');
       vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([{ id: 'z1', name: 'Zone 1' } as any]);
       const { userRepository } = await import('../../firestore/userRepository');
-      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, role: 'delivery_partner' } as any]);
+      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, isAvailable: true, zoneIds: ['z1'], role: 'delivery_partner' } as any]);
       vi.spyOn(userRepository, 'getById').mockResolvedValue({ id: 'c1', deliveryPartnerId: 'p1', zoneId: 'z1' } as any);
       
       const { writeBatch } = await import('firebase/firestore');
@@ -270,7 +274,7 @@ describe('orderService', () => {
 
       await orderService.syncCustomerActiveOrders('c1');
 
-      expect(batchUpdate).toHaveBeenCalledTimes(2);
+      expect(batchUpdate).toHaveBeenCalledTimes(1);
       expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
         deliveryPartnerId: 'p1',
         driverName: 'Partner 1',
@@ -287,7 +291,7 @@ describe('orderService', () => {
       const { deliveryZoneRepository } = await import('../../firestore/deliveryZoneRepository');
       vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue([{ id: 'z1', name: 'Zone 1' } as any]);
       const { userRepository } = await import('../../firestore/userRepository');
-      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, role: 'delivery_partner' } as any]);
+      vi.spyOn(userRepository, 'list').mockResolvedValue([{ id: 'p1', fullName: 'Partner 1', phone: '123', isActive: true, isAvailable: true, zoneIds: ['z1'], role: 'delivery_partner' } as any]);
       vi.spyOn(userRepository, 'getById').mockResolvedValue({ id: 'c1', deliveryPartnerId: 'p1', zoneId: 'z1' } as any);
       
       const { writeBatch } = await import('firebase/firestore');
