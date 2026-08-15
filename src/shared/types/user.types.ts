@@ -1,5 +1,5 @@
 import type { Timestamp } from './common.types';
-
+import type { MealType } from './mealPlan.types';
 /** A saved delivery address. Customers can have several; one is marked default. */
 export interface Address {
   id: string;
@@ -54,6 +54,7 @@ export interface KitchenStaffProfile extends BaseUserProfile {
 export interface DeliveryPartnerProfile extends BaseUserProfile {
   role: 'delivery_partner';
   zoneIds: string[];
+  shifts?: MealType[];
   vehicleType: VehicleType;
   isAvailable: boolean;
   currentLocation: { lat: number; lng: number; updatedAt: Timestamp } | null;

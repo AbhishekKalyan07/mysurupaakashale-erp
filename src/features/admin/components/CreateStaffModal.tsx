@@ -23,6 +23,7 @@ const staffSchema = z.object({
   kitchenId: z.string().optional(),
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.array(z.string()).optional(),
+  shifts: z.array(z.string()).optional(),
 }).superRefine((data, ctx) => {
   if (data.role === 'kitchen' && !data.kitchenId) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['kitchenId'], message: 'Kitchen ID is required' });
@@ -41,7 +42,7 @@ interface Props {
 export function CreateStaffModal({ onClose }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
-    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ', zoneIds: [] }
+    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ', zoneIds: [], shifts: ['breakfast', 'lunch', 'dinner'] }
   });
 
   const selectedRole = watch('role');
@@ -53,6 +54,7 @@ export function CreateStaffModal({ onClose }: Props) {
       const payload: any = { ...data };
       if (data.role === 'delivery_partner') {
         payload.zoneIds = data.zoneIds || [];
+        payload.shifts = data.shifts || ['breakfast', 'lunch', 'dinner'];
       }
       await createMutation.mutateAsync(payload);
       toast.success('Staff account created successfully!');
@@ -154,6 +156,22 @@ export function CreateStaffModal({ onClose }: Props) {
                     </div>
                   )}
                   {errors.zoneIds && <p className="text-xs text-danger">{errors.zoneIds.message}</p>}
+                </div>
+                <div className="space-y-2 pt-2 border-t border-rice-200">
+                  <label className="text-sm font-medium text-ink-700">Eligible Shifts</label>
+                  <div className="grid grid-cols-3 gap-2 bg-white border border-rice-300 rounded-lg p-2.5">
+                    {['breakfast', 'lunch', 'dinner'].map((shift) => (
+                      <label key={shift} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          value={shift}
+                          {...register('shifts')}
+                          className="rounded border-rice-300 text-leaf-600 focus:ring-leaf-500"
+                        />
+                        <span className="capitalize truncate">{shift}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

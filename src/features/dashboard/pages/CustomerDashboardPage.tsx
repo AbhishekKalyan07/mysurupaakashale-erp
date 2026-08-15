@@ -718,6 +718,7 @@ export function CustomerDashboardPage() {
             uid={firebaseUser?.uid}
             addresses={addresses}
             plans={plans}
+            profile={profile}
           />
         )}
       </div>
@@ -725,7 +726,7 @@ export function CustomerDashboardPage() {
   );
 }
 
-function TrialMealModal({ onClose, uid, addresses, plans }: any) {
+function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
   const [addressId, setAddressId] = useState(addresses?.[0]?.id || '');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -737,12 +738,19 @@ function TrialMealModal({ onClose, uid, addresses, plans }: any) {
     try {
       const orderId = crypto.randomUUID();
       const plan = plans?.[0]; // Default to first plan for trial pricing
+      
+      const selectedAddress = addresses?.find((a: any) => a.id === addressId);
+      const addressString = selectedAddress ? `${selectedAddress.line1} ${selectedAddress.line2 || ''}, ${selectedAddress.city}, ${selectedAddress.pincode}`.trim() : undefined;
 
       await setDoc(doc(db, 'orders', orderId), {
         id: orderId,
         displayId: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
         source: 'one_time',
         customerId: uid,
+        customerName: profile?.fullName || 'Unknown Customer',
+        customerCode: profile?.displayId,
+        customerPhone: profile?.phone,
+        address: addressString,
         subscriptionId: null,
         planTier: plan?.tier || 'basic',
         mealType: 'lunch', // Default trial is lunch
