@@ -32,6 +32,10 @@ export function useCustomerAddresses() {
       }
 
       await userRepository.update(uid, updates);
+      
+      const { orderService } = await import('@/shared/services/business/orderService');
+      await orderService.syncCustomerActiveOrders(uid);
+      
       return newAddress;
     },
   });
@@ -47,6 +51,9 @@ export function useCustomerAddresses() {
       await userRepository.update(uid, {
         addresses: updatedAddresses,
       });
+
+      const { orderService } = await import('@/shared/services/business/orderService');
+      await orderService.syncCustomerActiveOrders(uid);
     },
   });
 
@@ -64,6 +71,9 @@ export function useCustomerAddresses() {
       }
 
       await userRepository.update(uid, updates);
+
+      const { orderService } = await import('@/shared/services/business/orderService');
+      await orderService.syncCustomerActiveOrders(uid);
     },
   });
 
@@ -73,6 +83,9 @@ export function useCustomerAddresses() {
       await userRepository.update(uid, {
         defaultAddressId: addressId,
       });
+
+      const { orderService } = await import('@/shared/services/business/orderService');
+      await orderService.syncCustomerActiveOrders(uid);
     },
   });
 

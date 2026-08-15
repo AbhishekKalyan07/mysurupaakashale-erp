@@ -284,13 +284,17 @@ class OrderService {
       );
 
       if (eligiblePartners.length > 0) {
-        eligiblePartners.sort((a, b) => {
-          const aLoad = workloadMap.get(a.id) || 0;
-          const bLoad = workloadMap.get(b.id) || 0;
-          if (aLoad !== bLoad) return aLoad - bLoad;
-          return a.id.localeCompare(b.id);
-        });
-        partnerId = eligiblePartners[0].id;
+        if (customer?.deliveryPartnerId && eligiblePartners.some(p => p.id === customer.deliveryPartnerId)) {
+          partnerId = customer.deliveryPartnerId;
+        } else {
+          eligiblePartners.sort((a, b) => {
+            const aLoad = workloadMap.get(a.id) || 0;
+            const bLoad = workloadMap.get(b.id) || 0;
+            if (aLoad !== bLoad) return aLoad - bLoad;
+            return a.id.localeCompare(b.id);
+          });
+          partnerId = eligiblePartners[0].id;
+        }
         workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
       }
     }
@@ -511,13 +515,18 @@ class OrderService {
           (!p.shifts || p.shifts.length === 0 || p.shifts.includes(order.mealType))
         );
         if (eligiblePartners.length > 0) {
-          eligiblePartners.sort((a, b) => {
-            const aLoad = workloadMap.get(a.id) || 0;
-            const bLoad = workloadMap.get(b.id) || 0;
-            if (aLoad !== bLoad) return aLoad - bLoad;
-            return a.id.localeCompare(b.id);
-          });
-          partnerId = eligiblePartners[0].id;
+          const prefPartnerId = (customer as CustomerProfile).deliveryPartnerId;
+          if (prefPartnerId && eligiblePartners.some(p => p.id === prefPartnerId)) {
+            partnerId = prefPartnerId;
+          } else {
+            eligiblePartners.sort((a, b) => {
+              const aLoad = workloadMap.get(a.id) || 0;
+              const bLoad = workloadMap.get(b.id) || 0;
+              if (aLoad !== bLoad) return aLoad - bLoad;
+              return a.id.localeCompare(b.id);
+            });
+            partnerId = eligiblePartners[0].id;
+          }
           
           if (order.deliveryPartnerId !== partnerId) {
             if (order.deliveryPartnerId) {
@@ -529,6 +538,10 @@ class OrderService {
       }
 
       const driver = partnerMap.get(partnerId || '');
+      const custProfile = customer as CustomerProfile;
+      const addr = custProfile.addresses?.find((a: any) => a.id === order.deliveryAddressId) || custProfile.addresses?.[0];
+      const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
+
       const ref = doc(db, 'orders', order.id!);
       batch.update(ref, {
         deliveryPartnerId: partnerId,
@@ -536,6 +549,10 @@ class OrderService {
         driverName: driver?.fullName || undefined,
         driverPhone: driver?.phone || undefined,
         zoneName: zoneName || undefined,
+        customerName: custProfile.fullName || 'Unknown Customer',
+        customerCode: custProfile.displayId || undefined,
+        customerPhone: custProfile.phone || undefined,
+        address: addressStr || undefined,
         updatedAt: serverTimestamp() as unknown as Timestamp
       });
     });

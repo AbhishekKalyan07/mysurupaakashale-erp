@@ -114,6 +114,10 @@ export function ProfilePage() {
         phone: values.phone,
         updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
+
+      const { orderService } = await import('@/shared/services/business/orderService');
+      await orderService.syncCustomerActiveOrders(firebaseUser.uid);
+
       toast.success('Profile updated successfully!');
       
       if (isOnboarding && addresses.length === 0) {
