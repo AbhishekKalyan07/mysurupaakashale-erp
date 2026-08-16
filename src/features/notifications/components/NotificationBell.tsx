@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications, useMarkNotificationRead, useUnreadNotificationCount } from '@/features/notifications/hooks/useNotifications';
+import { useNotifications, useMarkNotificationRead, useUnreadNotificationCount, useMarkAllNotificationsRead } from '@/features/notifications/hooks/useNotifications';
 import type { Notification } from '@/features/notifications/types/notification.types';
 import { parseFirestoreDate } from '@/shared/utils/dateUtils';
 import { Bell, CheckCheck, X, CreditCard, Truck, ShoppingBag, Info } from 'lucide-react';
@@ -39,7 +39,7 @@ function DropdownItem({
         <div className={`text-xs leading-tight ${isUnread ? 'font-bold text-primary' : 'font-medium text-text-muted'}`}>
           {notification.title}
         </div>
-        <div className="text-text-muted text-[11px] mt-0.5 line-clamp-2 leading-relaxed">
+        <div className="text-text-muted text-[11px] mt-0.5 leading-relaxed">
           {notification.message}
         </div>
         <div className="text-primary/40 font-bold text-[10px] mt-1 tracking-wider uppercase">{timeAgo}</div>
@@ -61,6 +61,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
   const { data: notifications } = useNotifications();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
 
   // Close on outside click
   useEffect(() => {
@@ -142,7 +143,10 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
                 variant="ghost"
                 size="sm"
                 className="text-xs font-sans gap-1 text-text-muted hover:text-primary"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  markAllRead.mutate();
+                  setIsOpen(false);
+                }}
               >
                 <CheckCheck size={12} /> Mark all read
               </Button>
