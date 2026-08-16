@@ -11,10 +11,9 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
-import { getMessaging, isSupported as messagingSupported, type Messaging } from 'firebase/messaging';
-import { getAnalytics, isSupported as analyticsSupported, type Analytics } from 'firebase/analytics';
-import { getPerformance, type FirebasePerformance } from 'firebase/performance';
-import { getRemoteConfig, type RemoteConfig } from 'firebase/remote-config';
+// Note: Messaging, Analytics, Performance, and RemoteConfig are dynamically
+// imported in their respective helper functions below to significantly reduce
+// the initial Javascript bundle size and improve Total Blocking Time (TBT).
 
 
 // In Node/CI (automation scripts run via vite-node), import.meta.env keys
@@ -171,7 +170,7 @@ if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
 export const storage: FirebaseStorage = getStorage(firebaseApp);
 
 
-let messagingInstance: Messaging | null = null;
+let messagingInstance: any = null;
 let messagingChecked = false;
 
 /**
@@ -180,36 +179,48 @@ let messagingChecked = false;
  * helper instead of calling getMessaging() directly — see
  * features/notifications (Phase: Notifications).
  */
-export async function getMessagingIfSupported(): Promise<Messaging | null> {
+export async function getMessagingIfSupported(): Promise<any | null> {
   if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     return null;
   }
   if (messagingChecked) return messagingInstance;
   messagingChecked = true;
-  if (await messagingSupported()) {
-    messagingInstance = getMessaging(firebaseApp);
+  
+  try {
+    const { getMessaging, isSupported } = await import('firebase/messaging');
+    if (await isSupported()) {
+      messagingInstance = getMessaging(firebaseApp);
+    }
+  } catch (err) {
+    console.warn('[firebase] Failed to load messaging', err);
   }
   return messagingInstance;
 }
 
 // Analytics helper – returns Analytics instance if supported, otherwise null
-export async function initAnalytics(): Promise<Analytics | null> {
+export async function initAnalytics(): Promise<any | null> {
   // Prevent unhandled rejections from Firebase SDK trying to fetch dynamic configs locally
   if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     return null;
   }
-  if (await analyticsSupported()) {
-    return getAnalytics(firebaseApp);
+  try {
+    const { getAnalytics, isSupported } = await import('firebase/analytics');
+    if (await isSupported()) {
+      return getAnalytics(firebaseApp);
+    }
+  } catch (err) {
+    console.warn('[firebase] Failed to load analytics', err);
   }
   return null;
 }
 
 // Performance Monitoring helper – silently skips if not supported
-export async function initPerformance(): Promise<FirebasePerformance | null> {
+export async function initPerformance(): Promise<any | null> {
   if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     return null;
   }
   try {
+    const { getPerformance } = await import('firebase/performance');
     return getPerformance(firebaseApp);
   } catch {
     // Silently ignore if performance monitoring is not supported in the current environment
@@ -218,11 +229,12 @@ export async function initPerformance(): Promise<FirebasePerformance | null> {
 }
 
 // Remote Config helper
-export function initRemoteConfig(): RemoteConfig | null {
+export async function initRemoteConfig(): Promise<any | null> {
   if (import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     return null;
   }
   try {
+    const { getRemoteConfig } = await import('firebase/remote-config');
     const rc = getRemoteConfig(firebaseApp);
     rc.settings.minimumFetchIntervalMillis = 3600000;
     return rc;

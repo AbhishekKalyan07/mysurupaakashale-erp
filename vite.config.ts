@@ -136,7 +136,6 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
           if (/[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'vendor-react'
-          if (id.includes('firebase')) return 'vendor-firebase'
           if (id.includes('@sentry')) return 'vendor-sentry'
           if (id.includes('recharts')) return 'vendor-charts'
           if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps'
