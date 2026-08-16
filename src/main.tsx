@@ -13,6 +13,11 @@ import {
   useNavigationType,
 } from "react-router-dom"
 
+// Handle dynamic import errors (e.g. when a new version is deployed and old chunks 404)
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload()
+})
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
@@ -75,6 +80,15 @@ function queueNonCriticalInitialization() {
       // rejection that Sentry reports as "Error: Rejected".
       const updateSW = registerSW({
         immediate: true,
+        onRegisteredSW(swUrl, r) {
+          // Check for updates every hour in the background
+          if (r) {
+            setInterval(() => {
+              if (r.installing || !navigator.onLine) return
+              r.update().catch(() => {})
+            }, 60 * 60 * 1000)
+          }
+        },
         onRegisterError(error: unknown) {
           console.warn('Service worker registration blocked by environment:', error)
         }
