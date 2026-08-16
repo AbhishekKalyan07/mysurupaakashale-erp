@@ -27,6 +27,7 @@ function renderApplication() {
 }
 
 async function initSentryLazy() {
+
   try {
     const Sentry = await import('@sentry/react')
     const { useEffect } = await import('react')
@@ -73,44 +74,65 @@ async function initSentryLazy() {
 }
 
 function queueNonCriticalInitialization() {
-  const init = async () => {
-    // Initialize Sentry first among non-critical tasks so error monitoring
-    // starts as soon as possible after first paint.
-    await initSentryLazy()
+  let initTriggered = false;
 
-    try {
-      await initAnalytics()
-      await initPerformance()
-    } catch (e) {
-      console.warn("Non-critical Firebase init failed:", e)
-    }
+  const triggerInit = () => {
+    if (initTriggered) return;
+    initTriggered = true;
 
-    try {
-      const updateSW = registerSW({
-        immediate: true,
-        onRegisteredSW(_swUrl, r) {
-          // Check for updates every hour in the background
-          if (r) {
-            setInterval(() => {
-              if (r.installing || !navigator.onLine) return
-              r.update().catch(() => {})
-            }, 60 * 60 * 1000)
+    // Clean up event listeners to avoid memory leaks
+    window.removeEventListener('app-ready', triggerInit);
+
+    const init = async () => {
+      // Initialize Sentry first among non-critical tasks so error monitoring
+      // starts as soon as possible after first paint.
+      await initSentryLazy()
+
+      try {
+        await initAnalytics()
+        await initPerformance()
+      } catch (e) {
+        console.warn("Non-critical Firebase init failed:", e)
+      }
+
+      try {
+        const updateSW = registerSW({
+          immediate: true,
+          onRegisteredSW(_swUrl, r) {
+            // Check for updates every hour in the background
+            if (r) {
+              setInterval(() => {
+                if (r.installing || !navigator.onLine) return
+                r.update().catch(() => {})
+              }, 60 * 60 * 1000)
+            }
+          },
+          onRegisterError(error: unknown) {
+            console.warn('Service worker registration blocked by environment:', error)
           }
-        },
-        onRegisterError(error: unknown) {
-          console.warn('Service worker registration blocked by environment:', error)
-        }
-      })
-      Promise.resolve(updateSW).catch((e) => {
-        console.warn('Service worker registration rejected:', e)
-      })
-    } catch (e) {
-      console.warn('Failed to call registerSW:', e)
-    }
-  }
+        })
+        Promise.resolve(updateSW).catch((e) => {
+          console.warn('Service worker registration rejected:', e)
+        })
+      } catch (e) {
+        console.warn('Failed to call registerSW:', e)
+      }
+    };
 
-  // Defer initialization to avoid blocking critical Auth/Firestore waterfall
-  setTimeout(init, 5000)
+    // Use requestIdleCallback if available, otherwise a small setTimeout
+    // This ensures that even when triggered, we don't interrupt active rendering
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => init());
+    } else {
+      setTimeout(init, 500);
+    }
+  };
+
+  // 1. Authoritative trigger: when the initial page/dashboard actually mounts
+  window.addEventListener('app-ready', triggerInit, { once: true });
+
+  // 2. Absolute fallback timeout (guarantees telemetry initializes eventually)
+  setTimeout(triggerInit, 15000);
 }
 
 // Render UI immediately

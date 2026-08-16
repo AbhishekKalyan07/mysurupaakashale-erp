@@ -112,8 +112,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       unsubscribe();
     };
   }, [firebaseUser, firebaseUser?.uid, firebaseUser?.email, firebaseUser?.displayName, firebaseUser?.phoneNumber, firebaseUser?.photoURL]);
-
-
+  // 3. Signal that critical startup (Auth + Profile resolution) is complete
+  useEffect(() => {
+    if (status !== 'loading') {
+      // Give React and any lazy-loaded routes enough time to mount and
+      // fetch their initial data before firing the telemetry initialization event.
+      // 5 seconds guarantees the dashboard is fully populated.
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new Event('app-ready'));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
 
   const value: AuthContextValue = { status, firebaseUser, profile, role, error, signOut: signOutUser };
 
