@@ -69,6 +69,15 @@ class NotificationRepository extends BaseRepository<Notification> {
     );
   }
 
+  /** Get ALL unread notifications for a user (no limit, used for mark all read) */
+  async getAllUnread(recipientId: string): Promise<Notification[]> {
+    return this.list(
+      where('recipientId', '==', recipientId),
+      where('channel', '==', 'in_app'),
+      where('inAppStatus', '==', 'unread'),
+    );
+  }
+
   /** Unread count for the notification bell badge. */
   async getUnreadCount(recipientId: string): Promise<number> {
     const results = await this.list(

@@ -249,6 +249,16 @@ export function OrderCard({
         className
       )}
     >
+      {/* Delivery Zone Banner */}
+      {variant === 'delivery' && zoneName && (
+        <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center justify-between">
+          <div className="font-display font-bold text-primary text-sm flex items-center gap-1.5">
+            📍 {zoneName}
+          </div>
+          <MealBadge mealType={order.mealType} compact={false} className="shadow-sm" />
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-3">
@@ -273,6 +283,11 @@ export function OrderCard({
               )}>
                 {customerName}
               </div>
+              {variant === 'delivery' && customer?.phone && (
+                <div className="text-text-muted text-xs font-medium mt-0.5 flex items-center gap-1">
+                  <Phone size={10} /> {customer.phone}
+                </div>
+              )}
             </div>
           </div>
 
@@ -298,13 +313,13 @@ export function OrderCard({
 
         {/* Badges Row */}
         <div className="flex flex-wrap gap-1.5 mt-2.5">
-          <MealBadge mealType={order.mealType} compact />
+          {variant !== 'delivery' && <MealBadge mealType={order.mealType} compact />}
           {planName && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pastel-lavender text-secondary border border-secondary/15">
               {planName}
             </span>
           )}
-          {zoneName && (
+          {zoneName && variant !== 'delivery' && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-2 text-text-muted border border-border">
               📍 {zoneName}
             </span>

@@ -102,8 +102,8 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: async () => {
       // Phase 7: Fetch all unread and update them
-      const unread = await notificationRepository.getByRecipientId(firebaseUser!.uid);
-      const toUpdate = unread.filter((n) => n.inAppStatus === 'unread');
+      const unread = await notificationRepository.getAllUnread(firebaseUser!.uid);
+      const toUpdate = unread;
       
       await Promise.all(
         toUpdate.map((n) => 
