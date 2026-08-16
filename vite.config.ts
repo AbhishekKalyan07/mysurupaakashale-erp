@@ -128,15 +128,19 @@ export default defineConfig({
     port: 5173,
   },
   build: {
+    target: 'esnext',
     sourcemap: true, // Required for Sentry source map upload
+    modulePreload: false, // Don't inject <link rel="modulepreload"> for lazy chunks
     // Split heavy, rarely-changed vendor code into its own chunks so route
     // navigations don't re-download it, and the main bundle stays lean.
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          if (/[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'vendor-react'
+          // @sentry must be checked BEFORE react — @sentry/react contains
+          // 'react' in its path and would otherwise match the vendor-react rule.
           if (id.includes('@sentry')) return 'vendor-sentry'
+          if (/[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'vendor-react'
           if (id.includes('recharts')) return 'vendor-charts'
           if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps'
           if (/[\\/](exceljs|jspdf|jspdf-autotable)[\\/]/.test(id)) return 'vendor-reports'
