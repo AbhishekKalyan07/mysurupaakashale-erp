@@ -144,6 +144,13 @@ export default defineConfig({
           if (id.includes('recharts')) return 'vendor-charts'
           if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps'
           if (/[\\/](exceljs|jspdf|jspdf-autotable)[\\/]/.test(id)) return 'vendor-reports'
+          
+          // Surgical chunks to shrink index.esm
+          if (id.includes('firebase') || id.includes('@firebase')) return 'vendor-firebase'
+          if (id.includes('lucide-react')) return 'vendor-icons'
+          if (id.includes('@tanstack/react-query')) return 'vendor-query'
+          if (id.includes('react-hook-form') || id.includes('@hookform')) return 'vendor-forms'
+          
           return undefined
         },
       },

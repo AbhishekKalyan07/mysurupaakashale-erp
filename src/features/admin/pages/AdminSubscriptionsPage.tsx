@@ -342,7 +342,7 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <Card elevated className="relative bg-card transition-colors hover:border-secondary/40 group overflow-visible">
+    <Card className="p-0 overflow-visible relative group shadow-sm border-primary/10 hover:border-primary/30 transition-colors min-w-0">
       {menuOpen && (
         <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
       )}
@@ -354,11 +354,6 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
         {/* Top Header Row */}
         <div className="flex justify-between items-start">
           <div className="flex gap-2 items-center mt-1">
-            {subscription.customerDisplayId && (
-              <Badge variant="default" className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10">
-                {subscription.customerDisplayId}
-              </Badge>
-            )}
             <Badge variant={STATUS_TONE[subscription.status]} className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 shadow-sm">
               {subscription.status.replace('_', ' ')}
             </Badge>
@@ -381,9 +376,16 @@ function SubscriptionCardView({ subscription, onSelect }: { subscription: Subscr
         )}
         
         {/* Name Row */}
-        <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors line-clamp-2 -mt-1 pr-6">
-          👤 {subscription.customerName}
-        </h3>
+        <div className="flex items-center gap-2 pr-6 mt-1">
+          <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors truncate">
+            👤 {subscription.customerName}
+          </h3>
+          {subscription.customerDisplayId && (
+            <Badge variant="default" className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10 shrink-0">
+              {subscription.customerDisplayId}
+            </Badge>
+          )}
+        </div>
         
         {/* Contact Info Inline */}
         <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium mt-0.5 min-w-0">
