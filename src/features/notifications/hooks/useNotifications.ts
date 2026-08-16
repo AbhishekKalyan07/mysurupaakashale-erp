@@ -50,8 +50,12 @@ export function useMarkNotificationRead() {
     // Optimistic update — feel instant, reconcile on settle
     onMutate: async (notificationId: string) => {
       const key = queryKeys.notifications.byRecipient(firebaseUser?.uid ?? '');
+      const countKey = queryKeys.notifications.unreadCount(firebaseUser?.uid ?? '');
       await queryClient.cancelQueries({ queryKey: key });
+      await queryClient.cancelQueries({ queryKey: countKey });
+      
       const previous = queryClient.getQueryData<Notification[]>(key);
+      const previousCount = queryClient.getQueryData<number>(countKey);
 
       queryClient.setQueryData<Notification[]>(key, (old) =>
         old?.map((n) =>
@@ -60,14 +64,22 @@ export function useMarkNotificationRead() {
             : n,
         ) ?? [],
       );
+      
+      queryClient.setQueryData<number>(countKey, (old) => Math.max(0, (old ?? 1) - 1));
 
-      return { previous };
+      return { previous, previousCount };
     },
     onError: (_err, _id, context) => {
       if (context?.previous) {
         queryClient.setQueryData(
           queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
           context.previous,
+        );
+      }
+      if (context?.previousCount !== undefined) {
+        queryClient.setQueryData(
+          queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+          context.previousCount,
         );
       }
     },
@@ -105,16 +117,50 @@ export function useMarkAllNotificationsRead() {
       
       return { success: true, count: toUpdate.length };
     },
-    onSuccess: async (data) => {
-      await queryClient.invalidateQueries({
+    onMutate: async () => {
+      const key = queryKeys.notifications.byRecipient(firebaseUser?.uid ?? '');
+      const countKey = queryKeys.notifications.unreadCount(firebaseUser?.uid ?? '');
+      await queryClient.cancelQueries({ queryKey: key });
+      await queryClient.cancelQueries({ queryKey: countKey });
+      
+      const previous = queryClient.getQueryData<Notification[]>(key);
+      const previousCount = queryClient.getQueryData<number>(countKey);
+
+      queryClient.setQueryData<Notification[]>(key, (old) =>
+        old?.map((n) =>
+          n.inAppStatus === 'unread'
+            ? { ...n, inAppStatus: 'read' as const, status: 'read' as const }
+            : n,
+        ) ?? [],
+      );
+      queryClient.setQueryData<number>(countKey, 0);
+
+      return { previous, previousCount };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
       });
+    },
+    onSuccess: async (data) => {
       toast.success(`Marked ${data.count} notifications as read.`);
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
+          context.previous,
+        );
+      }
+      if (context?.previousCount !== undefined) {
+        queryClient.setQueryData(
+          queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
+          context.previousCount,
+        );
+      }
       toast.error((err as Error).message || 'Failed to mark all as read.');
     },
   });
