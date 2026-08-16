@@ -8,6 +8,7 @@ import { BaseRepository, createConverter } from '@/shared/services/firestore/Bas
 import { db } from '@/shared/lib/firebase';
 import type { Feedback, FeedbackStatus } from '@/shared/types/feedback.types';
 import toast from 'react-hot-toast';
+import { useReferenceData } from '@/shared/hooks/useReferenceData';
 
 const feedbackRepo = new BaseRepository<Feedback>(db, 'feedback', createConverter<Feedback>());
 
@@ -19,6 +20,8 @@ export function AdminComplaintsPage() {
     queryKey: ['admin', 'complaints'],
     queryFn: () => feedbackRepo.list(),
   });
+
+  const { customerMap } = useReferenceData(complaints.map(c => c.customerId));
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string, status: FeedbackStatus, notes?: string }) => {
@@ -96,7 +99,7 @@ export function AdminComplaintsPage() {
                     </span>
                   </div>
                   <h4 className="font-bold text-primary text-lg">{complaint.message}</h4>
-                  <div className="text-sm text-text-muted mt-1">Customer ID: {complaint.customerId}</div>
+                  <div className="text-sm text-text-muted mt-1">Customer: {customerMap.get(complaint.customerId) || complaint.customerId}</div>
                   {complaint.orderId && <div className="text-sm text-text-muted">Order ID: {complaint.orderId}</div>}
                   {complaint.resolutionNotes && (
                     <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-sm text-emerald-800">

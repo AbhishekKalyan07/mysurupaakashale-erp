@@ -6,15 +6,17 @@ import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCar
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
+import { useReferenceData } from '@/shared/hooks/useReferenceData';
 
 export function DeliveryPartnerPage() {
   const { firebaseUser, profile } = useAuth();
   const today = getTodayInTimezone();
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
+  const { zoneMap } = useReferenceData();
 
   const assignedZones = profile?.role === 'delivery_partner' && profile.zoneIds?.length > 0 
-    ? profile.zoneIds.join(', ') 
+    ? profile.zoneIds.map((id: string) => zoneMap.get(id) || id).join(', ') 
     : 'None';
 
   const uniqueCustomersToday = new Set(orders.map(o => o.customerId)).size;

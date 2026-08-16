@@ -177,9 +177,14 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
                       className="flex-1 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
                     >
                       <option value="">Select a Delivery Partner</option>
-                      {deliveryPartners.map(dp => (
-                        <option key={dp.id} value={dp.id}>{dp.fullName} ({(dp.zoneIds || []).length > 0 ? dp.zoneIds.join(', ') : 'No zones'})</option>
-                      ))}
+                      {deliveryPartners.map(dp => {
+                        const dpZoneNames = (dp.zoneIds || []).map(id => zones.find(z => z.id === id)?.name || id);
+                        return (
+                          <option key={dp.id} value={dp.id}>
+                            {dp.fullName} ({dpZoneNames.length > 0 ? dpZoneNames.join(', ') : 'No zones'})
+                          </option>
+                        );
+                      })}
                     </select>
                     <Button 
                       variant="primary" 
