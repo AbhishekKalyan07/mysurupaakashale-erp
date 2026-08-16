@@ -1,7 +1,7 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePartnerBoard } from '../hooks/usePartnerBoard';
 import { getTodayInTimezone } from '@/shared/lib/date';
-import { Truck, AlertCircle } from 'lucide-react';
+import { Truck, AlertCircle, MapPin } from 'lucide-react';
 import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
 import { DashboardCardsSkeleton } from '@/shared/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -54,9 +54,15 @@ export function DeliveryPartnerPage() {
           {today} | {orders?.length || 0} assigned orders | {uniqueCustomersToday} unique customers
         </p>
         {profile?.role === 'delivery_partner' && (
-          <p className="text-sm text-ink-600 font-medium mt-1">
-            Assigned Zones: {assignedZones}
-          </p>
+          <div className="mt-4 p-3.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-3 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+              <MapPin size={20} />
+            </div>
+            <div>
+              <p className="text-xs text-primary/80 font-bold uppercase tracking-wider mb-0.5">Assigned Zones</p>
+              <p className="text-lg font-display font-bold text-primary-dark">{assignedZones}</p>
+            </div>
+          </div>
         )}
       </div>
 
