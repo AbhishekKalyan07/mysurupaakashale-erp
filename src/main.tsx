@@ -109,12 +109,8 @@ function queueNonCriticalInitialization() {
     }
   }
 
-  // Defer initialization to avoid blocking First Paint
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => init())
-  } else {
-    setTimeout(init, 2000)
-  }
+  // Defer initialization to avoid blocking critical Auth/Firestore waterfall
+  setTimeout(init, 5000)
 }
 
 // Render UI immediately
