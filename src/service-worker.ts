@@ -27,12 +27,9 @@ try {
 }
 
 // Initialize Firebase Push Notifications safely
-self.addEventListener('activate', () => {
-  if (typeof indexedDB === 'undefined') {
-    console.warn('[SW] IndexedDB unavailable – skipping Firebase Messaging init.');
-    return;
-  }
-
+// This must be done synchronously at the top level of the service worker,
+// NOT inside an 'activate' listener, so the 'push' event handler is registered immediately.
+if (typeof indexedDB !== 'undefined') {
   try {
     const firebaseConfig = {
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -60,5 +57,7 @@ self.addEventListener('activate', () => {
   } catch (error) {
     console.error('[SW] Firebase Messaging init failed:', error);
   }
-});
+} else {
+  console.warn('[SW] IndexedDB unavailable – skipping Firebase Messaging init.');
+}
 
