@@ -126,7 +126,7 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
                 <h3 className="text-ink-900 font-bold font-sans text-sm">Lunch Slot</h3>
               </label>
               <div className="pl-8 space-y-3">
-                {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((option) => (
+                {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options?.map((option) => (
                   <label key={option.id} className={`block p-3 rounded-xl border-2 cursor-pointer ${lunchOptionId === option.id && enabledMeals.lunch ? 'border-emerald-600 bg-emerald-50/20' : 'border-rice-300'}`}>
                     <div className="flex items-start gap-3">
                       <input type="radio" checked={lunchOptionId === option.id} onChange={() => setLunchOptionId(option.id)} disabled={!enabledMeals.lunch} className="mt-1 accent-emerald-600" />
@@ -145,7 +145,7 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
                 <h3 className="text-ink-900 font-bold font-sans text-sm">Dinner Slot</h3>
               </label>
               <div className="pl-8 space-y-3">
-                {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((option) => (
+                {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options?.map((option) => (
                   <label key={option.id} className={`block p-3 rounded-xl border-2 cursor-pointer ${dinnerOptionId === option.id && enabledMeals.dinner ? 'border-emerald-600 bg-emerald-50/20' : 'border-rice-300'}`}>
                     <div className="flex items-start gap-3">
                       <input type="radio" checked={dinnerOptionId === option.id} onChange={() => setDinnerOptionId(option.id)} disabled={!enabledMeals.dinner} className="mt-1 accent-emerald-600" />

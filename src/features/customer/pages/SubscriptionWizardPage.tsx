@@ -386,7 +386,7 @@ export function SubscriptionWizardPage() {
                 <h3 className="text-ink-900 font-bold font-sans text-sm">Lunch Slot</h3>
               </label>
               <div className="pl-8 space-y-3">
-                {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((option) => (
+                {plan?.mealSlots?.find((s) => s.mealType === 'lunch')?.options?.map((option) => (
                   <label
                     key={option.id}
                     className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -426,7 +426,7 @@ export function SubscriptionWizardPage() {
                 <h3 className="text-ink-900 font-bold font-sans text-sm">Dinner Slot</h3>
               </label>
               <div className="pl-8 space-y-3">
-                {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((option) => (
+                {plan?.mealSlots?.find((s) => s.mealType === 'dinner')?.options?.map((option) => (
                   <label
                     key={option.id}
                     className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${

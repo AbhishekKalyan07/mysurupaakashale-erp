@@ -132,7 +132,7 @@ export function BrowsePlansPage() {
                       <div>
                         <h4 className="font-semibold text-[15px] text-[#2D2323] flex items-center gap-1.5 mb-1"><Utensils className="w-4 h-4" style={{ color: primaryColor }} />Lunch Choices</h4>
                         <ul className={`text-[#6B5E5E] text-sm leading-tight list-disc pl-4 ${isRegular ? 'marker:text-[#C59A45]' : 'marker:text-[#893131]'}`}>
-                          {plan.mealSlots?.find((s) => s.mealType === 'lunch')?.options.map((opt) => (
+                          {plan.mealSlots?.find((s) => s.mealType === 'lunch')?.options?.map((opt) => (
                             <li key={opt.id}>{opt.label}</li>
                           )) || (
                             <>
@@ -146,7 +146,7 @@ export function BrowsePlansPage() {
                       <div>
                         <h4 className="font-semibold text-[15px] text-[#2D2323] flex items-center gap-1.5 mb-1"><Moon className="w-4 h-4" style={{ color: primaryColor }} />Dinner Choices</h4>
                         <ul className={`text-[#6B5E5E] text-sm leading-tight list-disc pl-4 ${isRegular ? 'marker:text-[#C59A45]' : 'marker:text-[#893131]'}`}>
-                          {plan.mealSlots?.find((s) => s.mealType === 'dinner')?.options.map((opt) => (
+                          {plan.mealSlots?.find((s) => s.mealType === 'dinner')?.options?.map((opt) => (
                             <li key={opt.id}>{opt.label}</li>
                           )) || (
                             <>

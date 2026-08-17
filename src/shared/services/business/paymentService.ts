@@ -133,7 +133,7 @@ class PaymentService {
       if (subscription) {
         const today = getTodayInTimezone();
         if (subscription.startDate <= today) {
-          const mealTypes = subscription.mealPreferences.map(p => p.mealType);
+          const mealTypes = (subscription.mealPreferences || []).map(p => p.mealType);
           console.log(`[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`);
           await orderService.generateOrdersForSubscription(subscription, today, mealTypes);
         }

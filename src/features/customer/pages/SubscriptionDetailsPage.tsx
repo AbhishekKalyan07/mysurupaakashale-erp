@@ -239,7 +239,7 @@ export function SubscriptionDetailsPage() {
               <Utensils className="text-emerald-600" size={20} /> Chosen Meal Preferences
             </h3>
             <div className="space-y-4">
-              {subscription.mealPreferences.map((pref) => {
+              {(subscription.mealPreferences || []).map((pref) => {
                 const slot = selectedPlan?.mealSlots?.find((s) => s.mealType === pref.mealType);
                 const option = slot?.options.find((o) => o.id === pref.selectedOptionId);
 

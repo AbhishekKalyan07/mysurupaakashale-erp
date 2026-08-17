@@ -86,7 +86,7 @@ class SubscriptionService {
     const today = getTodayInTimezone();
     
     if (subscription.startDate <= today) {
-      const mealTypes = subscription.mealPreferences.map(p => p.mealType);
+      const mealTypes = (subscription.mealPreferences || []).map(p => p.mealType);
       console.log(`[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for today (${today})...`);
       
       try {
