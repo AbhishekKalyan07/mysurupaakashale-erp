@@ -11,7 +11,7 @@ export type {
   UserProfile,
 } from './user.types';
 
-export type { MealType, PlanTier, MealOption, MealSlotConfig, MealPlan, DailyMenu, PublishStatus, MealMenu } from './mealPlan.types';
+export type { MealType, PlanTier, MealOption, MealSlotConfig, MealPlan, MealPlanPricing, DailyMenu, PublishStatus, MealMenu } from './mealPlan.types';
 export { MEAL_TYPES } from './mealPlan.types';
 
 export type { SubscriptionStatus, MealPreference, Subscription, SubscriptionSkip } from './subscription.types';

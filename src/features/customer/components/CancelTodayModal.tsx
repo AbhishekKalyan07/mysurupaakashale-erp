@@ -21,9 +21,6 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
   const [selectedMeals, setSelectedMeals] = useState<string[]>(eligibleMeals);
   const [reason, setReason] = useState('');
 
-  const totalPreferredMeals = subscription.mealPreferences?.length || 1;
-  const fullDailyValue = subscription.pricePerDaySnapshot * (subscription.quantity || 1);
-  const creditAmount = Math.round((fullDailyValue / totalPreferredMeals) * selectedMeals.length);
 
   const handleCancel = async () => {
     if (selectedMeals.length === 0) return;
@@ -32,8 +29,7 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
         subscriptionId: subscription.id,
         date: todayStr,
         mealTypes: selectedMeals,
-        reason: reason || 'Customer requested same-day cancel',
-        creditAmount: creditAmount
+        reason: reason || 'Customer requested same-day cancel'
       });
       onClose();
     } catch (err) {
@@ -80,7 +76,7 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
             <div className="mt-4 pt-3 border-t border-primary/10">
               <p className="text-xs font-sans text-text-muted">
                 {selectedMeals.length > 0 ? (
-                  <>You will receive a credit of <strong className="text-gold text-sm">₹{creditAmount}</strong> on your next month's bill.</>
+                  <>You will only be billed for the meals that are actually delivered. These cancelled meals will not be included in your bill.</>
                 ) : (
                   <span className="text-danger font-medium">Please select at least one meal to cancel.</span>
                 )}

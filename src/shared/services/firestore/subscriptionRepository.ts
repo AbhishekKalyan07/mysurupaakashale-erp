@@ -11,9 +11,9 @@ import {
   query,
   collection,
   doc,
+  getDoc,
   setDoc,
   updateDoc,
-  increment,
   serverTimestamp,
   onSnapshot,
   type QueryConstraint,
@@ -51,8 +51,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     date: string, 
     mealTypes: ('breakfast' | 'lunch' | 'dinner')[], 
     reason: string,
-    uid: string,
-    creditAmount: number
+    uid: string
   ) {
     // 1. Cutoff Validation
     const now = new Date();
@@ -101,15 +100,6 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         reason,
         createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         createdBy: uid
-      });
-    }
-
-    // Increment the credit balance on the subscription
-    if (creditAmount > 0) {
-      const subRef = doc(db, 'subscriptions', subscriptionId);
-      await updateDoc(subRef, {
-        creditBalance: increment(creditAmount),
-        updatedAt: serverTimestamp() as unknown as Timestamp
       });
     }
   }

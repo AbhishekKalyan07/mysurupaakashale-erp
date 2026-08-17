@@ -1,5 +1,5 @@
 import type { ID, ISODateString, Timestamp } from './common.types';
-import type { MealType, PlanTier } from './mealPlan.types';
+import type { MealType, PlanTier, MealPlanPricing } from './mealPlan.types';
 import type { SubscriptionStatus } from './payment.types';
 
 // Re-export so callers can import from one place
@@ -38,8 +38,8 @@ export interface Subscription {
   autoRenew: boolean;
   /** Set once the admin approves a payment — links to the verified payment record. */
   latestPaymentId: ID | null;
-  /** Accrued credit from paused/skipped days, in INR. Deducted from next month's bill. */
-  creditBalance: number;
+  /** Pricing matrix captured at subscription time for accurate post-paid daily billing calculations */
+  pricingMatrixSnapshot?: MealPlanPricing;
   /** Initial security deposit paid during signup. Refunded on cancellation. */
   depositAmount: number;
   /** Permanently assigned delivery partner. Copied to every generated order. */

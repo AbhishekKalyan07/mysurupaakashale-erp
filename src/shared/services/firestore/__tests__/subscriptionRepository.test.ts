@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { subscriptionRepository } from '../subscriptionRepository';
-import { getDocs, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { getDocs, setDoc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
 
 describe('subscriptionRepository', () => {
   const customerId = 'cust-1';
@@ -58,14 +58,16 @@ describe('subscriptionRepository', () => {
       vi.useRealTimers();
     });
 
-    it('adds skip document and increments credit', async () => {
+    it('adds skip document', async () => {
       const date = '2026-08-01';
       // Set time to 4:00 AM (before breakfast cutoff)
       vi.setSystemTime(new Date(`${date}T04:00:00+05:30`));
       
-      await subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1', 150);
+      vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false } as any);
+
+      await subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1');
       expect(setDoc).toHaveBeenCalledTimes(1);
-      expect(updateDoc).toHaveBeenCalledTimes(1);
+      expect(updateDoc).toHaveBeenCalledTimes(0);
     });
 
     it('throws error if cancellation window has closed for breakfast', async () => {
@@ -73,7 +75,7 @@ describe('subscriptionRepository', () => {
       // Set time to 5:01 AM (after breakfast cutoff)
       vi.setSystemTime(new Date(`${date}T05:01:00+05:30`));
       
-      await expect(subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1', 150))
+      await expect(subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1'))
         .rejects.toThrow('Cancellation window has closed for breakfast.');
     });
 
@@ -82,7 +84,7 @@ describe('subscriptionRepository', () => {
       // Set time to 10:31 AM (after lunch cutoff)
       vi.setSystemTime(new Date(`${date}T10:31:00+05:30`));
       
-      await expect(subscriptionRepository.addSkip(subId, date, ['lunch'], 'holiday', 'admin-1', 150))
+      await expect(subscriptionRepository.addSkip(subId, date, ['lunch'], 'holiday', 'admin-1'))
         .rejects.toThrow('Cancellation window has closed for lunch.');
     });
 
@@ -91,7 +93,7 @@ describe('subscriptionRepository', () => {
       // Set time to 16:01 (after dinner cutoff)
       vi.setSystemTime(new Date(`${date}T16:01:00+05:30`));
       
-      await expect(subscriptionRepository.addSkip(subId, date, ['dinner'], 'holiday', 'admin-1', 150))
+      await expect(subscriptionRepository.addSkip(subId, date, ['dinner'], 'holiday', 'admin-1'))
         .rejects.toThrow('Cancellation window has closed for dinner.');
     });
   });

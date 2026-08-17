@@ -70,7 +70,7 @@ export function PWAInstallPrompt() {
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500 sm:bottom-4 sm:left-auto sm:right-4 sm:w-96">
+    <aside aria-label="App Installation Prompt" className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500 sm:bottom-4 sm:left-auto sm:right-4 sm:w-96">
       <div className="bg-background rounded-2xl shadow-2xl border border-primary/20 p-4 relative overflow-hidden">
         {/* Background accent */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
@@ -110,6 +110,6 @@ export function PWAInstallPrompt() {
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

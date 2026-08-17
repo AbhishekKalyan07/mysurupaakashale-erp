@@ -86,9 +86,9 @@ export function TermsOfServicePage() {
           <section>
             <h2 className="font-display text-xl font-bold text-ink-900 mb-3">7. Skips, Pauses &amp; Cancellations</h2>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li><strong>Skips:</strong> You may skip individual meals for specific dates. A credit will be applied to your subscription balance for each skipped meal.</li>
+              <li><strong>Skips:</strong> You may skip individual meals for specific dates. You will only be billed for meals that are actually delivered to you.</li>
               <li><strong>Pauses:</strong> You may pause your subscription for a specified duration. No orders will be generated or billed during the pause period.</li>
-              <li><strong>Cancellations:</strong> You may cancel your subscription at any time. Already-delivered meals are non-refundable. Any remaining balance or unused credit will be settled as per our refund policy.</li>
+              <li><strong>Cancellations:</strong> You may cancel your subscription at any time. Already-delivered meals are non-refundable. Final settlements will be calculated based on your exact deliveries.</li>
             </ul>
           </section>
 
@@ -96,7 +96,7 @@ export function TermsOfServicePage() {
             <h2 className="font-display text-xl font-bold text-ink-900 mb-3">8. Refund Policy</h2>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>Refunds for rejected payments or duplicate submissions will be processed within 7–10 business days.</li>
-              <li>Credits for skipped meals are applied to your subscription balance and can be used toward future billing cycles.</li>
+              <li>You will only be billed for the meals that are not cancelled or skipped before our cut-off times.</li>
               <li>Security deposits are refundable upon subscription cancellation, less any outstanding dues.</li>
               <li>No refunds are provided for meals already prepared and delivered, or for missed deliveries due to incorrect address or customer unavailability.</li>
             </ul>

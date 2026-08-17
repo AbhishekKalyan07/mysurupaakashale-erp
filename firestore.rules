@@ -155,13 +155,6 @@ service cloud.firestore {
                ((from == 'cancelled' || from == 'expired') && to == 'pending_payment');
       }
 
-      function isValidSkipCredit() {
-        let diff = request.resource.data.creditBalance - resource.data.creditBalance;
-        let maxCredit = resource.data.pricePerDaySnapshot * (resource.data.get('quantity', 1));
-        // Allow any positive credit up to the full daily value (partial cancels for single meals)
-        return diff > 0 && diff <= maxCredit;
-      }
-
       allow read: if isSignedIn() &&
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
@@ -169,10 +162,8 @@ service cloud.firestore {
       allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending_payment');
 
       // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above.
-      // Customers can also increment their creditBalance by their daily price when skipping a delivery.
       allow update: if isAdmin() ||
-                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt']) && isAllowedCustomerTransition()) ||
-                       (isOwnSubscription() && onlyChangedFields(['creditBalance', 'updatedAt']) && isValidSkipCredit());
+                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate']) && isAllowedCustomerTransition());
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -184,7 +175,7 @@ service cloud.firestore {
         allow read: if isSignedIn() &&
                        (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
         allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
-        allow update: if false; // a skip is added or removed, never edited in place
+        allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
         allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid; // "un-skip" a day
       }
     }

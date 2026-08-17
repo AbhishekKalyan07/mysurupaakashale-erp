@@ -72,13 +72,11 @@ export function useSkipDay() {
       date,
       mealTypes,
       reason,
-      creditAmount
     }: {
       subscriptionId: string;
       date: string;
       mealTypes: ('breakfast' | 'lunch' | 'dinner')[];
       reason: string;
-      creditAmount: number;
     }) => {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
       
@@ -90,8 +88,7 @@ export function useSkipDay() {
         date,
         mealTypes,
         reason,
-        firebaseUser.uid,
-        creditAmount
+        firebaseUser.uid
       );
     },
     onSuccess: async () => {
@@ -111,15 +108,22 @@ export function useSubscriptionAccruedBill(subscriptionId?: string) {
     queryKey: ['accruedBill', customerId, subscriptionId],
     queryFn: async () => {
       if (!customerId || !subscriptionId) return 0;
-      const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
-      const orders = await orderRepository.getCustomerOrders(customerId);
       
-      // Filter orders for this subscription that are delivered
-      const subOrders = orders.filter(
-        o => o.subscriptionId === subscriptionId && o.status === 'delivered'
-      );
+      const [
+        { orderRepository }, 
+        { subscriptionRepository }
+      ] = await Promise.all([
+        import('@/shared/services/firestore/orderRepository'),
+        import('@/shared/services/firestore/subscriptionRepository')
+      ]);
+
+      const [orders, subscription] = await Promise.all([
+        orderRepository.getCustomerOrders(customerId),
+        subscriptionRepository.getById(subscriptionId)
+      ]);
       
-      return subOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+      const { calculateAccruedBill } = await import('@/shared/utils/billing');
+      return calculateAccruedBill(orders, subscription as any);
     },
     enabled: !!customerId && !!subscriptionId,
   });

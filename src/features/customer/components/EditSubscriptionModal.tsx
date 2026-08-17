@@ -35,9 +35,19 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
     });
   };
 
-  const selectedMealsCount = Object.values(enabledMeals).filter(Boolean).length;
-  const pricePerMeal = Math.round(plan.pricePerDay / 3);
-  const calculatedDailyPrice = pricePerMeal * selectedMealsCount;
+  let calculatedDailyPrice = 0;
+  if (plan.pricingMatrix) {
+    const activeMeals = [];
+    if (enabledMeals.breakfast) activeMeals.push('breakfast');
+    if (enabledMeals.lunch) activeMeals.push('lunch');
+    if (enabledMeals.dinner) activeMeals.push('dinner');
+    const key = activeMeals.join('_') as keyof typeof plan.pricingMatrix;
+    calculatedDailyPrice = plan.pricingMatrix[key] || plan.pricePerDay;
+  } else {
+    const selectedMealsCount = Object.values(enabledMeals).filter(Boolean).length;
+    const pricePerMeal = Math.round(plan.pricePerDay / 3);
+    calculatedDailyPrice = pricePerMeal * selectedMealsCount;
+  }
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +66,15 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
         quantity,
         mealPreferences,
         pricePerDaySnapshot: calculatedDailyPrice,
+        pricingMatrixSnapshot: plan.pricingMatrix || {
+          breakfast: 60,
+          lunch: 65,
+          dinner: 65,
+          breakfast_lunch: 115,
+          lunch_dinner: 115,
+          breakfast_dinner: 115,
+          breakfast_lunch_dinner: 159
+        },
       });
     },
     onSuccess: () => {

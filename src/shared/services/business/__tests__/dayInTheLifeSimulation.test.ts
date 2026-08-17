@@ -120,7 +120,15 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
     deliveryAddressId: `addr_${i + 1}`,
     zoneId: c.zoneId || null,
     latestPaymentId: `pay_${i + 1}`,
-    creditBalance: 0,
+    pricingMatrixSnapshot: {
+      breakfast: 60,
+      lunch: 65,
+      dinner: 65,
+      breakfast_lunch: 115,
+      lunch_dinner: 115,
+      breakfast_dinner: 115,
+      breakfast_lunch_dinner: 159
+    },
     depositAmount: 1000,
     createdAt: '' as any,
     updatedAt: '' as any

@@ -243,6 +243,15 @@ export function SubscriptionWizardPage() {
         plan.tier,
         quantity,
         calculatedDailyPrice,
+        plan.pricingMatrix || {
+          breakfast: 60,
+          lunch: 65,
+          dinner: 65,
+          breakfast_lunch: 115,
+          lunch_dinner: 115,
+          breakfast_dinner: 115,
+          breakfast_lunch_dinner: 159
+        }, // fallback to generic pricing if missing from old plan
         mealPreferences,
         startDate,
         selectedAddressId,

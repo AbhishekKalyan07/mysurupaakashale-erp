@@ -103,17 +103,12 @@ export function SubscriptionDetailsPage() {
     
     setUpdating(true);
     try {
-      if (action === 'cancel') {
-        const { subscriptionService } = await import('@/shared/services/business/subscriptionService');
-        await subscriptionService.rejectSubscription(subscription);
-      } else {
-        await subscriptionRepository.update(subscription.id, {
-          status: action === 'renew' ? 'pending_payment' :
-                  action === 'resume' ? 'active' : 
-                  'cancelled',
-          ...(action === 'resume' ? { pauseStartDate: null, pauseEndDate: null } : {})
-        });
-      }
+      await subscriptionRepository.update(subscription.id, {
+        status: action === 'renew' ? 'pending_payment' :
+                action === 'resume' ? 'active' : 
+                'cancelled',
+        ...(action === 'resume' ? { pauseStartDate: null, pauseEndDate: null } : {})
+      });
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(subscription.customerId),
       });

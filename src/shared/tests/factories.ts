@@ -65,7 +65,15 @@ export const SubscriptionFactory = {
     billingCycle: 'monthly',
     autoRenew: true,
     latestPaymentId: 'pay-1',
-    creditBalance: 0,
+    pricingMatrixSnapshot: {
+      breakfast: 60,
+      lunch: 65,
+      dinner: 65,
+      breakfast_lunch: 115,
+      lunch_dinner: 115,
+      breakfast_dinner: 115,
+      breakfast_lunch_dinner: 159
+    },
     depositAmount: 500,
     createdAt: TimestampFactory.create(),
     updatedAt: TimestampFactory.create(),

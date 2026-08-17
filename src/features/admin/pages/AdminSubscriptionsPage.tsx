@@ -164,10 +164,7 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">End Date</div>
               <div className="font-bold text-primary">{formatDate(subscription.endDate)}</div>
             </div>
-            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Credit Balance</div>
-              <div className="font-bold text-gold-dark text-lg font-display">₹{subscription.creditBalance.toLocaleString('en-IN')}</div>
-            </div>
+
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Security Deposit</div>
               <div className="font-bold text-primary text-lg font-display">₹{subscription.depositAmount.toLocaleString('en-IN')}</div>

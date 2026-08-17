@@ -2,7 +2,7 @@ import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getTodayInTimezone } from '@/shared/lib/date';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { settingsRepository } from '../firestore/settingsRepository';
-import type { MealPreference, PlanTier, Subscription } from '@/shared/types';
+import type { MealPreference, PlanTier, Subscription, MealPlanPricing } from '@/shared/types';
 
 class SubscriptionService {
   /**
@@ -14,6 +14,7 @@ class SubscriptionService {
     planTier: PlanTier,
     quantity: number,
     pricePerDaySnapshot: number,
+    pricingMatrixSnapshot: MealPlanPricing,
     mealPreferences: MealPreference[],
     startDate: string,
     deliveryAddressId: string,
@@ -38,6 +39,7 @@ class SubscriptionService {
       planTier,
       quantity,
       pricePerDaySnapshot,
+      pricingMatrixSnapshot,
       zoneId: null,
       mealPreferences,
       startDate,
@@ -46,7 +48,6 @@ class SubscriptionService {
       autoRenew: true,
       deliveryAddressId,
       latestPaymentId: null,
-      creditBalance: 0,
       depositAmount,
       createdAt: serverTimestamp() as unknown as Timestamp,
       updatedAt: serverTimestamp() as unknown as Timestamp,

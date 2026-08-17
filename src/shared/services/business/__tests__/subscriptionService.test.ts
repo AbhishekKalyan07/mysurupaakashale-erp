@@ -27,17 +27,17 @@ describe('subscriptionService', () => {
   describe('createSubscription', () => {
     it('throws if missing required fields', async () => {
       await expect(
-        subscriptionService.createSubscription('', 'plan1', 'standard', 1, 100, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null)
+        subscriptionService.createSubscription('', 'plan1', 'standard', 1, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null)
       ).rejects.toThrow('Invalid subscription data: Missing required fields or invalid quantity.');
 
       await expect(
-        subscriptionService.createSubscription('c1', 'plan1', 'standard', 0, 100, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null)
+        subscriptionService.createSubscription('c1', 'plan1', 'standard', 0, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null)
       ).rejects.toThrow('Invalid subscription data: Missing required fields or invalid quantity.');
     });
 
     it('throws if meal preferences are missing or empty', async () => {
       await expect(
-        subscriptionService.createSubscription('c1', 'plan1', 'standard', 1, 100, [], '2026-08-01', 'addr1', 'monthly', null)
+        subscriptionService.createSubscription('c1', 'plan1', 'standard', 1, 100, {} as any, [], '2026-08-01', 'addr1', 'monthly', null)
       ).rejects.toThrow('At least one meal preference is required.');
     });
 
@@ -46,7 +46,7 @@ describe('subscriptionService', () => {
       vi.spyOn(subscriptionRepository, 'create').mockResolvedValue('sub1');
 
       const id = await subscriptionService.createSubscription(
-        'c1', 'plan1', 'standard', 1, 100, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null
+        'c1', 'plan1', 'standard', 1, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null
       );
 
       expect(typeof id).toBe('string');
@@ -61,7 +61,7 @@ describe('subscriptionService', () => {
       vi.spyOn(subscriptionRepository, 'create').mockResolvedValue('sub1');
 
       await subscriptionService.createSubscription(
-        'c1', 'plan1', 'standard', 1, 100, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null
+        'c1', 'plan1', 'standard', 1, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null
       );
 
       expect(subscriptionRepository.create).toHaveBeenCalledWith(
