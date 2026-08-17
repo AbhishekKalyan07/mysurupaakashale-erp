@@ -148,12 +148,16 @@ service cloud.firestore {
       function isAllowedCustomerTransition() {
         let from = resource.data.status;
         let to = request.resource.data.status;
+        // Use affectedKeys() — the same proven mechanism as onlyChangedFields() —
+        // to detect schedule changes. The previous .get(field, null) != .get(field, null)
+        // approach had inconsistent behavior across emulator versions (Windows vs Linux).
+        let scheduleChanged = request.resource.data.diff(resource.data).affectedKeys().hasAny(['pauseStartDate', 'pauseEndDate']);
         return (from == 'active' && to == 'paused') ||
                (from == 'paused' && to == 'active') ||
                (from == 'active' && to == 'cancelled') ||
                (from == 'paused' && to == 'cancelled') ||
                ((from == 'cancelled' || from == 'expired') && to == 'pending_payment') ||
-               (from == to && (from == 'active' || from == 'paused'));
+               (from == to && (from == 'active' || from == 'paused') && scheduleChanged);
       }
 
       allow read: if isSignedIn() &&
