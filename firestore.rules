@@ -152,7 +152,8 @@ service cloud.firestore {
                (from == 'paused' && to == 'active') ||
                (from == 'active' && to == 'cancelled') ||
                (from == 'paused' && to == 'cancelled') ||
-               ((from == 'cancelled' || from == 'expired') && to == 'pending_payment');
+               ((from == 'cancelled' || from == 'expired') && to == 'pending_payment') ||
+               (from == to && (from == 'active' || from == 'paused'));
       }
 
       allow read: if isSignedIn() &&
