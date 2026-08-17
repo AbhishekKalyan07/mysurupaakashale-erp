@@ -11,6 +11,17 @@ import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
 import { getTodayInTimezone } from '@/shared/lib/date';
 
+/** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
+function stripUndefined<T extends Record<string, any>>(obj: T): T {
+  const clean = {} as any;
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
 class OrderService {
   /**
    * Orchestrator for all daily orders.
@@ -186,11 +197,11 @@ class OrderService {
         const batch = writeBatch(db);
         batchOrders.forEach(order => {
           const ref = doc(db, 'orders', order.id!);
-          batch.set(ref, {
+          batch.set(ref, stripUndefined({
             ...order,
             createdAt: serverTimestamp() as unknown as Timestamp,
             updatedAt: serverTimestamp() as unknown as Timestamp
-          }, { merge: true });
+          }), { merge: true });
         });
         await batch.commit();
         ordersGenerated += batchOrders.length;
@@ -425,11 +436,11 @@ class OrderService {
     const batch = writeBatch(db);
     ordersToCreate.forEach(order => {
       const ref = doc(db, 'orders', order.id!);
-      batch.set(ref, {
+      batch.set(ref, stripUndefined({
         ...order,
         createdAt: serverTimestamp() as unknown as Timestamp,
         updatedAt: serverTimestamp() as unknown as Timestamp
-      }, { merge: true });
+      }), { merge: true });
     });
     
     await batch.commit();
@@ -571,7 +582,7 @@ class OrderService {
         }
       });
 
-      batch.update(ref, updatePayload);
+      batch.update(ref, stripUndefined(updatePayload));
     });
 
     await batch.commit();
