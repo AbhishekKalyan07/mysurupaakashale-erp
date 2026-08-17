@@ -314,7 +314,7 @@ class OrderService {
     const addr = customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) || customer?.addresses?.[0];
     const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
 
-    return {
+    const orderObj: Partial<Order> = {
       id: `ord_${sub.id}_${date}_${mealType}`,
       displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       source: 'subscription',
@@ -326,30 +326,39 @@ class OrderService {
       
       // Denormalized Operational Snapshot
       customerName: customer?.fullName || 'Unknown Customer',
-      customerCode: customer?.displayId,
-      customerPhone: customer?.phone,
-      address: addressStr,
-      zoneName: zoneId ? zoneMap.get(zoneId)?.name : undefined,
+      customerCode: customer?.displayId ?? null,
+      customerPhone: customer?.phone ?? null,
+      address: addressStr ?? null,
+      zoneName: zoneId ? (zoneMap.get(zoneId)?.name ?? null) : null,
       planName: plan?.name || 'Unknown Plan',
-      driverName: driver?.fullName,
-      driverPhone: driver?.phone,
+      driverName: driver?.fullName ?? null,
+      driverPhone: driver?.phone ?? null,
       mealName: optionLabel || mealType,
       mealQuantity: sub.quantity || 1,
       billingStatus: 'Generated',
       kitchenStatus: 'Preparing',
 
       itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
-      selectedOptionId: pref.selectedOptionId,
+      selectedOptionId: pref.selectedOptionId ?? null,
       price: Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
       currency: 'INR',
       status: 'scheduled',
-      deliveryAddressId: sub.deliveryAddressId,
-      zoneId: zoneId,
+      deliveryAddressId: sub.deliveryAddressId ?? null,
+      zoneId: zoneId ?? null,
       kitchenId: null,
-      deliveryPartnerId: partnerId,
+      deliveryPartnerId: partnerId ?? null,
       deliveryWindow: null,
-      paymentId: sub.latestPaymentId,
+      paymentId: sub.latestPaymentId ?? null,
     };
+
+    // Remove any remaining undefined values just in case
+    Object.keys(orderObj).forEach(key => {
+      if ((orderObj as any)[key] === undefined) {
+        delete (orderObj as any)[key];
+      }
+    });
+
+    return orderObj;
   }
 
   /**
@@ -543,18 +552,26 @@ class OrderService {
       const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
 
       const ref = doc(db, 'orders', order.id!);
-      batch.update(ref, {
-        deliveryPartnerId: partnerId,
-        zoneId: zoneId,
-        driverName: driver?.fullName || undefined,
-        driverPhone: driver?.phone || undefined,
-        zoneName: zoneName || undefined,
+      const updatePayload: any = {
+        deliveryPartnerId: partnerId ?? null,
+        zoneId: zoneId ?? null,
+        driverName: driver?.fullName ?? null,
+        driverPhone: driver?.phone ?? null,
+        zoneName: zoneName ?? null,
         customerName: custProfile.fullName || 'Unknown Customer',
-        customerCode: custProfile.displayId || undefined,
-        customerPhone: custProfile.phone || undefined,
-        address: addressStr || undefined,
+        customerCode: custProfile.displayId ?? null,
+        customerPhone: custProfile.phone ?? null,
+        address: addressStr ?? null,
         updatedAt: serverTimestamp() as unknown as Timestamp
+      };
+
+      Object.keys(updatePayload).forEach(key => {
+        if (updatePayload[key] === undefined) {
+          delete updatePayload[key];
+        }
       });
+
+      batch.update(ref, updatePayload);
     });
 
     await batch.commit();
