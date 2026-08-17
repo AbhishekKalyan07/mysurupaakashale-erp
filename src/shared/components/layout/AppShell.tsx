@@ -6,6 +6,7 @@ import { PremiumSidebar } from './PremiumSidebar';
 import { PremiumNavbar } from './PremiumNavbar';
 import { BottomNav } from './BottomNav';
 import { GlobalErrorBoundary } from '../feedback/GlobalErrorBoundary';
+import { PWAInstallPrompt } from '../feedback/PWAInstallPrompt';
 
 export function AppShell() {
   const { status, role, profile } = useAuth();
@@ -41,6 +42,9 @@ export function AppShell() {
 
       {/* Bottom Nav — mobile only (lg:hidden is inside BottomNav) */}
       <BottomNav role={role} />
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }
