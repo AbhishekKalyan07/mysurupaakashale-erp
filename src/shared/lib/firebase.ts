@@ -155,9 +155,11 @@ export const db: Firestore = initializeFirestore(firebaseApp,
         //    plain HTTP requests which work reliably in headless environments.
         localCache: memoryLocalCache(),
         experimentalForceLongPolling: true,
+        ignoreUndefinedProperties: true,
       }
     : {
         localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+        ignoreUndefinedProperties: true,
       }
 );
 
