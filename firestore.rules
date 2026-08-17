@@ -157,8 +157,9 @@ service cloud.firestore {
 
       function isValidSkipCredit() {
         let diff = request.resource.data.creditBalance - resource.data.creditBalance;
-        let expectedCredit = resource.data.pricePerDaySnapshot * (resource.data.get('quantity', 1));
-        return diff == expectedCredit;
+        let maxCredit = resource.data.pricePerDaySnapshot * (resource.data.get('quantity', 1));
+        // Allow any positive credit up to the full daily value (partial cancels for single meals)
+        return diff > 0 && diff <= maxCredit;
       }
 
       allow read: if isSignedIn() &&
@@ -171,7 +172,7 @@ service cloud.firestore {
       // Customers can also increment their creditBalance by their daily price when skipping a delivery.
       allow update: if isAdmin() ||
                        (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt']) && isAllowedCustomerTransition()) ||
-                       (isOwnSubscription() && onlyChangedFields(['creditBalance']) && isValidSkipCredit());
+                       (isOwnSubscription() && onlyChangedFields(['creditBalance', 'updatedAt']) && isValidSkipCredit());
 
       allow delete: if false; // cancel via status update — preserves billing history
 

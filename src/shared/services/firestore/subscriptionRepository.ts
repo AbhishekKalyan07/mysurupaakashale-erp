@@ -81,19 +81,37 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
 
     // Create the skip subcollection document
     const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
-    await setDoc(skipRef, {
-      date,
-      mealTypes,
-      reason,
-      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      createdBy: uid
-    });
+    const existingSkip = await getDoc(skipRef);
+    
+    if (existingSkip.exists()) {
+      // Merge with existing skip (e.g. breakfast already cancelled, now cancelling dinner)
+      const existingMealTypes = existingSkip.data().mealTypes || [];
+      const mergedMealTypes = [...new Set([...existingMealTypes, ...mealTypes])];
+      await setDoc(skipRef, {
+        date,
+        mealTypes: mergedMealTypes,
+        reason,
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        createdBy: uid
+      });
+    } else {
+      await setDoc(skipRef, {
+        date,
+        mealTypes,
+        reason,
+        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        createdBy: uid
+      });
+    }
 
     // Increment the credit balance on the subscription
-    const subRef = doc(db, 'subscriptions', subscriptionId);
-    await updateDoc(subRef, {
-      creditBalance: increment(creditAmount)
-    });
+    if (creditAmount > 0) {
+      const subRef = doc(db, 'subscriptions', subscriptionId);
+      await updateDoc(subRef, {
+        creditBalance: increment(creditAmount),
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      });
+    }
   }
 
   async getSkips(subscriptionId: string): Promise<any[]> {
