@@ -21,7 +21,7 @@ import {
 import { ref, uploadBytes, getDownloadURL, connectStorageEmulator } from '@firebase/storage';
 import { doc, setDoc } from '@firebase/firestore';
 
-const PROJECT_ID = 'mysuru-paakashale-erp';
+const PROJECT_ID = 'demo-security-test';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
