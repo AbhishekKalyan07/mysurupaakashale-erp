@@ -108,7 +108,7 @@ export function CustomerDashboardPage() {
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
 
-  const { mutateAsync: skipDay } = useSkipDay();
+  const skipDay = useSkipDay();
 
   const {
     register,
