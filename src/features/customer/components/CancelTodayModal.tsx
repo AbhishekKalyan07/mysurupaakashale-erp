@@ -10,7 +10,7 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
   
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(nowInIndia);
 
-  const preferredMeals = subscription.mealPreferences.map((p: any) => p.mealType);
+  const preferredMeals = (subscription.mealPreferences || []).map((p: any) => p.mealType);
   const eligibleMeals = preferredMeals.filter((meal: string) => {
     if (meal === 'breakfast') return timeInMinutes < 5 * 60;
     if (meal === 'lunch') return timeInMinutes < 10 * 60 + 30;

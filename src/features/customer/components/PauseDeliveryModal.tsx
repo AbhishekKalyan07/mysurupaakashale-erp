@@ -14,7 +14,7 @@ export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
   const [selectedMeals, setSelectedMeals] = useState<string[]>([]);
 
   // For future dates, all preferred meals are eligible
-  const eligibleMealsForSelected = date ? subscription.mealPreferences.map((p: any) => p.mealType) : [];
+  const eligibleMealsForSelected = date ? (subscription.mealPreferences || []).map((p: any) => p.mealType) : [];
 
   const handlePause = async () => {
     if (!date || selectedMeals.length === 0) return;
@@ -48,7 +48,7 @@ export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
           onChange={e => {
             const newDate = e.target.value;
             setDate(newDate);
-            setSelectedMeals(newDate ? subscription.mealPreferences.map((p: any) => p.mealType) : []);
+            setSelectedMeals(newDate ? (subscription.mealPreferences || []).map((p: any) => p.mealType) : []);
           }}
           className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-6 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm font-data"
         />
