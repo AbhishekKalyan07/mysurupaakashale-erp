@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMySubscription, useSkipDay } from '../hooks/useMySubscription';
+import { useMySubscription, useSkipDay, useSubscriptionStats } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { useMyPayments } from '../hooks/usePayments';
@@ -28,6 +28,7 @@ import {
   XCircle,
   Clock,
   RotateCcw,
+  PackageOpen,
 } from 'lucide-react';
 
 import { ManualPaymentPanel } from '../components/ManualPaymentPanel';
@@ -58,6 +59,7 @@ export function SubscriptionDetailsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   
   const skipDay = useSkipDay();
+  const { data: stats } = useSubscriptionStats(subscription?.id, subscription?.customerId);
   
   const isLoading = isSubLoading || isPlansLoading || isSettingsLoading;
   const hasError = subError || plansError;
@@ -82,12 +84,21 @@ export function SubscriptionDetailsPage() {
           title="No Active Subscription"
           description="You don't have an active or pending meal plan subscription right now."
           action={
-            <Button
-              onClick={() => navigate('/customer/plans')}
-              className="mt-4 uppercase tracking-wider font-semibold font-sans"
-            >
-              Browse Meal Plans
-            </Button>
+            <div className="flex gap-3 mt-4 w-full sm:w-auto">
+              <Button
+                onClick={() => navigate('/customer/plans')}
+                className="uppercase tracking-wider font-semibold font-sans w-full sm:w-auto"
+              >
+                Browse Meal Plans
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate('/customer/orders')}
+                className="uppercase tracking-wider font-semibold font-sans w-full sm:w-auto"
+              >
+                View Order History
+              </Button>
+            </div>
           }
         />
       </div>
@@ -304,6 +315,29 @@ export function SubscriptionDetailsPage() {
           </Card>
         </div>
 
+        {stats?.skips && stats.skips.length > 0 && (
+          <Card className="p-6 border-rice-300 md:col-span-2">
+            <h3 className="text-ink-900 font-bold font-sans text-lg border-b border-rice-200 pb-3 mb-4 flex items-center gap-2">
+              <Calendar className="text-danger" size={20} /> Skipped & Cancelled Meals
+            </h3>
+            <div className="space-y-3">
+              {stats.skips.map((skip: any) => (
+                <div key={skip.date} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-danger/5 border border-danger/10 rounded-lg">
+                  <div>
+                    <span className="font-bold text-ink-900 font-sans">{skip.date}</span>
+                    <p className="text-xs text-ink-500 mt-1 capitalize">Meals: {(skip.mealTypes || []).join(', ')}</p>
+                  </div>
+                  {skip.reason && (
+                    <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded border border-rice-200 mt-2 sm:mt-0">
+                      Reason: {skip.reason}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* Right column: Billing + Actions */}
         <div className="space-y-6">
           <Card className="p-6 border-rice-300 bg-rice-50/50">
@@ -343,6 +377,13 @@ export function SubscriptionDetailsPage() {
                 Actions
               </h3>
               <div className="space-y-3">
+                <Button
+                  onClick={() => navigate('/customer/orders')}
+                  disabled={updating}
+                  className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5 bg-ink-900 hover:bg-ink-800 text-white border-transparent"
+                >
+                  <PackageOpen size={16} /> View Order History
+                </Button>
                 {subscription.status === 'active' && (
                   <>
                     <Button

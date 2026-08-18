@@ -1,11 +1,11 @@
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 
 const PROJECT_ID = 'demo-test';
-
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 
 if (!getApps().length) {
   initializeApp({ projectId: PROJECT_ID });
@@ -25,6 +25,7 @@ async function seedUsers() {
   console.log('Seeding users via external node script...');
   for (const u of users) {
     let uid;
+    console.log('Creating user:', u.email);
     try {
       const userRecord = await auth.createUser({
         email: u.email,
@@ -32,7 +33,9 @@ async function seedUsers() {
         displayName: u.fullName,
       });
       uid = userRecord.uid;
+      console.log('User created with uid:', uid);
     } catch (err) {
+      console.log('Error creating user:', u.email, err.code);
       if (err.code === 'auth/email-already-exists') {
         const existingUser = await auth.getUserByEmail(u.email);
         uid = existingUser.uid;

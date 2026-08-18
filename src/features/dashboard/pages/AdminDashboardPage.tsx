@@ -221,7 +221,7 @@ export function AdminDashboardPage() {
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {metrics.generationRuns.map(run => (
-              <PremiumCard key={run.id} className="border-primary/20">
+              <PremiumCard key={run.id} className="p-6 border-primary/20">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="font-bold text-primary capitalize font-display text-lg">{run.mealType} Generation</h3>
                   <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
@@ -276,7 +276,7 @@ export function AdminDashboardPage() {
           Quick Actions &amp; Configuration
         </h2>
         <div className="grid md:grid-cols-3 gap-6">
-          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/staff')}>
+          <PremiumCard hoverLift className="p-6 cursor-pointer" onClick={() => navigate('/admin/staff')}>
             <div className="p-3 bg-pastel-blue text-primary rounded-xl w-fit mb-4">
               <Users size={24} />
             </div>
@@ -284,7 +284,7 @@ export function AdminDashboardPage() {
             <p className="text-sm text-text-muted mt-2">Provision and manage Kitchen, Delivery, and Accounts staff roles.</p>
           </PremiumCard>
 
-          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/settings')}>
+          <PremiumCard hoverLift className="p-6 cursor-pointer" onClick={() => navigate('/admin/settings')}>
             <div className="p-3 bg-pastel-mint text-primary rounded-xl w-fit mb-4">
               <Settings size={24} />
             </div>
@@ -292,7 +292,7 @@ export function AdminDashboardPage() {
             <p className="text-sm text-text-muted mt-2">Configure delivery radius, operational holidays, and global parameters.</p>
           </PremiumCard>
 
-          <PremiumCard hoverLift className="cursor-pointer" onClick={() => navigate('/admin/audit')}>
+          <PremiumCard hoverLift className="p-6 cursor-pointer" onClick={() => navigate('/admin/audit')}>
             <div className="p-3 bg-pastel-amber text-primary rounded-xl w-fit mb-4">
               <ShieldAlert size={24} />
             </div>

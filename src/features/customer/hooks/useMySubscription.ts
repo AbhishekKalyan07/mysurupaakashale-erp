@@ -62,6 +62,19 @@ export function useHasPastOrders() {
   });
 }
 
+export function useCustomerOrderHistory(customerId?: string) {
+  return useQuery({
+    queryKey: ['orderHistory', customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
+      const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
+      const orders = await orderRepository.getCustomerOrders(customerId);
+      return orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    enabled: !!customerId,
+  });
+}
+
 export function useSkipDay() {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
@@ -95,7 +108,9 @@ export function useSkipDay() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ''),
       });
-      // Also invalidate the skips subcollection if we ever fetch it explicitly
+      await queryClient.invalidateQueries({
+        queryKey: ['orderHistory', firebaseUser?.uid],
+      });
     },
   });
 }
@@ -149,7 +164,8 @@ export function useSubscriptionStats(subscriptionId?: string, customerId?: strin
 
       return {
         daysOrdered: uniqueDaysOrdered,
-        pausedDates: skips.map(s => s.date)
+        pausedDates: skips.map(s => s.date),
+        skips: skips
       };
     },
     enabled: !!subscriptionId && !!customerId,

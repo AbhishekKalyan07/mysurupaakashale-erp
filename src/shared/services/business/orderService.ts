@@ -593,11 +593,12 @@ class OrderService {
    * Applies Kitchen Lock and cancels generated orders for a skipped day.
    */
   async cancelOrdersForSkipDay(customerId: string, date: string, mealTypes: string[]): Promise<void> {
-    const orders = await orderRepository.list(
+    const allDailyOrders = await orderRepository.list(
       where('customerId', '==', customerId),
-      where('date', '==', date),
-      where('mealType', 'in', mealTypes)
+      where('date', '==', date)
     );
+    
+    const orders = allDailyOrders.filter(o => mealTypes.includes(o.mealType || ''));
 
     const lockedStatuses = ['packing', 'packed', 'ready_for_pickup'];
     const lockedOrders = orders.filter(o => lockedStatuses.includes(o.kitchenStatus || ''));

@@ -16,25 +16,29 @@ import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'fireba
 // the initial Javascript bundle size and improve Total Blocking Time (TBT).
 
 
-// In Node/CI (automation scripts run via vite-node), import.meta.env keys
-// may resolve to "" (empty string) for missing vars, so ?? is not enough —
-// we use || so that falsy values also fall through to process.env.
-// process.env is checked first when running in Node to avoid any stale
-// vite-node import.meta.env cache.
-function env(key: string): string | undefined {
-  const nodeVal = typeof process !== 'undefined' ? process.env[key] : undefined;
-  const metaVal = import.meta.env[key] as string | undefined;
-  return nodeVal || metaVal || undefined;
+// In Node/CI (automation scripts run via vite-node), import.meta.env properties
+// may be undefined, so we fallback to process.env.
+function getEnv(key: string, metaValue: any): string | undefined {
+  if (metaValue) return metaValue;
+  if (typeof process !== 'undefined') return process.env[key];
+  return undefined;
 }
 
 const firebaseConfig = {
-  apiKey:            env('VITE_FIREBASE_API_KEY'),
-  authDomain:        env('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId:         env('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket:     env('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: env('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId:             env('VITE_FIREBASE_APP_ID'),
+  apiKey:            getEnv('VITE_FIREBASE_API_KEY', import.meta.env.VITE_FIREBASE_API_KEY),
+  authDomain:        getEnv('VITE_FIREBASE_AUTH_DOMAIN', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  projectId:         getEnv('VITE_FIREBASE_PROJECT_ID', import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket:     getEnv('VITE_FIREBASE_STORAGE_BUCKET', import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId:             getEnv('VITE_FIREBASE_APP_ID', import.meta.env.VITE_FIREBASE_APP_ID),
 };
+
+const useEmulators = getEnv('VITE_USE_FIREBASE_EMULATORS', import.meta.env.VITE_USE_FIREBASE_EMULATORS) === 'true';
+console.log('BROWSER_DEBUG_EMULATORS:', {
+  rawMeta: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
+  evaluated: useEmulators,
+  mode: import.meta.env.MODE
+});
 
 // Fail loudly in dev if env vars are missing, instead of a cryptic
 // "auth/invalid-api-key" three files deep into the app.
@@ -72,9 +76,9 @@ export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 //   3. Enforce App Check: Firebase Console → App Check → Firestore/Auth/Storage
 //      → Enforce (after validating existing traffic shows in the dashboard).
 // ---------------------------------------------------------------------------
-const appCheckSiteKey = env('VITE_APPCHECK_SITE_KEY');
-const appCheckDebugToken = env('VITE_APPCHECK_DEBUG_TOKEN');
-const isEmulatorMode = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
+const appCheckSiteKey = getEnv('VITE_APPCHECK_SITE_KEY', import.meta.env.VITE_APPCHECK_SITE_KEY);
+const appCheckDebugToken = getEnv('VITE_APPCHECK_DEBUG_TOKEN', import.meta.env.VITE_APPCHECK_DEBUG_TOKEN);
+const isEmulatorMode = useEmulators;
 
 export const appCheck = (() => {
   // Test environment (Vitest/jsdom) or Emulators (Playwright E2E): skip App Check entirely.
@@ -139,12 +143,12 @@ export const auth: Auth = getAuth(firebaseApp);
 // In emulator / E2E mode, switch Firebase Auth to localStorage persistence.
 // Playwright's storageState captures localStorage (not IndexedDB), so this is
 // required for saved auth states to survive across test file boundaries.
-if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+if (useEmulators) {
   setPersistence(auth, browserLocalPersistence).catch(console.error);
 }
 
 export const db: Firestore = initializeFirestore(firebaseApp,
-  (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' || typeof globalThis.window === 'undefined')
+  (useEmulators || typeof globalThis.window === 'undefined')
     ? {
         // In emulator/E2E/Node mode:
         // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).
@@ -165,7 +169,7 @@ export const db: Firestore = initializeFirestore(firebaseApp,
 
 
 import { setLogLevel } from 'firebase/firestore';
-if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+if (useEmulators) {
   setLogLevel('debug');
 }
 
@@ -250,7 +254,7 @@ export async function initRemoteConfig(): Promise<any | null> {
 // dev` never silently talks to the emulator (or vice versa) depending on
 // what happens to be running in a teammate's terminal. See README.md.
 // ---------------------------------------------------------------------------
-if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+if (useEmulators) {
   // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
