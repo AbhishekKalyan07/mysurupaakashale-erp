@@ -44,18 +44,16 @@ export async function seedUsers() {
  * not IndexedDB where the Firebase SDK normally persists auth tokens.
  */
 export async function signInViaEmulator(email: string, password: string) {
-  const url = `http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`;
-  const response = await axios.post(url, {
-    email,
-    password,
-    returnSecureToken: true,
-  });
-  return response.data as {
-    idToken: string;
-    refreshToken: string;
-    localId: string;
-    email: string;
-    expiresIn: string;
+  const { initializeApp } = await import('firebase/app');
+  const { getAuth, connectAuthEmulator, signInWithEmailAndPassword } = await import('firebase/auth');
+  
+  const app = initializeApp({ projectId: PROJECT_ID, apiKey: 'fake-api-key' }, 'test-app-' + Math.random());
+  const auth = getAuth(app);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return {
+    email: userCredential.user.email
   };
 }
 

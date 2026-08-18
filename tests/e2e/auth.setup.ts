@@ -16,7 +16,13 @@ roles.forEach(role => {
     // Navigate to the root — the app will redirect to /login for unauthenticated users.
     // firebase.ts sets browserLocalPersistence in emulator mode, so the resulting
     // auth token is stored in localStorage (not IndexedDB), which means
-    // Playwright's storageState() will capture it and it will survive across tests.
+    page.on('console', msg => console.log('BROWSER:', msg.text()));
+    page.on('response', response => {
+      if (!response.ok()) {
+        console.log('HTTP ERROR:', response.status(), response.url());
+        response.text().then(text => console.log('ERROR BODY:', text)).catch(() => {});
+      }
+    });
     await page.goto('/');
     await page.waitForURL(/.*login/, { timeout: 10000 });
 

@@ -152,7 +152,7 @@ export function SubscriptionWizardPage() {
     return <LoadingScreen />;
   }
 
-  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired' && !createdSubscriptionId) {
+  if (activeSub && activeSub.status !== 'cancelled' && activeSub.status !== 'expired' && !createdSubscriptionId && !submittingDraft) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <ErrorState
@@ -214,6 +214,7 @@ export function SubscriptionWizardPage() {
       reset();
     } catch (err) {
       console.error('Failed to save address:', err);
+      toast.error('Failed to save address. Please try again.');
     }
   };
 

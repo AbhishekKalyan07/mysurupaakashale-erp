@@ -24,7 +24,7 @@ export function EmptyState({ title, description, action, secondaryAction, icon, 
         </div>
       )}
       <div className="space-y-1.5 max-w-sm">
-        <p className="font-display text-lg font-semibold text-ink-900">{title}</p>
+        <h3 className="font-display text-lg font-semibold text-ink-900">{title}</h3>
         {description && <p className="text-sm text-ink-500 leading-relaxed">{description}</p>}
       </div>
       {(action || secondaryAction) && (

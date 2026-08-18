@@ -31,11 +31,11 @@ const ERROR_MESSAGES: Record<string, string> = {
 export function mapAuthError(error: unknown): string {
   const code = (error as { code?: string } | undefined)?.code;
   const msg = (error as { message?: string } | undefined)?.message;
-  
+
   if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
     return 'Sign-in cancelled.';
   }
-  
+
   return (code && ERROR_MESSAGES[code]) || msg || 'Something went wrong. Please try again.';
 }
 
@@ -45,10 +45,10 @@ export async function signIn(email: string, password: string): Promise<UserCrede
 export async function signInWithGoogle(): Promise<UserCredential> {
   const provider = new GoogleAuthProvider();
   const credential = await signInWithPopup(auth, provider);
-  
+
   // Check if the user profile exists.
   const profile = await userRepository.getById(credential.user.uid);
-  
+
   if (!profile) {
     // Automatically create a base customer profile for new Google signups
     const displayId = await userRepository.generateNextDisplayId('customer', credential.user.displayName || 'Google User');
@@ -74,7 +74,7 @@ export async function signInWithGoogle(): Promise<UserCredential> {
       updatedAt: serverTimestamp() as unknown as Timestamp,
     } as any);
   }
-  
+
   return credential;
 }
 
@@ -99,10 +99,10 @@ export async function signUpCustomer(
   // (Security rules enforce isSignedIn() for the userPhones registry to prevent enumeration).
   const { doc, getDoc, setDoc } = await import('firebase/firestore');
   const { db } = await import('@/shared/lib/firebase');
-  
+
   const phoneDocRef = doc(db, 'userPhones', phone);
   const existingPhone = await getDoc(phoneDocRef);
-  
+
   if (existingPhone.exists()) {
     try {
       await credential.user.delete();
@@ -112,32 +112,38 @@ export async function signUpCustomer(
     throw new Error('An account with this mobile number already exists — try signing in instead.');
   }
 
-  // Fire and forget the profile updates so the user can be navigated instantly.
-  // setDoc updates the local Firestore cache synchronously, so AuthContext will
-  // see the new profile immediately and unlock the app.
-  updateProfile(credential.user, { displayName: fullName }).catch(console.error);
-  
-  // Save the phone number registry mapping
-  setDoc(phoneDocRef, { uid: credential.user.uid }).catch(console.error);
-  
   const displayId = await userRepository.generateNextDisplayId('customer', fullName);
 
-  userRepository.create({
-    displayId,
-    role: 'customer',
-    fullName,
-    email,
-    phone,
-    photoUrl: null,
-    isActive: true,
-    addresses: [],
-    defaultAddressId: null,
-    createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-    updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-    emailVerified: credential.user.emailVerified,
-    googleConnected: false,
-    passwordCreated: true,
-  } as Omit<UserProfile, 'id'>, credential.user.uid).catch(console.error);
+  // Await the profile updates before navigating, to ensure the profile write
+  // reaches the server and avoids race conditions in security rules during checkout.
+  await Promise.all([
+    updateProfile(credential.user, { displayName: fullName }),
+    setDoc(phoneDocRef, { uid: credential.user.uid }),
+    userRepository.create({
+      displayId,
+      role: 'customer',
+      fullName,
+      email,
+      phone,
+      photoUrl: null,
+      isActive: true,
+      addresses: [],
+      defaultAddressId: null,
+      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      emailVerified: credential.user.emailVerified,
+      googleConnected: false,
+      passwordCreated: true,
+    } as Omit<UserProfile, 'id'>, credential.user.uid)
+  ]).catch(async (error) => {
+    console.error('Failed to initialize customer profile:', error);
+    try {
+      await credential.user.delete();
+    } catch (cleanupError) {
+      console.error('Failed to clean up auth user after failed initialization:', cleanupError);
+    }
+    throw error;
+  });
   
   return credential;
 }
@@ -162,7 +168,7 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
   const { doc, getDoc, setDoc } = await import('firebase/firestore');
   const { signOut: firebaseSignOut, EmailAuthProvider, linkWithCredential } = await import('firebase/auth');
   const { db } = await import('@/shared/lib/firebase');
-  
+
   const phoneDocRef = doc(db, 'userPhones', phone);
   const existingPhone = await getDoc(phoneDocRef);
   if (existingPhone.exists()) {
@@ -183,7 +189,7 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
 
   // 2. Save the phone number registry mapping
   await setDoc(phoneDocRef, { uid: user.uid });
-  
+
   const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
 
   await userRepository.create({

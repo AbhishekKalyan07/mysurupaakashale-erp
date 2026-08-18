@@ -14,11 +14,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   assertFails,
-  assertSucceeds,
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, addDoc, collection, updateDoc } from '@firebase/firestore';
+import { doc, setDoc, addDoc, collection, updateDoc } from '@firebase/firestore';
 
 const PROJECT_ID = 'demo-security-test';
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;

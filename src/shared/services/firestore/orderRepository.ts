@@ -70,7 +70,7 @@ class OrderRepository extends BaseRepository<Order> {
   async getCustomerOrders(customerId: string): Promise<Order[]> {
     return this.list(
       where('customerId', '==', customerId),
-      orderBy('createdAt', 'desc')
+      orderBy('date', 'desc')
     );
   }
 
@@ -95,8 +95,7 @@ class OrderRepository extends BaseRepository<Order> {
   async getCustomerOrdersByDate(customerId: string, date: string): Promise<Order[]> {
     return this.list(
       where('customerId', '==', customerId),
-      where('date', '==', date),
-      orderBy('createdAt', 'desc')
+      where('date', '==', date)
     );
   }
 

@@ -32,6 +32,7 @@ const SubscriptionDetailsPage = lazy(() => import('@/features/customer/pages/Sub
 const SubscriptionWizardPage = lazy(() => import('@/features/customer/pages/SubscriptionWizardPage').then(m => ({ default: m.SubscriptionWizardPage })));
 const PaymentHistoryPage = lazy(() => import('@/features/customer/pages/PaymentHistoryPage').then(m => ({ default: m.PaymentHistoryPage })));
 const ProfilePage = lazy(() => import('@/features/customer/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const CustomerOrderHistoryPage = lazy(() => import('@/features/customer/pages/CustomerOrderHistoryPage').then(m => ({ default: m.CustomerOrderHistoryPage })));
 const CustomerDashboardPage = lazy(() => import('@/features/dashboard/pages/CustomerDashboardPage').then(m => ({ default: m.CustomerDashboardPage })));
 const ProductionBoardPage = lazy(() => import('@/features/kitchen/pages/ProductionBoardPage').then(m => ({ default: m.ProductionBoardPage })));
 const DailyMenuListPage = lazy(() => import('@/features/kitchen/pages/DailyMenuListPage').then(m => ({ default: m.DailyMenuListPage })));
@@ -136,6 +137,7 @@ const router = createBrowserRouter([
           { path: '/customer/subscription', element: withSuspense(SubscriptionDetailsPage) },
           { path: '/customer/subscribe', element: withSuspense(SubscriptionWizardPage) },
           { path: '/customer/payments', element: withSuspense(PaymentHistoryPage) },
+          { path: '/customer/orders', element: withSuspense(CustomerOrderHistoryPage) },
           { path: '/customer/profile', element: withSuspense(ProfilePage) },
           // Customer notification center (same component, different route)
           { path: '/customer/notifications', element: withSuspense(NotificationCenter) },
