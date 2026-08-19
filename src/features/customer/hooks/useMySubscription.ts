@@ -115,6 +115,59 @@ export function useSkipDay() {
   });
 }
 
+export function useUnskipDay() {
+  const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      subscriptionId,
+      date,
+      mealTypes,
+    }: {
+      subscriptionId: string;
+      date: string;
+      mealTypes: ('breakfast' | 'lunch' | 'dinner')[];
+    }) => {
+      if (!firebaseUser?.uid) throw new Error('Not authenticated');
+      
+      // 1. Remove the skip from the subscription (this enforces the time cutoff rules)
+      await subscriptionRepository.removeSkip(
+        subscriptionId,
+        date,
+        mealTypes,
+        firebaseUser.uid
+      );
+
+      // 2. Safely restore or regenerate the order
+      await orderService.restoreOrdersForUnskipDay(
+        firebaseUser.uid,
+        subscriptionId,
+        date,
+        mealTypes
+      );
+
+      // 3. Log audit event
+      const { auditRepository } = await import('@/shared/services/firestore/auditRepository');
+      await auditRepository.logAction('skip_removed', firebaseUser.uid, 'Customer', subscriptionId, 'subscription', {
+        date,
+        mealTypes,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ''),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['orderHistory', firebaseUser?.uid],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['subscriptionStats'],
+      });
+    },
+  });
+}
+
 export function useSubscriptionAccruedBill(subscriptionId?: string) {
   const { firebaseUser } = useAuth();
   const customerId = firebaseUser?.uid;

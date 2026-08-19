@@ -23,7 +23,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     serverTimestamp: vi.fn(() => 'server-timestamp'),
     where: vi.fn((field, op, value) => ({ field, op, value })),
     doc: vi.fn((db, collection, id, sub, subId) => ({ db, collection, id, sub, subId })),
-    collection: vi.fn(() => ({ withConverter: vi.fn(() => 'collectionRef') })),
+    collection: vi.fn((db, path) => ({ db, path, withConverter: vi.fn(() => ({ db, path })) })),
     updateDoc: vi.fn(),
     Timestamp: {
       now: vi.fn(() => ({ toMillis: () => Date.now() }))

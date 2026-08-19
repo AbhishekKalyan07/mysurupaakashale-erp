@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMySubscription, useSkipDay, useSubscriptionStats } from '../hooks/useMySubscription';
+import { useMySubscription, useSkipDay, useSubscriptionStats, useUnskipDay } from '../hooks/useMySubscription';
 import { useMealPlans } from '../hooks/useMealPlans';
 import { useCustomerAddresses } from '../hooks/useCustomerAddresses';
 import { useMyPayments } from '../hooks/usePayments';
@@ -59,6 +59,7 @@ export function SubscriptionDetailsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   
   const skipDay = useSkipDay();
+  const unskipDay = useUnskipDay();
   const { data: stats } = useSubscriptionStats(subscription?.id, subscription?.customerId);
   
   const isLoading = isSubLoading || isPlansLoading || isSettingsLoading;
@@ -321,19 +322,60 @@ export function SubscriptionDetailsPage() {
               <Calendar className="text-danger" size={20} /> Skipped & Cancelled Meals
             </h3>
             <div className="space-y-3">
-              {stats.skips.map((skip: any) => (
-                <div key={skip.date} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-danger/5 border border-danger/10 rounded-lg">
-                  <div>
-                    <span className="font-bold text-ink-900 font-sans">{skip.date}</span>
-                    <p className="text-xs text-ink-500 mt-1 capitalize">Meals: {(skip.mealTypes || []).join(', ')}</p>
+              {stats.skips.map((skip: any) => {
+                const isWindowOpen = () => {
+                  const now = new Date();
+                  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+                  if (skip.date > today) return true;
+                  if (skip.date < today) return false;
+                  
+                  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+                  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+                  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+                  const currentTimeMinutes = hour * 60 + minute;
+                  
+                  return skip.mealTypes?.some((meal: string) => {
+                    if (meal === 'breakfast' && currentTimeMinutes < 5 * 60) return true;
+                    if (meal === 'lunch' && currentTimeMinutes < 10 * 60 + 30) return true;
+                    if (meal === 'dinner' && currentTimeMinutes < 16 * 60) return true;
+                    return false;
+                  });
+                };
+                
+                return (
+                  <div key={skip.date} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-danger/5 border border-danger/10 rounded-lg">
+                    <div>
+                      <span className="font-bold text-ink-900 font-sans">{skip.date}</span>
+                      <p className="text-xs text-ink-500 mt-1 capitalize">Meals: {(skip.mealTypes || []).join(', ')}</p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2 sm:mt-0">
+                      {skip.reason && (
+                        <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded border border-rice-200">
+                          Reason: {skip.reason}
+                        </span>
+                      )}
+                      {isWindowOpen() && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          isLoading={unskipDay.isPending && unskipDay.variables?.date === skip.date}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to undo the skip for ${skip.date}?`)) {
+                              unskipDay.mutate({
+                                subscriptionId: subscription.id,
+                                date: skip.date,
+                                mealTypes: skip.mealTypes
+                              });
+                            }
+                          }}
+                        >
+                          Undo Skip
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {skip.reason && (
-                    <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded border border-rice-200 mt-2 sm:mt-0">
-                      Reason: {skip.reason}
-                    </span>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         )}
