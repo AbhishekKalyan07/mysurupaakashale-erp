@@ -1,28 +1,29 @@
-const mockWhere = jest.fn((...args: unknown[]) => args);
-const mockServerTimestamp = jest.fn(() => 'SERVER_TIMESTAMP');
-const mockOrderRepository = { getByDate: jest.fn(), list: jest.fn() };
-const mockSubscriptionRepository = { list: jest.fn(), update: jest.fn() };
-const mockAnalyticsRepository = { create: jest.fn(), list: jest.fn(), delete: jest.fn() };
-const mockOrderGenerationRunRepository = { list: jest.fn(), delete: jest.fn() };
-const mockUserRepository = { list: jest.fn() };
-const mockNotifySubscriptionExpired = jest.fn();
-const mockNotifySubscriptionRenewalReminder = jest.fn();
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+const mockWhere = vi.fn((...args: unknown[]) => args);
+const mockServerTimestamp = vi.fn(() => 'SERVER_TIMESTAMP');
+const mockOrderRepository = { getByDate: vi.fn(), list: vi.fn() };
+const mockSubscriptionRepository = { list: vi.fn(), update: vi.fn() };
+const mockAnalyticsRepository = { create: vi.fn(), list: vi.fn(), delete: vi.fn() };
+const mockOrderGenerationRunRepository = { list: vi.fn(), delete: vi.fn() };
+const mockUserRepository = { list: vi.fn() };
+const mockNotifySubscriptionExpired = vi.fn();
+const mockNotifySubscriptionRenewalReminder = vi.fn();
 
-jest.mock('firebase/firestore', () => ({
+vi.mock('firebase/firestore', () => ({
   where: mockWhere,
   serverTimestamp: mockServerTimestamp,
-  getDocs: jest.fn(),
-  collection: jest.fn(),
+  getDocs: vi.fn(),
+  collection: vi.fn(),
 }));
-jest.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
-jest.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mockOrderRepository }));
-jest.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mockSubscriptionRepository }));
-jest.mock('@/shared/services/firestore/analyticsRepository', () => ({
+vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
+vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mockOrderRepository }));
+vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mockSubscriptionRepository }));
+vi.mock('@/shared/services/firestore/analyticsRepository', () => ({
   analyticsRepository: mockAnalyticsRepository,
   orderGenerationRunRepository: mockOrderGenerationRunRepository,
 }));
-jest.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mockUserRepository }));
-jest.mock('@/shared/services/firestore/notificationService', () => ({
+vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mockUserRepository }));
+vi.mock('@/shared/services/firestore/notificationService', () => ({
   notifySubscriptionExpired: mockNotifySubscriptionExpired,
   notifySubscriptionRenewalReminder: mockNotifySubscriptionRenewalReminder,
 }));
@@ -30,13 +31,13 @@ jest.mock('@/shared/services/firestore/notificationService', () => ({
 const { automationService } = require('@/shared/services/firestore/automationService') as typeof import('@/shared/services/firestore/automationService');
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   mockNotifySubscriptionExpired.mockResolvedValue(undefined);
   mockNotifySubscriptionRenewalReminder.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 });
 
 describe('active automation service', () => {
@@ -60,8 +61,8 @@ describe('active automation service', () => {
   });
 
   it('sends the appropriate expiry and renewal notifications', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-07-29T12:00:00.000Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-29T12:00:00.000Z'));
     mockSubscriptionRepository.list.mockResolvedValue([
       { id: 'expired', customerId: 'customer-1', endDate: '2026-07-28' },
       { id: 'tomorrow', customerId: 'customer-2', endDate: '2026-07-30' },
@@ -80,8 +81,8 @@ describe('active automation service', () => {
   });
 
   it('pauses, resumes, and clears expired pause schedules', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-07-29T12:00:00.000Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-29T12:00:00.000Z'));
     mockSubscriptionRepository.list
       .mockResolvedValueOnce([
         { id: 'pause-now', status: 'active', pauseStartDate: '2026-07-29', pauseEndDate: '2026-08-02' },

@@ -46,16 +46,14 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     return subs.length > 0 ? subs[0] : null;
   }
 
-  async addSkip(
-    subscriptionId: string, 
-    date: string, 
-    mealTypes: ('breakfast' | 'lunch' | 'dinner')[], 
-    reason: string,
-    uid: string
-  ) {
-    // 1. Cutoff Validation
+  /** Validates whether the current time allows modifying skips for the given date and meals */
+  validateSkipWindow(date: string, mealTypes: ('breakfast' | 'lunch' | 'dinner')[]) {
     const now = new Date();
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    
+    if (date < today) {
+      throw new Error("Cannot modify skips for past dates.");
+    }
     
     if (date === today) {
       const parts = new Intl.DateTimeFormat('en-US', { 
@@ -77,6 +75,16 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         }
       }
     }
+  }
+
+  async addSkip(
+    subscriptionId: string, 
+    date: string, 
+    mealTypes: ('breakfast' | 'lunch' | 'dinner')[], 
+    reason: string,
+    uid: string
+  ) {
+    this.validateSkipWindow(date, mealTypes);
 
     // Create the skip subcollection document
     const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
@@ -90,7 +98,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         date,
         mealTypes: mergedMealTypes,
         reason,
-        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        createdAt: serverTimestamp() as unknown as Timestamp,
         createdBy: uid
       });
     } else {
@@ -98,8 +106,39 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         date,
         mealTypes,
         reason,
-        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        createdAt: serverTimestamp() as unknown as Timestamp,
         createdBy: uid
+      });
+    }
+  }
+
+  async removeSkip(
+    subscriptionId: string,
+    date: string,
+    mealTypesToRemove: ('breakfast' | 'lunch' | 'dinner')[],
+    uid: string
+  ) {
+    this.validateSkipWindow(date, mealTypesToRemove);
+
+    const { deleteDoc } = await import('firebase/firestore');
+    const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
+    const existingSkip = await getDoc(skipRef);
+
+    if (!existingSkip.exists()) {
+      return; // Idempotent: nothing to remove
+    }
+
+    const currentMealTypes = existingSkip.data().mealTypes || [];
+    const newMealTypes = currentMealTypes.filter((m: any) => !mealTypesToRemove.includes(m));
+
+    if (newMealTypes.length === 0) {
+      await deleteDoc(skipRef);
+    } else {
+      await setDoc(skipRef, {
+        ...existingSkip.data(),
+        mealTypes: newMealTypes,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+        updatedBy: uid
       });
     }
   }
@@ -159,7 +198,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   async updateStatus(subscriptionId: string, status: SubscriptionStatus): Promise<void> {
     await updateDoc(doc(db, 'subscriptions', subscriptionId), {
       status,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     });
   }
 

@@ -1,5 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
-import { where, getDocs, collection, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, runTransaction, doc, where, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from './orderRepository';
 import { subscriptionRepository } from './subscriptionRepository';
@@ -76,8 +75,8 @@ export class AutomationService {
     
     // Create notifications for expiring subscriptions
     // Notification creation is handled by admin functions or manually inserting into `notifications` collection
-    for (const sub of allSubs) {
-      if (!sub.endDate) continue;
+    const results = await Promise.allSettled(allSubs.map(async (sub) => {
+      if (!sub.endDate) return;
 
       let reminderType = null;
       if (sub.endDate < today) reminderType = 'expired';
@@ -87,20 +86,36 @@ export class AutomationService {
 
       if (reminderType) {
         console.log(`Subscription ${sub.id} for customer ${sub.customerId} is expiring: ${reminderType}`);
-        // Notify the customer — fire-and-forget so expiry check loop isn't blocked.
+        
         if (reminderType === 'expired') {
-          notifySubscriptionExpired(sub.customerId, sub.id)
-            .catch((err) => console.error(`[automationService] expiry notification failed for ${sub.id}:`, err));
+          let wasUpdated = false;
+          await runTransaction(db, async (transaction) => {
+            const subRef = doc(db, 'subscriptions', sub.id);
+            const subSnap = await transaction.get(subRef);
+            if (subSnap.exists() && subSnap.data().status === 'active') {
+              transaction.update(subRef, { status: 'expired' });
+              wasUpdated = true;
+            }
+          });
+          
+          if (wasUpdated) {
+            await notifySubscriptionExpired(sub.customerId, sub.id);
+          }
         } else {
           const daysMap: Record<string, number> = { tomorrow: 1, '3_days': 3, '7_days': 7 };
-          notifySubscriptionRenewalReminder(
+          await notifySubscriptionRenewalReminder(
             sub.customerId,
             sub.id,
             daysMap[reminderType] ?? 1,
             sub.endDate!,
-          ).catch((err) => console.error(`[automationService] renewal notification failed for ${sub.id}:`, err));
+          );
         }
       }
+    }));
+
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      console.error(`[automationService] checkSubscriptionExpiry completed with ${failures.length} failures.`, failures);
     }
   }
 

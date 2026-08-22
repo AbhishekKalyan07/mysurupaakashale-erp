@@ -23,7 +23,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     serverTimestamp: vi.fn(() => 'server-timestamp'),
     where: vi.fn((field, op, value) => ({ field, op, value })),
     doc: vi.fn((db, collection, id, sub, subId) => ({ db, collection, id, sub, subId })),
-    collection: vi.fn(() => ({ withConverter: vi.fn(() => 'collectionRef') })),
+    collection: vi.fn((db, path) => ({ db, path, withConverter: vi.fn(() => ({ db, path })) })),
     updateDoc: vi.fn(),
     Timestamp: {
       now: vi.fn(() => ({ toMillis: () => Date.now() }))
@@ -306,8 +306,8 @@ describe('orderService', () => {
   describe('cancelOrdersForSkipDay', () => {
     it('cancels orders if they are not locked by kitchen', async () => {
       vi.spyOn(orderRepository, 'list').mockResolvedValue([
-        { id: 'ord1', kitchenStatus: 'pending' },
-        { id: 'ord2', kitchenStatus: undefined }
+        { id: 'ord1', kitchenStatus: 'pending', mealType: 'lunch' },
+        { id: 'ord2', kitchenStatus: undefined, mealType: 'lunch' }
       ] as any);
       
       const { writeBatch } = await import('firebase/firestore');
@@ -329,8 +329,8 @@ describe('orderService', () => {
 
     it('throws error if any order is locked by kitchen', async () => {
       vi.spyOn(orderRepository, 'list').mockResolvedValue([
-        { id: 'ord1', kitchenStatus: 'pending' },
-        { id: 'ord2', kitchenStatus: 'packing' }
+        { id: 'ord1', kitchenStatus: 'pending', mealType: 'lunch' },
+        { id: 'ord2', kitchenStatus: 'packing', mealType: 'lunch' }
       ] as any);
 
       await expect(orderService.cancelOrdersForSkipDay('c1', '2026-08-01', ['lunch']))

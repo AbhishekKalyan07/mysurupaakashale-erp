@@ -12,7 +12,7 @@ test.describe('Mobile Interactions', () => {
     
     await page.goto('/login');
     const loginPage = new LoginPage(page);
-    await loginPage.login('customer@test.com', 'password123');
+    await loginPage.login('customer@test.com');
 
     // Wait for dashboard to load
     await expect(page).toHaveURL(/\/dashboard$/);
@@ -32,7 +32,7 @@ test.describe('Mobile Interactions', () => {
     
     await page.goto('/login');
     const loginPage = new LoginPage(page);
-    await loginPage.login('admin@test.com', 'password123');
+    await loginPage.login('admin@test.com');
     await expect(page).toHaveURL(/\/dashboard$/);
     
     // AppShell owns scrolling on mobile. The seeded dashboard can be shorter

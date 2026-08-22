@@ -90,3 +90,6 @@ npm-audit-report.json
 
 # Scratch Files
 fix_ts*.cjs
+
+.env*.bak
+*.bak

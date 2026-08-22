@@ -15,7 +15,7 @@ test.describe('Authentication & Security', () => {
   test('admin should be redirected to admin dashboard', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login('admin@test.com', 'password123');
+    await loginPage.login('admin@test.com');
     await expect(page).toHaveURL(/.*dashboard/);
     await expect(page.locator('h1', { hasText: 'Admin' })).toBeVisible();
   });
@@ -23,7 +23,7 @@ test.describe('Authentication & Security', () => {
   test('customer should be redirected to customer dashboard', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login('customer@test.com', 'password123');
+    await loginPage.login('customer@test.com');
     await expect(page).toHaveURL(/.*dashboard/);
   });
 

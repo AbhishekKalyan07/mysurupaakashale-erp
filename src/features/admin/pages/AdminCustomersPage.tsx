@@ -9,8 +9,12 @@ import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
 import { useAdminCustomers, useStaffUsers, useAssignDeliveryPartner, useAssignCustomerZone } from '@/features/admin/hooks/useAdmin';
+import { useCustomerOrderHistory } from '@/features/customer/hooks/useMySubscription';
 import { useDeliveryZones } from '@/features/admin/hooks/useDeliveryZones';
-import type { CustomerProfile, UserProfile, DeliveryPartnerProfile } from '@/shared/types';
+import { StatusChip } from '@/shared/components/ui/StatusChip';
+import { MealBadge } from '@/shared/components/ui/MealBadge';
+import { PackageOpen, Clock, Calendar } from 'lucide-react';
+import type { CustomerProfile, UserProfile, DeliveryPartnerProfile, Order } from '@/shared/types';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
 function formatDate(value: any): string {
@@ -21,6 +25,86 @@ function formatDate(value: any): string {
   } catch {
     return '—';
   }
+}
+
+// ── Customer Order History Tab ─────────────────────────────────────────────────
+function CustomerOrderHistoryTab({ customerId }: { customerId: string }) {
+  const { data: orders, isLoading, error } = useCustomerOrderHistory(customerId);
+
+  if (isLoading) return <div className="p-6 text-center text-sm font-medium text-text-muted">Loading history...</div>;
+  if (error) return <div className="p-6 text-center text-sm font-medium text-danger">Failed to load history.</div>;
+  
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="p-8 text-center text-text-muted">
+        <PackageOpen size={32} className="mx-auto mb-3 opacity-20" />
+        <p className="text-sm font-medium">No order history available.</p>
+      </div>
+    );
+  }
+
+  const groupedOrders: Record<string, Order[]> = {};
+  for (const order of orders) {
+    if (!groupedOrders[order.date]) groupedOrders[order.date] = [];
+    groupedOrders[order.date].push(order);
+  }
+
+  const mealSortOrder: Record<string, number> = { breakfast: 1, lunch: 2, dinner: 3 };
+  const groupKeys = Object.keys(groupedOrders).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-surface-1 rounded-xl p-3 border border-border text-center">
+          <div className="text-xl font-bold text-text">{orders.length}</div>
+          <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mt-0.5">Total Orders</div>
+        </div>
+        <div className="bg-success/10 rounded-xl p-3 border border-success/20 text-center">
+          <div className="text-xl font-bold text-success">{orders.filter(o => o.status === 'delivered').length}</div>
+          <div className="text-[10px] font-medium text-success/80 uppercase tracking-wider mt-0.5">Delivered</div>
+        </div>
+        <div className="bg-danger/10 rounded-xl p-3 border border-danger/20 text-center">
+          <div className="text-xl font-bold text-danger">{orders.filter(o => o.status === 'cancelled').length}</div>
+          <div className="text-[10px] font-medium text-danger/80 uppercase tracking-wider mt-0.5">Cancelled</div>
+        </div>
+      </div>
+
+      {groupKeys.map((date) => {
+        const dayOrders = groupedOrders[date].sort((a, b) => (mealSortOrder[a.mealType] || 99) - (mealSortOrder[b.mealType] || 99));
+        return (
+          <div key={date} className="space-y-2">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-1">
+              <Calendar size={12} /> {formatDate(date)}
+            </h3>
+            <div className="grid gap-2">
+              {dayOrders.map((order) => {
+                const isTerminal = ['delivered', 'failed_delivery', 'cancelled'].includes(order.status);
+                return (
+                  <div key={order.id} className={`bg-background rounded-xl p-3 border border-border flex items-center justify-between gap-4 ${isTerminal ? 'opacity-70' : ''}`}>
+                    <div className="flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <MealBadge mealType={order.mealType} compact />
+                        {order.deliveryWindow && <span className="text-[10px] text-text-muted flex items-center gap-0.5"><Clock size={10}/> {order.deliveryWindow.start}–{order.deliveryWindow.end}</span>}
+                      </div>
+                      <div className="text-xs text-text font-medium truncate">
+                        ID: {order.id.slice(0, 8)} • Qty: {order.mealQuantity || 1}
+                      </div>
+                      {order.deliveryResult && order.status === 'failed_delivery' && (
+                        <div className="text-[10px] text-danger font-bold">Failed: {order.deliveryResult.reasonCode}</div>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      <StatusChip status={order.status} size="sm" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Detail Dialog ────────────────────────────────────────────────────────────
@@ -41,6 +125,8 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
   const [isEditingZone, setIsEditingZone] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState(customer.zoneId || '');
   
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('profile');
+
   // Find current partner object if exists
   const currentPartner = deliveryPartners.find(p => p.id === customer.deliveryPartnerId);
   const currentZone = zones.find(z => z.id === customer.zoneId);
@@ -60,8 +146,28 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
           </button>
         </div>
 
+        <div className="flex border-b border-primary/10 px-6">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'profile' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-primary'
+            }`}
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'orders' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-primary'
+            }`}
+          >
+            Order History
+          </button>
+        </div>
+
         <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm font-sans">
+          {activeTab === 'profile' ? (
+            <div className="grid grid-cols-2 gap-4 text-sm font-sans">
             <div className="bg-primary/5 rounded-xl p-4 col-span-2 border border-primary/10">
               <div className="text-text-muted text-[10px] font-bold uppercase tracking-wider mb-2">Profile</div>
               <div className="font-bold text-primary text-lg">{customer.fullName}</div>
@@ -224,8 +330,10 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
                 </div>
               )}
             </div>
-
-          </div>
+            </div>
+          ) : (
+            <CustomerOrderHistoryTab customerId={customer.id} />
+          )}
         </div>
       </div>
     </div>

@@ -86,7 +86,11 @@ export default defineConfig({
       env: {
         VITE_USE_FIREBASE_EMULATORS: 'true',
         VITE_FIREBASE_PROJECT_ID: 'demo-test',
-        VITE_FIREBASE_API_KEY: 'fake-api-key'
+        VITE_FIREBASE_API_KEY: 'fake-api-key',
+        VITE_FIREBASE_AUTH_DOMAIN: 'demo-test.firebaseapp.com',
+        VITE_FIREBASE_STORAGE_BUCKET: 'demo-test.firebasestorage.app',
+        VITE_FIREBASE_MESSAGING_SENDER_ID: '1234567890',
+        VITE_FIREBASE_APP_ID: '1:1234567890:web:1234567890',
       }
     },
     {

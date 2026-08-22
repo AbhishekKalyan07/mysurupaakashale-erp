@@ -593,11 +593,12 @@ class OrderService {
    * Applies Kitchen Lock and cancels generated orders for a skipped day.
    */
   async cancelOrdersForSkipDay(customerId: string, date: string, mealTypes: string[]): Promise<void> {
-    const orders = await orderRepository.list(
+    const allDailyOrders = await orderRepository.list(
       where('customerId', '==', customerId),
-      where('date', '==', date),
-      where('mealType', 'in', mealTypes)
+      where('date', '==', date)
     );
+    
+    const orders = allDailyOrders.filter(o => mealTypes.includes(o.mealType || ''));
 
     const lockedStatuses = ['packing', 'packed', 'ready_for_pickup'];
     const lockedOrders = orders.filter(o => lockedStatuses.includes(o.kitchenStatus || ''));
@@ -627,6 +628,65 @@ class OrderService {
           }).catch(console.error);
         });
       }).catch(console.error);
+    }
+  }
+
+  /**
+   * Reverts a skip for a specific day and meal types.
+   * If orders exist and were cancelled/skipped, it restores them to 'scheduled' and syncs the partner.
+   * If orders do not exist, it regenerates them.
+   */
+  async restoreOrdersForUnskipDay(customerId: string, subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
+    const allDailyOrders = await orderRepository.list(
+      where('customerId', '==', customerId),
+      where('date', '==', date)
+    );
+    
+    const existingOrders = allDailyOrders.filter(o => mealTypes.includes(o.mealType || ''));
+    
+    const OPERATIONAL_STATUSES = ['picked_up', 'out_for_delivery', 'delivered', 'failed_delivery', 'returned_delivery'];
+    const operationalLockedOrders = existingOrders.filter(o => OPERATIONAL_STATUSES.includes(o.status));
+    
+    if (operationalLockedOrders.length > 0) {
+      throw new Error('Order is already in delivery or delivered and cannot be modified.');
+    }
+
+    const lockedStatuses = ['packing', 'packed', 'ready_for_pickup'];
+    const kitchenLockedOrders = existingOrders.filter(o => lockedStatuses.includes(o.kitchenStatus || ''));
+
+    if (kitchenLockedOrders.length > 0) {
+      throw new Error('Order is already being prepared by the kitchen and cannot be modified.');
+    }
+
+    const ordersToRestore = existingOrders.filter(o => o.status === 'cancelled' || o.status === 'skipped');
+    
+    const batch = writeBatch(db);
+    ordersToRestore.forEach(order => {
+      const ref = doc(db, 'orders', order.id!);
+      batch.update(ref, {
+        status: 'scheduled',
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      });
+    });
+
+    if (ordersToRestore.length > 0) {
+      await batch.commit();
+      console.log(`[orderService] Restored ${ordersToRestore.length} orders for unskipped day ${date}`);
+      
+      // Auto-assign delivery partners for the newly scheduled orders
+      await this.syncCustomerActiveOrders(customerId);
+    }
+
+    // Identify which meals need brand new orders generated (because they were skipped before generation)
+    const existingMealTypes = new Set(existingOrders.map(o => o.mealType));
+    const mealTypesToGenerate = mealTypes.filter(m => !existingMealTypes.has(m));
+
+    if (mealTypesToGenerate.length > 0) {
+      const subscription = await subscriptionRepository.getById(subscriptionId);
+      if (subscription) {
+        console.log(`[orderService] Generating missing orders for unskipped meals: ${mealTypesToGenerate.join(', ')}`);
+        await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
+      }
     }
   }
 }
