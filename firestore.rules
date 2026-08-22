@@ -95,9 +95,7 @@ service cloud.firestore {
     match /userPhones/{phone} {
       allow read: if isSignedIn();
       allow create: if (isSignedIn() && request.resource.data.uid == request.auth.uid) || isAdmin();
-      allow update: if (isSignedIn() && resource.data.uid == request.auth.uid &&
-                       request.resource.data.uid == request.auth.uid) || isAdmin();
-      allow delete: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // ---------- mealPlans/{planId} — public catalog ----------
