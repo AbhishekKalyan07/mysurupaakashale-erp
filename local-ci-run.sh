@@ -31,18 +31,18 @@ export FIREBASE_STORAGE_EMULATOR_HOST='127.0.0.1:9199'
 npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security"
 
 echo "=== STAGE: Playwright ==="
-echo "VITE_FIREBASE_API_KEY=mock-api-key" > .env.local
-echo "VITE_FIREBASE_AUTH_DOMAIN=mock-auth-domain" >> .env.local
-echo "VITE_FIREBASE_PROJECT_ID=demo-test" >> .env.local
-echo "VITE_FIREBASE_STORAGE_BUCKET=mock-storage-bucket" >> .env.local
-echo "VITE_FIREBASE_MESSAGING_SENDER_ID=mock-messaging-sender-id" >> .env.local
-echo "VITE_FIREBASE_APP_ID=mock-app-id" >> .env.local
-
+export VITE_FIREBASE_API_KEY="mock-api-key"
+export VITE_FIREBASE_AUTH_DOMAIN="mock-auth-domain"
+export VITE_FIREBASE_PROJECT_ID="demo-test"
+export VITE_FIREBASE_STORAGE_BUCKET="mock-storage-bucket"
+export VITE_FIREBASE_MESSAGING_SENDER_ID="mock-messaging-sender-id"
+export VITE_FIREBASE_APP_ID="mock-app-id"
 export VITE_USE_FIREBASE_EMULATORS='true'
+
 npx playwright test --project=chromium
 
 echo "=== STAGE: Dependency Audit ==="
-npm audit --omit=dev --audit-level=high || true
+npm audit --omit=dev --audit-level=high
 
 echo "=== STAGE: Build ==="
 export VITE_FIREBASE_API_KEY="mock-api-key"

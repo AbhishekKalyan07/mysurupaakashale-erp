@@ -96,48 +96,47 @@ export async function signUpCustomer(
   const credential = await createUserWithEmailAndPassword(auth, email, password);
 
   try {
-    const { doc, getDoc, writeBatch } = await import('firebase/firestore');
+    const { doc, runTransaction } = await import('firebase/firestore');
     const { db } = await import('@/shared/lib/firebase');
 
     const phoneDocRef = doc(db, 'userPhones', phone);
-    const existingPhone = await getDoc(phoneDocRef);
-
-    if (existingPhone.exists()) {
-      throw new Error('An account with this mobile number already exists — try signing in instead.');
-    }
-
     const displayId = await userRepository.generateNextDisplayId('customer', fullName);
-
-    const batch = writeBatch(db);
-    batch.set(phoneDocRef, { uid: credential.user.uid });
-    
     const userDocRef = doc(db, 'users', credential.user.uid);
-    batch.set(userDocRef, {
-      displayId,
-      role: 'customer',
-      fullName,
-      email,
-      phone,
-      photoUrl: null,
-      isActive: true,
-      addresses: [],
-      defaultAddressId: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      emailVerified: credential.user.emailVerified,
-      googleConnected: false,
-      passwordCreated: true,
-      id: credential.user.uid
+
+    await runTransaction(db, async (tx) => {
+      const existingPhone = await tx.get(phoneDocRef);
+      if (existingPhone.exists()) {
+        throw new Error('An account with this mobile number already exists — try signing in instead.');
+      }
+      
+      tx.set(phoneDocRef, { uid: credential.user.uid });
+      tx.set(userDocRef, {
+        displayId,
+        role: 'customer',
+        fullName,
+        email,
+        phone,
+        photoUrl: null,
+        isActive: true,
+        addresses: [],
+        defaultAddressId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        emailVerified: credential.user.emailVerified,
+        googleConnected: false,
+        passwordCreated: true,
+        id: credential.user.uid
+      });
     });
 
     await updateProfile(credential.user, { displayName: fullName });
-    await batch.commit();
   } catch (error) {
     console.error('Failed to initialize customer profile:', error);
     try {
       await credential.user.delete();
     } catch (cleanupError) {
       console.error('Failed to clean up auth user after failed initialization:', cleanupError);
+      console.error(`ORPHANED_AUTH_ACCOUNT: UID ${credential.user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`);
       await firebaseSignOut(auth);
     }
     throw error;
@@ -164,15 +163,11 @@ export async function authenticateWithGoogleForSignup() {
 
 export async function signUpWithGoogle(user: any, phone: string, password: string): Promise<void> {
   try {
-    const { doc, getDoc, writeBatch } = await import('firebase/firestore');
+    const { doc, runTransaction } = await import('firebase/firestore');
     const { EmailAuthProvider, linkWithCredential } = await import('firebase/auth');
     const { db } = await import('@/shared/lib/firebase');
 
     const phoneDocRef = doc(db, 'userPhones', phone);
-    const existingPhone = await getDoc(phoneDocRef);
-    if (existingPhone.exists()) {
-      throw new Error('An account with this mobile number already exists.');
-    }
 
     if (!user.email) {
       throw new Error('Google account is missing an email address.');
@@ -181,36 +176,40 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
     await linkWithCredential(user, emailCred);
 
     const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
-
-    const batch = writeBatch(db);
-    batch.set(phoneDocRef, { uid: user.uid });
-
     const userDocRef = doc(db, 'users', user.uid);
-    batch.set(userDocRef, {
-      displayId,
-      role: 'customer',
-      fullName: user.displayName || 'Google User',
-      email: user.email,
-      phone: phone,
-      photoUrl: user.photoURL || null,
-      isActive: true,
-      addresses: [],
-      defaultAddressId: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      emailVerified: user.emailVerified,
-      googleConnected: true,
-      passwordCreated: true,
-      id: user.uid
-    });
 
-    await batch.commit();
+    await runTransaction(db, async (tx) => {
+      const existingPhone = await tx.get(phoneDocRef);
+      if (existingPhone.exists()) {
+        throw new Error('An account with this mobile number already exists.');
+      }
+      
+      tx.set(phoneDocRef, { uid: user.uid });
+      tx.set(userDocRef, {
+        displayId,
+        role: 'customer',
+        fullName: user.displayName || 'Google User',
+        email: user.email,
+        phone: phone,
+        photoUrl: user.photoURL || null,
+        isActive: true,
+        addresses: [],
+        defaultAddressId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        emailVerified: user.emailVerified,
+        googleConnected: true,
+        passwordCreated: true,
+        id: user.uid
+      });
+    });
   } catch (error) {
     console.error('Failed to initialize Google customer profile:', error);
     const { signOut: firebaseSignOut } = await import('firebase/auth');
     try {
       await user.delete();
-    } catch {
+    } catch (cleanupError) {
+      console.error(`ORPHANED_AUTH_ACCOUNT: UID ${user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`, cleanupError);
       await firebaseSignOut(auth);
     }
     throw error;
