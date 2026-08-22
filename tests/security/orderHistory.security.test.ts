@@ -73,4 +73,30 @@ describe('Order History Security Rules', () => {
     const docSnap = await getDoc(doc(db, 'orders/order1'));
     expect(docSnap.exists()).toBe(true);
   });
+
+  it('allows a customer to query their own orders collection', async () => {
+    const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
+    const db = customer.firestore();
+    const q = query(collection(db, 'orders'), where('customerId', '==', 'customer123'));
+    await expect(getDocs(q)).resolves.not.toThrow();
+  });
+
+  it('denies a customer from querying orders across all customers', async () => {
+    const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
+    const db = customer.firestore();
+    const q = collection(db, 'orders');
+    await expect(getDocs(q)).rejects.toThrow();
+  });
+
+  it('allows a customer to create an unskipRequest for their own id', async () => {
+    const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
+    const db = customer.firestore();
+    await expect(setDoc(doc(db, 'unskipRequests/req1'), { customerId: 'customer123', date: '2026-08-22' })).resolves.not.toThrow();
+  });
+
+  it('denies a customer from creating an unskipRequest for another id', async () => {
+    const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
+    const db = customer.firestore();
+    await expect(setDoc(doc(db, 'unskipRequests/req2'), { customerId: 'customer999', date: '2026-08-22' })).rejects.toThrow();
+  });
 });

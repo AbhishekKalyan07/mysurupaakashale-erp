@@ -133,6 +133,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---------- unskipRequests/{requestId} ----------
+    match /unskipRequests/{requestId} {
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
     // ---------- subscriptions/{subscriptionId} ----------
     match /subscriptions/{subscriptionId} {
       // Customers can only move their own subscription along the exact

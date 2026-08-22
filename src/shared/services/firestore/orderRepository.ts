@@ -3,7 +3,7 @@ import { db } from '@/shared/lib/firebase';
 import { auth } from '@/shared/lib/firebase';
 import type { Order, OrderStatus, MealType, OrderWorkflowHistory } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
-import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe, limit } from 'firebase/firestore';
 /**
  * Client-side repository for the `orders` collection.
  *
@@ -70,7 +70,8 @@ class OrderRepository extends BaseRepository<Order> {
   async getCustomerOrders(customerId: string): Promise<Order[]> {
     return this.list(
       where('customerId', '==', customerId),
-      orderBy('date', 'desc')
+      orderBy('date', 'desc'),
+      limit(100)
     );
   }
 

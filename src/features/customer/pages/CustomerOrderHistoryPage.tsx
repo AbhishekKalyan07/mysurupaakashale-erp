@@ -53,6 +53,7 @@ export function CustomerOrderHistoryPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-6 flex items-center gap-3">
         <button 
+          aria-label="Back"
           onClick={() => navigate(-1)} 
           className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
         >
@@ -98,7 +99,8 @@ export function CustomerOrderHistoryPage() {
           {groupKeys.map((date) => {
             const dayOrders = groupedOrders[date];
             // Format date nicely
-            const dateObj = new Date(date);
+            const [y, m, d] = date.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
             const formattedDate = isNaN(dateObj.getTime()) ? date : format(dateObj, 'EEEE, MMM do, yyyy');
 
             return (

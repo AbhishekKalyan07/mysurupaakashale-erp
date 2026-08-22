@@ -26,11 +26,11 @@ test.describe('Customer Order History', () => {
     // It should either show an empty state OR a list of dates
     const emptyState = customerPage.locator('h3:has-text("No Past Orders")');
     const orderDates = customerPage.locator('h2', { hasText: /202|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/ }); // Match formatted date headers
+    
+    await expect(emptyState.or(orderDates.first())).toBeVisible();
 
     if (await emptyState.isVisible()) {
       await expect(customerPage.locator('text=You haven\'t received or skipped any orders yet.')).toBeVisible();
-    } else {
-      await expect(orderDates.first()).toBeVisible();
     }
   });
 });

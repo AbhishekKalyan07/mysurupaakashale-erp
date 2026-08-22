@@ -323,26 +323,8 @@ export function SubscriptionDetailsPage() {
             </h3>
             <div className="space-y-3">
               {stats.skips.map((skip: any) => {
-                const getUnskippableMeals = () => {
-                  const now = new Date();
-                  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
-                  if (skip.date > today) return skip.mealTypes || [];
-                  if (skip.date < today) return [];
-                  
-                  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
-                  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-                  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-                  const currentTimeMinutes = hour * 60 + minute;
-                  
-                  return (skip.mealTypes || []).filter((meal: string) => {
-                    if (meal === 'breakfast' && currentTimeMinutes < 5 * 60) return true;
-                    if (meal === 'lunch' && currentTimeMinutes < 10 * 60 + 30) return true;
-                    if (meal === 'dinner' && currentTimeMinutes < 16 * 60) return true;
-                    return false;
-                  });
-                };
-                
-                const validMealsToUnskip = getUnskippableMeals();
+                const { getModifiableMeals } = require('@/shared/utils/dateUtils');
+                const validMealsToUnskip = getModifiableMeals(skip.date, skip.mealTypes || []);
                 
                 return (
                   <div key={skip.date} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-danger/5 border border-danger/10 rounded-lg">
@@ -370,6 +352,13 @@ export function SubscriptionDetailsPage() {
                                 subscriptionId: subscription.id,
                                 date: skip.date,
                                 mealTypes: validMealsToUnskip
+                              }, {
+                                onSuccess: () => {
+                                  toast.success(`Successfully unskipped ${skip.date}`);
+                                },
+                                onError: (error: any) => {
+                                  toast.error(`Failed to unskip: ${error.message || 'Unknown error'}`);
+                                }
                               });
                             }
                           }}

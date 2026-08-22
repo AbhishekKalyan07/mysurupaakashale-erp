@@ -9,18 +9,28 @@ const {
   mockGetDoc,
   mockWriteBatch,
   mockServerTimestamp,
-  mockGenerateNextDisplayId
-} = vi.hoisted(() => ({
-  mockCreateUserWithEmailAndPassword: vi.fn(),
-  mockUpdateProfile: vi.fn(),
-  mockSignOut: vi.fn(),
-  mockUserDelete: vi.fn(),
-  mockDoc: vi.fn(),
-  mockGetDoc: vi.fn(),
-  mockWriteBatch: vi.fn(),
-  mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
-  mockGenerateNextDisplayId: vi.fn()
-}));
+  mockGenerateNextDisplayId,
+  mockRunTransaction
+} = vi.hoisted(() => {
+  const mockGetDoc = vi.fn();
+  return {
+    mockCreateUserWithEmailAndPassword: vi.fn(),
+    mockUpdateProfile: vi.fn(),
+    mockSignOut: vi.fn(),
+    mockUserDelete: vi.fn(),
+    mockDoc: vi.fn(),
+    mockGetDoc,
+    mockWriteBatch: vi.fn(),
+    mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+    mockGenerateNextDisplayId: vi.fn(),
+    mockRunTransaction: vi.fn(async (_, cb) => cb({
+      get: mockGetDoc,
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn()
+    }))
+  };
+});
 
 vi.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
@@ -37,7 +47,8 @@ vi.mock('firebase/firestore', () => ({
   getDoc: mockGetDoc,
   writeBatch: mockWriteBatch,
   serverTimestamp: mockServerTimestamp,
-  Timestamp: { now: vi.fn() }
+  Timestamp: { now: vi.fn() },
+  runTransaction: mockRunTransaction
 }));
 
 vi.mock('@/shared/lib/firebase', () => ({
@@ -123,21 +134,21 @@ describe('authService - signUpCustomer Failure Injections', () => {
     expect(mockBatch.commit).not.toHaveBeenCalled();
   });
 
-  it('cleans up and deletes Auth user if batch.commit throws an error', async () => {
-    mockBatch.commit.mockRejectedValue(new Error('Batch commit failed'));
-    
-    await expect(signUpCustomer('test@test.com', 'password', 'Test User', '+1234567890'))
-      .rejects.toThrow('Batch commit failed');
+  it('cleans up and deletes Auth user if transaction commit throws an error', async () => {
+    mockRunTransaction.mockRejectedValue(new Error('Transaction commit failed'));
+
+    await expect(signUpCustomer('test@test.com', 'password', 'Test User', '9876543210'))
+      .rejects.toThrow('Transaction commit failed');
       
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
   });
 
   it('signs out the user if credential.user.delete() fails during cleanup', async () => {
-    mockBatch.commit.mockRejectedValue(new Error('Batch commit failed'));
+    mockRunTransaction.mockRejectedValue(new Error('Transaction commit failed'));
     mockUserDelete.mockRejectedValue(new Error('Auth user deletion failed (requires recent login)'));
     
     await expect(signUpCustomer('test@test.com', 'password', 'Test User', '+1234567890'))
-      .rejects.toThrow('Batch commit failed');
+      .rejects.toThrow('Transaction commit failed');
       
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
     // Fallback cleanup
