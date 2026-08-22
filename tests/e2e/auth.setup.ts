@@ -27,7 +27,7 @@ roles.forEach(role => {
     await page.waitForURL(/.*login/, { timeout: 10000 });
 
     await page.fill('input[type="email"]', `${role}@test.com`);
-    await page.fill('input[type="password"]', 'password123');
+    await page.fill('input[type="password"]', process.env.TEST_USER_PASSWORD || 'local-emulator-pass');
     await page.click('button[type="submit"]');
 
     // Wait until the dashboard loads (URL leaves /login)

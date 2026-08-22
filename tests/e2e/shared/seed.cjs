@@ -14,12 +14,13 @@ const db = getFirestore();
 const auth = getAuth();
 
 async function seedUsers() {
+  const testPass = process.env.TEST_USER_PASSWORD || 'local-emulator-pass';
   const users = [
-    { email: 'admin@test.com',    password: 'password123', role: 'admin',            fullName: 'Admin User' },
-    { email: 'kitchen@test.com',  password: 'password123', role: 'kitchen',          fullName: 'Kitchen User' },
-    { email: 'delivery@test.com', password: 'password123', role: 'delivery_partner', fullName: 'Delivery User' },
-    { email: 'customer@test.com', password: 'password123', role: 'customer',         fullName: 'Customer User', phone: '9876543210' },
-    { email: 'accounts@test.com', password: 'password123', role: 'accounts',         fullName: 'Accounts User' },
+    { email: 'admin@test.com',    password: testPass, role: 'admin',            fullName: 'Admin User' },
+    { email: 'kitchen@test.com',  password: testPass, role: 'kitchen',          fullName: 'Kitchen User' },
+    { email: 'delivery@test.com', password: testPass, role: 'delivery_partner', fullName: 'Delivery User' },
+    { email: 'customer@test.com', password: testPass, role: 'customer',         fullName: 'Customer User', phone: '9876543210' },
+    { email: 'accounts@test.com', password: testPass, role: 'accounts',         fullName: 'Accounts User' },
   ];
 
   console.log('Seeding users via external node script...');

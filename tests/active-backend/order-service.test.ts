@@ -1,33 +1,34 @@
-const mockGetDoc = jest.fn();
-const mockWriteBatch = jest.fn();
-const mockDoc = jest.fn((...segments: unknown[]) => ({ segments }));
-const mockServerTimestamp = jest.fn(() => 'SERVER_TIMESTAMP');
-const mockWhere = jest.fn((...args: unknown[]) => args);
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+const mockGetDoc = vi.fn();
+const mockWriteBatch = vi.fn();
+const mockDoc = vi.fn((...segments: unknown[]) => ({ segments }));
+const mockServerTimestamp = vi.fn(() => 'SERVER_TIMESTAMP');
+const mockWhere = vi.fn((...args: unknown[]) => args);
 
-const mockOrderRepository = { update: jest.fn() };
-const mockSubscriptionRepository = { list: jest.fn() };
-const mockOrderGenerationRunRepository = { getById: jest.fn(), create: jest.fn() };
-const mockUserRepository = { list: jest.fn() };
-const mockNotifyDailyOrdersGenerated = jest.fn();
+const mockOrderRepository = { update: vi.fn() };
+const mockSubscriptionRepository = { list: vi.fn() };
+const mockOrderGenerationRunRepository = { getById: vi.fn(), create: vi.fn() };
+const mockUserRepository = { list: vi.fn() };
+const mockNotifyDailyOrdersGenerated = vi.fn();
 
-jest.mock('firebase/firestore', () => ({
+vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   getDoc: mockGetDoc,
   writeBatch: mockWriteBatch,
   serverTimestamp: mockServerTimestamp,
   where: mockWhere,
 }));
-jest.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
-jest.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mockOrderRepository }));
-jest.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mockSubscriptionRepository }));
-jest.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mockOrderGenerationRunRepository }));
-jest.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mockUserRepository }));
-jest.mock('@/shared/services/firestore/notificationService', () => ({ notifyDailyOrdersGenerated: mockNotifyDailyOrdersGenerated }));
+vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
+vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mockOrderRepository }));
+vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mockSubscriptionRepository }));
+vi.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mockOrderGenerationRunRepository }));
+vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mockUserRepository }));
+vi.mock('@/shared/services/firestore/notificationService', () => ({ notifyDailyOrdersGenerated: mockNotifyDailyOrdersGenerated }));
 
 const { orderService } = require('@/shared/services/business/orderService') as typeof import('@/shared/services/business/orderService');
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   mockNotifyDailyOrdersGenerated.mockResolvedValue(undefined);
   mockOrderGenerationRunRepository.getById.mockResolvedValue(null);
 });
@@ -57,7 +58,7 @@ describe('active daily-order automation', () => {
   });
 
   it('creates deterministic orders, respects skips and assigns a zone-matched delivery partner', async () => {
-    const batch = { set: jest.fn(), commit: jest.fn().mockResolvedValue(undefined) };
+    const batch = { set: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
     mockWriteBatch.mockReturnValue(batch);
     mockSubscriptionRepository.list.mockResolvedValue([
       {
@@ -94,7 +95,7 @@ describe('active daily-order automation', () => {
   });
 
   it('records a failed run and rethrows a batch-write failure', async () => {
-    const batch = { set: jest.fn(), commit: jest.fn().mockRejectedValue(new Error('Firestore unavailable')) };
+    const batch = { set: vi.fn(), commit: vi.fn().mockRejectedValue(new Error('Firestore unavailable')) };
     mockWriteBatch.mockReturnValue(batch);
     mockSubscriptionRepository.list.mockResolvedValue([
       { id: 'active-subscription', customerId: 'customer-1', startDate: '2026-07-01', mealPreferences: [{ mealType: 'lunch' }] },

@@ -1,0 +1,14 @@
+FROM node:22-bookworm
+
+# Install Java 21 (Temurin) as required by the CI
+RUN mkdir -p /etc/apt/keyrings && \
+    apt-get update && apt-get install -y wget apt-transport-https gnupg && \
+    wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc && \
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb bookworm main" | tee /etc/apt/sources.list.d/adoptium.list && \
+    apt-get update && apt-get install -y temurin-21-jdk
+
+WORKDIR /app
+
+COPY . .
+
+CMD ["bash", "local-ci-run.sh"]

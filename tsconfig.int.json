@@ -5,7 +5,7 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["node", "vite/client", "vite-plugin-pwa/client", "vitest/globals", "jest"],
+    "types": ["node", "vite/client", "vite-plugin-pwa/client", "vitest/globals"],
     "skipLibCheck": true,
     "jsx": "react-jsx",
 
