@@ -32,24 +32,35 @@ const {
   };
 });
 
+const mockSignInWithEmailAndPassword = vi.fn();
+const mockSignInWithPopup = vi.fn();
+const mockSendPasswordResetEmail = vi.fn();
+const mockLinkWithCredential = vi.fn();
+
 vi.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
   updateProfile: mockUpdateProfile,
   signOut: mockSignOut,
-  signInWithEmailAndPassword: vi.fn(),
-  signInWithPopup: vi.fn(),
+  signInWithEmailAndPassword: (...args: any[]) => mockSignInWithEmailAndPassword(...args),
+  signInWithPopup: (...args: any[]) => mockSignInWithPopup(...args),
   GoogleAuthProvider: vi.fn(),
-  sendPasswordResetEmail: vi.fn(),
+  sendPasswordResetEmail: (...args: any[]) => mockSendPasswordResetEmail(...args),
+  EmailAuthProvider: { credential: vi.fn(() => 'mock-cred') },
+  linkWithCredential: (...args: any[]) => mockLinkWithCredential(...args),
 }));
 
-vi.mock('firebase/firestore', () => ({
-  doc: mockDoc,
-  getDoc: mockGetDoc,
-  writeBatch: mockWriteBatch,
-  serverTimestamp: mockServerTimestamp,
-  Timestamp: { now: vi.fn() },
-  runTransaction: mockRunTransaction
-}));
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    doc: mockDoc,
+    getDoc: mockGetDoc,
+    writeBatch: mockWriteBatch,
+    serverTimestamp: mockServerTimestamp,
+    Timestamp: { now: vi.fn() },
+    runTransaction: mockRunTransaction
+  };
+});
 
 vi.mock('@/shared/lib/firebase', () => ({
   auth: { name: 'mock-auth' },
@@ -65,7 +76,17 @@ vi.mock('@/shared/services/firestore/userRepository', () => ({
   }
 }));
 
-import { signUpCustomer } from '../authService';
+import {
+  mapAuthError,
+  signIn,
+  signInWithGoogle,
+  signUpCustomer,
+  signOutUser,
+  resetPassword,
+  authenticateWithGoogleForSignup,
+  signUpWithGoogle,
+  cancelGoogleSignup
+} from '../authService';
 
 describe('authService - signUpCustomer Failure Injections', () => {
   let mockUser: any;
@@ -93,6 +114,13 @@ describe('authService - signUpCustomer Failure Injections', () => {
     mockWriteBatch.mockReturnValue(mockBatch);
     
     mockUpdateProfile.mockResolvedValue(undefined);
+
+    mockRunTransaction.mockImplementation(async (_, cb) => cb({
+      get: mockGetDoc,
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn()
+    }));
   });
 
   it('cleans up and deletes Auth user if getDoc throws an error', async () => {
@@ -153,5 +181,82 @@ describe('authService - signUpCustomer Failure Injections', () => {
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
     // Fallback cleanup
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('authService - mapAuthError', () => {
+  it('maps known error codes to user friendly copy', () => {
+    expect(mapAuthError({ code: 'auth/invalid-email' })).toBe("That email address doesn't look right.");
+    expect(mapAuthError({ code: 'auth/popup-closed-by-user' })).toBe('Sign-in cancelled.');
+    expect(mapAuthError({ code: 'unknown-code', message: 'Custom msg' })).toBe('Custom msg');
+    expect(mapAuthError({})).toBe('Something went wrong. Please try again.');
+  });
+});
+
+describe('authService - additional helper functions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    mockRunTransaction.mockImplementation(async (_, cb) => cb({
+      get: mockGetDoc,
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn()
+    }));
+  });
+
+  it('signIn invokes signInWithEmailAndPassword', async () => {
+    mockSignInWithEmailAndPassword.mockResolvedValue('mock-user-cred');
+    await expect(signIn('test@example.com', 'pass')).resolves.toBe('mock-user-cred');
+  });
+
+  it('signOutUser invokes firebaseSignOut', async () => {
+    mockSignOut.mockResolvedValue(undefined);
+    await signOutUser();
+    expect(mockSignOut).toHaveBeenCalled();
+  });
+
+  it('resetPassword invokes sendPasswordResetEmail', async () => {
+    mockSendPasswordResetEmail.mockResolvedValue(undefined);
+    await resetPassword('test@example.com');
+    expect(mockSendPasswordResetEmail).toHaveBeenCalled();
+  });
+
+  it('authenticateWithGoogleForSignup runs popup and checks user profile', async () => {
+    mockSignInWithPopup.mockResolvedValue({ user: { uid: 'g1' } });
+    await expect(authenticateWithGoogleForSignup()).resolves.toEqual({ user: { uid: 'g1' }, exists: false });
+  });
+
+  it('cancelGoogleSignup deletes user or signs out on error', async () => {
+    const mockUserObj = { delete: vi.fn().mockResolvedValue(undefined) };
+    await cancelGoogleSignup(mockUserObj);
+    expect(mockUserObj.delete).toHaveBeenCalled();
+
+    mockUserObj.delete.mockRejectedValue(new Error('delete failed'));
+    await cancelGoogleSignup(mockUserObj);
+    expect(mockSignOut).toHaveBeenCalled();
+  });
+
+  it('signUpWithGoogle succeeds when email is present and transaction completes', async () => {
+    mockLinkWithCredential.mockResolvedValue(undefined);
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    const mockGUser = { uid: 'g123', email: 'g@test.com', displayName: 'G User', emailVerified: true, delete: vi.fn().mockResolvedValue(undefined) };
+
+    await expect(signUpWithGoogle(mockGUser, '9876543210', 'pass')).resolves.not.toThrow();
+  });
+
+  it('signUpWithGoogle throws if email is missing or cleanup on error', async () => {
+    const mockGUser = { uid: 'g123', delete: vi.fn().mockResolvedValue(undefined) };
+    await expect(signUpWithGoogle(mockGUser, '9876543210', 'pass')).rejects.toThrow('Google account is missing an email address.');
+
+    mockRunTransaction.mockRejectedValue(new Error('Tx fail'));
+    const mockGUser2 = { uid: 'g123', email: 'g@test.com', delete: vi.fn().mockRejectedValue(new Error('del fail')) };
+    await expect(signUpWithGoogle(mockGUser2, '9876543210', 'pass')).rejects.toThrow('Tx fail');
+  });
+
+  it('signInWithGoogle creates a profile if non-existent or updates if existing', async () => {
+    mockSignInWithPopup.mockResolvedValue({ user: { uid: 'g123', email: 'g@test.com', displayName: 'G' } });
+    await signInWithGoogle();
+    expect(mockSignInWithPopup).toHaveBeenCalled();
   });
 });
