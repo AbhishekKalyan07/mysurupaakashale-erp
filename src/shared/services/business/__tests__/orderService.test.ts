@@ -320,7 +320,7 @@ describe('orderService', () => {
         delete: vi.fn(),
       } as any);
 
-      await orderService.cancelOrdersForSkipDay('c1', '2026-08-01', ['lunch']);
+      await orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']);
 
       expect(batchUpdate).toHaveBeenCalledTimes(2);
       expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'cancelled' }));
@@ -333,7 +333,7 @@ describe('orderService', () => {
         { id: 'ord2', kitchenStatus: 'packing', mealType: 'lunch' }
       ] as any);
 
-      await expect(orderService.cancelOrdersForSkipDay('c1', '2026-08-01', ['lunch']))
+      await expect(orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']))
         .rejects.toThrow('Order is already being prepared by the kitchen and cannot be cancelled.');
     });
   });

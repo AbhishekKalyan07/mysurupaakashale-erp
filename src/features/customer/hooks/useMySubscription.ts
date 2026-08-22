@@ -94,7 +94,7 @@ export function useSkipDay() {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
       
       // Kitchen Lock: This will throw an error if orders are already being prepared
-      await orderService.cancelOrdersForSkipDay(firebaseUser.uid, date, mealTypes);
+      await orderService.cancelOrdersForSkipDay(subscriptionId, firebaseUser.uid, date, mealTypes);
 
       await subscriptionRepository.addSkip(
         subscriptionId,
