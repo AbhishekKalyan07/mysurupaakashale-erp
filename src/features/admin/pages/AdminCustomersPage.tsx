@@ -146,8 +146,10 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
           </button>
         </div>
 
-        <div className="flex border-b border-primary/10 px-6">
+        <div className="flex border-b border-primary/10 px-6" role="tablist">
           <button
+            role="tab"
+            aria-selected={activeTab === 'profile'}
             onClick={() => setActiveTab('profile')}
             className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
               activeTab === 'profile' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-primary'
@@ -156,6 +158,8 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
             Profile
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'orders'}
             onClick={() => setActiveTab('orders')}
             className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
               activeTab === 'orders' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-primary'
@@ -165,7 +169,7 @@ function CustomerDetailDialog({ customer, onClose }: { customer: CustomerProfile
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4" role="tabpanel">
           {activeTab === 'profile' ? (
             <div className="grid grid-cols-2 gap-4 text-sm font-sans">
             <div className="bg-primary/5 rounded-xl p-4 col-span-2 border border-primary/10">

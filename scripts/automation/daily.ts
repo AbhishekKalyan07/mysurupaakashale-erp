@@ -23,6 +23,9 @@ async function runDailyTasks() {
     console.log('3. Processing scheduled pauses and resumes...');
     await automationService.processScheduledPauses();
 
+    console.log('4. Processing pending unskip requests...');
+    await automationService.processUnskipRequests();
+
     console.log('--- Daily Automation Tasks Completed Successfully ---');
     process.exit(0);
   } catch (error) {

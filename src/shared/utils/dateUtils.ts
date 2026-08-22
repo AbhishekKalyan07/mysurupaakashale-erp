@@ -38,3 +38,27 @@ export function parseFirestoreDate(ts: unknown): Date | null {
  * Guarantees frontend and backend business date string alignment.
  */
 export { getTodayInTimezone as getTodayIST } from '@/shared/lib/date';
+
+/**
+ * Returns which meal types for a given date are still modifiable 
+ * based on the Asia/Kolkata cutoff times (05:00 for breakfast, 10:30 for lunch, 16:00 for dinner).
+ */
+export function getModifiableMeals(date: string, mealTypes: string[]): string[] {
+  const now = new Date();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+  
+  if (date > today) return mealTypes;
+  if (date < today) return [];
+  
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+  const currentTimeMinutes = hour * 60 + minute;
+  
+  return mealTypes.filter(meal => {
+    if (meal === 'breakfast' && currentTimeMinutes < 5 * 60) return true;
+    if (meal === 'lunch' && currentTimeMinutes < 10 * 60 + 30) return true;
+    if (meal === 'dinner' && currentTimeMinutes < 16 * 60) return true;
+    return false;
+  });
+}

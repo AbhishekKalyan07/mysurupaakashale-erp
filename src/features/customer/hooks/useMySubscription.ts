@@ -94,7 +94,7 @@ export function useSkipDay() {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
       
       // Kitchen Lock: This will throw an error if orders are already being prepared
-      await orderService.cancelOrdersForSkipDay(firebaseUser.uid, date, mealTypes);
+      await orderService.cancelOrdersForSkipDay(subscriptionId, firebaseUser.uid, date, mealTypes);
 
       await subscriptionRepository.addSkip(
         subscriptionId,
@@ -131,20 +131,25 @@ export function useUnskipDay() {
     }) => {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
       
-      // 1. Remove the skip from the subscription (this enforces the time cutoff rules)
+      // 1. Queue the unskip request for the automation worker
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('@/shared/lib/firebase');
+      const requestId = `${subscriptionId}_${date}_${Date.now()}`;
+      await setDoc(doc(db, 'unskipRequests', requestId), {
+        customerId: firebaseUser.uid,
+        subscriptionId,
+        date,
+        mealTypes,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Remove the skip from the subscription (this enforces the time cutoff rules)
       await subscriptionRepository.removeSkip(
         subscriptionId,
         date,
         mealTypes,
         firebaseUser.uid
-      );
-
-      // 2. Safely restore or regenerate the order
-      await orderService.restoreOrdersForUnskipDay(
-        firebaseUser.uid,
-        subscriptionId,
-        date,
-        mealTypes
       );
 
       // 3. Log audit event

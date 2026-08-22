@@ -23,8 +23,9 @@ test.describe('Admin Customer Order History', () => {
     await orderHistoryTab.click();
     
     // Verify content (either No History or an order card)
-    const emptyState = adminPage.locator('p:has-text("No order history available.")');
-    const orderCard = adminPage.locator('.bg-background.rounded-xl').first();
+    const tabPanel = adminPage.locator('[role="tabpanel"]');
+    const emptyState = tabPanel.locator('text="No order history available."');
+    const orderCard = tabPanel.locator('.bg-background.rounded-xl').first();
     
     // Wait for one of them to be visible (solves race condition where data is still loading)
     await expect(emptyState.or(orderCard)).toBeVisible();

@@ -88,14 +88,14 @@ export class AutomationService {
         console.log(`Subscription ${sub.id} for customer ${sub.customerId} is expiring: ${reminderType}`);
         
         if (reminderType === 'expired') {
-          let wasUpdated = false;
-          await runTransaction(db, async (transaction) => {
+          const wasUpdated = await runTransaction(db, async (transaction) => {
             const subRef = doc(db, 'subscriptions', sub.id);
             const subSnap = await transaction.get(subRef);
             if (subSnap.exists() && subSnap.data().status === 'active') {
               transaction.update(subRef, { status: 'expired' });
-              wasUpdated = true;
+              return true;
             }
+            return false;
           });
           
           if (wasUpdated) {
@@ -116,6 +116,35 @@ export class AutomationService {
     const failures = results.filter((r) => r.status === 'rejected');
     if (failures.length > 0) {
       console.error(`[automationService] checkSubscriptionExpiry completed with ${failures.length} failures.`, failures);
+    }
+  }
+
+  /**
+   * Process Pending Unskip Requests
+   */
+  async processUnskipRequests() {
+    console.log("Processing pending unskip requests...");
+    const { getDocs, query, collection, where, deleteDoc } = await import('firebase/firestore');
+    const { db } = await import('@/shared/lib/firebase');
+    const { orderService } = await import('@/shared/services/business/orderService');
+
+    const requestsQuery = query(collection(db, 'unskipRequests'), where('status', '==', 'pending'));
+    const snapshot = await getDocs(requestsQuery);
+
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      try {
+        await orderService.restoreOrdersForUnskipDay(
+          data.customerId,
+          data.subscriptionId,
+          data.date,
+          data.mealTypes
+        );
+        await deleteDoc(docSnap.ref);
+        console.log(`[automationService] Successfully processed unskip request ${docSnap.id}`);
+      } catch (err) {
+        console.error(`[automationService] Failed to process unskip request ${docSnap.id}:`, err);
+      }
     }
   }
 

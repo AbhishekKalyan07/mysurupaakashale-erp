@@ -40,6 +40,7 @@ async function seedUsers() {
       if (err.code === 'auth/email-already-exists') {
         const existingUser = await auth.getUserByEmail(u.email);
         uid = existingUser.uid;
+        await auth.updateUser(uid, { password: u.password });
       } else {
         throw err;
       }

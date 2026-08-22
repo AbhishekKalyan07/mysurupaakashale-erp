@@ -95,9 +95,7 @@ service cloud.firestore {
     match /userPhones/{phone} {
       allow read: if isSignedIn();
       allow create: if (isSignedIn() && request.resource.data.uid == request.auth.uid) || isAdmin();
-      allow update: if (isSignedIn() && resource.data.uid == request.auth.uid &&
-                       request.resource.data.uid == request.auth.uid) || isAdmin();
-      allow delete: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // ---------- mealPlans/{planId} — public catalog ----------
@@ -133,6 +131,12 @@ service cloud.firestore {
     match /deliveryZones/{zoneId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // ---------- unskipRequests/{requestId} ----------
+    match /unskipRequests/{requestId} {
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
     }
 
     // ---------- subscriptions/{subscriptionId} ----------

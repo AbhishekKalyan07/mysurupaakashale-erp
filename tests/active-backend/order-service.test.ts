@@ -1,31 +1,48 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-const mockGetDoc = vi.fn();
-const mockWriteBatch = vi.fn();
-const mockDoc = vi.fn((...segments: unknown[]) => ({ segments }));
-const mockServerTimestamp = vi.fn(() => 'SERVER_TIMESTAMP');
-const mockWhere = vi.fn((...args: unknown[]) => args);
 
-const mockOrderRepository = { update: vi.fn() };
-const mockSubscriptionRepository = { list: vi.fn() };
-const mockOrderGenerationRunRepository = { getById: vi.fn(), create: vi.fn() };
-const mockUserRepository = { list: vi.fn() };
-const mockNotifyDailyOrdersGenerated = vi.fn();
+const mocks = vi.hoisted(() => {
+  return {
+    mockGetDoc: vi.fn(),
+    mockWriteBatch: vi.fn(),
+    mockDoc: vi.fn((...segments: unknown[]) => ({ segments })),
+    mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+    mockWhere: vi.fn((...args: unknown[]) => args),
+    mockOrderRepository: { update: vi.fn() },
+    mockSubscriptionRepository: { list: vi.fn() },
+    mockOrderGenerationRunRepository: { getById: vi.fn(), create: vi.fn() },
+    mockUserRepository: { list: vi.fn() },
+    mockNotifyDailyOrdersGenerated: vi.fn()
+  };
+});
+
+const {
+  mockGetDoc,
+  mockWriteBatch,
+  mockDoc,
+  mockServerTimestamp,
+  mockWhere,
+  mockOrderRepository,
+  mockSubscriptionRepository,
+  mockOrderGenerationRunRepository,
+  mockUserRepository,
+  mockNotifyDailyOrdersGenerated
+} = mocks;
 
 vi.mock('firebase/firestore', () => ({
-  doc: mockDoc,
-  getDoc: mockGetDoc,
-  writeBatch: mockWriteBatch,
-  serverTimestamp: mockServerTimestamp,
-  where: mockWhere,
+  doc: mocks.mockDoc,
+  getDoc: mocks.mockGetDoc,
+  writeBatch: mocks.mockWriteBatch,
+  serverTimestamp: mocks.mockServerTimestamp,
+  where: mocks.mockWhere,
 }));
 vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
-vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mockOrderRepository }));
-vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mockSubscriptionRepository }));
-vi.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mockOrderGenerationRunRepository }));
-vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mockUserRepository }));
-vi.mock('@/shared/services/firestore/notificationService', () => ({ notifyDailyOrdersGenerated: mockNotifyDailyOrdersGenerated }));
+vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
+vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
+vi.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mocks.mockOrderGenerationRunRepository }));
+vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mocks.mockUserRepository }));
+vi.mock('@/shared/services/firestore/notificationService', () => ({ notifyDailyOrdersGenerated: mocks.mockNotifyDailyOrdersGenerated }));
 
-const { orderService } = require('@/shared/services/business/orderService') as typeof import('@/shared/services/business/orderService');
+import { orderService } from '@/shared/services/business/orderService';
 
 beforeEach(() => {
   vi.clearAllMocks();

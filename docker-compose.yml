@@ -6,6 +6,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: npm run dev
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
     ports:
       - "5173:5173"

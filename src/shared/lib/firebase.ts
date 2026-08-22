@@ -78,6 +78,10 @@ export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 // ---------------------------------------------------------------------------
 const appCheckSiteKey = getEnv('VITE_APPCHECK_SITE_KEY', import.meta.env.VITE_APPCHECK_SITE_KEY);
 const appCheckDebugToken = getEnv('VITE_APPCHECK_DEBUG_TOKEN', import.meta.env.VITE_APPCHECK_DEBUG_TOKEN);
+
+if (import.meta.env.PROD && appCheckDebugToken) {
+  throw new Error('SECURITY: VITE_APPCHECK_DEBUG_TOKEN must not be set in production builds.');
+}
 const isEmulatorMode = useEmulators;
 
 export const appCheck = (() => {
@@ -143,7 +147,7 @@ export const auth: Auth = getAuth(firebaseApp);
 // In emulator / E2E mode, switch Firebase Auth to localStorage persistence.
 // Playwright's storageState captures localStorage (not IndexedDB), so this is
 // required for saved auth states to survive across test file boundaries.
-if (useEmulators) {
+if (useEmulators && typeof globalThis.window !== 'undefined') {
   setPersistence(auth, browserLocalPersistence).catch(console.error);
 }
 
