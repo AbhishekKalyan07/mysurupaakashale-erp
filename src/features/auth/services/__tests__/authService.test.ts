@@ -42,14 +42,18 @@ vi.mock('firebase/auth', () => ({
   sendPasswordResetEmail: vi.fn(),
 }));
 
-vi.mock('firebase/firestore', () => ({
-  doc: mockDoc,
-  getDoc: mockGetDoc,
-  writeBatch: mockWriteBatch,
-  serverTimestamp: mockServerTimestamp,
-  Timestamp: { now: vi.fn() },
-  runTransaction: mockRunTransaction
-}));
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    doc: mockDoc,
+    getDoc: mockGetDoc,
+    writeBatch: mockWriteBatch,
+    serverTimestamp: mockServerTimestamp,
+    Timestamp: { now: vi.fn() },
+    runTransaction: mockRunTransaction
+  };
+});
 
 vi.mock('@/shared/lib/firebase', () => ({
   auth: { name: 'mock-auth' },
