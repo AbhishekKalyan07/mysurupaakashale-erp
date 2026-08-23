@@ -19,7 +19,7 @@ export function KitchenProductionSummary({ orders }: Props) {
 
     orders.forEach(order => {
       // Only count active orders (exclude cancelled/skipped, maybe delivered?)
-      // We'll count anything that is scheduled, preparing, packing, packed, ready_for_pickup
+      // We'll count anything that is scheduled, packing, packed, ready_for_pickup
       if (['cancelled', 'skipped'].includes(order.status)) return;
       
       const mealType = order.mealType;

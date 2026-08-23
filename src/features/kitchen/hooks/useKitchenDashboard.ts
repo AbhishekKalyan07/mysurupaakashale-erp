@@ -24,7 +24,8 @@ export { getTodayInTimezone as getTodayIST } from '@/shared/lib/date';
 export interface MealTypeSummary {
   total: number;
   scheduled: number;
-  preparing: number;
+  packing: number;
+  packed: number;
   readyForPickup: number;
   pickedUp: number;
 }
@@ -118,13 +119,15 @@ export function useKitchenDashboard(date: string) {
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner'];
 
 const KITCHEN_DONE_STATUSES: OrderStatus[] = [
+  'packing',
+  'packed',
   'ready_for_pickup',
   'out_for_delivery',
   'delivered',
 ];
 
 function emptyMealTypeSummary(): MealTypeSummary {
-  return { total: 0, scheduled: 0, preparing: 0, readyForPickup: 0, pickedUp: 0 };
+  return { total: 0, scheduled: 0, packing: 0, packed: 0, readyForPickup: 0, pickedUp: 0 };
 }
 
 function computeDashboard(orders: Order[]): KitchenDashboardData {
@@ -150,7 +153,8 @@ function computeDashboard(orders: Order[]): KitchenDashboardData {
     if (!mt) continue; // guard against unknown meal types
     mt.total++;
     if (order.status === 'scheduled')       mt.scheduled++;
-    if (order.status === 'preparing')       mt.preparing++;
+    if (order.status === 'packing')       mt.packing++;
+    if (order.status === 'packed')        mt.packed++;
     if (order.status === 'ready_for_pickup') mt.readyForPickup++;
     if (KITCHEN_DONE_STATUSES.includes(order.status as OrderStatus)) mt.pickedUp++;
   }

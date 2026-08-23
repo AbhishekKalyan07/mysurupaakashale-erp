@@ -11,6 +11,8 @@ interface StatusChipProps {
 const STATUS_CONFIG: Record<OrderStatus, { label: string; bg: string; text: string; dot: string }> = {
   scheduled:       { label: 'Scheduled',        bg: 'bg-[#F3EBF7]', text: 'text-[#6A1B9A]', dot: 'bg-[#9C27B0]' },
   preparing:       { label: 'Preparing',         bg: 'bg-info-subtle', text: 'text-info', dot: 'bg-info' },
+  packing:         { label: 'Packing',           bg: 'bg-info-subtle', text: 'text-info', dot: 'bg-info' },
+  packed:          { label: 'Packed',            bg: 'bg-info-subtle', text: 'text-info', dot: 'bg-info' },
   ready_for_pickup:{ label: 'Ready',             bg: 'bg-pastel-lavender', text: 'text-secondary', dot: 'bg-secondary' },
   picked_up:       { label: 'Picked Up',         bg: 'bg-pastel-indigo', text: 'text-[#283593]', dot: 'bg-[#3F51B5]' },
   out_for_delivery:{ label: 'Out for Delivery',  bg: 'bg-pastel-orange', text: 'text-[#E65100]', dot: 'bg-[#E65100]' },

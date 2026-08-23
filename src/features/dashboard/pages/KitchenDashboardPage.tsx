@@ -75,8 +75,8 @@ export function KitchenDashboardPage() {
     dashboard;
 
   const scheduledCount   = byStatus.scheduled        ?? 0;
-  const preparingCount   = byStatus.preparing         ?? 0;
-  const readyCount       = byStatus.ready_for_pickup  ?? 0;
+  const packingCount     = byStatus.packing          ?? 0;
+  const readyCount       = byStatus.ready_for_pickup ?? 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -135,9 +135,9 @@ export function KitchenDashboardPage() {
             colorClass="text-primary bg-primary/10 border border-primary/20"
           />
           <StatusKpiCard
-            id="kpi-preparing"
-            label="Preparing"
-            value={preparingCount}
+            id="kpi-packing"
+            label="Packing"
+            value={packingCount}
             icon={<ChefHat size={20} />}
             colorClass="text-amber-600 bg-amber-500/10 border border-amber-500/20"
           />
@@ -212,8 +212,8 @@ export function KitchenDashboardPage() {
               variant="default"
             />
             <WorkflowRow
-              label="Preparing"
-              count={preparingCount}
+              label="Packing"
+              count={packingCount}
               total={totalOrders}
               variant="warning"
             />
@@ -365,7 +365,7 @@ function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardPro
 
       <div className="space-y-1.5 text-xs font-sans">
         <MealStatusRow label="Scheduled"      value={summary.scheduled}     variant="default" />
-        <MealStatusRow label="Preparing"      value={summary.preparing}     variant="warning" />
+        <MealStatusRow label="Packing"        value={summary.packing}       variant="warning" />
         <MealStatusRow label="Ready"          value={summary.readyForPickup} variant="info"   />
         <MealStatusRow label="Done"           value={summary.pickedUp}      variant="success" />
       </div>

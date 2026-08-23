@@ -59,9 +59,26 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
 
+    function getYear(dateStr) { return int(dateStr.split('-')[0]); }
+    function getMonth(dateStr) { return int(dateStr.split('-')[1]); }
+    function getDay(dateStr) { return int(dateStr.split('-')[2]); }
+
+    function checkMealsCutoff(dateStr, mealTypes) {
+      let base = timestamp.date(getYear(dateStr), getMonth(dateStr), getDay(dateStr));
+      let bCutoff = base - duration.value(30, 'm');
+      let lCutoff = base + duration.value(5, 'h');
+      let dCutoff = base + duration.value(10, 'h') + duration.value(30, 'm');
+
+      let bOk = !('breakfast' in mealTypes) || request.time < bCutoff;
+      let lOk = !('lunch' in mealTypes) || request.time < lCutoff;
+      let dOk = !('dinner' in mealTypes) || request.time < dCutoff;
+
+      return bOk && lOk && dOk;
+    }
+
     // ---------- users/{userId} ----------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin() || isAccounts() || 
+      allow read: if isOwner(userId) || isAdmin() || isAccounts() ||
                      (isSignedIn() && resource.data.get('role', null) == 'delivery_partner') ||
                      (isSignedIn() && resource.data.get('deliveryPartnerId', null) == request.auth.uid);
 
@@ -72,8 +89,8 @@ service cloud.firestore {
       // Owner may update their own profile, but never their own role or
       // id (that would be a privilege escalation) — role changes only
       // ever happen through createStaffUser. Delivery assignments are Admin only.
-      allow update: if (isOwner(userId) && 
-                        unchanged('role') && 
+      allow update: if (isOwner(userId) &&
+                        unchanged('role') &&
                         unchanged('id') &&
                         unchanged('deliveryPartnerId') &&
                         unchanged('assignedAt') &&
@@ -181,19 +198,21 @@ service cloud.firestore {
         allow read: if isSignedIn() &&
                        (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
         allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
-        allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
-        allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid; // "un-skip" a day
+        allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, resource.data.mealTypes.removeAll(request.resource.data.mealTypes));
+        allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, resource.data.mealTypes);
       }
     }
 
     // ---------- dailyProductionStates/{date} ----------
     match /dailyProductionStates/{date} {
       allow read: if isSignedIn();
-      
+
       // Admins only. If day is closed, it's immutable EXCEPT for Reopen Day (changing status back to 'open')
       allow create: if isAdmin();
-      allow update: if isAdmin() && 
-                      (resource.data.status != 'closed' || 
+      allow update: if isAdmin() &&
+                      (resource.data.status != 'closed' ||
                        (resource.data.status == 'closed' && request.resource.data.status == 'open'));
       allow delete: if false;
     }
@@ -218,8 +237,9 @@ service cloud.firestore {
       // kitchen lane is permitted. Prevents kitchen staff from jumping
       // an order to 'delivered' or any billing/delivery state.
       function isValidKitchenTransition(oldStatus, newStatus) {
-        return (oldStatus == 'scheduled' && newStatus == 'preparing') ||
-               (oldStatus == 'preparing' && newStatus == 'ready_for_pickup');
+        return (oldStatus == 'scheduled' && newStatus == 'packing') ||
+               (oldStatus == 'packing' && newStatus == 'packed') ||
+               (oldStatus == 'packed' && newStatus == 'ready_for_pickup');
       }
 
 
@@ -230,29 +250,35 @@ service cloud.firestore {
 
       // Phase 4: Admins can generate orders
       // Customers can create one-time trial orders
-      allow create: if isAdmin() || 
-                      (isSignedIn() && 
-                       request.resource.data.customerId == request.auth.uid && 
+      allow create: if isAdmin() ||
+                      (isSignedIn() &&
+                       request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
                        request.resource.data.status == 'scheduled');
 
       // Each role can move status forward within its own lane:
-      //  - Kitchen: scheduled → preparing → ready_for_pickup (explicit transitions)
+      //  - Kitchen: scheduled → packing → packed → ready_for_pickup (explicit transitions)
       //  - Delivery Partner (their own assigned order): ready_for_pickup → picked_up → out_for_delivery → delivered / failed_delivery
       //  - Customer (their own order, still 'scheduled'): → cancelled
+      //  - Customer (their own order, cancelled): → scheduled (if cutoff not passed)
       //  - Admin: anything
       allow update: if isAdmin() ||
-                      (isKitchen() && onlyChangedFields(['status', 'updatedAt']) && 
+                      (isKitchen() && onlyChangedFields(['status', 'kitchenStatus', 'updatedAt', 'packingAt', 'packedAt', 'readyAt', 'preparingAt']) &&
                        isValidKitchenTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) == 'open') ||
                       (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid &&
-                       onlyChangedFields(['status', 'updatedAt', 'deliveryResult', 'deliveryNotes']) && 
+                       onlyChangedFields(['status', 'updatedAt', 'deliveryResult', 'deliveryNotes']) &&
                        isValidDeliveryTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) != 'closed') ||
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled' &&
-                       onlyChangedFields(['status', 'updatedAt']) && 
-                       getDayStatus(resource.data.date) == 'open');
+                       onlyChangedFields(['status', 'updatedAt']) &&
+                       getDayStatus(resource.data.date) == 'open') ||
+                      (isSignedIn() && resource.data.customerId == request.auth.uid &&
+                       resource.data.status == 'cancelled' && request.resource.data.status == 'scheduled' &&
+                       onlyChangedFields(['status', 'updatedAt']) &&
+                       getDayStatus(resource.data.date) == 'open' &&
+                       checkMealsCutoff(resource.data.date, [resource.data.mealType]));
 
       allow delete: if false;
 
@@ -283,7 +309,7 @@ service cloud.firestore {
     match /dailyDeliveryStates/{date} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
-      
+
       match /driverSessions/{driverId} {
         allow read: if isSignedIn();
         // Driver can only update their own session

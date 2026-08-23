@@ -58,6 +58,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: 'Browse Plans', to: '/customer/plans', icon: Compass },
         { label: 'My Subscription', to: '/customer/subscription', icon: ReceiptText },
+        { label: 'Order History', to: '/customer/orders', icon: Package },
       ],
     },
     {

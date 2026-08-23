@@ -4,6 +4,8 @@ import type { MealType, PlanTier } from './mealPlan.types';
 export type OrderStatus =
   | 'scheduled' // generated, delivery date in the future / prep not started
   | 'preparing'
+  | 'packing'
+  | 'packed'
   | 'ready_for_pickup'
   | 'picked_up'
   | 'out_for_delivery'
@@ -18,7 +20,7 @@ export type OrderStatus =
 
 export type OrderSource = 'subscription' | 'one_time';
 
-export type KitchenStatus = 'Preparing' | 'Packing' | 'Packed' | 'Ready';
+export type KitchenStatus = 'scheduled' | 'packing' | 'packed' | 'ready_for_pickup';
 export type BillingStatus = 'Not Generated' | 'Generated' | 'Delivered' | 'Invoiced' | 'Paid';
 
 /**

@@ -347,7 +347,7 @@ class OrderService {
       mealName: optionLabel || mealType,
       mealQuantity: sub.quantity || 1,
       billingStatus: 'Generated',
-      kitchenStatus: 'Preparing',
+      kitchenStatus: 'scheduled',
 
       itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
       selectedOptionId: pref.selectedOptionId ?? null,
@@ -636,7 +636,7 @@ class OrderService {
    * If orders exist and were cancelled/skipped, it restores them to 'scheduled' and syncs the partner.
    * If orders do not exist, it regenerates them.
    */
-  async restoreOrdersForUnskipDay(customerId: string, subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
+  async restoreOrdersForUnskipDay(customerId: string, _subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
     const allDailyOrders = await orderRepository.list(
       where('customerId', '==', customerId),
       where('date', '==', date)
@@ -682,11 +682,7 @@ class OrderService {
     const mealTypesToGenerate = mealTypes.filter(m => !existingMealTypes.has(m));
 
     if (mealTypesToGenerate.length > 0) {
-      const subscription = await subscriptionRepository.getById(subscriptionId);
-      if (subscription) {
-        console.log(`[orderService] Generating missing orders for unskipped meals: ${mealTypesToGenerate.join(', ')}`);
-        await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
-      }
+      throw new Error("Cannot restore: order does not exist or was not skipped.");
     }
   }
 }

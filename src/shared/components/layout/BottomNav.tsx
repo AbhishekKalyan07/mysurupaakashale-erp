@@ -81,7 +81,9 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: 'Settings', to: '/admin/settings', icon: Settings },
   ],
   [ROLES.DELIVERY_PARTNER]: [],
-  [ROLES.CUSTOMER]: [],
+  [ROLES.CUSTOMER]: [
+    { label: 'Order History', to: '/customer/orders', icon: Package },
+  ],
   [ROLES.ACCOUNTS]: [
     { label: 'Payroll',  to: '/admin/payroll',   icon: CreditCard },
     { label: 'Settings', to: '/admin/settings',  icon: Settings },

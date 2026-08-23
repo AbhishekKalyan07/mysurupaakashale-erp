@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
 import type { Order } from '@/shared/types';
-import type { KitchenWorkflowStatus } from '@/features/kitchen/hooks/useProductionBoard';
+import type { OrderStatus } from '@/shared/types';
+export type KitchenWorkflowStatus = Extract<
+  OrderStatus,
+  'scheduled' | 'packing' | 'packed' | 'ready_for_pickup'
+>;
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { ChefHat, Search } from 'lucide-react';
@@ -58,8 +62,8 @@ export function KitchenProductionTable({
       }
       return true;
     }).sort((a, b) => {
-      // Sort: Scheduled -> Preparing -> Ready. Then by customer name.
-      const statusOrder: Record<string, number> = { scheduled: 1, preparing: 2, ready_for_pickup: 3, out_for_delivery: 4, delivered: 5 };
+      // Sort: Scheduled -> Packing -> Packed -> Ready. Then by customer name.
+      const statusOrder: Record<string, number> = { scheduled: 1, packing: 2, packed: 3, ready_for_pickup: 4, out_for_delivery: 5, delivered: 6 };
       const aStat = statusOrder[a.status] || 99;
       const bStat = statusOrder[b.status] || 99;
       if (aStat !== bStat) return aStat - bStat;
@@ -106,7 +110,8 @@ export function KitchenProductionTable({
         >
           <option value="all">All Statuses</option>
           <option value="scheduled">Scheduled</option>
-          <option value="preparing">Preparing</option>
+          <option value="packing">Packing</option>
+          <option value="packed">Packed</option>
           <option value="ready_for_pickup">Ready for Pickup</option>
         </select>
 

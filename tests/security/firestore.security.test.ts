@@ -79,9 +79,9 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
           customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
           status: 'scheduled', date: '2025-01-15', price: 150,
         }),
-        setDoc(doc(db, 'orders', 'order-preparing'), {
+        setDoc(doc(db, 'orders', 'order-packing'), {
           customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
-          status: 'preparing', date: '2025-01-15', price: 150,
+          status: 'packing', date: '2025-01-15', price: 150,
         }),
         setDoc(doc(db, 'orders', 'order-ready'), {
           customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
@@ -294,24 +294,24 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
-    it('DENY: Kitchen cannot jump order from scheduled to "ready_for_pickup" (skipping preparing)', async () => {
+    it('DENY: Kitchen cannot jump order from scheduled to "ready_for_pickup" (skipping packing/packed)', async () => {
       const db = env.authenticatedContext(KITCHEN_UID).firestore();
       await assertFails(updateDoc(doc(db, 'orders', 'order-a'), {
         status: 'ready_for_pickup', updatedAt: new Date(),
       }));
     });
 
-    it('ALLOW: Kitchen can move scheduled → preparing', async () => {
+    it('ALLOW: Kitchen can move scheduled → packing', async () => {
       const db = env.authenticatedContext(KITCHEN_UID).firestore();
       await assertSucceeds(updateDoc(doc(db, 'orders', 'order-a'), {
-        status: 'preparing', updatedAt: new Date(),
+        status: 'packing', updatedAt: new Date(),
       }));
     });
 
-    it('ALLOW: Kitchen can move preparing → ready_for_pickup', async () => {
+    it('ALLOW: Kitchen can move packing → packed', async () => {
       const db = env.authenticatedContext(KITCHEN_UID).firestore();
-      await assertSucceeds(updateDoc(doc(db, 'orders', 'order-preparing'), {
-        status: 'ready_for_pickup', updatedAt: new Date(),
+      await assertSucceeds(updateDoc(doc(db, 'orders', 'order-packing'), {
+        status: 'packed', updatedAt: new Date(),
       }));
     });
 
@@ -343,9 +343,9 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
-    it('DENY: Customer cannot skip "scheduled" and cancel a preparing order', async () => {
+    it('DENY: Customer cannot skip "scheduled" and cancel a packing order', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
-      await assertFails(updateDoc(doc(db, 'orders', 'order-preparing'), {
+      await assertFails(updateDoc(doc(db, 'orders', 'order-packing'), {
         status: 'cancelled', updatedAt: new Date(),
       }));
     });
