@@ -23,7 +23,7 @@ describe('productionService', () => {
 
   describe('Aggregation Methods', () => {
     const orders = [
-      { id: 'o1', mealType: 'breakfast', status: 'preparing', source: 'subscription', planTier: 'basic', itemsLabel: 'Idli', customerId: 'c5' },
+      { id: 'o1', mealType: 'breakfast', status: 'packing', source: 'subscription', planTier: 'basic', itemsLabel: 'Idli', customerId: 'c5' },
       { id: 'o2', mealType: 'lunch', status: 'ready_for_pickup', source: 'subscription', planTier: 'regular', itemsLabel: 'Meals', customerId: 'c2' },
       { id: 'o3', mealType: 'lunch', status: 'cancelled', source: 'one_time', itemsLabel: 'Biryani', customerId: 'c3' },
       { id: 'o4', mealType: 'dinner', status: 'scheduled', source: 'one_time', itemsLabel: 'Chapati', customerId: 'c4' },
@@ -52,16 +52,16 @@ describe('productionService', () => {
     it('getProductionProgress calculates progress correctly', () => {
       const progress = ProductionService.getProductionProgress(orders);
       // Total: 5 (ignoring o3)
-      // preparing: 1 (o1)
+      // packing: 1 (o1)
       // ready: 1 (o2)
       // remaining: 5 - 1 - 1 = 3
       // completed: ready + out + delivered = 1(o2) + 1(o5) + 1(o6) = 3
       // percentage: (3/5)*100 = 60
-      expect(progress).toEqual({ total: 5, preparing: 1, ready: 1, remaining: 3, completionPercentage: 60 });
+      expect(progress).toEqual({ total: 5, packing: 1, packed: 0, ready: 1, remaining: 3, completionPercentage: 60 });
     });
 
     it('getProductionProgress handles empty array', () => {
-      expect(ProductionService.getProductionProgress([])).toEqual({ total: 0, preparing: 0, ready: 0, remaining: 0, completionPercentage: 0 });
+      expect(ProductionService.getProductionProgress([])).toEqual({ total: 0, packing: 0, packed: 0, ready: 0, remaining: 0, completionPercentage: 0 });
     });
 
     it('getAreaPacking groups correctly', () => {

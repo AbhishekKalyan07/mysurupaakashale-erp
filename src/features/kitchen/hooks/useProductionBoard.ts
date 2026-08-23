@@ -14,7 +14,7 @@ export { getTodayIST };
 
 export type KitchenWorkflowStatus = Extract<
   OrderStatus,
-  'scheduled' | 'preparing' | 'ready_for_pickup'
+  'scheduled' | 'packing' | 'packed' | 'ready_for_pickup'
 >;
 
 export function useProductionBoard() {
@@ -57,22 +57,19 @@ export function useProductionBoard() {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
 
-    const oldStatus = order.kitchenStatus || 'Preparing';
+    const oldStatus = order.kitchenStatus || 'scheduled';
 
-    const slaField = `${newStatus.toLowerCase()}At`;
+    const slaField = newStatus === 'ready_for_pickup' ? 'readyAt' : `${newStatus}At`;
     const updatePayload: any = { 
       kitchenStatus: newStatus,
+      status: newStatus,
       [slaField]: serverTimestamp() as unknown as import('@/shared/types').Timestamp,
       updatedAt: serverTimestamp() as unknown as import('@/shared/types').Timestamp
     };
 
-    if (newStatus === 'Ready') {
-      updatePayload.status = 'ready_for_pickup';
-    }
-
     await orderRepository.update(orderId, updatePayload);
 
-    if (newStatus === 'Ready' && order.deliveryPartnerId) {
+    if (newStatus === 'ready_for_pickup' && order.deliveryPartnerId) {
       import('@/shared/services/firestore/notificationService').then(m => {
         m.notifyReadyForPickup(order.deliveryPartnerId!, orderId, order.mealType || 'meal').catch(console.error);
       }).catch(console.error);
@@ -88,7 +85,7 @@ export function useProductionBoard() {
         { from: oldStatus, to: newStatus }
       );
       
-      if (newStatus === 'Packed') {
+      if (newStatus === 'packed') {
         await auditRepository.logAction(
           'production_packed',
           firebaseUser.uid,

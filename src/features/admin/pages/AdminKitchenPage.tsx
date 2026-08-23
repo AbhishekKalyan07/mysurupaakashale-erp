@@ -1,9 +1,9 @@
 // import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import { useQuery } from '@tanstack/react-query';
-import { 
-  ChefHat, 
-  BookOpen, 
+import {
+  ChefHat,
+  BookOpen,
 
   ClipboardList,
   CheckCircle2,
@@ -25,7 +25,7 @@ import type { MealType } from '@/shared/types';
 
 function ProgressBar({ label, value, max, colorClass }: { label: string, value: number, max: number, colorClass: string }) {
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
-  
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-xs font-bold font-sans uppercase tracking-wider">
@@ -33,7 +33,7 @@ function ProgressBar({ label, value, max, colorClass }: { label: string, value: 
         <span className="text-primary">{value} / {max}</span>
       </div>
       <div className="h-2.5 w-full rounded-full bg-primary/10 overflow-hidden shadow-inner">
-        <div 
+        <div
           className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
           style={{ width: `${percentage}%` }}
         />
@@ -49,15 +49,15 @@ function ProgressBar({ label, value, max, colorClass }: { label: string, value: 
 export function AdminKitchenPage() {
   const navigate = useNavigate();
   const today = getTodayIST();
-  
+
   const { dashboard, isLoading, isError, error, refetch } = useKitchenDashboard(today);
 
   if (isError) {
     return (
       <div className="space-y-8">
         <PageHeader userName="Kitchen Operations" subtitle="Dashboard / Kitchen" />
-        <ErrorState 
-          title="Failed to load kitchen dashboard" 
+        <ErrorState
+          title="Failed to load kitchen dashboard"
           description={error instanceof Error ? error.message : 'Unknown error occurred'}
           onRetry={refetch}
         />
@@ -67,7 +67,7 @@ export function AdminKitchenPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader 
+      <PageHeader
         userName="Kitchen Operations"
         subtitle="Live production dashboard, inventory alerts, and menus"
         actions={
@@ -86,7 +86,7 @@ export function AdminKitchenPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-3">
-          
+
           {/* Top Metrics Column */}
           <div className="space-y-6 md:col-span-1">
             <Card hoverLift className="p-6 overflow-hidden relative">
@@ -100,7 +100,7 @@ export function AdminKitchenPage() {
                   <p className="text-xs text-text-muted uppercase tracking-wider">Across all meals</p>
                 </div>
               </div>
-              
+
               <div className="space-y-5">
                 <div className="flex justify-between items-end border-b border-gold/10 pb-3">
                   <span className="text-4xl font-display font-bold text-primary">
@@ -120,7 +120,7 @@ export function AdminKitchenPage() {
                     <span className="text-primary">{Math.round(dashboard?.progressPercent || 0)}%</span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-primary/10 overflow-hidden shadow-inner">
-                    <div 
+                    <div
                       className="h-full rounded-full bg-gold transition-all duration-500"
                       style={{ width: `${dashboard?.progressPercent || 0}%` }}
                     />
@@ -147,9 +147,9 @@ export function AdminKitchenPage() {
 
               <div className="grid gap-6 sm:grid-cols-3">
                 {(['breakfast', 'lunch', 'dinner'] as MealType[]).map(meal => {
-                  const summary = dashboard?.byMealType[meal] || { total: 0, scheduled: 0, preparing: 0, readyForPickup: 0, pickedUp: 0 };
+                  const summary = dashboard?.byMealType[meal] || { total: 0, scheduled: 0, packing: 0, readyForPickup: 0, pickedUp: 0 };
                   const isDone = summary.total > 0 && (summary.readyForPickup + summary.pickedUp) === summary.total;
-                  
+
                   return (
                     <div key={meal} className="space-y-5 p-5 rounded-2xl border border-gold/20 bg-gradient-to-b from-background to-primary/5 transition-all hover:border-gold/40">
                       <div className="flex justify-between items-center border-b border-gold/10 pb-3">
@@ -162,24 +162,24 @@ export function AdminKitchenPage() {
                           <span className="text-xs font-bold text-text-muted bg-white px-2 py-1 rounded-md shadow-sm border border-gold/10">{summary.total} Total</span>
                         )}
                       </div>
-                      
+
                       <div className="space-y-4">
-                        <ProgressBar 
-                          label="Scheduled" 
-                          value={summary.scheduled} 
-                          max={summary.total} 
+                        <ProgressBar
+                          label="Scheduled"
+                          value={summary.scheduled}
+                          max={summary.total}
                           colorClass="bg-primary/40"
                         />
-                        <ProgressBar 
-                          label="Preparing" 
-                          value={summary.preparing} 
-                          max={summary.total} 
+                        <ProgressBar
+                          label="Packing"
+                          value={summary.packing}
+                          max={summary.total}
                           colorClass="bg-gold"
                         />
-                        <ProgressBar 
-                          label="Ready / Delivered" 
-                          value={summary.readyForPickup + summary.pickedUp} 
-                          max={summary.total} 
+                        <ProgressBar
+                          label="Ready / Delivered"
+                          value={summary.readyForPickup + summary.pickedUp}
+                          max={summary.total}
                           colorClass="bg-emerald-500"
                         />
                       </div>
@@ -188,7 +188,7 @@ export function AdminKitchenPage() {
                 })}
               </div>
             </Card>
-            
+
             {/* Additional Operations Card */}
             <div className="grid sm:grid-cols-2 gap-6">
               <Card hoverLift className="p-6 flex items-start gap-5 cursor-pointer group" onClick={() => navigate('/admin/orders')}>
@@ -211,7 +211,7 @@ export function AdminKitchenPage() {
                 </div>
               </Card>
             </div>
-            
+
           </div>
         </div>
       )}

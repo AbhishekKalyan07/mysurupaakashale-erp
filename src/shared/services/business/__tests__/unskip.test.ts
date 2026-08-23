@@ -102,16 +102,11 @@ describe('Unskip Meal Feature', () => {
       expect(orderService.syncCustomerActiveOrders).toHaveBeenCalledWith('cust1');
     });
 
-    it('4. Missing order is safely regenerated', async () => {
+    it('4. Missing order is rejected (Option 2 Architecture)', async () => {
       vi.spyOn(orderRepository, 'list').mockResolvedValue([]); // No orders exist
-      vi.spyOn(subscriptionRepository, 'getById').mockResolvedValue({ id: 'sub1' } as any);
-      vi.spyOn(orderService, 'generateOrdersForSubscription').mockResolvedValue(undefined);
 
-      await orderService.restoreOrdersForUnskipDay('cust1', 'sub1', '2026-08-01', ['lunch']);
-
-      expect(orderService.generateOrdersForSubscription).toHaveBeenCalledWith(
-        { id: 'sub1' }, '2026-08-01', ['lunch']
-      );
+      await expect(orderService.restoreOrdersForUnskipDay('cust1', 'sub1', '2026-08-01', ['lunch']))
+        .rejects.toThrow("Cannot restore: order does not exist or was not skipped.");
     });
 
     it('7 & 8 & 9. Operational orders cannot be restored', async () => {

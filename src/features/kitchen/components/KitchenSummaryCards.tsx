@@ -21,14 +21,14 @@ export function KitchenSummaryCards({ progress }: Props) {
         </div>
       </Card>
 
-      {/* 2. Preparing */}
+      {/* 2. Packing */}
       <Card className="p-4 flex flex-col justify-between gap-2 border-l-4 border-l-warning">
         <div className="flex items-center gap-1.5 text-ink-500 font-sans text-xs uppercase tracking-wider font-bold">
           <Loader2 size={14} className="text-warning animate-spin" />
-          Preparing
+          Packing
         </div>
         <div className="text-2xl font-data font-bold text-ink-900">
-          {progress.preparing}
+          {progress.packing + progress.packed}
         </div>
       </Card>
 

@@ -10,7 +10,7 @@ test.describe('Offline and Resilience Checks', () => {
     
     // Attempt an action that requires network or verify offline banner
     // The app might show an offline banner
-    await expect(customerPage.getByRole('heading', { name: "You're Offline" })).toBeVisible({ timeout: 5000 });
+    await expect(customerPage.getByRole('heading', { name: "You're Offline" })).toBeVisible();
     
     // Go online
     await customerPage.context().setOffline(false);
