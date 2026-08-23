@@ -639,7 +639,6 @@ class OrderService {
    */
   async restoreOrdersForUnskipDay(customerId: string, _subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
     const allDailyOrders = await orderRepository.list(
-      where('subscriptionId', '==', subscriptionId),
       where('customerId', '==', customerId),
       where('date', '==', date)
     );
