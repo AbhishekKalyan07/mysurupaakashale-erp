@@ -120,10 +120,10 @@ export function useAdminDashboardMetrics() {
           if (data.status === 'cancelled') cancelled++;
           if (data.status === 'failed_delivery') failedDeliveries++;
           
-          if (data.kitchenStatus === 'Preparing') preparingCount++;
-          if (data.kitchenStatus === 'Packing') packingCount++;
-          if (data.kitchenStatus === 'Packed') packedCount++;
-          if (data.kitchenStatus === 'Ready') readyCount++;
+          if (data.kitchenStatus === 'scheduled') preparingCount++;
+          if (data.kitchenStatus === 'packing') packingCount++;
+          if (data.kitchenStatus === 'packed') packedCount++;
+          if (data.kitchenStatus === 'ready_for_pickup') readyCount++;
 
           if (data.packingAt && data.preparingAt) {
             const prepTime = (data.packingAt.toMillis() - data.preparingAt.toMillis()) / 60000;
