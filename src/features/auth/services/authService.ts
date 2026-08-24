@@ -18,8 +18,8 @@ import type { UserProfile } from '@/shared/types';
 const ERROR_MESSAGES: Record<string, string> = {
   'auth/invalid-email': "That email address doesn't look right.",
   'auth/user-disabled': 'This account has been disabled. Contact support if that seems wrong.',
-  'auth/user-not-found': 'No account found with that email.',
-  'auth/wrong-password': 'Incorrect password.',
+  'auth/user-not-found': 'Incorrect email or password.',
+  'auth/wrong-password': 'Incorrect email or password.',
   'auth/invalid-credential': 'Incorrect email or password.',
   'auth/email-already-in-use': 'An account with this email already exists — try signing in instead.',
   'auth/weak-password': 'Password should be at least 6 characters.',

@@ -201,11 +201,14 @@ service cloud.firestore {
 
         allow read: if isSignedIn() &&
                        (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
-        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
+        // Skip creation: before cutoff → ALLOW; after cutoff → DENY.
+        // request.time is server-authoritative — the client cannot spoof it.
+        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, request.resource.data.get('mealTypes', []));
         allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.mealTypes.removeAll(request.resource.data.mealTypes));
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])));
         allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.mealTypes);
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []));
       }
     }
 
@@ -277,12 +280,13 @@ service cloud.firestore {
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled' &&
                        onlyChangedFields(['status', 'updatedAt']) &&
-                       getDayStatus(resource.data.date) == 'open') ||
+                       getDayStatus(resource.data.date) == 'open' &&
+                       checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')])) ||
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'cancelled' && request.resource.data.status == 'scheduled' &&
                        onlyChangedFields(['status', 'updatedAt']) &&
                        getDayStatus(resource.data.date) == 'open' &&
-                       checkMealsCutoff(resource.data.date, [resource.data.mealType]));
+                       checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')]));
 
       allow delete: if false;
 
@@ -324,7 +328,7 @@ service cloud.firestore {
     // ---------- payments/{paymentId} ----------
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending');
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending' && request.resource.data.amount > 0 && get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid);
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }

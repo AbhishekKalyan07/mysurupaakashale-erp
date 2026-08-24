@@ -635,10 +635,13 @@ class OrderService {
   /**
    * Reverts a skip for a specific day and meal types.
    * If orders exist and were cancelled/skipped, it restores them to 'scheduled' and syncs the partner.
-   * If orders do not exist, it regenerates them.
+   * If orders do not exist (skipped before generation), it regenerates them using the trusted
+   * subscription-based order generation logic. The customer cannot manipulate any operational fields
+   * because values are sourced exclusively from the subscription record.
    */
-  async restoreOrdersForUnskipDay(customerId: string, _subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
+  async restoreOrdersForUnskipDay(customerId: string, subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
     const allDailyOrders = await orderRepository.list(
+      where('subscriptionId', '==', subscriptionId),
       where('customerId', '==', customerId),
       where('date', '==', date)
     );
@@ -666,7 +669,7 @@ class OrderService {
       const ref = doc(db, 'orders', order.id!);
       batch.update(ref, {
         status: 'scheduled',
-        updatedAt: serverTimestamp() as unknown as Timestamp
+        updatedAt: serverTimestamp() as unknown as Timestamp,
       });
     });
 
@@ -678,12 +681,23 @@ class OrderService {
       await this.syncCustomerActiveOrders(customerId);
     }
 
-    // Identify which meals need brand new orders generated (because they were skipped before generation)
+    // Identify which meals need brand new orders generated (skipped before generation ran)
     const existingMealTypes = new Set(existingOrders.map(o => o.mealType));
     const mealTypesToGenerate = mealTypes.filter(m => !existingMealTypes.has(m));
 
     if (mealTypesToGenerate.length > 0) {
-      throw new Error("Cannot restore: order does not exist or was not skipped.");
+      // Fetch the subscription to drive trusted order generation.
+      // The customer cannot supply any operational fields — all values come from the subscription.
+      const subscription = await subscriptionRepository.getById(subscriptionId);
+      if (!subscription) {
+        throw new Error(`Subscription ${subscriptionId} not found. Cannot regenerate orders.`);
+      }
+      // Verify the subscription belongs to this customer (double-check ownership)
+      if (subscription.customerId !== customerId) {
+        throw new Error('Subscription does not belong to this customer.');
+      }
+      await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
+      console.log(`[orderService] Regenerated ${mealTypesToGenerate.length} missing orders for unskipped day ${date}`);
     }
   }
 }
