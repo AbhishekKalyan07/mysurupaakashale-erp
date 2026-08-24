@@ -206,7 +206,7 @@ service cloud.firestore {
         allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
                          checkMealsCutoff(date, request.resource.data.get('mealTypes', []));
         allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])));
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])).concat(request.resource.data.get('mealTypes', []).removeAll(resource.data.get('mealTypes', []))));
         allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
                          checkMealsCutoff(date, resource.data.get('mealTypes', []));
       }
@@ -256,11 +256,11 @@ service cloud.firestore {
                       isAdmin() || isAccounts() || isKitchen());
 
       // Phase 4: Admins can generate orders
-      // Customers can create one-time trial orders
+      // Customers can create one-time trial orders, and regenerate subscription orders
       allow create: if isAdmin() ||
                       (isSignedIn() &&
                        request.resource.data.customerId == request.auth.uid &&
-                       request.resource.data.source == 'one_time' &&
+                       (request.resource.data.source == 'one_time' || request.resource.data.source == 'subscription') &&
                        request.resource.data.status == 'scheduled');
 
       // Each role can move status forward within its own lane:

@@ -696,6 +696,17 @@ class OrderService {
       if (subscription.customerId !== customerId) {
         throw new Error('Subscription does not belong to this customer.');
       }
+      
+      if (subscription.status !== 'active') {
+        throw new Error(`Subscription is ${subscription.status}, not active. Cannot regenerate orders.`);
+      }
+      if (subscription.startDate > date) {
+        throw new Error('Requested date is before the subscription start date.');
+      }
+      if (subscription.endDate && subscription.endDate < date) {
+        throw new Error('Requested date is after the subscription end date.');
+      }
+      
       await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
       console.log(`[orderService] Regenerated ${mealTypesToGenerate.length} missing orders for unskipped day ${date}`);
     }
