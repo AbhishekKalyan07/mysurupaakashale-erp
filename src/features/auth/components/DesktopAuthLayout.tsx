@@ -19,7 +19,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
         <img
           src="/login-reference.webp"
           alt="Background"
-          fetchpriority="high"
+          fetchPriority="high"
           loading="eager"
           className="w-full h-full object-cover"
         />
@@ -49,7 +49,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
               alt="Mysuru Paakashale Logo" 
               width="144"
               height="144"
-              fetchpriority="high"
+              fetchPriority="high"
               loading="eager"
               className="h-28 md:h-32 lg:h-36 w-auto object-contain drop-shadow-sm" 
             />
