@@ -6,7 +6,7 @@ import { MetricCard } from '@/shared/components/ui/MetricCard';
 import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { useNavigate } from 'react-router-dom';
 import { useAdminDashboardMetrics } from '../hooks/useAdminDashboardMetrics';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { LeafSpinner } from '@/shared/components/ui/LeafSpinner';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -15,7 +15,25 @@ export function AdminDashboardPage() {
 
   const firstName = profile?.fullName?.split(' ')[0] || 'Admin';
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <HeroBanner 
+          userName={firstName}
+          subtitle="Run the whole kitchen: plans, staff, zones, and reporting."
+          actions={
+            <PremiumButton variant="secondary" onClick={() => navigate('/admin/settings')}>
+              <Settings size={18} />
+              Global Settings
+            </PremiumButton>
+          }
+        />
+        <div className="flex min-h-[50vh] w-full flex-col items-center justify-center">
+          <LeafSpinner size={32} className="text-leaf-600 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
