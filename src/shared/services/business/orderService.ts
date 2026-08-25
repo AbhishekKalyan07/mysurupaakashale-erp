@@ -637,9 +637,13 @@ class OrderService {
    * If orders exist and were cancelled/skipped, it restores them to 'scheduled' and syncs the partner.
    * If orders do not exist (skipped before generation), it regenerates them using the trusted
    * subscription-based order generation logic. The customer cannot manipulate any operational fields
-   * because values are sourced exclusively from the subscription record.
+  /**
+   * Restores orders for an unskipped day.
+   * If generateMissing is false, it only restores existing cancelled/skipped orders.
+   * If generateMissing is true, it also securely generates any missing orders.
+   * All operational values are sourced exclusively from the subscription record.
    */
-  async restoreOrdersForUnskipDay(customerId: string, subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[]): Promise<void> {
+  async restoreOrdersForUnskipDay(customerId: string, subscriptionId: string, date: string, mealTypes: import('@/shared/types').MealType[], generateMissing: boolean = true): Promise<void> {
     const allDailyOrders = await orderRepository.list(
       where('subscriptionId', '==', subscriptionId),
       where('customerId', '==', customerId),
@@ -685,7 +689,7 @@ class OrderService {
     const existingMealTypes = new Set(existingOrders.map(o => o.mealType));
     const mealTypesToGenerate = mealTypes.filter(m => !existingMealTypes.has(m));
 
-    if (mealTypesToGenerate.length > 0) {
+    if (generateMissing && mealTypesToGenerate.length > 0) {
       // Fetch the subscription to drive trusted order generation.
       // The customer cannot supply any operational fields — all values come from the subscription.
       const subscription = await subscriptionRepository.getById(subscriptionId);

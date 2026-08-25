@@ -387,4 +387,161 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
       }));
     });
   });
+
+  // =========================================================================
+  // unskipRequests Schema and Security Validation
+  // =========================================================================
+  describe('unskipRequests Security Boundary', () => {
+    // Base valid request payload (using FUTURE_DATE so cutoff always passes)
+    const validRequest = {
+      customerId: CUSTOMER_A_UID,
+      subscriptionId: 'sub-a',
+      date: '2099-12-31',
+      mealTypes: ['lunch'],
+      status: 'processed',
+      createdAt: new Date(),
+    };
+
+    // 1. Valid own request before lunch cutoff → ALLOW
+    it('1. ALLOW: Valid own request with future date (before cutoff)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'unskipRequests', 'req-valid'), {
+        ...validRequest,
+        mealTypes: ['lunch'],
+      }));
+    });
+
+    // 2. Valid own request: breakfast before cutoff → ALLOW
+    it('2. ALLOW: Valid own request for breakfast with future date', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'unskipRequests', 'req-valid-bfast'), {
+        ...validRequest,
+        mealTypes: ['breakfast'],
+      }));
+    });
+
+    // 3. Valid own request: dinner before cutoff → ALLOW
+    it('3. ALLOW: Valid own request for dinner with future date', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'unskipRequests', 'req-valid-dinner'), {
+        ...validRequest,
+        mealTypes: ['dinner'],
+      }));
+    });
+
+    // 4. Past date (all cutoffs have passed) → DENY
+    it('4. DENY: Past date request (cutoff passed)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-past'), {
+        ...validRequest,
+        date: '2020-01-01',
+        mealTypes: ['lunch'],
+      }));
+    });
+
+    // 5. Wrong subscription (belongs to Customer B) → DENY
+    it('5. DENY: Subscription belongs to another customer', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-wrong-sub'), {
+        ...validRequest,
+        subscriptionId: 'sub-b', // owned by CUSTOMER_B_UID
+      }));
+    });
+
+    // 6. Fake / non-existent subscriptionId → DENY
+    it('6. DENY: Non-existent subscriptionId', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-fake-sub'), {
+        ...validRequest,
+        subscriptionId: 'non-existent-sub',
+      }));
+    });
+
+    // 7. Invalid meal type → DENY
+    it('7. DENY: Invalid meal type value', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-bad-meal'), {
+        ...validRequest,
+        mealTypes: ['brunch'],
+      }));
+    });
+
+    // 8. Empty mealTypes → DENY
+    it('8. DENY: Empty mealTypes array', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-empty-meals'), {
+        ...validRequest,
+        mealTypes: [],
+      }));
+    });
+
+    // 9. Extra price field → DENY
+    it('9. DENY: Extra price field (schema must be exact)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-extra-price'), {
+        ...validRequest,
+        price: 0,
+      }));
+    });
+
+    // 10. Extra quantity field → DENY
+    it('10. DENY: Extra quantity field', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-extra-qty'), {
+        ...validRequest,
+        quantity: 100,
+      }));
+    });
+
+    // 11. Extra zone field → DENY
+    it('11. DENY: Extra zone field', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-extra-zone'), {
+        ...validRequest,
+        zoneId: 'zone-1',
+      }));
+    });
+
+    // 12. Extra plan field → DENY
+    it('12. DENY: Extra plan field', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-extra-plan'), {
+        ...validRequest,
+        planId: 'plan-1',
+      }));
+    });
+
+    // 13. Fake orderId / processed flag → DENY
+    it('13. DENY: Extra orderId field', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-extra-orderid'), {
+        ...validRequest,
+        orderId: 'ord_sub-a_2099-12-31_lunch',
+      }));
+    });
+
+    // 14. Malformed date (wrong length) → DENY
+    it('14. DENY: Malformed date string', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-bad-date'), {
+        ...validRequest,
+        date: '99-1-1',
+      }));
+    });
+
+    // 15. customerId mismatch → DENY
+    it('15. DENY: customerId does not match authenticated user', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-id-mismatch'), {
+        ...validRequest,
+        customerId: CUSTOMER_B_UID,
+      }));
+    });
+
+    // 16. Unauthenticated → DENY
+    it('16. DENY: Unauthenticated cannot create unskipRequest', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(setDoc(doc(db, 'unskipRequests', 'req-anon'), validRequest));
+    });
+  });
 });

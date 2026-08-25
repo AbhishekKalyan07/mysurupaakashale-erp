@@ -619,4 +619,60 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
   });
+
+  // =========================================================================
+  // 13. SUBSCRIPTION ORDER CREATION BOUNDARY
+  // =========================================================================
+  describe('13. Subscription Order Creation Boundary', () => {
+    it('DENY: Customer cannot create a subscription order (must use unskipRequests)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(addDoc(collection(db, 'orders'), {
+        customerId: CUSTOMER_A_UID,
+        subscriptionId: 'sub-a',
+        source: 'subscription',
+        status: 'scheduled',
+        date: '2025-05-05',
+        mealType: 'lunch',
+        price: 0,
+      }));
+    });
+
+    it('DENY: Customer cannot forge another customer subscription order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'ord_sub-b_2025-05-05_lunch'), {
+        customerId: CUSTOMER_B_UID,
+        subscriptionId: 'sub-b',
+        source: 'subscription',
+        status: 'scheduled',
+        date: '2025-05-05',
+        mealType: 'lunch',
+        price: 0,
+      }));
+    });
+
+    it('DENY: Customer cannot use a fake subscription ID', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'ord_fake_2025-05-05_lunch'), {
+        customerId: CUSTOMER_A_UID,
+        subscriptionId: 'fake',
+        source: 'subscription',
+        status: 'scheduled',
+        date: '2025-05-05',
+        mealType: 'lunch',
+        price: 0,
+      }));
+    });
+
+    it('ALLOW: Customer can create an unskipRequest', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'unskipRequests', 'req-1'), {
+        customerId: CUSTOMER_A_UID,
+        subscriptionId: 'sub-a',
+        date: '2099-12-31',
+        mealTypes: ['lunch'],
+        status: 'pending',
+        createdAt: new Date(),
+      }));
+    });
+  });
 });
