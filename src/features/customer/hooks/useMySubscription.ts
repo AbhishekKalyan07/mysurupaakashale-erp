@@ -131,7 +131,24 @@ export function useUnskipDay() {
     }) => {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
 
-      // 1. Remove the skip from the subscription subcollection.
+      // 1. Write an audit/queue record FIRST. Setting status='pending' ensures the
+      //    trusted daily automation job will securely generate any missing orders.
+      //    Creating this first ensures that if subsequent steps fail, the automation
+      //    can still pick it up and retry the restoration.
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('@/shared/lib/firebase');
+      // Use a timestamp to prevent ID collisions on repeated requests
+      const requestId = `${subscriptionId}_${date}_${[...mealTypes].sort().join('_')}_${Date.now()}`;
+      await setDoc(doc(db, 'unskipRequests', requestId), {
+        customerId: firebaseUser.uid,
+        subscriptionId,
+        date,
+        mealTypes,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Remove the skip from the subscription subcollection.
       //    validateSkipWindow() inside removeSkip enforces the meal-specific
       //    cutoff and throws if the window has already closed — this is the
       //    authoritative client-side cutoff check.
@@ -142,7 +159,7 @@ export function useUnskipDay() {
         firebaseUser.uid
       );
 
-      // 2. Immediately restore existing cancelled orders.
+      // 3. Immediately restore existing cancelled orders.
       //    We pass generateMissing = false because the browser cannot securely
       //    create new source:'subscription' orders. Missing orders will be handled
       //    by the trusted daily automation job.
@@ -153,20 +170,6 @@ export function useUnskipDay() {
         mealTypes,
         false
       );
-
-      // 3. Write an audit/queue record. Setting status='pending' ensures the
-      //    trusted daily automation job will securely generate any missing orders.
-      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-      const { db } = await import('@/shared/lib/firebase');
-      const requestId = `${subscriptionId}_${date}_${mealTypes.sort().join('_')}`;
-      await setDoc(doc(db, 'unskipRequests', requestId), {
-        customerId: firebaseUser.uid,
-        subscriptionId,
-        date,
-        mealTypes,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
 
       // 4. Log audit event.
       const { auditRepository } = await import('@/shared/services/firestore/auditRepository');
