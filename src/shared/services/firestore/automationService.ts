@@ -124,12 +124,15 @@ export class AutomationService {
    */
   async processUnskipRequests() {
     console.log("Processing pending unskip requests...");
-    const { getDocs, query, collection, where, deleteDoc } = await import('firebase/firestore');
+    const { getDocs, query, collection, where } = await import('firebase/firestore');
     const { db } = await import('@/shared/lib/firebase');
     const { orderService } = await import('@/shared/services/business/orderService');
 
+    // Only process 'pending' requests.
     const requestsQuery = query(collection(db, 'unskipRequests'), where('status', '==', 'pending'));
     const snapshot = await getDocs(requestsQuery);
+
+    const { updateDoc } = await import('firebase/firestore');
 
     for (const docSnap of snapshot.docs) {
       const data = docSnap.data();
@@ -138,15 +141,17 @@ export class AutomationService {
           data.customerId,
           data.subscriptionId,
           data.date,
-          data.mealTypes
+          data.mealTypes,
+          true // generateMissing: securely generate any missing orders
         );
-        await deleteDoc(docSnap.ref);
+        await updateDoc(docSnap.ref, { status: 'processed' });
         console.log(`[automationService] Successfully processed unskip request ${docSnap.id}`);
       } catch (err) {
         console.error(`[automationService] Failed to process unskip request ${docSnap.id}:`, err);
       }
     }
   }
+
 
   /**
    * Process Scheduled Pauses and Resumes

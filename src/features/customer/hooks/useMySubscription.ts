@@ -130,11 +130,35 @@ export function useUnskipDay() {
       mealTypes: ('breakfast' | 'lunch' | 'dinner')[];
     }) => {
       if (!firebaseUser?.uid) throw new Error('Not authenticated');
-      
-      // 1. Queue the unskip request for the automation worker
+
+      // 1. Remove the skip from the subscription subcollection.
+      //    validateSkipWindow() inside removeSkip enforces the meal-specific
+      //    cutoff and throws if the window has already closed — this is the
+      //    authoritative client-side cutoff check.
+      await subscriptionRepository.removeSkip(
+        subscriptionId,
+        date,
+        mealTypes,
+        firebaseUser.uid
+      );
+
+      // 2. Immediately restore existing cancelled orders.
+      //    We pass generateMissing = false because the browser cannot securely
+      //    create new source:'subscription' orders. Missing orders will be handled
+      //    by the trusted daily automation job.
+      await orderService.restoreOrdersForUnskipDay(
+        firebaseUser.uid,
+        subscriptionId,
+        date,
+        mealTypes,
+        false
+      );
+
+      // 3. Write an audit/queue record. Setting status='pending' ensures the
+      //    trusted daily automation job will securely generate any missing orders.
       const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
       const { db } = await import('@/shared/lib/firebase');
-      const requestId = `${subscriptionId}_${date}_${Date.now()}`;
+      const requestId = `${subscriptionId}_${date}_${mealTypes.sort().join('_')}`;
       await setDoc(doc(db, 'unskipRequests', requestId), {
         customerId: firebaseUser.uid,
         subscriptionId,
@@ -144,15 +168,7 @@ export function useUnskipDay() {
         createdAt: serverTimestamp()
       });
 
-      // 2. Remove the skip from the subscription (this enforces the time cutoff rules)
-      await subscriptionRepository.removeSkip(
-        subscriptionId,
-        date,
-        mealTypes,
-        firebaseUser.uid
-      );
-
-      // 3. Log audit event
+      // 4. Log audit event.
       const { auditRepository } = await import('@/shared/services/firestore/auditRepository');
       await auditRepository.logAction('skip_removed', firebaseUser.uid, 'Customer', subscriptionId, 'subscription', {
         date,

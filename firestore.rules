@@ -152,7 +152,26 @@ service cloud.firestore {
 
     // ---------- unskipRequests/{requestId} ----------
     match /unskipRequests/{requestId} {
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow create: if isSignedIn()
+        // 1. customerId must match the caller
+        && request.resource.data.customerId == request.auth.uid
+        // 2. subscriptionId must refer to a real subscription owned by this customer
+        && exists(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId))
+        && get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid
+        // 3. date must be present and be a non-empty string (yyyy-MM-dd format)
+        && request.resource.data.date is string
+        && request.resource.data.date.size() == 10
+        // 4. mealTypes must be a non-empty list of valid values only
+        && request.resource.data.mealTypes is list
+        && request.resource.data.mealTypes.size() > 0
+        && request.resource.data.mealTypes.hasOnly(['breakfast', 'lunch', 'dinner'])
+        // 5. status must be 'pending' or 'processed' (client may write processed immediately)
+        && request.resource.data.status in ['pending', 'processed']
+        // 6. cutoff must not have passed for the requested meals
+        && checkMealsCutoff(request.resource.data.date, request.resource.data.mealTypes)
+        // 7. only the explicitly allowed fields may be present — no price, quantity,
+        //    zone, plan, orderId, isBeforeCutoff, or any other operational field
+        && request.resource.data.keys().hasOnly(['customerId', 'subscriptionId', 'date', 'mealTypes', 'status', 'createdAt']);
       allow read, update, delete: if isAdmin();
     }
 
@@ -201,11 +220,14 @@ service cloud.firestore {
 
         allow read: if isSignedIn() &&
                        (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
-        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid;
+        // Skip creation: before cutoff → ALLOW; after cutoff → DENY.
+        // request.time is server-authoritative — the client cannot spoof it.
+        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, request.resource.data.get('mealTypes', []));
         allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.mealTypes.removeAll(request.resource.data.mealTypes));
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])).concat(request.resource.data.get('mealTypes', []).removeAll(resource.data.get('mealTypes', []))));
         allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.mealTypes);
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []));
       }
     }
 
@@ -253,7 +275,7 @@ service cloud.firestore {
                       isAdmin() || isAccounts() || isKitchen());
 
       // Phase 4: Admins can generate orders
-      // Customers can create one-time trial orders
+      // Customers can create one-time trial orders, and regenerate subscription orders
       allow create: if isAdmin() ||
                       (isSignedIn() &&
                        request.resource.data.customerId == request.auth.uid &&
@@ -277,12 +299,13 @@ service cloud.firestore {
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled' &&
                        onlyChangedFields(['status', 'updatedAt']) &&
-                       getDayStatus(resource.data.date) == 'open') ||
+                       getDayStatus(resource.data.date) == 'open' &&
+                       checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')])) ||
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&
                        resource.data.status == 'cancelled' && request.resource.data.status == 'scheduled' &&
                        onlyChangedFields(['status', 'updatedAt']) &&
                        getDayStatus(resource.data.date) == 'open' &&
-                       checkMealsCutoff(resource.data.date, [resource.data.mealType]));
+                       checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')]));
 
       allow delete: if false;
 
@@ -324,7 +347,7 @@ service cloud.firestore {
     // ---------- payments/{paymentId} ----------
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending');
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending' && request.resource.data.amount > 0 && get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid);
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }

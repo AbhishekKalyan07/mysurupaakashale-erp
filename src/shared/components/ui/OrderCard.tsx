@@ -18,9 +18,9 @@ type WorkflowStep = {
 };
 
 const KITCHEN_WORKFLOW: Record<string, WorkflowStep> = {
-  'Preparing': { label: 'Start Packing', nextStatus: 'Packing' as OrderStatus, variant: 'tonal' },
-  'Packing':   { label: 'Mark as Packed', nextStatus: 'Packed' as OrderStatus, variant: 'primary' },
-  'Packed':    { label: 'Ready for Pickup', nextStatus: 'Ready' as OrderStatus, variant: 'success' },
+  'scheduled':         { label: 'Start Packing',   nextStatus: 'packing',          variant: 'tonal' },
+  'packing':           { label: 'Mark as Packed',   nextStatus: 'packed',           variant: 'primary' },
+  'packed':            { label: 'Ready for Pickup', nextStatus: 'ready_for_pickup', variant: 'success' },
 };
 
 const DELIVERY_WORKFLOW: Partial<Record<OrderStatus, WorkflowStep>> = {
@@ -79,13 +79,12 @@ function CustomerAvatar({ name, photoUrl, size = 'md' }: {
 
 interface WorkflowTimelineProps {
   status: OrderStatus;
-  kitchenStatus?: string; // Add this
   variant: 'admin' | 'kitchen' | 'delivery';
   onStatusChange?: (newStatus: OrderStatus, extra?: { reasonCode: string; notes?: string }) => Promise<void> | void;
   isAdvancing?: boolean;
 }
 
-function WorkflowTimeline({ status, kitchenStatus, variant, onStatusChange, isAdvancing }: WorkflowTimelineProps) {
+function WorkflowTimeline({ status, variant, onStatusChange, isAdvancing }: WorkflowTimelineProps) {
   const [showFail, setShowFail] = useState(false);
   const [failReason, setFailReason] = useState('customer_unavailable');
   const [failNotes, setFailNotes] = useState('');
@@ -99,8 +98,7 @@ function WorkflowTimeline({ status, kitchenStatus, variant, onStatusChange, isAd
   }
 
   const workflow = variant === 'kitchen' ? KITCHEN_WORKFLOW : variant === 'delivery' ? DELIVERY_WORKFLOW : ADMIN_WORKFLOW;
-  const currentKey = variant === 'kitchen' ? (kitchenStatus || 'Preparing') : status;
-  const step = (workflow as any)[currentKey as any];
+  const step = (workflow as any)[status as any];
 
   if (!step) return null;
 
@@ -344,7 +342,6 @@ export function OrderCard({
             {handleStatusChange ? (
               <WorkflowTimeline
                 status={order.status}
-                kitchenStatus={order.kitchenStatus}
                 variant={variant}
                 onStatusChange={handleStatusChange}
                 isAdvancing={isAdvancing}

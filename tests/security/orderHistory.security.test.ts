@@ -90,13 +90,34 @@ describe('Order History Security Rules', () => {
 
   it('allows a customer to create an unskipRequest for their own id', async () => {
     const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
+    // Seed required docs: user + subscription owned by customer123
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users/customer123'), { role: 'customer' });
+      await setDoc(doc(db, 'subscriptions/sub-c123'), { customerId: 'customer123', status: 'active' });
+    });
     const db = customer.firestore();
-    await expect(setDoc(doc(db, 'unskipRequests/req1'), { customerId: 'customer123', date: '2026-08-22' })).resolves.not.toThrow();
+    await expect(setDoc(doc(db, 'unskipRequests/req1'), {
+      customerId: 'customer123',
+      subscriptionId: 'sub-c123',
+      date: '2099-12-31',
+      mealTypes: ['lunch'],
+      status: 'pending',
+      createdAt: new Date(),
+    })).resolves.not.toThrow();
   });
 
   it('denies a customer from creating an unskipRequest for another id', async () => {
     const customer = testEnv.authenticatedContext('customer123', { role: 'customer' });
     const db = customer.firestore();
-    await expect(setDoc(doc(db, 'unskipRequests/req2'), { customerId: 'customer999', date: '2026-08-22' })).rejects.toThrow();
+    // customerId mismatch → DENY regardless of other fields
+    await expect(setDoc(doc(db, 'unskipRequests/req2'), {
+      customerId: 'customer999',
+      subscriptionId: 'sub-c123',
+      date: '2099-12-31',
+      mealTypes: ['lunch'],
+      status: 'pending',
+      createdAt: new Date(),
+    })).rejects.toThrow();
   });
 });
