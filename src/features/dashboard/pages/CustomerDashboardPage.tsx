@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Order } from '@/shared/types';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { getTodayIST } from '@/shared/utils/dateUtils';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { LeafSpinner } from '@/shared/components/ui/LeafSpinner';
 import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
@@ -141,7 +141,14 @@ export function CustomerDashboardPage() {
   const hasError = subError || plansError;
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <div className="space-y-8">
+        <HeroBanner userName={profile?.fullName?.split(' ')[0] || firebaseUser?.displayName?.split(' ')[0] || 'Customer'} subtitle="Dashboard" />
+        <div className="flex min-h-[50vh] w-full flex-col items-center justify-center">
+          <LeafSpinner size={32} className="text-leaf-600 animate-spin" />
+        </div>
+      </div>
+    );
   }
 
   if (hasError) {
