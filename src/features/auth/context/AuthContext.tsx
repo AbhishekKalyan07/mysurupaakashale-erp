@@ -83,13 +83,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     }, 20000);
 
-    console.log('[auth] Subscribing to UID:', uid);
+    if (import.meta.env.DEV) {
+      console.log('[auth] Subscribing to UID:', uid);
+    }
     const unsubscribe = userRepository.subscribeToDoc(
       uid,
       (data) => {
-        console.log('[auth] Received profile data:', data);
+        if (import.meta.env.DEV) {
+          console.log('[auth] Received profile data:', data);
+        }
         setProfile(data);
-        if (data) {
+        if (data && import.meta.env.DEV) {
           console.log('[auth] isRole check:', data.role, isRole(data.role));
         }
         if (data && isRole(data.role)) {

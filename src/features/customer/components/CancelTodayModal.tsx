@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 
+import { getTodayIST } from '@/shared/utils/dateUtils';
+
 export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
-  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  const nowInIndia = new Date(nowStr);
-  const currentHour = nowInIndia.getHours();
-  const currentMinute = nowInIndia.getMinutes();
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
   const timeInMinutes = currentHour * 60 + currentMinute;
   
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(nowInIndia);
+  const todayStr = getTodayIST();
 
   const preferredMeals = (subscription.mealPreferences || []).map((p: any) => p.mealType);
   const eligibleMeals = preferredMeals.filter((meal: string) => {

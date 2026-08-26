@@ -34,11 +34,13 @@ const firebaseConfig = {
 };
 
 const useEmulators = getEnv('VITE_USE_FIREBASE_EMULATORS', import.meta.env.VITE_USE_FIREBASE_EMULATORS) === 'true';
-console.log('BROWSER_DEBUG_EMULATORS:', {
-  rawMeta: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
-  evaluated: useEmulators,
-  mode: import.meta.env.MODE
-});
+if (import.meta.env.DEV) {
+  console.log('BROWSER_DEBUG_EMULATORS:', {
+    rawMeta: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
+    evaluated: useEmulators,
+    mode: import.meta.env.MODE
+  });
+}
 
 // Fail loudly in dev if env vars are missing, instead of a cryptic
 // "auth/invalid-api-key" three files deep into the app.

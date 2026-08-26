@@ -40,6 +40,8 @@ import { CancelTodayModal } from '../components/CancelTodayModal';
 import { Edit2 } from 'lucide-react';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
+import { getModifiableMeals } from '@/shared/utils/dateUtils';
+
 export function SubscriptionDetailsPage() {
   const { data: subscription, isLoading: isSubLoading, error: subError, refetch: refetchSub } = useMySubscription();
   const { data: plans, isLoading: isPlansLoading, error: plansError, refetch: refetchPlans } = useMealPlans();
@@ -323,7 +325,6 @@ export function SubscriptionDetailsPage() {
             </h3>
             <div className="space-y-3">
               {stats.skips.map((skip: any) => {
-                const { getModifiableMeals } = require('@/shared/utils/dateUtils');
                 const validMealsToUnskip = getModifiableMeals(skip.date, skip.mealTypes || []);
                 
                 return (
@@ -351,7 +352,7 @@ export function SubscriptionDetailsPage() {
                               unskipDay.mutate({
                                 subscriptionId: subscription.id,
                                 date: skip.date,
-                                mealTypes: validMealsToUnskip
+                                mealTypes: validMealsToUnskip as ('breakfast' | 'lunch' | 'dinner')[]
                               }, {
                                 onSuccess: () => {
                                   toast.success(`Successfully unskipped ${skip.date}`);
