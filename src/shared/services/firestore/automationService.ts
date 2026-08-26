@@ -333,7 +333,7 @@ export class AutomationService {
 
     const { BaseRepository, createConverter } = await import('./BaseRepository');
     const auditRepo = new BaseRepository<any>(db, 'auditLogs', createConverter<any>());
-    const oldAuditLogs = await auditRepo.list(where('timestamp', '<', fbCutoffTimestamp));
+    const oldAuditLogs = await auditRepo.list(where('createdAt', '<', fbCutoffTimestamp));
     let deletedAudit = 0;
     for (const log of oldAuditLogs) {
       await auditRepo.delete(log.id);

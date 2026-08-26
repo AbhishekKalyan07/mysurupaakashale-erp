@@ -81,13 +81,13 @@ export function useAdminDashboardMetrics() {
     };
 
     const unsubUsers = onSnapshot(
-      query(collection(db, 'users'), where('role', 'in', ['customer', 'delivery_partner'])),
+      query(collection(db, 'users'), where('role', 'in', ['customer', 'delivery'])),
       (snap) => {
         let customers = 0;
         let drivers = 0;
         snap.forEach(doc => {
           if (doc.data().role === 'customer') customers++;
-          if (doc.data().role === 'delivery_partner') drivers++;
+          if (doc.data().role === 'delivery') drivers++;
         });
         updateMetrics({ totalCustomers: customers, activeDrivers: drivers });
       }

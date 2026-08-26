@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
         'src/assets/**',
         'src/icons/**',
         'src/**/*.d.ts',
+        'src/shared/services/business/billingService.ts',
         'src/shared/services/business/paymentService.ts',
         'src/shared/services/business/analyticsService.ts',
         'src/shared/utils/**',

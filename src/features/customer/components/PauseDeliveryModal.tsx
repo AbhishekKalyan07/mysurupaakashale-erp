@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 
-import { getTodayIST } from '@/shared/utils/dateUtils';
-
 export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
-  const todayStr = getTodayIST();
-  const [todayYear, todayMonth, todayDay] = todayStr.split('-').map(Number);
-  // Calculate tomorrow in IST
-  const tomorrowObj = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + 1));
-  const minDateStr = tomorrowObj.toISOString().split('T')[0];
+  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const nowInIndia = new Date(nowStr);
+  const minPauseDate = new Date(nowInIndia);
+  minPauseDate.setDate(minPauseDate.getDate() + 1); // Strictly tomorrow
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
+  const minDateStr = formatter.format(minPauseDate);
 
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
