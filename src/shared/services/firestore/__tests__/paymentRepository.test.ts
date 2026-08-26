@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { paymentRepository } from '../paymentRepository';
-import { getDocs, onSnapshot, query, getDoc } from 'firebase/firestore';
+import { getDocs, onSnapshot, getDoc } from 'firebase/firestore';
 
 vi.mock('@/shared/lib/firebase', () => ({
   db: {}

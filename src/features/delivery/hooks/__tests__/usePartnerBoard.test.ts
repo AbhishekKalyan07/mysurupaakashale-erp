@@ -5,7 +5,7 @@ import { auditRepository } from '@/shared/services/firestore/auditRepository';
 
 
 // Mock React
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 vi.mock('react', () => ({
   useState: vi.fn((init) => [init, vi.fn()]),
   useEffect: vi.fn(),
