@@ -8,7 +8,10 @@ import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import { useMemo } from 'react';
 vi.mock('react', () => ({
   useState: vi.fn((init) => [init, vi.fn()]),
-  useEffect: vi.fn(),
+  useEffect: vi.fn((cb) => {
+    const cleanup = cb();
+    if (typeof cleanup === 'function') cleanup();
+  }),
   useMemo: vi.fn((cb) => cb()),
 }));
 
@@ -30,13 +33,19 @@ vi.mock('@/shared/services/firestore/orderRepository', () => ({
 
 vi.mock('@/shared/services/firestore/deliveryRepository', () => ({
   deliveryRepository: {
-    subscribePartnerOrders: vi.fn(),
+    subscribePartnerOrders: vi.fn((partnerId, date, onNext) => {
+      if (onNext) onNext([{ id: 'ord-1', status: 'delivered' }]);
+      return vi.fn();
+    }),
   }
 }));
 
 vi.mock('@/shared/services/firestore/dailyDeliveryRepository', () => ({
   dailyDeliveryRepository: {
-    subscribeDriverSession: vi.fn(),
+    subscribeDriverSession: vi.fn((date, partnerId, onNext) => {
+      if (onNext) onNext({ status: 'in_progress' } as any);
+      return vi.fn();
+    }),
     updateDriverSession: vi.fn(),
   }
 }));
@@ -70,6 +79,12 @@ describe('usePartnerBoard mutation payload', () => {
     vi.clearAllMocks();
     // Re-initialize hook to capture the mutation config
     board = usePartnerBoard('driver-1', '2026-08-01');
+  });
+
+  it('handles empty partnerId or date gracefully', () => {
+    const res = usePartnerBoard('', '');
+    expect(res.orders).toEqual([]);
+    expect(res.session).toBeNull();
   });
 
   it('persists outForDeliveryAt when status is out_for_delivery', async () => {

@@ -188,6 +188,34 @@ describe('Unskip Meal Feature', () => {
       ).rejects.toThrow('Subscription does not belong to this customer.');
     });
 
+    it('4d. Non-active subscription or invalid dates are rejected during regeneration', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
+      
+      // Inactive sub
+      vi.spyOn(subscriptionRepository, 'getById').mockResolvedValue({
+        id: 'sub1', customerId: 'cust1', status: 'paused', startDate: '2026-01-01'
+      } as any);
+      await expect(
+        orderService.restoreOrdersForUnskipDay('cust1', 'sub1', '2026-08-01', ['lunch'])
+      ).rejects.toThrow('Subscription is paused, not active. Cannot regenerate orders.');
+
+      // Date before startDate
+      vi.spyOn(subscriptionRepository, 'getById').mockResolvedValue({
+        id: 'sub1', customerId: 'cust1', status: 'active', startDate: '2026-09-01'
+      } as any);
+      await expect(
+        orderService.restoreOrdersForUnskipDay('cust1', 'sub1', '2026-08-01', ['lunch'])
+      ).rejects.toThrow('Requested date is before the subscription start date.');
+
+      // Date after endDate
+      vi.spyOn(subscriptionRepository, 'getById').mockResolvedValue({
+        id: 'sub1', customerId: 'cust1', status: 'active', startDate: '2026-01-01', endDate: '2026-07-01'
+      } as any);
+      await expect(
+        orderService.restoreOrdersForUnskipDay('cust1', 'sub1', '2026-08-01', ['lunch'])
+      ).rejects.toThrow('Requested date is after the subscription end date.');
+    });
+
     it('7 & 8 & 9. Operational orders cannot be restored', async () => {
       vi.spyOn(orderRepository, 'list').mockResolvedValue([
         { id: 'order1', mealType: 'lunch', status: 'picked_up' } as any
