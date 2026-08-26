@@ -444,7 +444,22 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Customer can create a payment with status "pending"', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(addDoc(collection(db, 'payments'), {
-        customerId: CUSTOMER_A_UID, status: 'pending', amount: 4500, subscriptionId: 'sub-a'
+        subscriptionId: 'sub-a',
+        customerId: CUSTOMER_A_UID,
+        customerName: 'Cust A',
+        amount: 4500,
+        currency: 'INR',
+        paymentMethod: 'UPI',
+        referenceNumber: '123',
+        paymentDate: '2025-01-01',
+        screenshotUrl: null,
+        billingMonth: '2025-01',
+        status: 'pending',
+        verificationDate: null,
+        verifiedBy: null,
+        verificationNotes: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }));
     });
   });
@@ -672,6 +687,142 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         mealTypes: ['lunch'],
         status: 'pending',
         createdAt: new Date(),
+      }));
+    });
+  });
+
+  // =========================================================================
+  // 14. ONE-TIME ORDER SECURITY (FINDING 1)
+  // =========================================================================
+  describe('14. One-Time Order Creation Security', () => {
+    const validOneTimeOrder = {
+      id: 'trial-1',
+      displayId: 'ORD-ABC',
+      source: 'one_time',
+      customerId: CUSTOMER_A_UID,
+      customerName: 'Cust A',
+      customerCode: 'C-A',
+      customerPhone: '987',
+      address: 'Test Addr',
+      subscriptionId: null,
+      planTier: 'basic',
+      mealType: 'lunch',
+      date: '2025-05-05',
+      itemsLabel: 'Trial',
+      selectedOptionId: null,
+      price: 150,
+      currency: 'INR',
+      status: 'scheduled',
+      deliveryAddressId: 'addr1',
+      zoneId: null,
+      kitchenId: null,
+      deliveryPartnerId: null,
+      deliveryWindow: null,
+      paymentId: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    it('DENY: Customer cannot create a zero-price scheduled one-time order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-zero'), {
+        ...validOneTimeOrder,
+        price: 0
+      }));
+    });
+
+    it('DENY: Customer cannot create a negative-price order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-neg'), {
+        ...validOneTimeOrder,
+        price: -100
+      }));
+    });
+
+    it('DENY: Customer cannot self-assign deliveryPartnerId', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-del'), {
+        ...validOneTimeOrder,
+        deliveryPartnerId: 'partner-1'
+      }));
+    });
+
+    it('DENY: Customer cannot forge another customer order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_B_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-forge'), {
+        ...validOneTimeOrder, // has customerId: CUSTOMER_A_UID
+      }));
+    });
+
+    it('DENY: Customer cannot inject unauthorized operational fields', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-extra'), {
+        ...validOneTimeOrder,
+        kitchenStatus: 'ready' // not in allowlist
+      }));
+    });
+
+    it('ALLOW: Legitimate existing one-time/trial flow succeeds', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'orders', 'trial-valid'), validOneTimeOrder));
+    });
+  });
+
+  // =========================================================================
+  // 15. PAYMENT CREATION SECURITY (FINDING 4)
+  // =========================================================================
+  describe('15. Payment Creation Security', () => {
+    const validPayment = {
+      subscriptionId: 'sub-a',
+      customerId: CUSTOMER_A_UID,
+      customerName: 'Cust A',
+      amount: 4500,
+      currency: 'INR',
+      paymentMethod: 'UPI',
+      referenceNumber: '123',
+      paymentDate: '2025-01-01',
+      screenshotUrl: 'http',
+      billingMonth: '2025-01',
+      status: 'pending',
+      verificationDate: null,
+      verifiedBy: null,
+      verificationNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    it('DENY: Payment without createdAt is denied', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      const { createdAt, ...withoutCreatedAt } = validPayment;
+      await assertFails(setDoc(doc(db, 'payments', 'pay-new'), withoutCreatedAt));
+    });
+
+    it('ALLOW: Payment with valid createdAt is allowed if legitimate', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-valid-1'), validPayment));
+    });
+
+    it('DENY: Customer cannot create payment for another customer subscription', async () => {
+      const db = env.authenticatedContext(CUSTOMER_B_UID).firestore(); // B trying to pay for A's sub
+      await assertFails(setDoc(doc(db, 'payments', 'pay-cross'), {
+        ...validPayment,
+        customerId: CUSTOMER_B_UID // trying to bypass ownership check
+      }));
+    });
+
+    it('DENY: Customer cannot inject unauthorized payment fields', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-extra'), {
+        ...validPayment,
+        adminNotes: 'approved'
+      }));
+    });
+    
+    it('DENY: Payment amount must be > 0', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-zero'), {
+        ...validPayment,
+        amount: 0
       }));
     });
   });

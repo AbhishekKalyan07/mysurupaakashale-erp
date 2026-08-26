@@ -162,5 +162,85 @@ describe('orderRepository', () => {
 
       await expect(orderRepository.updateWorkflow('ord-1', 'preparing')).rejects.toThrow('Order not found');
     });
+
+    it('synchronizes kitchenStatus to ready_for_pickup when advancing to a delivery status', async () => {
+      let capturedUpdate: any;
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, updateFunction) => {
+        const transaction = {
+          get: vi.fn(async () => ({
+            exists: () => true,
+            data: () => ({ status: 'scheduled' }),
+          })),
+          set: vi.fn(),
+          update: vi.fn((_ref, payload) => { capturedUpdate = payload; }),
+        } as any;
+        return await updateFunction(transaction);
+      });
+
+      await orderRepository.updateWorkflow('ord-1', 'picked_up');
+      expect(capturedUpdate).toBeDefined();
+      expect(capturedUpdate.status).toBe('picked_up');
+      expect(capturedUpdate.kitchenStatus).toBe('ready_for_pickup');
+    });
+
+    it('synchronizes kitchenStatus when advancing to a kitchen status', async () => {
+      let capturedUpdate: any;
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, updateFunction) => {
+        const transaction = {
+          get: vi.fn(async () => ({
+            exists: () => true,
+            data: () => ({ status: 'scheduled' }),
+          })),
+          set: vi.fn(),
+          update: vi.fn((_ref, payload) => { capturedUpdate = payload; }),
+        } as any;
+        return await updateFunction(transaction);
+      });
+
+      await orderRepository.updateWorkflow('ord-1', 'packing');
+      expect(capturedUpdate).toBeDefined();
+      expect(capturedUpdate.status).toBe('packing');
+      expect(capturedUpdate.kitchenStatus).toBe('packing');
+    });
+
+    it('sets SLA timestamps when advancing to delivery statuses', async () => {
+      let capturedUpdate: any;
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, updateFunction) => {
+        const transaction = {
+          get: vi.fn(async () => ({
+            exists: () => true,
+            data: () => ({ status: 'picked_up' }),
+          })),
+          set: vi.fn(),
+          update: vi.fn((_ref, payload) => { capturedUpdate = payload; }),
+        } as any;
+        return await updateFunction(transaction);
+      });
+
+      await orderRepository.updateWorkflow('ord-1', 'out_for_delivery');
+      expect(capturedUpdate.outForDeliveryAt).toBeDefined();
+      expect(capturedUpdate.deliveredAt).toBeUndefined();
+    });
+
+    it('preserves existing SLA timestamps if already present', async () => {
+      let capturedUpdate: any;
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, updateFunction) => {
+        const transaction = {
+          get: vi.fn(async () => ({
+            exists: () => true,
+            data: () => ({
+              status: 'out_for_delivery',
+              outForDeliveryAt: 'EXISTING_TIMESTAMP'
+            }),
+          })),
+          set: vi.fn(),
+          update: vi.fn((_ref, payload) => { capturedUpdate = payload; }),
+        } as any;
+        return await updateFunction(transaction);
+      });
+
+      await orderRepository.updateWorkflow('ord-1', 'out_for_delivery');
+      expect(capturedUpdate.outForDeliveryAt).toBeUndefined(); // Should not overwrite
+    });
   });
 });

@@ -76,10 +76,20 @@ export function usePartnerBoard(partnerId: string, date: string) {
       deliveryResult?: { reasonCode: string; notes?: string }
     }) => {
       
+      const currentOrder = orders.find(o => o.id === orderId);
+
       const payload: Partial<Order> = {
         status: newStatus,
         updatedAt: serverTimestamp() as unknown as Timestamp,
       };
+
+      if (newStatus === 'out_for_delivery' && (!currentOrder || !currentOrder.outForDeliveryAt)) {
+        payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp;
+      }
+
+      if (newStatus === 'delivered' && (!currentOrder || !currentOrder.deliveredAt)) {
+        payload.deliveredAt = serverTimestamp() as unknown as Timestamp;
+      }
 
       if (deliveryResult) {
         payload.deliveryResult = deliveryResult;

@@ -22,57 +22,62 @@ function Run-Stage {
     Write-Host "STAGE: $Name"
     Write-Host "========================================================"
     & $Script
+}
+
+function Invoke-Checked {
+    param([scriptblock]$Command)
+    & $Command
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "::error::Stage '$Name' failed with exit code $LASTEXITCODE"
+        Write-Host "::error::Command failed with exit code $LASTEXITCODE"
         exit $LASTEXITCODE
     }
 }
 
 Run-Stage "Setup & Install" {
     Write-Host "Running: npm ci"
-    npm ci
+    Invoke-Checked { npm ci }
 }
 
 Run-Stage "Code Quality (Type Check & Lint)" {
     Write-Host "Running: npm run type-check"
-    npm run type-check
+    Invoke-Checked { npm run type-check }
     
     Write-Host "Running: npm run lint"
-    npm run lint
+    Invoke-Checked { npm run lint }
 }
 
 Run-Stage "Unit Tests + Coverage" {
     Write-Host "Running: npm run test"
-    npm run test
+    Invoke-Checked { npm run test }
     
     Write-Host "Running: npm run test:coverage"
-    npm run test:coverage
+    Invoke-Checked { npm run test:coverage }
 }
 
 Run-Stage "Security Tests (Firebase Emulator)" {
     Write-Host "Running: firebase emulators:exec --project demo-security-test --only firestore,storage `"npm run test:security`""
-    npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security"
+    Invoke-Checked { npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security" }
 }
 
 Run-Stage "E2E Tests (Playwright)" {
     Write-Host "Running: npx playwright install --with-deps chromium"
-    npx playwright install --with-deps chromium
+    Invoke-Checked { npx playwright install --with-deps chromium }
     
     Write-Host "Running: npx playwright test --project=chromium"
-    npx playwright test --project=chromium
+    Invoke-Checked { npx playwright test --project=chromium }
 }
 
 Run-Stage "Dependency Security Audit" {
     Write-Host "Running: npm audit --omit=dev --audit-level=high"
-    npm audit --omit=dev --audit-level=high
+    Invoke-Checked { npm audit --omit=dev --audit-level=high }
 }
 
 Run-Stage "Lighthouse CI" {
     Write-Host "Running: npm run build"
-    npm run build
+    Invoke-Checked { npm run build }
     
     Write-Host "Running: npx lhci autorun"
-    npx lhci autorun
+    Invoke-Checked { npx lhci autorun }
 }
 
 Write-Host "`n========================================================"

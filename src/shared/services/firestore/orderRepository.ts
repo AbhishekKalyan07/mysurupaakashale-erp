@@ -56,10 +56,12 @@ class OrderRepository extends BaseRepository<Order> {
    * targeted one-time fetches when the live subscription hasn't hydrated yet.
    */
   async getByDateAndMealType(date: string, mealType: MealType): Promise<Order[]> {
+    // NOTE: routeSequence orderBy removed — the field is optional and not
+    // currently set during order generation, which caused the composite
+    // index query to silently exclude all documents without it.
     return this.list(
       where('date', '==', date),
-      where('mealType', '==', mealType),
-      orderBy('routeSequence', 'asc')
+      where('mealType', '==', mealType)
     );
   }
 
@@ -197,10 +199,28 @@ class OrderRepository extends BaseRepository<Order> {
       
       const oldData = snap.data() as Order;
       
-      t.update(orderRef, {
-        status: newStatus,
-        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
-      } as Partial<Order>);
+      const payload: Partial<Order> = {
+        status: newStatus as OrderStatus,
+        updatedAt: serverTimestamp() as unknown as Timestamp
+      };
+
+      const kitchenStatuses = ['scheduled', 'packing', 'packed', 'ready_for_pickup'];
+      const deliveryStatuses = ['picked_up', 'out_for_delivery', 'delivered', 'failed_delivery', 'returned_delivery'];
+
+      if (kitchenStatuses.includes(newStatus)) {
+        payload.kitchenStatus = newStatus as import('@/shared/types/order.types').KitchenStatus;
+      } else if (deliveryStatuses.includes(newStatus)) {
+        payload.kitchenStatus = 'ready_for_pickup';
+      }
+
+      if (newStatus === 'out_for_delivery' && !oldData.outForDeliveryAt) {
+        payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp;
+      }
+      if (newStatus === 'delivered' && !oldData.deliveredAt) {
+        payload.deliveredAt = serverTimestamp() as unknown as Timestamp;
+      }
+
+      t.update(orderRef, payload);
       
       const historyRef = doc(collection(db, 'orders', orderId, 'workflowHistory'));
       t.set(historyRef, {

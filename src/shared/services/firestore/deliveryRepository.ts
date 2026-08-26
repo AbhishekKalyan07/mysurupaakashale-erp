@@ -58,11 +58,14 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Fetch orders for a specific delivery partner on a specific date.
    */
   async getDeliveryPartnerOrders(partnerId: string, date: string): Promise<Order[]> {
+    // NOTE: routeSequence is optional and not currently populated during order
+    // generation. Using it in orderBy() caused Firestore composite index queries
+    // to silently exclude ALL documents without the field. Sorting by mealType
+    // only; client-side route sorting can be applied when routeSequence is set.
     return this.list(
       where('date', '==', date),
       where('deliveryPartnerId', '==', partnerId),
-      orderBy('mealType', 'asc'),
-      orderBy('routeSequence', 'asc')
+      orderBy('mealType', 'asc')
     );
   }
 
@@ -75,13 +78,13 @@ class DeliveryRepository extends BaseRepository<Order> {
     onNext: (orders: Order[]) => void,
     onError?: (error: Error) => void
   ): Unsubscribe {
+    // NOTE: routeSequence orderBy removed — see getDeliveryPartnerOrders.
     return this.subscribeToList(
       onNext,
       onError,
       where('date', '==', date),
       where('deliveryPartnerId', '==', partnerId),
-      orderBy('mealType', 'asc'),
-      orderBy('routeSequence', 'asc')
+      orderBy('mealType', 'asc')
     );
   }
 
@@ -137,11 +140,22 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Moved from Cloud Function to client-side direct write (Spark plan — no Functions).
    */
   async updateDeliveryStatus(orderId: string, newStatus: string): Promise<void> {
-    // Phase 7: Client-side delivery status update
-    await this.update(orderId, {
-      status: newStatus,
+    const order = await this.getById(orderId);
+    if (!order) return;
+
+    const payload: Partial<Order> = {
+      status: newStatus as import('@/shared/types').OrderStatus,
       updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
-    } as Partial<Order>);
+    };
+
+    if (newStatus === 'out_for_delivery' && !order.outForDeliveryAt) {
+      payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp as unknown as Timestamp;
+    }
+    if (newStatus === 'delivered' && !order.deliveredAt) {
+      payload.deliveredAt = serverTimestamp() as unknown as Timestamp as unknown as Timestamp;
+    }
+
+    await this.update(orderId, payload);
   }
 }
 
