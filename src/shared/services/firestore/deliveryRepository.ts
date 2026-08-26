@@ -140,11 +140,22 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Moved from Cloud Function to client-side direct write (Spark plan — no Functions).
    */
   async updateDeliveryStatus(orderId: string, newStatus: string): Promise<void> {
-    // Phase 7: Client-side delivery status update
-    await this.update(orderId, {
-      status: newStatus,
+    const order = await this.getById(orderId);
+    if (!order) return;
+
+    const payload: Partial<Order> = {
+      status: newStatus as import('@/shared/types').OrderStatus,
       updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp
-    } as Partial<Order>);
+    };
+
+    if (newStatus === 'out_for_delivery' && !order.outForDeliveryAt) {
+      payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp as unknown as Timestamp;
+    }
+    if (newStatus === 'delivered' && !order.deliveredAt) {
+      payload.deliveredAt = serverTimestamp() as unknown as Timestamp as unknown as Timestamp;
+    }
+
+    await this.update(orderId, payload);
   }
 }
 

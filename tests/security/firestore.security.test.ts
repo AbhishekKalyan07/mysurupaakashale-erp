@@ -444,7 +444,22 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Customer can create a payment with status "pending"', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(addDoc(collection(db, 'payments'), {
-        customerId: CUSTOMER_A_UID, status: 'pending', amount: 4500, subscriptionId: 'sub-a'
+        subscriptionId: 'sub-a',
+        customerId: CUSTOMER_A_UID,
+        customerName: 'Cust A',
+        amount: 4500,
+        currency: 'INR',
+        paymentMethod: 'UPI',
+        referenceNumber: '123',
+        paymentDate: '2025-01-01',
+        screenshotUrl: null,
+        billingMonth: '2025-01',
+        status: 'pending',
+        verificationDate: null,
+        verifiedBy: null,
+        verificationNotes: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }));
     });
   });

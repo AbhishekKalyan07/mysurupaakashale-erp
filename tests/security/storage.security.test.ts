@@ -94,7 +94,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
         setDoc(doc(db, 'users', DELIVERY_B_UID),  { id: DELIVERY_B_UID, role: 'delivery_partner' }),
         setDoc(doc(db, 'users', ACCOUNTS_UID),    { id: ACCOUNTS_UID,   role: 'accounts' }),
         // Delivery document used for delivery-proof access checks
-        setDoc(doc(db, 'deliveries', DELIVERY_ID), {
+        setDoc(doc(db, 'orders', DELIVERY_ID), {
           customerId: CUSTOMER_A_UID,
           deliveryPartnerId: DELIVERY_UID,
           orderId: 'order-1',
