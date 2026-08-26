@@ -33,7 +33,7 @@ vi.mock('@/shared/services/firestore/orderRepository', () => ({
 
 vi.mock('@/shared/services/firestore/deliveryRepository', () => ({
   deliveryRepository: {
-    subscribePartnerOrders: vi.fn((partnerId, date, onNext) => {
+    subscribePartnerOrders: vi.fn((_partnerId, _date, onNext) => {
       if (onNext) onNext([{ id: 'ord-1', status: 'delivered' }]);
       return vi.fn();
     }),
@@ -42,7 +42,7 @@ vi.mock('@/shared/services/firestore/deliveryRepository', () => ({
 
 vi.mock('@/shared/services/firestore/dailyDeliveryRepository', () => ({
   dailyDeliveryRepository: {
-    subscribeDriverSession: vi.fn((date, partnerId, onNext) => {
+    subscribeDriverSession: vi.fn((_date, _partnerId, onNext) => {
       if (onNext) onNext({ status: 'in_progress' } as any);
       return vi.fn();
     }),
