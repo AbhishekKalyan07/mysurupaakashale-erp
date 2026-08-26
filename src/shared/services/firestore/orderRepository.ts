@@ -56,10 +56,12 @@ class OrderRepository extends BaseRepository<Order> {
    * targeted one-time fetches when the live subscription hasn't hydrated yet.
    */
   async getByDateAndMealType(date: string, mealType: MealType): Promise<Order[]> {
+    // NOTE: routeSequence orderBy removed — the field is optional and not
+    // currently set during order generation, which caused the composite
+    // index query to silently exclude all documents without it.
     return this.list(
       where('date', '==', date),
-      where('mealType', '==', mealType),
-      orderBy('routeSequence', 'asc')
+      where('mealType', '==', mealType)
     );
   }
 

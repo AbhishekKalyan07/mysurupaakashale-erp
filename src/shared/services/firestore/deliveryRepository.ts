@@ -58,11 +58,14 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Fetch orders for a specific delivery partner on a specific date.
    */
   async getDeliveryPartnerOrders(partnerId: string, date: string): Promise<Order[]> {
+    // NOTE: routeSequence is optional and not currently populated during order
+    // generation. Using it in orderBy() caused Firestore composite index queries
+    // to silently exclude ALL documents without the field. Sorting by mealType
+    // only; client-side route sorting can be applied when routeSequence is set.
     return this.list(
       where('date', '==', date),
       where('deliveryPartnerId', '==', partnerId),
-      orderBy('mealType', 'asc'),
-      orderBy('routeSequence', 'asc')
+      orderBy('mealType', 'asc')
     );
   }
 
@@ -75,13 +78,13 @@ class DeliveryRepository extends BaseRepository<Order> {
     onNext: (orders: Order[]) => void,
     onError?: (error: Error) => void
   ): Unsubscribe {
+    // NOTE: routeSequence orderBy removed — see getDeliveryPartnerOrders.
     return this.subscribeToList(
       onNext,
       onError,
       where('date', '==', date),
       where('deliveryPartnerId', '==', partnerId),
-      orderBy('mealType', 'asc'),
-      orderBy('routeSequence', 'asc')
+      orderBy('mealType', 'asc')
     );
   }
 

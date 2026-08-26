@@ -74,19 +74,22 @@ service firebase.storage {
     // Write: only the assigned delivery partner may upload proof photos.
     // Read:  customer (their own delivery), delivery partner, admin, kitchen.
     //        Accounts cannot view delivery proof photos (not in their operational scope).
+    // NOTE: The app uses the `orders` collection for delivery tracking — there
+    //        is no separate `deliveries` collection. The deliveryId path param
+    //        corresponds to the orderId in the `orders` collection.
     match /delivery-proof/{deliveryId}/{fileName} {
-      function delivery() {
-        return firestore.get(/databases/(default)/documents/deliveries/$(deliveryId)).data;
+      function deliveryOrder() {
+        return firestore.get(/databases/(default)/documents/orders/$(deliveryId)).data;
       }
 
       allow read: if isSignedIn() &&
-                     (delivery().customerId == request.auth.uid ||
-                      delivery().deliveryPartnerId == request.auth.uid ||
+                     (deliveryOrder().customerId == request.auth.uid ||
+                      deliveryOrder().deliveryPartnerId == request.auth.uid ||
                       isAdmin() || isKitchen());
 
       // Only the assigned delivery partner may upload; image only, 5 MB max.
       allow write: if isSignedIn()
-                   && delivery().deliveryPartnerId == request.auth.uid
+                   && deliveryOrder().deliveryPartnerId == request.auth.uid
                    && isImageUnder(5);
     }
 
