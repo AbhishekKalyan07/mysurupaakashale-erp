@@ -83,7 +83,7 @@ class BillingService {
 
     let totalAmount = 0;
     const tier = subscription.planTier as 'basic' | 'regular';
-    const matrix = PRICING_MATRIX[tier] || PRICING_MATRIX.basic;
+    const matrix = subscription.pricingMatrixSnapshot || PRICING_MATRIX[tier] || PRICING_MATRIX.basic;
 
     for (const [_, dailyOrders] of Array.from(ordersByDate.entries())) {
       const meals = dailyOrders.map(o => o.mealType);

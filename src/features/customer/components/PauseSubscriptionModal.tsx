@@ -13,17 +13,17 @@ interface PauseSubscriptionModalProps {
   onClose: () => void;
 }
 
+import { getTodayIST } from '@/shared/utils/dateUtils';
+
 export function PauseSubscriptionModal({ subscription, onClose }: PauseSubscriptionModalProps) {
   const [updating, setUpdating] = useState(false);
   const queryClient = useQueryClient();
 
   // Calculate India local date and cutoff
-  const nowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  const nowInIndia = new Date(nowStr);
-  
-  // Cutoff calculation: 10:30 AM for lunch, 4:00 PM for dinner
-  const hours = nowInIndia.getHours();
-  const minutes = nowInIndia.getMinutes();
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
   const timeInMinutes = hours * 60 + minutes;
   
   const prefs = (subscription.mealPreferences || []).map(p => p.mealType);
@@ -32,13 +32,10 @@ export function PauseSubscriptionModal({ subscription, onClose }: PauseSubscript
   if (prefs.includes('lunch') && timeInMinutes < 10 * 60 + 30) canCancelToday = true;
   if (prefs.includes('dinner') && timeInMinutes < 16 * 60) canCancelToday = true;
 
-  const minPauseDate = new Date(nowInIndia);
-  if (!canCancelToday) {
-    minPauseDate.setDate(minPauseDate.getDate() + 1);
-  }
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
-  const minDateStr = formatter.format(minPauseDate);
-  const todayInIndia = formatter.format(nowInIndia);
+  const todayInIndia = getTodayIST();
+  const [todayYear, todayMonth, todayDay] = todayInIndia.split('-').map(Number);
+  const minPauseDateObj = new Date(Date.UTC(todayYear, todayMonth - 1, todayDay + (canCancelToday ? 0 : 1)));
+  const minDateStr = minPauseDateObj.toISOString().split('T')[0];
 
   const [pauseStartDate, setPauseStartDate] = useState(minDateStr);
   const [pauseEndDate, setPauseEndDate] = useState('');
