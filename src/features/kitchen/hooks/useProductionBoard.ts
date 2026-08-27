@@ -27,7 +27,7 @@ export function useProductionBoard() {
   useEffect(() => {
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
-      profile?.kitchenId,
+      (profile as any)?.kitchenId,
       (orders: Order[]) => queryClient.setQueryData(queryKey, orders),
       (err) => console.error(`[useProductionBoard] orders onSnapshot error:`, err)
     );
