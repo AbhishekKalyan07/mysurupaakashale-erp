@@ -65,16 +65,6 @@ export function EditSubscriptionModal({ subscription, plan, onClose }: EditSubsc
       await subscriptionRepository.update(subscription.id, {
         quantity,
         mealPreferences,
-        pricePerDaySnapshot: calculatedDailyPrice,
-        pricingMatrixSnapshot: plan.pricingMatrix || {
-          breakfast: 60,
-          lunch: 65,
-          dinner: 65,
-          breakfast_lunch: 115,
-          lunch_dinner: 115,
-          breakfast_dinner: 115,
-          breakfast_lunch_dinner: 159
-        },
       });
     },
     onSuccess: () => {

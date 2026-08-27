@@ -3,7 +3,7 @@ import { db } from '@/shared/lib/firebase';
 import { auth } from '@/shared/lib/firebase';
 import type { Order, OrderStatus, MealType, OrderWorkflowHistory } from '@/shared/types';
 import { BaseRepository, createConverter } from './BaseRepository';
-import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe, limit, startAfter, QueryDocumentSnapshot, QueryConstraint } from 'firebase/firestore';
 /**
  * Client-side repository for the `orders` collection.
  *
@@ -21,8 +21,13 @@ class OrderRepository extends BaseRepository<Order> {
    * All orders for a given ISO date string (YYYY-MM-DD).
    * Used by the Kitchen Dashboard and Production Board.
    */
-  async getByDate(date: string): Promise<Order[]> {
-    return this.list(where('date', '==', date), orderBy('mealType', 'asc'));
+  async getByDate(date: string, kitchenId?: string | null): Promise<Order[]> {
+    const constraints: QueryConstraint[] = [where('date', '==', date)];
+    if (kitchenId) {
+      constraints.push(where('kitchenId', '==', kitchenId));
+    }
+    constraints.push(orderBy('mealType', 'asc'));
+    return this.list(...constraints);
   }
 
   /**
@@ -44,10 +49,15 @@ class OrderRepository extends BaseRepository<Order> {
    */
   subscribeToDayOrders(
     date: string,
+    kitchenId: string | null | undefined,
     onNext: (orders: Order[]) => void,
     onError?: (error: Error) => void
   ) {
-    return this.subscribeToList(onNext, onError, where('date', '==', date));
+    const constraints: QueryConstraint[] = [where('date', '==', date)];
+    if (kitchenId) {
+      constraints.push(where('kitchenId', '==', kitchenId));
+    }
+    return this.subscribeToList(onNext, onError, ...constraints);
   }
 
   /**
@@ -55,14 +65,15 @@ class OrderRepository extends BaseRepository<Order> {
    * Used by useBreakfastOrders / useLunchOrders / useDinnerOrders for
    * targeted one-time fetches when the live subscription hasn't hydrated yet.
    */
-  async getByDateAndMealType(date: string, mealType: MealType): Promise<Order[]> {
+  async getByDateAndMealType(date: string, mealType: MealType, kitchenId?: string | null): Promise<Order[]> {
     // NOTE: routeSequence orderBy removed — the field is optional and not
     // currently set during order generation, which caused the composite
-    // index query to silently exclude all documents without it.
-    return this.list(
-      where('date', '==', date),
-      where('mealType', '==', mealType)
-    );
+    // index requirements to fail. Orders are sorted in memory by the dashboard.
+    const constraints: QueryConstraint[] = [where('date', '==', date), where('mealType', '==', mealType)];
+    if (kitchenId) {
+      constraints.push(where('kitchenId', '==', kitchenId));
+    }
+    return this.list(...constraints);
   }
 
   /**
@@ -75,6 +86,35 @@ class OrderRepository extends BaseRepository<Order> {
       orderBy('date', 'desc'),
       limit(100)
     );
+  }
+
+  /**
+   * Retrieves paginated orders for a specific customer.
+   */
+  async getCustomerOrdersPaginated(
+    customerId: string,
+    pageSize: number = 20,
+    lastDocSnap?: QueryDocumentSnapshot<Order>
+  ): Promise<{ orders: Order[]; lastDoc: QueryDocumentSnapshot<Order> | null }> {
+    const constraints: QueryConstraint[] = [
+      where('customerId', '==', customerId),
+      orderBy('date', 'desc'),
+      limit(pageSize)
+    ];
+
+    if (lastDocSnap) {
+      constraints.push(startAfter(lastDocSnap));
+    }
+
+    const converter = createConverter<Order>();
+    const colRef = collection(db, 'orders').withConverter(converter);
+    const snapshot = await getDocs(query(colRef, ...constraints));
+
+    const orders = snapshot.docs.map(d => d.data());
+    return {
+      orders,
+      lastDoc: snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1] : null,
+    };
   }
 
   /**

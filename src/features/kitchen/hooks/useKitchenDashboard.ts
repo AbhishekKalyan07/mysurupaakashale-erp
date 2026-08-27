@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 import type { Order, MealType, OrderStatus } from '@/shared/types';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
@@ -61,6 +62,8 @@ export interface KitchenDashboardData {
 export function useKitchenOrdersSummary(date: string) {
   const queryClient = useQueryClient();
   const queryKey = queryKeys.kitchen.dayOrders(date);
+  const { profile } = useAuth();
+  const kitchenId = profile?.role === 'kitchen' ? profile.kitchenId : null;
 
   // Register the onSnapshot listener. When Firestore pushes an update, we
   // inject it directly into the React Query cache — this gives real-time UX
@@ -68,6 +71,7 @@ export function useKitchenOrdersSummary(date: string) {
   useEffect(() => {
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
+      kitchenId,
       (orders) => {
         queryClient.setQueryData(queryKey, orders);
       },
@@ -82,7 +86,7 @@ export function useKitchenOrdersSummary(date: string) {
   // entry that onSnapshot continues to update after the first load.
   return useQuery<Order[]>({
     queryKey,
-    queryFn: () => orderRepository.getByDate(date),
+    queryFn: () => orderRepository.getByDate(date, kitchenId),
     staleTime: 0, // always accept the live value from onSnapshot
   });
 }

@@ -47,6 +47,17 @@ service cloud.firestore {
     function isDeliveryPartner() { return role() == 'delivery_partner'; }
     function isAccounts() { return role() == 'accounts'; }
 
+    function callerKitchenId() {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      let userDoc = (isSignedIn() && exists(path)) ? get(path) : null;
+      return (userDoc != null) ? userDoc.data.get('kitchenId', null) : null;
+    }
+    
+    function isAuthorizedKitchen(kitchenId) {
+      let myKitchen = callerKitchenId();
+      return isKitchen() && myKitchen != null && kitchenId == myKitchen;
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -133,9 +144,9 @@ service cloud.firestore {
       // Admin has full write access.
       // Kitchen can create and edit draft menus directly.
       // Publishing/archiving goes through the manageDailyMenu Cloud Function.
-      allow create: if isAdmin() || (isKitchen() && request.resource.data.status == 'draft');
-      allow update: if isAdmin() || (isKitchen() && resource.data.status == 'draft' && request.resource.data.status == 'draft');
-      allow delete: if isAdmin() || (isKitchen() && resource.data.status == 'draft');
+      allow create: if isAdmin() || (isAuthorizedKitchen(request.resource.data.kitchenId) && request.resource.data.status == 'draft');
+      allow update: if isAdmin() || (isAuthorizedKitchen(resource.data.kitchenId) && isAuthorizedKitchen(request.resource.data.kitchenId) && resource.data.status == 'draft' && request.resource.data.status == 'draft');
+      allow delete: if isAdmin() || (isAuthorizedKitchen(resource.data.kitchenId) && resource.data.status == 'draft');
     }
 
     // ---------- kitchens/{kitchenId} ----------
@@ -205,11 +216,24 @@ service cloud.firestore {
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
       // Phase 5: Admins can create/update subscriptions, customers can create pending drafts
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.customerId == request.auth.uid && request.resource.data.status == 'pending_payment');
+      allow create: if isAdmin() ||
+                      (isSignedIn() &&
+                       request.resource.data.customerId == request.auth.uid &&
+                       request.resource.data.status == 'pending_payment' &&
+                       request.resource.data.quantity is number &&
+                       request.resource.data.quantity > 0 &&
+                       request.resource.data.pricePerDaySnapshot is number &&
+                       request.resource.data.pricePerDaySnapshot > 0 &&
+                       request.resource.data.deliveryPartnerId == null &&
+                       request.resource.data.latestPaymentId == null &&
+                       request.resource.data.pricingMatrixSnapshot == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix &&
+                       request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'createdAt', 'updatedAt']));
 
-      // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above.
+      // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above, plus legitimate customer edits.
       allow update: if isAdmin() ||
-                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate']) && isAllowedCustomerTransition());
+                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences']) &&
+                        request.resource.data.quantity > 0 &&
+                        (isAllowedCustomerTransition() || unchanged('status')));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -272,7 +296,7 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
                       (resource.data.get('customerId', null) == request.auth.uid ||
                        resource.data.get('deliveryPartnerId', null) == request.auth.uid ||
-                      isAdmin() || isAccounts() || isKitchen());
+                      isAdmin() || isAccounts() || isAuthorizedKitchen(resource.data.get('kitchenId', null)));
 
       // Phase 4: Admins can generate orders
       // Customers can create one-time trial orders only. Subscription orders
@@ -321,7 +345,7 @@ service cloud.firestore {
       //  - Customer (their own order, cancelled): → scheduled (if cutoff not passed)
       //  - Admin: anything
       allow update: if isAdmin() ||
-                      (isKitchen() && onlyChangedFields(['status', 'kitchenStatus', 'updatedAt', 'packingAt', 'packedAt', 'readyAt', 'preparingAt']) &&
+                      (isAuthorizedKitchen(resource.data.kitchenId) && onlyChangedFields(['status', 'kitchenStatus', 'updatedAt', 'packingAt', 'packedAt', 'readyAt', 'preparingAt']) &&
                        isValidKitchenTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) == 'open') ||
                       (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid &&
@@ -445,8 +469,8 @@ service cloud.firestore {
 
     // ---------- inventory/{itemId} ----------
     match /inventory/{itemId} {
-      allow read: if isKitchen() || isAdmin();
-      allow write: if isKitchen() || isAdmin();
+      allow read: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
+      allow write: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
     }
 
     match /settings/userCounters {
@@ -508,7 +532,9 @@ service cloud.firestore {
       allow create: if isAdmin() || isAccounts() ||
                        (isSignedIn() && request.resource.data.staffId == request.auth.uid);
       allow update: if isAdmin() || isAccounts() ||
-                       (isSignedIn() && resource.data.staffId == request.auth.uid);
+                       (isSignedIn() && resource.data.staffId == request.auth.uid &&
+                        onlyChangedFields(['checkOutTime', 'updatedAt', 'notes', 'totalWorkingHours']) &&
+                        unchanged('status') && unchanged('checkInTime') && unchanged('date'));
       allow delete: if isAdmin() || isAccounts();
     }
     match /leaves/{leaveId} {
@@ -516,8 +542,8 @@ service cloud.firestore {
       // Staff may only submit leave requests for themselves.
       allow create: if isAdmin() || isAccounts() ||
                        (isSignedIn() && request.resource.data.staffId == request.auth.uid);
-      allow update: if isAdmin() || isAccounts() ||
-                       (isSignedIn() && resource.data.staffId == request.auth.uid);
+      // Admin/Accounts ONLY for leave updates. Staff cannot edit submitted leaves.
+      allow update: if isAdmin() || isAccounts();
       allow delete: if isAdmin() || isAccounts();
     }
     match /payroll/{payrollId} {

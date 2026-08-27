@@ -10,6 +10,7 @@ import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
 import { getTodayInTimezone } from '@/shared/lib/date';
+import { calculateDailyPrice } from '@/shared/utils/pricing';
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -351,7 +352,7 @@ class OrderService {
 
       itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
       selectedOptionId: pref.selectedOptionId ?? null,
-      price: Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
+      price: Math.round((calculateDailyPrice(sub) * (sub.quantity || 1)) / sub.mealPreferences.length),
       currency: 'INR',
       status: 'scheduled',
       deliveryAddressId: sub.deliveryAddressId ?? null,
