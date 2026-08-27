@@ -8,6 +8,7 @@ import { getAuth } from 'firebase/auth';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
 import toast from 'react-hot-toast';
 import { deliveryService } from '@/shared/services/business/deliveryService';
+import type { Order } from '@/shared/types';
 
 export function useDeliveryBoard(date: string) {
   const queryClient = useQueryClient();
@@ -19,7 +20,8 @@ export function useDeliveryBoard(date: string) {
     if (!date) return;
     const unsub = orderRepository.subscribeToDayOrders(
       date,
-      (data) => queryClient.setQueryData(queryKey, data)
+      undefined,
+      (data: Order[]) => queryClient.setQueryData(queryKey, data)
     );
     return () => unsub();
   }, [date, queryClient, queryKey]);

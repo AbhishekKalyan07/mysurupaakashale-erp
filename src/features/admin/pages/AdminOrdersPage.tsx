@@ -9,7 +9,7 @@ import { ErrorState } from '@/shared/components/feedback/ErrorState';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
-import type { OrderStatus, MealType } from '@/shared/types';
+import type { Order, OrderStatus, MealType } from '@/shared/types';
 import toast from 'react-hot-toast';
 import { useCustomerNameMap, useCustomerNameMap as usePartnerNameMap } from '@/features/admin/hooks/useAdmin';
 import { cn } from '@/shared/lib/cn';
@@ -83,7 +83,8 @@ export function AdminOrdersPage() {
     if (!selectedDate) return;
     const unsubscribe = orderRepository.subscribeToDayOrders(
       selectedDate,
-      (ordersData) => queryClient.setQueryData(queryKey, ordersData)
+      undefined,
+      (ordersData: Order[]) => queryClient.setQueryData(queryKey, ordersData)
     );
     return () => unsubscribe();
   }, [selectedDate, queryClient, queryKey]);

@@ -78,13 +78,13 @@ export function useCustomerOrderHistory(customerId?: string) {
 export function useCustomerOrderHistoryPaginated(customerId?: string) {
   return useInfiniteQuery({
     queryKey: ['orderHistoryPaginated', customerId],
-    queryFn: async ({ pageParam = null }) => {
+    queryFn: async ({ pageParam }) => {
       if (!customerId) return { orders: [], lastDoc: null };
       const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
       return orderRepository.getCustomerOrdersPaginated(customerId, 20, pageParam as any);
     },
     getNextPageParam: (lastPage) => lastPage.lastDoc || undefined,
-    initialPageParam: null,
+    initialPageParam: undefined as any,
     enabled: !!customerId,
   });
 }

@@ -26,7 +26,7 @@ describe('orderRepository', () => {
     it('subscribeToDayOrders', () => {
       const subscribeSpy = vi.spyOn(orderRepository, 'subscribeToList').mockReturnValueOnce(vi.fn());
       const onNext = vi.fn();
-      orderRepository.subscribeToDayOrders('2026-08-01', onNext);
+      orderRepository.subscribeToDayOrders('2026-08-01', undefined, onNext);
       expect(subscribeSpy).toHaveBeenCalled();
     });
 
