@@ -37,6 +37,7 @@ import { EditSubscriptionModal } from '../components/EditSubscriptionModal';
 import { PauseSubscriptionModal } from '../components/PauseSubscriptionModal';
 import { PauseDeliveryModal } from '../components/PauseDeliveryModal';
 import { CancelTodayModal } from '../components/CancelTodayModal';
+import { calculateDailyPrice } from '@/shared/utils/pricing';
 import { Edit2 } from 'lucide-react';
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ export function SubscriptionDetailsPage() {
     }
   };
 
-  const estimatedMonthly = subscription.pricePerDaySnapshot * (subscription.quantity || 1) * 30;
+  const estimatedMonthly = calculateDailyPrice(subscription) * (subscription.quantity || 1) * 30;
   const securityDeposit = settings?.pricing.securityDepositAmount || 1000;
 
   return (
@@ -384,7 +385,7 @@ export function SubscriptionDetailsPage() {
             <div className="space-y-3 font-sans text-sm">
               <div className="flex justify-between text-ink-600">
                 <span>Plan price per day:</span>
-                <span className="font-semibold text-ink-900">₹{subscription.pricePerDaySnapshot}</span>
+                <span className="font-semibold text-ink-900">₹{calculateDailyPrice(subscription)}</span>
               </div>
               <div className="flex justify-between text-ink-600">
                 <span>Billing cycle:</span>

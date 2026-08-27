@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -71,6 +71,20 @@ export function useCustomerOrderHistory(customerId?: string) {
       const orders = await orderRepository.getCustomerOrders(customerId);
       return orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     },
+    enabled: !!customerId,
+  });
+}
+
+export function useCustomerOrderHistoryPaginated(customerId?: string) {
+  return useInfiniteQuery({
+    queryKey: ['orderHistoryPaginated', customerId],
+    queryFn: async ({ pageParam = null }) => {
+      if (!customerId) return { orders: [], lastDoc: null };
+      const { orderRepository } = await import('@/shared/services/firestore/orderRepository');
+      return orderRepository.getCustomerOrdersPaginated(customerId, 20, pageParam as any);
+    },
+    getNextPageParam: (lastPage) => lastPage.lastDoc || undefined,
+    initialPageParam: null,
     enabled: !!customerId,
   });
 }

@@ -38,6 +38,7 @@ import {
 import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
 import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
 import { PauseSubscriptionModal } from '@/features/customer/components/PauseSubscriptionModal';
+import { calculateDailyPrice } from '@/shared/utils/pricing';
 import { Truck, XCircle, PauseCircle } from 'lucide-react';
 import { PauseDeliveryModal } from '@/features/customer/components/PauseDeliveryModal';
 import { CancelTodayModal } from '@/features/customer/components/CancelTodayModal';
@@ -229,7 +230,7 @@ export function CustomerDashboardPage() {
                         </span>
                       </h3>
                       <p className="text-text-muted text-xs mt-1 font-medium">
-                        Post-paid monthly • ₹{subscription.pricePerDaySnapshot * (subscription.quantity || 1)}/day
+                        Post-paid monthly • ₹{calculateDailyPrice(subscription) * (subscription.quantity || 1)}/day
                       </p>
                     </div>
                     <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
