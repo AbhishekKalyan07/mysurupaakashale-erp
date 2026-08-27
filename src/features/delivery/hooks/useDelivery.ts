@@ -56,7 +56,7 @@ export function useAssignedOrders(date: string) {
   });
 }
 
-export function useDeliveryPartnerOrders(partnerId: string, date: string) {
+export function usePartnerOrders(partnerId: string, date: string) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -72,6 +72,7 @@ export function useDeliveryPartnerOrders(partnerId: string, date: string) {
     const unsubscribe = deliveryRepository.subscribePartnerOrders(
       partnerId,
       date,
+      undefined,
       (data) => {
         setOrders(data);
         setIsLoading(false);

@@ -350,7 +350,9 @@ service cloud.firestore {
                        isValidKitchenTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) == 'open') ||
                       (isDeliveryPartner() && resource.data.deliveryPartnerId == request.auth.uid &&
-                       onlyChangedFields(['status', 'updatedAt', 'deliveryResult', 'deliveryNotes']) &&
+                       onlyChangedFields(['status', 'updatedAt', 'deliveryResult', 'deliveryNotes', 'outForDeliveryAt', 'deliveredAt']) &&
+                       (unchanged('outForDeliveryAt') || (request.resource.data.status == 'out_for_delivery' && request.resource.data.outForDeliveryAt == request.time && resource.data.get('outForDeliveryAt', null) == null)) &&
+                       (unchanged('deliveredAt') || (request.resource.data.status == 'delivered' && request.resource.data.deliveredAt == request.time && resource.data.get('deliveredAt', null) == null)) &&
                        isValidDeliveryTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) != 'closed') ||
                       (isSignedIn() && resource.data.customerId == request.auth.uid &&

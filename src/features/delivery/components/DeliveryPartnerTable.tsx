@@ -14,6 +14,7 @@ interface Props {
   isCompletingRoute: boolean;
   onCompleteRoute: () => void;
   sessionStatus: string;
+  currentDeliveryPartnerId?: string | null;
 }
 
 export function DeliveryPartnerTable({ 
@@ -24,7 +25,8 @@ export function DeliveryPartnerTable({
   allTerminal,
   isCompletingRoute,
   onCompleteRoute,
-  sessionStatus
+  sessionStatus,
+  currentDeliveryPartnerId
 }: Props) {
 
   if (orders.length === 0) {
@@ -73,6 +75,7 @@ export function DeliveryPartnerTable({
             planName={order.planName}
             onStatusChange={handleStatusChange}
             isAdvancing={isAdvancingId === order.id}
+            currentDeliveryPartnerId={currentDeliveryPartnerId}
           />
         );
       })}

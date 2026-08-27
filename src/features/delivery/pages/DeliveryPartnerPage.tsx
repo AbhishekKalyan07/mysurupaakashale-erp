@@ -8,11 +8,27 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { DeliveryPartnerTable } from '../components/DeliveryPartnerTable';
 import { useReferenceData } from '@/shared/hooks/useReferenceData';
 
+function getDefaultMealType(): string {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false
+  });
+  const hourStr = formatter.format(new Date());
+  // Intl.DateTimeFormat can return '24' for midnight when hourCycle is not set properly, parsing safely.
+  const hour = parseInt(hourStr.replace(/[^0-9]/g, ''), 10) % 24;
+  
+  if (hour < 11) return 'breakfast';
+  if (hour < 16) return 'lunch';
+  return 'dinner';
+}
+
 export function DeliveryPartnerPage() {
   const { firebaseUser, profile } = useAuth();
   const today = getTodayInTimezone();
+  const activeMeal = getDefaultMealType();
 
-  const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today);
+  const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today, activeMeal);
   const { zoneMap } = useReferenceData();
 
   const assignedZones = profile?.role === 'delivery_partner' && profile.zoneIds?.length > 0 
@@ -98,6 +114,7 @@ export function DeliveryPartnerPage() {
         isCompletingRoute={completeRouteMutation.isPending}
         onCompleteRoute={() => completeRouteMutation.mutate()}
         sessionStatus={session?.status || 'not_started'}
+        currentDeliveryPartnerId={firebaseUser?.uid || null}
       />
     </div>
   );
