@@ -100,19 +100,20 @@ export function CustomerOrderHistoryPage() {
           />
         </div>
       ) : (
-        <div className="space-y-8">
-          {groupKeys.map((date) => {
-            const dayOrders = groupedOrders[date];
-            // Format date nicely
-            const [y, m, d] = date.split('-').map(Number);
-            const dateObj = new Date(y, m - 1, d);
-            const formattedDate = isNaN(dateObj.getTime()) ? date : format(dateObj, 'EEEE, MMM do, yyyy');
+        <>
+          <div className="space-y-8">
+            {groupKeys.map((date) => {
+              const dayOrders = groupedOrders[date];
+              // Format date nicely
+              const [y, m, d] = date.split('-').map(Number);
+              const dateObj = new Date(y, m - 1, d);
+              const formattedDate = isNaN(dateObj.getTime()) ? date : format(dateObj, 'EEEE, MMM do, yyyy');
 
-            return (
-              <div key={date} className="space-y-3">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-ink-500 flex items-center gap-2 border-b border-rice-300 pb-2">
-                  <Calendar size={16} /> {formattedDate}
-                </h2>
+              return (
+                <div key={date} className="space-y-3">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-ink-500 flex items-center gap-2 border-b border-rice-300 pb-2">
+                    <Calendar size={16} /> {formattedDate}
+                  </h2>
                   
                   <div className="grid gap-4 sm:grid-cols-2">
                     {dayOrders.map((order) => {
