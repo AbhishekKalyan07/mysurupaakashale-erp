@@ -1,19 +1,43 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { App } from './app/App'
-import { GlobalErrorBoundary } from './shared/components/feedback/GlobalErrorBoundary'
-import './index.css'
-import { initAnalytics, initPerformance } from './shared/lib/firebase'
-import { registerSW } from 'virtual:pwa-register'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app/App";
+import { GlobalErrorBoundary } from "./shared/components/feedback/GlobalErrorBoundary";
+import "./index.css";
+import { initAnalytics, initPerformance } from "./shared/lib/firebase";
+import { registerSW } from "virtual:pwa-register";
+import { toast } from "react-hot-toast";
 
-// Handle dynamic import errors (e.g. when a new version is deployed and old chunks 404)
-window.addEventListener('vite:preloadError', () => {
-  window.location.reload()
-})
+// Handle dynamic import errors gracefully (e.g. when a new version is deployed and old chunks 404)
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  if (!navigator.onLine) {
+    toast.error("You are offline and this section is not cached yet.", {
+      duration: 5000,
+    });
+  } else {
+    toast(
+      () => (
+        <div className="flex flex-col gap-2">
+          <p className="font-medium text-sm">
+            A required app component was updated. Please save your work and
+            refresh.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#3A4D23] text-white px-3 py-1 rounded-md text-sm font-medium self-end"
+          >
+            Reload Now
+          </button>
+        </div>
+      ),
+      { duration: Infinity, id: "preload-error" },
+    );
+  }
+});
 
-const rootElement = document.getElementById('root')
+const rootElement = document.getElementById("root");
 if (!rootElement) {
-  throw new Error('Root element #root not found in index.html.')
+  throw new Error("Root element #root not found in index.html.");
 }
 
 function renderApplication() {
@@ -23,20 +47,19 @@ function renderApplication() {
         <App />
       </GlobalErrorBoundary>
     </StrictMode>,
-  )
+  );
 }
 
 async function initSentryLazy() {
-
   try {
-    const Sentry = await import('@sentry/react')
-    const { useEffect } = await import('react')
+    const Sentry = await import("@sentry/react");
+    const { useEffect } = await import("react");
     const {
       createRoutesFromChildren,
       matchRoutes,
       useLocation,
       useNavigationType,
-    } = await import('react-router-dom')
+    } = await import("react-router-dom");
 
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -67,9 +90,9 @@ async function initSentryLazy() {
       // Session Replay
       replaysSessionSampleRate: 0.0, // Disabled standard session replays to save CPU/Battery
       replaysOnErrorSampleRate: 1.0, // Only record sessions when an error actually occurs
-    })
+    });
   } catch (e) {
-    console.warn('Sentry initialization failed (non-critical):', e)
+    console.warn("Sentry initialization failed (non-critical):", e);
   }
 }
 
@@ -81,47 +104,74 @@ function queueNonCriticalInitialization() {
     initTriggered = true;
 
     // Clean up event listeners to avoid memory leaks
-    window.removeEventListener('app-ready', triggerInit);
+    window.removeEventListener("app-ready", triggerInit);
 
     const init = async () => {
       // Initialize Sentry first among non-critical tasks so error monitoring
       // starts as soon as possible after first paint.
-      await initSentryLazy()
+      await initSentryLazy();
 
       try {
-        await initAnalytics()
-        await initPerformance()
+        await initAnalytics();
+        await initPerformance();
       } catch (e) {
-        console.warn("Non-critical Firebase init failed:", e)
+        console.warn("Non-critical Firebase init failed:", e);
       }
 
       try {
         const updateSW = registerSW({
           immediate: true,
+          onNeedRefresh() {
+            toast(
+              (t) => (
+                <div className="flex flex-col gap-2">
+                  <p className="font-medium text-sm">
+                    A new version of the application is available.
+                  </p>
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t.id);
+                      updateSW(true);
+                    }}
+                    className="bg-[#3A4D23] text-white px-3 py-1 rounded-md text-sm font-medium self-end"
+                  >
+                    Update Now
+                  </button>
+                </div>
+              ),
+              { duration: Infinity, id: "pwa-update" },
+            );
+          },
           onRegisteredSW(_swUrl, r) {
             // Check for updates every hour in the background
             if (r) {
-              setInterval(() => {
-                if (r.installing || !navigator.onLine) return
-                r.update().catch(() => {})
-              }, 60 * 60 * 1000)
+              setInterval(
+                () => {
+                  if (r.installing || !navigator.onLine) return;
+                  r.update().catch(() => {});
+                },
+                60 * 60 * 1000,
+              );
             }
           },
           onRegisterError(error: unknown) {
-            console.warn('Service worker registration blocked by environment:', error)
-          }
-        })
+            console.warn(
+              "Service worker registration blocked by environment:",
+              error,
+            );
+          },
+        });
         Promise.resolve(updateSW).catch((e) => {
-          console.warn('Service worker registration rejected:', e)
-        })
+          console.warn("Service worker registration rejected:", e);
+        });
       } catch (e) {
-        console.warn('Failed to call registerSW:', e)
+        console.warn("Failed to call registerSW:", e);
       }
     };
 
     // Use requestIdleCallback if available, otherwise a small setTimeout
     // This ensures that even when triggered, we don't interrupt active rendering
-    if ('requestIdleCallback' in window) {
+    if ("requestIdleCallback" in window) {
       requestIdleCallback(() => init());
     } else {
       setTimeout(init, 500);
@@ -129,15 +179,14 @@ function queueNonCriticalInitialization() {
   };
 
   // 1. Authoritative trigger: when the initial page/dashboard actually mounts
-  window.addEventListener('app-ready', triggerInit, { once: true });
+  window.addEventListener("app-ready", triggerInit, { once: true });
 
   // 2. Absolute fallback timeout (guarantees telemetry initializes eventually)
   setTimeout(triggerInit, 15000);
 }
 
 // Render UI immediately
-renderApplication()
+renderApplication();
 
 // Initialize telemetry in the background
-queueNonCriticalInitialization()
-
+queueNonCriticalInitialization();
