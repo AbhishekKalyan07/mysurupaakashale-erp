@@ -46,7 +46,7 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
       await setDoc(doc(db, 'users', ADMIN_UID),       { id: ADMIN_UID, role: 'admin' });
       await setDoc(doc(db, 'users', CUSTOMER_A_UID),  { id: CUSTOMER_A_UID, role: 'customer' });
       await setDoc(doc(db, 'users', CUSTOMER_B_UID),  { id: CUSTOMER_B_UID, role: 'customer' });
-      await setDoc(doc(db, 'users', KITCHEN_UID),     { id: KITCHEN_UID, role: 'kitchen' });
+      await setDoc(doc(db, 'users', KITCHEN_UID),     { id: KITCHEN_UID, role: 'kitchen', kitchenId: 'kitchen-1' });
 
       // Subscriptions
       await setDoc(doc(db, 'subscriptions', 'sub-a'), { customerId: CUSTOMER_A_UID });
@@ -73,7 +73,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'cancelled',
         date: FUTURE_DATE,
         mealType: 'lunch',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
       });
       await setDoc(doc(db, 'orders', 'order-cancelled-a-breakfast'), {
         customerId: CUSTOMER_A_UID,
@@ -81,7 +82,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'cancelled',
         date: FUTURE_DATE,
         mealType: 'breakfast',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
       });
       await setDoc(doc(db, 'orders', 'order-cancelled-a-dinner'), {
         customerId: CUSTOMER_A_UID,
@@ -89,7 +91,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'cancelled',
         date: FUTURE_DATE,
         mealType: 'dinner',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
       });
       await setDoc(doc(db, 'orders', 'order-scheduled-a'), {
         customerId: CUSTOMER_A_UID,
@@ -97,7 +100,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'scheduled',
         date: FUTURE_DATE,
         mealType: 'dinner',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
       });
       // Orders for past date (cutoff already passed)
       await setDoc(doc(db, 'orders', 'order-past-a'), {
@@ -114,7 +118,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'scheduled',
         date: PAST_DATE,
         mealType: 'breakfast',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
       });
       // Locked operational order
       await setDoc(doc(db, 'orders', 'order-locked-a'), {
@@ -123,7 +128,21 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
         status: 'picked_up',
         date: FUTURE_DATE,
         mealType: 'lunch',
-        price: 150
+        price: 150,
+        kitchenId: 'kitchen-1'
+      });
+      // Kitchen operations test orders
+      await setDoc(doc(db, 'orders', 'kitchen-scheduled'), {
+        status: 'scheduled',
+        kitchenId: 'kitchen-1'
+      });
+      await setDoc(doc(db, 'orders', 'kitchen-packing'), {
+        status: 'packing',
+        kitchenId: 'kitchen-1'
+      });
+      await setDoc(doc(db, 'orders', 'kitchen-packed'), {
+        status: 'packed',
+        kitchenId: 'kitchen-1'
       });
 
       // Daily Production States
@@ -347,7 +366,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
           customerId: CUSTOMER_A_UID,
           status: 'packing',
           kitchenStatus: 'packing',
-          date: FUTURE_DATE
+          date: FUTURE_DATE,
+          kitchenId: 'kitchen-1'
         });
       });
       const db = env.authenticatedContext(KITCHEN_UID).firestore();
@@ -365,7 +385,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
           customerId: CUSTOMER_A_UID,
           status: 'packed',
           kitchenStatus: 'packed',
-          date: FUTURE_DATE
+          date: FUTURE_DATE,
+          kitchenId: 'kitchen-1'
         });
       });
       const db = env.authenticatedContext(KITCHEN_UID).firestore();

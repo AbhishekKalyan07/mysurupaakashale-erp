@@ -69,26 +69,26 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         setDoc(doc(db, 'users', ADMIN_UID),       { id: ADMIN_UID, role: 'admin',            email: 'admin@test.com',       isActive: true }),
         setDoc(doc(db, 'users', CUSTOMER_A_UID),  { id: CUSTOMER_A_UID, role: 'customer',    email: 'custA@test.com',       isActive: true }),
         setDoc(doc(db, 'users', CUSTOMER_B_UID),  { id: CUSTOMER_B_UID, role: 'customer',    email: 'custB@test.com',       isActive: true }),
-        setDoc(doc(db, 'users', KITCHEN_UID),     { id: KITCHEN_UID, role: 'kitchen',        email: 'kitchen@test.com',     isActive: true }),
+        setDoc(doc(db, 'users', KITCHEN_UID),     { id: KITCHEN_UID, role: 'kitchen',        email: 'kitchen@test.com',     isActive: true, kitchenId: 'kitchen-1' }),
         setDoc(doc(db, 'users', DELIVERY_UID),    { id: DELIVERY_UID, role: 'delivery_partner', email: 'delivery@test.com', isActive: true }),
         setDoc(doc(db, 'users', DELIVERY_B_UID),  { id: DELIVERY_B_UID, role: 'delivery_partner', email: 'delB@test.com',  isActive: true }),
         setDoc(doc(db, 'users', ACCOUNTS_UID),    { id: ACCOUNTS_UID, role: 'accounts',      email: 'accounts@test.com',    isActive: true }),
 
         // Orders
         setDoc(doc(db, 'orders', 'order-a'), {
-          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
+          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID, kitchenId: 'kitchen-1',
           status: 'scheduled', date: '2025-01-15', price: 150,
         }),
         setDoc(doc(db, 'orders', 'order-packing'), {
-          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
+          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID, kitchenId: 'kitchen-1',
           status: 'packing', date: '2025-01-15', price: 150,
         }),
         setDoc(doc(db, 'orders', 'order-ready'), {
-          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID,
+          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID, kitchenId: 'kitchen-1',
           status: 'ready_for_pickup', date: '2025-01-15', price: 150,
         }),
         setDoc(doc(db, 'orders', 'order-b'), {
-          customerId: CUSTOMER_B_UID, deliveryPartnerId: DELIVERY_B_UID,
+          customerId: CUSTOMER_B_UID, deliveryPartnerId: DELIVERY_B_UID, kitchenId: 'kitchen-1',
           status: 'scheduled', date: '2025-01-15', price: 150,
         }),
 

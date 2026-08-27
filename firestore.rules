@@ -233,7 +233,8 @@ service cloud.firestore {
       allow update: if isAdmin() ||
                        (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences']) &&
                         request.resource.data.quantity > 0 &&
-                        (isAllowedCustomerTransition() || unchanged('status')));
+                        (isAllowedCustomerTransition() || 
+                         (unchanged('status') && request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
