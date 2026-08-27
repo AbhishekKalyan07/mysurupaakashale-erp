@@ -75,16 +75,21 @@ class DeliveryRepository extends BaseRepository<Order> {
   subscribePartnerOrders(
     partnerId: string,
     date: string,
+    mealType: string | undefined,
     onNext: (orders: Order[]) => void,
     onError?: (error: Error) => void
   ): Unsubscribe {
-    // NOTE: routeSequence orderBy removed — see getDeliveryPartnerOrders.
+    const conditions: any[] = [
+      where('date', '==', date),
+      where('deliveryPartnerId', '==', partnerId)
+    ];
+    if (mealType) {
+      conditions.push(where('mealType', '==', mealType));
+    }
     return this.subscribeToList(
       onNext,
       onError,
-      where('date', '==', date),
-      where('deliveryPartnerId', '==', partnerId),
-      orderBy('mealType', 'asc')
+      ...conditions
     );
   }
 

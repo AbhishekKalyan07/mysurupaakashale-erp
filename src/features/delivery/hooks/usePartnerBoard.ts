@@ -16,14 +16,14 @@ import {
 } from '@/shared/services/firestore/notificationService';
 import { deliveryService } from '@/shared/services/business/deliveryService';
 
-export function usePartnerBoard(partnerId: string, date: string) {
+export function usePartnerBoard(partnerId: string, date: string, mealType: string) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [session, setSession] = useState<DriverSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!partnerId || !date) {
+    if (!partnerId || !date || !mealType) {
       setOrders([]);
       setSession(null);
       setIsLoading(false);
@@ -37,6 +37,7 @@ export function usePartnerBoard(partnerId: string, date: string) {
     ordersUnsub = deliveryRepository.subscribePartnerOrders(
       partnerId,
       date,
+      mealType,
       (data) => {
         setOrders(data);
         setIsLoading(false);
@@ -58,7 +59,7 @@ export function usePartnerBoard(partnerId: string, date: string) {
       ordersUnsub();
       sessionUnsub();
     };
-  }, [partnerId, date]);
+  }, [partnerId, date, mealType]);
 
   const allTerminal = useMemo(() => {
     if (orders.length === 0) return false;

@@ -33,8 +33,13 @@ vi.mock('@/shared/services/firestore/orderRepository', () => ({
 
 vi.mock('@/shared/services/firestore/deliveryRepository', () => ({
   deliveryRepository: {
-    subscribePartnerOrders: vi.fn((_partnerId, _date, onNext) => {
-      if (onNext) onNext([{ id: 'ord-1', status: 'delivered' }]);
+    subscribePartnerOrders: vi.fn((_partnerId, _date, _mealType, onNext) => {
+      if (typeof _mealType === 'function') {
+        // Fallback if called with old signature (shouldn't happen with updated hook)
+        _mealType([{ id: 'ord-1', status: 'delivered' }]);
+      } else if (onNext) {
+        onNext([{ id: 'ord-1', status: 'delivered' }]);
+      }
       return vi.fn();
     }),
   }
@@ -78,11 +83,11 @@ describe('usePartnerBoard mutation payload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-initialize hook to capture the mutation config
-    board = usePartnerBoard('driver-1', '2026-08-01');
+    board = usePartnerBoard('driver-1', '2026-08-01', 'breakfast');
   });
 
   it('handles empty partnerId or date gracefully', () => {
-    const res = usePartnerBoard('', '');
+    const res = usePartnerBoard('', '', '');
     expect(res.orders).toEqual([]);
     expect(res.session).toBeNull();
   });
@@ -146,7 +151,7 @@ describe('usePartnerBoard complete route & notifications', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    board = usePartnerBoard('driver-1', '2026-08-01');
+    board = usePartnerBoard('driver-1', '2026-08-01', 'lunch');
   });
 
   it('throws an error if completeRouteMutation is called when not all orders are terminal', async () => {
@@ -194,7 +199,7 @@ describe('usePartnerBoard complete route & notifications', () => {
     vi.mocked(useMemo).mockReturnValueOnce(true); 
 
     // Re-render hook with allTerminal=true
-    const boardWithTerminal = usePartnerBoard('driver-1', '2026-08-01');
+    const boardWithTerminal = usePartnerBoard('driver-1', '2026-08-01', 'lunch');
     
     await boardWithTerminal.completeRouteMutation.mutateAsync();
     

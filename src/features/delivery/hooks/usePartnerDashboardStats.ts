@@ -71,6 +71,7 @@ export function usePartnerDashboardStats(partnerId: string | undefined, todayDat
     unsubToday = deliveryRepository.subscribePartnerOrders(
       partnerId,
       todayDate,
+      undefined,
       (orders) => {
         if (!isMounted) return;
 

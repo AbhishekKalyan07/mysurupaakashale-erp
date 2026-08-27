@@ -24,7 +24,6 @@ const KITCHEN_WORKFLOW: Record<string, WorkflowStep> = {
 };
 
 const DELIVERY_WORKFLOW: Partial<Record<OrderStatus, WorkflowStep>> = {
-  scheduled:        { label: 'Mark as Picked Up',      nextStatus: 'picked_up',        variant: 'primary' },
   ready_for_pickup: { label: 'Confirm Pickup',         nextStatus: 'picked_up',        variant: 'primary' },
   picked_up:        { label: 'Start Delivery',         nextStatus: 'out_for_delivery', variant: 'warning-tonal' },
   out_for_delivery: { label: 'Mark as Delivered',      nextStatus: 'delivered',        variant: 'success' },
@@ -211,6 +210,7 @@ export interface OrderCardProps {
   extraActions?: React.ReactNode;
   className?: string;
   sequenceNumber?: number;
+  currentDeliveryPartnerId?: string | null;
 }
 
 export function OrderCard({
@@ -225,6 +225,7 @@ export function OrderCard({
   extraActions,
   className,
   sequenceNumber,
+  currentDeliveryPartnerId,
 }: OrderCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -322,7 +323,13 @@ export function OrderCard({
               📍 {zoneName}
             </span>
           )}
-          <DriverBadge partnerName={partnerName} compact />
+          {order.deliveryPartnerId && order.deliveryPartnerId === currentDeliveryPartnerId ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-subtle text-success border border-success/20">
+              Assigned to You
+            </span>
+          ) : (
+            <DriverBadge partnerName={partnerName} compact />
+          )}
           {(variant === 'admin' || variant === 'delivery') && order.estimatedETA && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
               🕒 ETA: {order.estimatedETA}

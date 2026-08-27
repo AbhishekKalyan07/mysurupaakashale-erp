@@ -27,6 +27,7 @@ import {
   deleteDoc,
   addDoc,
   collection,
+  serverTimestamp,
 } from '@firebase/firestore';
 
 const PROJECT_ID = 'demo-security-test';
@@ -340,6 +341,37 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       const db = env.authenticatedContext(DELIVERY_B_UID).firestore();
       await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
         status: 'picked_up', updatedAt: new Date(),
+      }));
+    });
+
+    it('ALLOW: Delivery partner can write outForDeliveryAt during out_for_delivery transition', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'orders', 'order-ready'), { status: 'picked_up' });
+      });
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'out_for_delivery', updatedAt: new Date(),
+        outForDeliveryAt: serverTimestamp()
+      }));
+    });
+
+    it('DENY: Delivery partner cannot set outForDeliveryAt to a past/future date', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'orders', 'order-ready'), { status: 'picked_up', outForDeliveryAt: null });
+      });
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'out_for_delivery', updatedAt: new Date(),
+        outForDeliveryAt: new Date(Date.now() - 100000)
+      }));
+    });
+
+    it('DENY: Delivery partner cannot write SLA timestamps without correct status transition', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      // Trying to write outForDeliveryAt while picking up
+      await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'picked_up', updatedAt: new Date(),
+        outForDeliveryAt: serverTimestamp()
       }));
     });
 
