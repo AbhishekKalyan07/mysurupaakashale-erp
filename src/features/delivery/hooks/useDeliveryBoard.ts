@@ -19,7 +19,8 @@ export function useDeliveryBoard(date: string) {
     if (!date) return;
     const unsub = orderRepository.subscribeToDayOrders(
       date,
-      (data) => queryClient.setQueryData(queryKey, data)
+      undefined,
+      (data: Order[]) => queryClient.setQueryData(queryKey, data)
     );
     return () => unsub();
   }, [date, queryClient, queryKey]);

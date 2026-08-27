@@ -24,6 +24,6 @@ export function calculateDailyPrice(sub: Subscription): number {
     key = 'dinner';
   }
 
-  const matrix = sub.pricingMatrixSnapshot as Record<string, number>;
+  const matrix = sub.pricingMatrixSnapshot as unknown as Record<string, number>;
   return matrix[key] || sub.pricePerDaySnapshot;
 }

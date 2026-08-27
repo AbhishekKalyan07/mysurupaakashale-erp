@@ -83,7 +83,8 @@ export function AdminOrdersPage() {
     if (!selectedDate) return;
     const unsubscribe = orderRepository.subscribeToDayOrders(
       selectedDate,
-      (ordersData) => queryClient.setQueryData(queryKey, ordersData)
+      undefined,
+      (ordersData: Order[]) => queryClient.setQueryData(queryKey, ordersData)
     );
     return () => unsubscribe();
   }, [selectedDate, queryClient, queryKey]);
