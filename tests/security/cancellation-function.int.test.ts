@@ -11,7 +11,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     // Connect to the Firestore emulator that functions emulator is watching
     process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
     if (getApps().length === 0) {
-      initializeApp({ projectId: 'mysuru-paakashale-erp' });
+      initializeApp({ projectId: 'demo-test-cancellation-function' });
     }
     db = getFirestore();
   });
