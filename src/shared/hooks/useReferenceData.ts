@@ -43,22 +43,43 @@ export function useReferenceData(customerIds: string[] = []) {
   }, [partnersQuery.data]);
 
   // 3. Fetch Customers (batch)
-  const customerIdsStr = customerIds.join(',');
   const uniqueCustomerIds = useMemo(() => {
-    return customerIdsStr ? [...new Set(customerIdsStr.split(','))] : [];
-  }, [customerIdsStr]);
+    return customerIds.length > 0 ? [...new Set(customerIds)].filter(Boolean).sort() : [];
+  }, [customerIds]);
 
   const customerQueries = useQuery({
     queryKey: ['reference', 'customerProfiles', ...uniqueCustomerIds],
     queryFn: async () => {
       if (uniqueCustomerIds.length === 0) return {};
-      const profiles = await Promise.all(
-        uniqueCustomerIds.map((uid) => userRepository.getById(uid).catch(() => null))
-      );
+      
       const map: Record<string, string> = {};
-      uniqueCustomerIds.forEach((uid, i) => {
-        map[uid] = profiles[i]?.fullName ?? uid;
+      const chunkSize = 30;
+      const chunks: string[][] = [];
+      
+      for (let i = 0; i < uniqueCustomerIds.length; i += chunkSize) {
+        chunks.push(uniqueCustomerIds.slice(i, i + chunkSize));
+      }
+
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          try {
+            const profiles = await userRepository.list(where('id', 'in', chunk));
+            for (const profile of profiles) {
+              map[profile.id] = profile.fullName || profile.id;
+            }
+          } catch (err) {
+            console.warn('[useReferenceData] Failed to fetch customer profiles chunk', err);
+          }
+        })
+      );
+
+      // Fallback for missing/deleted profiles
+      uniqueCustomerIds.forEach((uid) => {
+        if (!map[uid]) {
+          map[uid] = uid;
+        }
       });
+
       return map;
     },
     enabled: uniqueCustomerIds.length > 0,

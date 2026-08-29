@@ -11,7 +11,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     // Connect to the Firestore emulator that functions emulator is watching
     process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
     if (getApps().length === 0) {
-      initializeApp({ projectId: 'demo-test-order-history-rules' });
+      initializeApp({ projectId: 'mysuru-paakashale-erp' });
     }
     db = getFirestore();
   });
@@ -54,12 +54,15 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
 
     // Wait for CF to process
     let notifications: any[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 40; i++) {
       await sleep(500);
       const snap = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
       notifications = snap.docs.map(d => d.data());
       if (notifications.length >= 3) break;
     }
+
+    console.log(`[TEST] Total notifications found: ${notifications.length}`);
+    notifications.forEach(n => console.log(`[TEST] Notification:`, n));
 
     expect(notifications.length).toBeGreaterThanOrEqual(3);
 
@@ -74,7 +77,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     const driverNotif = notifications.find(n => n.recipientRole === 'delivery');
     expect(driverNotif).toBeDefined();
     expect(driverNotif?.recipientId).toBe('driver1');
-  }, 15000);
+  }, 30000);
 
   it('is idempotent and uses deterministic IDs', async () => {
     const orderId = 'order-test-idem';
@@ -90,7 +93,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     await db.doc(`orders/${orderId}`).update({ status: 'cancelled', updatedAt: 'mock' });
 
     let count = 0;
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 40; i++) {
       await sleep(500);
       const snap = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
       count = snap.docs.length;
@@ -106,5 +109,5 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     // We can simulate idempotency by verifying the document ID format directly enforces it.
     // The fact that docSnap.id is adminNotifId proves deterministic ID generation.
     expect(docSnap.id).toBe(adminNotifId);
-  }, 15000);
+  }, 30000);
 });

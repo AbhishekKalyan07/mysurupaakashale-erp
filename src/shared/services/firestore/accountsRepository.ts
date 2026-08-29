@@ -48,36 +48,79 @@ export class AccountsRepository {
 
   /**
    * Request a backend-generated daily report.
+   * Returns raw CSV string instead of a data URI to handle large reports.
    */
-  async generateDailyReport(date: string): Promise<{ downloadUrl: string }> {
+  async generateDailyReport(date: string): Promise<string> {
     const orders = await this.getOrdersInDateRange(date, date);
-    let csvContent = "data:text/csv;charset=utf-8,ID,Customer ID,Date,Tier,Meal Type,Status\n";
+    let csvContent = "ID,Customer ID,Date,Tier,Meal Type,Status\n";
     orders.forEach(order => {
-      const row = [order.id, order.customerId, order.date, order.planTier, order.mealType, order.status].join(',');
+      // Escape values properly for CSV
+      const escapeCsv = (val: any) => {
+        if (val == null) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+      
+      const row = [
+        escapeCsv(order.id), 
+        escapeCsv(order.customerId), 
+        escapeCsv(order.date), 
+        escapeCsv(order.planTier), 
+        escapeCsv(order.mealType), 
+        escapeCsv(order.status)
+      ].join(',');
       csvContent += row + "\n";
     });
-    return { downloadUrl: encodeURI(csvContent) };
+    return csvContent;
   }
 
   /**
    * Request a backend-generated monthly report.
+   * Returns raw CSV string instead of a data URI.
+   * Ensures timezone boundaries strictly follow IST (Asia/Kolkata).
    */
-  async generateMonthlyReport(monthStr: string): Promise<{ downloadUrl: string }> {
+  async generateMonthlyReport(monthStr: string): Promise<string> {
     const year = parseInt(monthStr.split('-')[0]);
     const month = parseInt(monthStr.split('-')[1]);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const paddedMonth = month.toString().padStart(2, '0');
+    
+    // Calculate last day of the month
+    const lastDay = new Date(year, month, 0).getDate();
+    const paddedLastDay = lastDay.toString().padStart(2, '0');
+
+    // Create boundaries explicitly in Asia/Kolkata timezone (UTC+05:30)
+    const startDate = new Date(`${year}-${paddedMonth}-01T00:00:00+05:30`);
+    const endDate = new Date(`${year}-${paddedMonth}-${paddedLastDay}T23:59:59.999+05:30`);
     
     const invoices = await this.getInvoicesInRange(startDate, endDate);
-    let csvContent = "data:text/csv;charset=utf-8,ID,Customer ID,Amount,Status,Issued At\n";
+    let csvContent = "ID,Customer ID,Amount,Status,Issued At\n";
     invoices.forEach(inv => {
       const dateStr = inv.createdAt && (inv.createdAt as any).seconds 
         ? new Date((inv.createdAt as any).seconds * 1000).toISOString() 
         : '';
-      const row = [inv.id, inv.customerId, inv.totalAmount, inv.status, dateStr].join(',');
+        
+      const escapeCsv = (val: any) => {
+        if (val == null) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const row = [
+        escapeCsv(inv.id), 
+        escapeCsv(inv.customerId), 
+        escapeCsv(inv.totalAmount), 
+        escapeCsv(inv.status), 
+        escapeCsv(dateStr)
+      ].join(',');
       csvContent += row + "\n";
     });
-    return { downloadUrl: encodeURI(csvContent) };
+    return csvContent;
   }
 
   /**

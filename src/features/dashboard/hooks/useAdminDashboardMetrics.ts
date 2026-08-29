@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { where, collection, query, onSnapshot } from 'firebase/firestore';
+import { where, collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 
 import type { Order } from '@/shared/types';
@@ -225,10 +225,27 @@ export function useAdminDashboardMetrics() {
       (snap) => updateMetrics({ openComplaints: snap.size })
     );
 
+    // Calculate IST boundaries for 'today'
+    const year = parseInt(today.split('-')[0]);
+    const month = parseInt(today.split('-')[1]);
+    const day = parseInt(today.split('-')[2]);
+    const paddedMonth = month.toString().padStart(2, '0');
+    const paddedDay = day.toString().padStart(2, '0');
+    
+    // Create Date objects representing start and end of 'today' in IST
+    const startOfTodayIST = new Date(`${year}-${paddedMonth}-${paddedDay}T00:00:00+05:30`);
+    const endOfTodayIST = new Date(`${year}-${paddedMonth}-${paddedDay}T23:59:59.999+05:30`);
+
+
+
     const unsubPayments = onSnapshot(
-      query(collection(db, 'payments'), where('status', '==', 'failed')),
+      query(
+        collection(db, 'payments'), 
+        where('status', '==', 'failed'),
+        where('createdAt', '>=', Timestamp.fromDate(startOfTodayIST)),
+        where('createdAt', '<=', Timestamp.fromDate(endOfTodayIST))
+      ),
       (snap) => {
-        // Approximate failed payments for today/recent based on size (simplified)
         updateMetrics({ failedPayments: snap.size });
       }
     );

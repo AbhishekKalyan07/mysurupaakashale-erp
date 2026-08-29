@@ -46,17 +46,31 @@ export function AccountsDashboardPage() {
   const failedOrders = orders.filter(o => o.status === 'failed_delivery').length;
   const cancelledOrders = orders.filter(o => o.status === 'cancelled').length;
 
+  const triggerDownload = (csvContent: string, filename: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleGenerateReport = async (type: 'daily' | 'monthly') => {
     setGeneratingReport(type);
     try {
       if (type === 'daily') {
         const todayStr = getTodayInTimezone();
-        const result = await dailyReportMutation.mutateAsync(todayStr);
-        toast.success(`Report generated: ${result.downloadUrl}`);
+        const csvString = await dailyReportMutation.mutateAsync(todayStr);
+        triggerDownload(csvString, `daily_report_${todayStr}.csv`);
+        toast.success(`Report downloaded`);
       } else {
         const monthStr = getTodayInTimezone().slice(0, 7);
-        const result = await monthlyReportMutation.mutateAsync(monthStr);
-        toast.success(`Report generated: ${result.downloadUrl}`);
+        const csvString = await monthlyReportMutation.mutateAsync(monthStr);
+        triggerDownload(csvString, `monthly_report_${monthStr}.csv`);
+        toast.success(`Report downloaded`);
       }
     } catch (err) {
       console.error(err);
