@@ -28,8 +28,14 @@ import toast from 'react-hot-toast';
 
 function getStartAndEndOfMonth() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const paddedMonth = month.toString().padStart(2, '0');
+  const lastDay = new Date(year, month, 0).getDate().toString().padStart(2, '0');
+
+  // Boundaries in Asia/Kolkata (UTC+05:30)
+  const start = new Date(`${year}-${paddedMonth}-01T00:00:00+05:30`);
+  const end = new Date(`${year}-${paddedMonth}-${lastDay}T23:59:59.999+05:30`);
   return { start, end };
 }
 
@@ -90,13 +96,22 @@ export function AdminAccountsPage() {
   });
 
   // 4. Report Generation Handlers
+  const triggerDownload = (csvContent: string, filename: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownloadDaily = async () => {
     try {
-      const res = await accountsRepository.generateDailyReport(today);
-      const a = document.createElement('a');
-      a.href = res.downloadUrl;
-      a.download = `daily_report_${today}.csv`;
-      a.click();
+      const csvString = await accountsRepository.generateDailyReport(today);
+      triggerDownload(csvString, `daily_report_${today}.csv`);
       toast.success('Daily report downloaded');
     } catch {
       toast.error('Failed to generate daily report');
@@ -106,11 +121,8 @@ export function AdminAccountsPage() {
   const handleDownloadMonthly = async () => {
     try {
       const monthStr = today.substring(0, 7); // YYYY-MM
-      const res = await accountsRepository.generateMonthlyReport(monthStr);
-      const a = document.createElement('a');
-      a.href = res.downloadUrl;
-      a.download = `monthly_report_${monthStr}.csv`;
-      a.click();
+      const csvString = await accountsRepository.generateMonthlyReport(monthStr);
+      triggerDownload(csvString, `monthly_report_${monthStr}.csv`);
       toast.success('Monthly report downloaded');
     } catch {
       toast.error('Failed to generate monthly report');

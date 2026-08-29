@@ -43,7 +43,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setRole(null);
           setStatus('unauthenticated');
         } else {
-          setStatus('loading');
+          // Break the waterfall: check for a cached role.
+          // This allows ProtectedRoute to unblock and start downloading dashboard JS
+          // immediately, while the authoritative Firestore query runs in the background.
+          try {
+            const rawCache = localStorage.getItem(`auth_cache_${user.uid}`);
+            if (rawCache) {
+              const parsed = JSON.parse(rawCache);
+              if (parsed && parsed.uid === user.uid && isRole(parsed.role)) {
+                setRole(parsed.role as Role);
+                setStatus('authenticated');
+              } else {
+                setStatus('loading');
+              }
+            } else {
+              setStatus('loading');
+            }
+          } catch (_err) {
+            // Invalid JSON or blocked localStorage
+            setStatus('loading');
+          }
         }
       },
       (err) => {
@@ -65,7 +84,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     // We are signed in, but waiting for the profile to establish the role
-    setStatus('loading');
+    // ONLY set loading if we didn't already resolve the role from localStorage cache.
+    setStatus((prev) => (prev !== 'authenticated' ? 'loading' : prev));
 
     // Safety timeout: if the Firestore subscription hasn't resolved after an
     // extended wait, sign out so the user isn't stuck on a loading screen.
@@ -93,13 +113,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('[auth] Received profile data:', data);
         }
         setProfile(data);
-        if (data && import.meta.env.DEV) {
-          console.log('[auth] isRole check:', data.role, isRole(data.role));
+        if (import.meta.env.DEV) {
+          console.log('[auth] isRole check:', data?.role, data ? isRole(data.role) : false);
         }
         if (data && isRole(data.role)) {
           clearTimeout(timeoutId);
-          setRole(data.role);
-          setStatus('authenticated');
+          // Persist the authoritative role to cache for the next cold boot
+          try {
+            localStorage.setItem(
+              `auth_cache_${uid}`,
+              JSON.stringify({ uid, role: data.role })
+            );
+          } catch (_e) {
+            // Ignore localStorage quota/blocking errors
+          }
+
+          setRole((prev) => (prev !== data.role ? data.role : prev));
+          setStatus((prev) => (prev !== 'authenticated' ? 'authenticated' : prev));
         }
         // If data is null (profile not yet created), we wait — the timeout above
         // will handle the case where it never arrives.
