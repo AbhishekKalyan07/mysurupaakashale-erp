@@ -17,7 +17,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test-order-history-rules';
+const PROJECT_ID = 'demo-test';
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
 withEmulator('🔍 IDOR — Insecure Direct Object Reference Tests', () => {

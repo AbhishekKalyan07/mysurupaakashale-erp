@@ -20,7 +20,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test-storage-rules';
+const PROJECT_ID = 'demo-test';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 

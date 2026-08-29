@@ -30,7 +30,7 @@ import {
   serverTimestamp,
 } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test-order-history-rules';
+const PROJECT_ID = 'demo-test';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
