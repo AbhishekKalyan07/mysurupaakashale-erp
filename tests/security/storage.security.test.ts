@@ -20,7 +20,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-security-test';
+const PROJECT_ID = 'demo-test-order-history-rules';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
@@ -44,7 +44,7 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
 
   // Helper to get admin storage
   function getAdminStorage() {
-    const ctx = env.unauthenticatedContext();
+    const ctx = env.authenticatedContext(ADMIN_UID);
     return ctx.storage();
   }
 

@@ -30,7 +30,7 @@ import {
   serverTimestamp,
 } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-security-test';
+const PROJECT_ID = 'demo-test-order-history-rules';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
@@ -855,6 +855,24 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       await assertFails(setDoc(doc(db, 'payments', 'pay-zero'), {
         ...validPayment,
         amount: 0
+      }));
+    });
+  });
+
+  // =========================================================================
+  // 16. CANCELLATION NOTIFICATIONS (Redesign Verification)
+  // =========================================================================
+  describe('16. Cancellation Notifications & State Tracking', () => {
+    it('DENY: Customer cannot create privileged system_alert notifications', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'notifications', 'notif-kitchen-alert'), {
+        recipientId: KITCHEN_UID,
+        recipientRole: 'kitchen',
+        channel: 'in_app',
+        type: 'system_alert',
+        title: 'Cancel',
+        message: 'Order cancelled',
+        createdBy: CUSTOMER_A_UID
       }));
     });
   });

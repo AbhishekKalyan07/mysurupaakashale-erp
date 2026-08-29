@@ -8,7 +8,8 @@ export interface ProductionProgress {
   packing: number;
   packed: number;
   ready: number;
-  remaining: number;
+  scheduled: number;
+  cancelled: number;
   completionPercentage: number;
 }
 
@@ -114,31 +115,37 @@ export class ProductionService {
    */
   static getProductionProgress(orders: Order[]): ProductionProgress {
     let total = 0;
+    let scheduled = 0;
     let packing = 0;
     let packed = 0;
     let ready = 0;
+    let cancelled = 0;
     let completed = 0;
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
-      total++;
-      if (o.status === 'packing') packing++;
-      if (o.status === 'packed') packed++;
-      if (o.status === 'ready_for_pickup') ready++;
-      if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
-        completed++;
+      if (o.status === 'cancelled') {
+        cancelled++;
+      } else if (o.status !== 'skipped') {
+        total++;
+        if (o.status === 'scheduled') scheduled++;
+        if (o.status === 'packing') packing++;
+        if (o.status === 'packed') packed++;
+        if (o.status === 'ready_for_pickup') ready++;
+        if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
+          completed++;
+        }
       }
     }
 
-    const remaining = total - packing - packed - ready;
     const completionPercentage = total === 0 ? 0 : Math.round((completed / total) * 100);
 
     return {
       total,
+      scheduled,
       packing,
       packed,
       ready,
-      remaining,
+      cancelled,
       completionPercentage,
     };
   }

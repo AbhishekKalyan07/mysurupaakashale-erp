@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -78,6 +81,7 @@
     "firestore": { "port": 8080 },
     "storage": { "port": 9199 },
     "hosting": { "port": 5000 },
+    "functions": { "port": 5001 },
     "ui": { "enabled": true, "port": 4000 },
     "singleProjectMode": true
   }

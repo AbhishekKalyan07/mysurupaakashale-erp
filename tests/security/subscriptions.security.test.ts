@@ -8,7 +8,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-security-subscriptions';
+const PROJECT_ID = 'demo-test-order-history-rules';
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
 withEmulator('🔐 Subscriptions Security Rules', () => {

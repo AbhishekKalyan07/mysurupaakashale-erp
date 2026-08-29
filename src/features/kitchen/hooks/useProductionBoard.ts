@@ -23,20 +23,23 @@ export function useProductionBoard() {
   const queryKey = queryKeys.kitchen.dayOrders(date);
   const { firebaseUser, role, profile } = useAuth();
 
+  const kitchenId = (profile as any)?.kitchenId;
+
   // 1. Single realtime listener for today's orders
   useEffect(() => {
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
-      (profile as any)?.kitchenId,
+      kitchenId,
       (orders: Order[]) => queryClient.setQueryData(queryKey, orders),
       (err) => console.error(`[useProductionBoard] orders onSnapshot error:`, err)
     );
     return unsubscribe;
-  }, [date, queryClient, queryKey]);
+  }, [date, queryClient, queryKey, kitchenId]);
 
   const { data: orders = [], isLoading: isOrdersLoading } = useQuery<Order[]>({
     queryKey,
-    queryFn: () => orderRepository.getByDate(date),
+    // Pass kitchenId so the initial fetch scope matches the onSnapshot listener.
+    queryFn: () => orderRepository.getByDate(date, kitchenId ?? null),
     staleTime: 0,
   });
 

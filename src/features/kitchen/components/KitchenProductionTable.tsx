@@ -3,7 +3,7 @@ import type { Order } from '@/shared/types';
 import type { OrderStatus } from '@/shared/types';
 export type KitchenWorkflowStatus = Extract<
   OrderStatus,
-  'scheduled' | 'packing' | 'packed' | 'ready_for_pickup'
+  'scheduled' | 'packing' | 'packed' | 'ready_for_pickup' | 'cancelled'
 >;
 import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -47,9 +47,13 @@ export function KitchenProductionTable({
   // Filter Logic
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
-      if (o.status === 'cancelled' || o.status === 'skipped') return false;
-      if (mealFilter !== 'all' && o.mealType !== mealFilter) return false;
+      if (o.status === 'skipped') return false;
+      // When a specific status is selected, apply that filter (including 'cancelled').
+      // When 'all' is selected, hide cancelled orders — they must be viewed via the Cancelled filter.
       if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (statusFilter === 'all' && o.status === 'cancelled') return false;
+      // Apply meal type filter against the actual o.mealType field.
+      if (mealFilter !== 'all' && o.mealType !== mealFilter) return false;
       
       const area = o.zoneId ? zoneMap.get(o.zoneId) || o.zoneId : 'Unassigned Area';
       if (areaFilter !== 'all' && area !== areaFilter) return false;
@@ -62,12 +66,19 @@ export function KitchenProductionTable({
       }
       return true;
     }).sort((a, b) => {
-      // Sort: Scheduled -> Packing -> Packed -> Ready. Then by customer name.
+      // Sort tier 1: Status (scheduled → packing → packed → ready_for_pickup)
       const statusOrder: Record<string, number> = { scheduled: 1, packing: 2, packed: 3, ready_for_pickup: 4, out_for_delivery: 5, delivered: 6 };
       const aStat = statusOrder[a.status] || 99;
       const bStat = statusOrder[b.status] || 99;
       if (aStat !== bStat) return aStat - bStat;
-      
+
+      // Sort tier 2: Order type — subscription before one_time (more critical to handle first)
+      const sourceOrder: Record<string, number> = { subscription: 1, one_time: 2 };
+      const aSrc = sourceOrder[a.source] ?? 99;
+      const bSrc = sourceOrder[b.source] ?? 99;
+      if (aSrc !== bSrc) return aSrc - bSrc;
+
+      // Sort tier 3: Customer name alphabetically
       const aName = customerMap.get(a.customerId) || '';
       const bName = customerMap.get(b.customerId) || '';
       return aName.localeCompare(bName);
@@ -113,6 +124,7 @@ export function KitchenProductionTable({
           <option value="packing">Packing</option>
           <option value="packed">Packed</option>
           <option value="ready_for_pickup">Ready for Pickup</option>
+          <option value="cancelled">Cancelled</option>
         </select>
 
         {/* Area Filter */}

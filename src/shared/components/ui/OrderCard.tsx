@@ -310,17 +310,52 @@ export function OrderCard({
           </div>
         )}
 
+        {/* Kitchen Pack Row */}
+        {variant === 'kitchen' && (
+          <div className="mt-3 p-2 bg-surface-2 border border-border rounded-lg">
+            <div className="flex justify-between items-center gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-0.5">Meal to Pack</p>
+                <p className="text-sm font-semibold text-text leading-tight">{order.mealName || order.itemsLabel}</p>
+              </div>
+              {order.mealQuantity && order.mealQuantity > 1 && (
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-0.5">Qty</p>
+                  <div className="w-7 h-7 rounded bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-bold text-sm shadow-xs border border-turmeric-200">
+                    {order.mealQuantity}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Badges Row */}
         <div className="flex flex-wrap gap-1.5 mt-2.5">
           {variant !== 'delivery' && <MealBadge mealType={order.mealType} compact />}
           {planName && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pastel-lavender text-secondary border border-secondary/15">
+            <span className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border",
+              order.source === 'subscription'
+                ? "bg-pastel-lavender text-secondary border-secondary/15"
+                : "bg-surface-2 text-text-muted border-border"
+            )}>
               {planName}
             </span>
           )}
           {zoneName && variant !== 'delivery' && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-2 text-text-muted border border-border">
               📍 {zoneName}
+            </span>
+          )}
+          {order.specialInstructions && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning-subtle text-warning-dark border border-warning/20">
+              ⚠️ Alert
+            </span>
+          )}
+          {order.packingNotes && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-info-subtle text-info-dark border border-info/20">
+              📝 Notes
             </span>
           )}
           {order.deliveryPartnerId && order.deliveryPartnerId === currentDeliveryPartnerId ? (

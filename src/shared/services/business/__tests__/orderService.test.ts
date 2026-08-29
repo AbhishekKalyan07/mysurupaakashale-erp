@@ -336,5 +336,24 @@ describe('orderService', () => {
       await expect(orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']))
         .rejects.toThrow('Order is already being prepared by the kitchen and cannot be cancelled.');
     });
+
+    it('does not dispatch privileged notifications directly from the customer client path', async () => {
+      vi.spyOn(orderRepository, 'list').mockResolvedValue([
+        { id: 'ord1', kitchenStatus: 'pending', mealType: 'lunch' }
+      ] as any);
+
+      const { writeBatch } = await import('firebase/firestore');
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(writeBatch).mockReturnValue({
+        update: vi.fn(),
+        commit: batchCommit,
+        set: vi.fn(),
+        delete: vi.fn(),
+      } as any);
+
+      await orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']);
+
+      expect(batchCommit).toHaveBeenCalled();
+    });
   });
 });
