@@ -84,7 +84,7 @@ jobs:
       - name: Start Firebase Emulators and run security tests
         run: |
           npx firebase emulators:exec \
-            --project demo-security-test \
+            --project demo-test-order-history-rules \
             --only firestore,storage \
             "npm run test:security"
         env:

@@ -51,17 +51,36 @@ describe('productionService', () => {
 
     it('getProductionProgress calculates progress correctly', () => {
       const progress = ProductionService.getProductionProgress(orders);
-      // Total: 5 (ignoring o3)
-      // packing: 1 (o1)
-      // ready: 1 (o2)
-      // remaining: 5 - 1 - 1 = 3
-      // completed: ready + out + delivered = 1(o2) + 1(o5) + 1(o6) = 3
-      // percentage: (3/5)*100 = 60
-      expect(progress).toEqual({ total: 5, packing: 1, packed: 0, ready: 1, remaining: 3, completionPercentage: 60 });
+      // Orders: o1(packing), o2(ready_for_pickup), o3(cancelled), o4(scheduled), o5(out_for_delivery), o6(delivered)
+      // total = 5 (excludes o3 which is cancelled)
+      // scheduled = 1 (o4)
+      // packing = 1 (o1)
+      // packed = 0
+      // ready = 1 (o2)
+      // cancelled = 1 (o3)
+      // completed (for %): ready + out_for_delivery + delivered = 1(o2) + 1(o5) + 1(o6) = 3
+      // completionPercentage = round(3/5 * 100) = 60
+      expect(progress).toEqual({
+        total: 5,
+        scheduled: 1,
+        packing: 1,
+        packed: 0,
+        ready: 1,
+        cancelled: 1,
+        completionPercentage: 60,
+      });
     });
 
     it('getProductionProgress handles empty array', () => {
-      expect(ProductionService.getProductionProgress([])).toEqual({ total: 0, packing: 0, packed: 0, ready: 0, remaining: 0, completionPercentage: 0 });
+      expect(ProductionService.getProductionProgress([])).toEqual({
+        total: 0,
+        scheduled: 0,
+        packing: 0,
+        packed: 0,
+        ready: 0,
+        cancelled: 0,
+        completionPercentage: 0,
+      });
     });
 
     it('getAreaPacking groups correctly', () => {
