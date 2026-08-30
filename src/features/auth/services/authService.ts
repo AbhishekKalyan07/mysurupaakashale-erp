@@ -146,6 +146,9 @@ export async function signUpCustomer(
 }
 
 export async function signOutUser(): Promise<void> {
+  try {
+    localStorage.removeItem('last_active_uid');
+  } catch (_e) {}
   await firebaseSignOut(auth);
 }
 

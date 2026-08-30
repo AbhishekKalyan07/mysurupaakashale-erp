@@ -69,18 +69,34 @@ export function useKitchenOrdersSummary(date: string) {
   // inject it directly into the React Query cache — this gives real-time UX
   // without a polling interval.
   useEffect(() => {
+    // Compute the cache key inside the effect so it is never a closure variable
+    // that exhaustive-deps would flag as a missing dependency. The key is
+    // always fresh for the current (date, kitchenId) pair each time the effect runs.
+    const effectQueryKey = queryKeys.kitchen.dayOrders(date);
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
       kitchenId,
       (orders) => {
-        queryClient.setQueryData(queryKey, orders);
+        queryClient.setQueryData(effectQueryKey, orders);
       },
       (error) => {
         console.error('[useKitchenOrdersSummary] onSnapshot error:', error);
       }
     );
     return unsubscribe;
-  }, [date, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Dependency rationale:
+    //   date      — listener query filter; must re-subscribe when date changes.
+    //   kitchenId — listener query filter; must re-subscribe when kitchenId
+    //               changes (null → real id as profile loads, or on kitchen
+    //               reassignment). Without this, the listener stays bound to
+    //               the stale null value and returns all-kitchen orders.
+    //   queryClient — stable singleton from React context; included for
+    //               exhaustive-deps completeness.
+    //
+    //   queryKey (render-scope) is intentionally NOT referenced here.
+    //   It is computed fresh inside the effect (effectQueryKey) to avoid
+    //   the infinite-loop caused by array identity changes on every render.
+  }, [date, kitchenId, queryClient]);
 
   // useQuery provides the initial fetch, loading/error states, and the cache
   // entry that onSnapshot continues to update after the first load.

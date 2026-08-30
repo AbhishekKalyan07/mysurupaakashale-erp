@@ -24,11 +24,30 @@ interface AuthProviderProps {
  *    `profile === null` here as "still loading the profile", not "no
  *    profile exists".
  */
+function getInitialState(): { status: AuthStatus; role: Role | null; uid: string | null } {
+  try {
+    const lastUid = localStorage.getItem('last_active_uid');
+    if (lastUid) {
+      const rawCache = localStorage.getItem(`auth_cache_${lastUid}`);
+      if (rawCache) {
+        const parsed = JSON.parse(rawCache);
+        if (parsed && parsed.uid === lastUid && isRole(parsed.role)) {
+          return { status: 'authenticated', role: parsed.role as Role, uid: lastUid };
+        }
+      }
+    }
+  } catch (_err) {
+    // Ignore invalid JSON or blocked localStorage
+  }
+  return { status: 'loading', role: null, uid: null };
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [init] = useState(getInitialState);
+  const [status, setStatus] = useState<AuthStatus>(init.status);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [role, setRole] = useState<Role | null>(null);
+  const [role, setRole] = useState<Role | null>(init.role);
   const [error, setError] = useState<string | null>(null);
 
   // 1. Resolve who's signed in via Firebase Auth
@@ -40,28 +59,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setFirebaseUser(user);
 
         if (!user) {
+          try { localStorage.removeItem('last_active_uid'); } catch (_e) {}
           setRole(null);
           setStatus('unauthenticated');
         } else {
-          // Break the waterfall: check for a cached role.
-          // This allows ProtectedRoute to unblock and start downloading dashboard JS
-          // immediately, while the authoritative Firestore query runs in the background.
-          try {
-            const rawCache = localStorage.getItem(`auth_cache_${user.uid}`);
-            if (rawCache) {
-              const parsed = JSON.parse(rawCache);
-              if (parsed && parsed.uid === user.uid && isRole(parsed.role)) {
-                setRole(parsed.role as Role);
-                setStatus('authenticated');
+          try { localStorage.setItem('last_active_uid', user.uid); } catch (_e) {}
+          // Check if we are already optimistically authenticated with the same UID
+          if (init.status === 'authenticated' && init.uid === user.uid) {
+            // Already showing UI; do not revert to loading. Wait for authoritative profile.
+          } else {
+            // Fallback: check cache just in case last_active_uid was missing
+            try {
+              const rawCache = localStorage.getItem(`auth_cache_${user.uid}`);
+              if (rawCache) {
+                const parsed = JSON.parse(rawCache);
+                if (parsed && parsed.uid === user.uid && isRole(parsed.role)) {
+                  setRole(parsed.role as Role);
+                  setStatus('authenticated');
+                } else {
+                  setStatus('loading');
+                }
               } else {
                 setStatus('loading');
               }
-            } else {
+            } catch (_err) {
               setStatus('loading');
             }
-          } catch (_err) {
-            // Invalid JSON or blocked localStorage
-            setStatus('loading');
           }
         }
       },
@@ -72,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     );
     return unsubscribe;
-  }, []);
+  }, [init.status, init.uid]);
 
   // 2. Fetch their Firestore profile to determine their Role (Phase 3: No Custom Claims)
   useEffect(() => {

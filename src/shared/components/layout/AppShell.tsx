@@ -9,7 +9,7 @@ import { GlobalErrorBoundary } from '../feedback/GlobalErrorBoundary';
 import { PWAInstallPrompt } from '../feedback/PWAInstallPrompt';
 
 export function AppShell() {
-  const { status, role, profile } = useAuth();
+  const { status, role } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -29,13 +29,9 @@ export function AppShell() {
         {/* Page content — bottom padding on mobile for bottom nav */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background px-4 py-5 lg:p-8 pb-[76px] lg:pb-8">
           <GlobalErrorBoundary>
-            {profile ? (
-              <div key={location.pathname} className="mx-auto max-w-7xl h-full animate-in fade-in duration-300">
-                <Outlet />
-              </div>
-            ) : (
-              <LoadingScreen />
-            )}
+            <div key={location.pathname} className="mx-auto max-w-7xl h-full animate-in fade-in duration-300">
+              <Outlet />
+            </div>
           </GlobalErrorBoundary>
         </main>
       </div>

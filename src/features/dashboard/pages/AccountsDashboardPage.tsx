@@ -15,19 +15,30 @@ export function AccountsDashboardPage() {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today');
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
 
-  // Compute start/end as ISO strings so TanStack Query keys change when dateRange changes
+  // Compute start/end anchored to IST (Asia/Kolkata, UTC+05:30) so the
+  // business date is identical regardless of the browser's local timezone.
+  // getTodayInTimezone() always returns YYYY-MM-DD in IST.
   const { startStr, endStr, start, end } = useMemo(() => {
-    const end = new Date();
-    const start = new Date();
-    if (dateRange === 'week') start.setDate(end.getDate() - 7);
-    if (dateRange === 'month') start.setMonth(end.getMonth() - 1);
-    start.setHours(0, 0, 0, 0);
-    return {
-      start,
-      end,
-      startStr: start.toISOString().split('T')[0],
-      endStr: end.toISOString().split('T')[0],
-    };
+    const todayIST = getTodayInTimezone(); // e.g. '2026-08-30'
+    const endStr = todayIST;
+    let startStr = todayIST;
+
+    if (dateRange === 'week') {
+      // 7 days ago in IST
+      const sevenDaysAgo = new Date(`${todayIST}T00:00:00+05:30`);
+      sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+      startStr = getTodayInTimezone('Asia/Kolkata', sevenDaysAgo);
+    } else if (dateRange === 'month') {
+      // 30 days ago in IST
+      const thirtyDaysAgo = new Date(`${todayIST}T00:00:00+05:30`);
+      thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+      startStr = getTodayInTimezone('Asia/Kolkata', thirtyDaysAgo);
+    }
+
+    // Construct explicit IST boundaries for Timestamp range queries
+    const start = new Date(`${startStr}T00:00:00+05:30`);
+    const end   = new Date(`${endStr}T23:59:59.999+05:30`);
+    return { startStr, endStr, start, end };
   }, [dateRange]);
 
   const { payments, invoices, orders, isLoading, isError } = useAccountsDashboard(start, end, startStr, endStr);
