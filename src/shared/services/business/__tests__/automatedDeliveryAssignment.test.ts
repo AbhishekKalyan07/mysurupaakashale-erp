@@ -8,6 +8,7 @@ import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
 import { mealPlanRepository } from '../../firestore/mealPlanRepository';
 import * as notificationService from '../../firestore/notificationService';
 import { auditRepository } from '../../firestore/auditRepository';
+import { kitchenRepository } from '../../firestore/kitchenRepository';
 import { getDoc, writeBatch } from 'firebase/firestore';
 
 vi.mock('firebase/firestore', async (importOriginal) => {
@@ -43,6 +44,7 @@ describe('Automated Delivery Partner Assignment', () => {
     vi.spyOn(notificationService, 'notifyDailyOrdersGenerated').mockResolvedValue();
     vi.spyOn(notificationService, 'notifyAdminAlert').mockResolvedValue();
     vi.spyOn(auditRepository, 'logAction').mockResolvedValue();
+    vi.spyOn(kitchenRepository, 'list').mockResolvedValue([{ id: 'k1' } as any]);
     
     // Mock getDoc for skips
     (getDoc as any).mockResolvedValue({ exists: () => false, data: () => ({}) });

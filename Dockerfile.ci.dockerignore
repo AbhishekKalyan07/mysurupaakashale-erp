@@ -6,3 +6,8 @@ playwright-report
 .firebase
 .lighthouseci
 .git
+.env*
+serviceAccountKey.json
+**/serviceAccountKey.json
+*.key
+credentials.json

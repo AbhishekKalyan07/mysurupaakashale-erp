@@ -2,6 +2,7 @@ import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getTodayInTimezone } from '@/shared/lib/date';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { settingsRepository } from '../firestore/settingsRepository';
+import { orderService } from './orderService';
 import type { MealPreference, PlanTier, Subscription, MealPlanPricing } from '@/shared/types';
 
 class SubscriptionService {
@@ -159,6 +160,16 @@ class SubscriptionService {
       pauseStartDate,
       pauseEndDate,
     });
+
+    if (shouldPauseNow) {
+      const today = getTodayInTimezone();
+      await orderService.cancelOrdersForSkipDay(
+        subscription.id,
+        subscription.customerId,
+        today,
+        ['breakfast', 'lunch', 'dinner'] // Cancel all eligible meals for today
+      );
+    }
   }
 
   /** Admin override of the customer's own resume action, clearing any schedules. */

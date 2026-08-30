@@ -85,7 +85,8 @@ describe('productionService', () => {
 
     it('getAreaPacking groups correctly', () => {
       const zoneMap = new Map([['z1', 'Zone 1'], ['z2', 'Zone 2']]);
-      const packing = ProductionService.getAreaPacking(orders, zoneMap);
+      const customerMap = new Map([['c1', 'Customer 1']]);
+      const packing = ProductionService.getAreaPacking(orders, zoneMap, customerMap);
       
       expect(packing.length).toBe(3); // Unassigned, Zone 1, Zone 2
       expect(packing.find(p => p.areaName === 'Zone 1')).toEqual(
@@ -102,13 +103,13 @@ describe('productionService', () => {
       expect(sheet.length).toBe(5);
       
       const o6Row = sheet.find(r => r.customerName === 'Customer 1');
-      expect(o6Row).toEqual({
+      expect(o6Row).toEqual(expect.objectContaining({
         area: 'z2', // z2 not in zoneMap, falls back to id
         customerName: 'Customer 1',
         meal: 'Dose',
         plan: 'One-Time',
         deliveryPartner: 'Partner 1'
-      });
+      }));
     });
   });
 

@@ -33,6 +33,19 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
+function isSafeScreenshotUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname;
+    // Must be a firebase storage URL
+    return hostname === 'firebasestorage.googleapis.com' || hostname.endsWith('.firebasestorage.app');
+  } catch {
+    return false;
+  }
+}
+
 // ── Payment Detail Dialog ──────────────────────────────────────────────────────
 function PaymentDetailDialog({
   payment,
@@ -157,7 +170,7 @@ function PaymentDetailDialog({
           </div>
 
           {/* Screenshot */}
-          {payment.screenshotUrl && (
+          {payment.screenshotUrl && isSafeScreenshotUrl(payment.screenshotUrl) && (
             <div className="border border-primary/10 rounded-xl overflow-hidden mt-4 shadow-sm">
               <div className="bg-primary/5 px-4 py-3 border-b border-primary/10 flex justify-between items-center">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted flex items-center gap-1.5">
@@ -179,6 +192,12 @@ function PaymentDetailDialog({
                   className="max-h-64 object-contain rounded-lg border border-primary/10"
                 />
               </div>
+            </div>
+          )}
+          {payment.screenshotUrl && !isSafeScreenshotUrl(payment.screenshotUrl) && (
+            <div className="border border-red-200 bg-red-50 rounded-xl p-4 mt-4 shadow-sm text-red-700 text-sm font-sans font-medium">
+              <AlertTriangle size={16} className="inline mr-2" />
+              Attached payment proof URL is invalid or unsafe.
             </div>
           )}
 

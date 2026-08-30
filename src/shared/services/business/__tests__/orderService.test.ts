@@ -5,6 +5,7 @@ import { subscriptionRepository } from '../../firestore/subscriptionRepository';
 import { orderGenerationRunRepository } from '../../firestore/analyticsRepository';
 import { userRepository } from '../../firestore/userRepository';
 import { mealPlanRepository } from '../../firestore/mealPlanRepository';
+import { kitchenRepository } from '../../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
 import * as notificationService from '../../firestore/notificationService';
 
@@ -40,6 +41,7 @@ vi.mock('@/shared/lib/firebase', () => ({
 describe('orderService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(kitchenRepository, 'list').mockResolvedValue([{ id: 'k1' } as any]);
   });
 
   describe('generateDailyOrders', () => {

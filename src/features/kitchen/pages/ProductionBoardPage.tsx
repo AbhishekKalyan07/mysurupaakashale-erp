@@ -23,7 +23,8 @@ export function ProductionBoardPage() {
     partnerMap,
     customerMap,
     isLoading,
-    advanceStatus
+    advanceStatus,
+    advancingOrderId
   } = useProductionBoard();
 
   const [activeTab, setActiveTab] = useState<'summary' | 'production' | 'packing'>('summary');
@@ -34,7 +35,7 @@ export function ProductionBoardPage() {
   
   const summary = useMemo(() => ProductionService.getProductionSummary(orders), [orders]);
   const progress = useMemo(() => ProductionService.getProductionProgress(orders), [orders]);
-  const areaGroups = useMemo(() => ProductionService.getAreaPacking(orders, zoneMap), [orders, zoneMap]);
+  const areaGroups = useMemo(() => ProductionService.getAreaPacking(orders, zoneMap, customerMap), [orders, zoneMap, customerMap]);
   const printRows = useMemo(() => ProductionService.getPrintPackingSheet(orders, zoneMap, partnerMap, customerMap), [orders, zoneMap, partnerMap, customerMap]);
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ export function ProductionBoardPage() {
             partnerMap={partnerMap}
             customerMap={customerMap}
             onAdvanceStatus={advanceStatus}
-            isAdvancing={false}
+            advancingOrderId={advancingOrderId}
           />
         )}
 

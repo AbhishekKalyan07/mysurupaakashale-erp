@@ -1,6 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { PremiumButton as Button } from '../ui/PremiumButton';
+import { logger } from '@/shared/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -22,7 +23,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught React Error:', error, errorInfo);
+    logger.error(error, { componentStack: errorInfo.componentStack, boundary: 'GlobalErrorBoundary' });
     
     // Automatically reload on chunk load errors (Vite dynamic import failures)
     // We use sessionStorage to prevent infinite reload loops if the chunk is permanently gone.

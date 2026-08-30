@@ -123,18 +123,8 @@ describe('authService - signUpCustomer Failure Injections', () => {
     }));
   });
 
-  it('cleans up and deletes Auth user if getDoc throws an error', async () => {
-    mockGetDoc.mockRejectedValue(new Error('Firestore unavailable'));
-    
-    await expect(signUpCustomer('test@test.com', 'password', 'Test User', '+1234567890'))
-      .rejects.toThrow('Firestore unavailable');
-      
-    expect(mockUserDelete).toHaveBeenCalledTimes(1);
-    expect(mockSignOut).not.toHaveBeenCalled(); // User delete succeeded
-  });
-
   it('cleans up and deletes Auth user if phone already exists', async () => {
-    mockGetDoc.mockResolvedValue({ exists: () => true });
+    mockBatch.commit.mockRejectedValue({ code: 'permission-denied' });
     
     await expect(signUpCustomer('test@test.com', 'password', 'Test User', '+1234567890'))
       .rejects.toThrow('An account with this mobile number already exists');
@@ -158,25 +148,24 @@ describe('authService - signUpCustomer Failure Injections', () => {
       .rejects.toThrow('Profile update failed');
       
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
-    // Batch commit should NOT have been called because updateProfile failed
-    expect(mockBatch.commit).not.toHaveBeenCalled();
+    expect(mockBatch.commit).toHaveBeenCalledTimes(1);
   });
 
-  it('cleans up and deletes Auth user if transaction commit throws an error', async () => {
-    mockRunTransaction.mockRejectedValue(new Error('Transaction commit failed'));
+  it('cleans up and deletes Auth user if batch commit throws an error', async () => {
+    mockBatch.commit.mockRejectedValue(new Error('Batch commit failed'));
 
     await expect(signUpCustomer('test@test.com', 'password', 'Test User', '9876543210'))
-      .rejects.toThrow('Transaction commit failed');
+      .rejects.toThrow('Batch commit failed');
       
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
   });
 
   it('signs out the user if credential.user.delete() fails during cleanup', async () => {
-    mockRunTransaction.mockRejectedValue(new Error('Transaction commit failed'));
+    mockBatch.commit.mockRejectedValue(new Error('Batch commit failed'));
     mockUserDelete.mockRejectedValue(new Error('Auth user deletion failed (requires recent login)'));
     
     await expect(signUpCustomer('test@test.com', 'password', 'Test User', '+1234567890'))
-      .rejects.toThrow('Transaction commit failed');
+      .rejects.toThrow('Batch commit failed');
       
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
     // Fallback cleanup
@@ -203,6 +192,12 @@ describe('authService - additional helper functions', () => {
       update: vi.fn(),
       delete: vi.fn()
     }));
+    
+    const mockBatch = {
+      set: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined)
+    };
+    (mockWriteBatch as any).mockReturnValue(mockBatch);
   });
 
   it('signIn invokes signInWithEmailAndPassword', async () => {
@@ -249,7 +244,8 @@ describe('authService - additional helper functions', () => {
     const mockGUser = { uid: 'g123', delete: vi.fn().mockResolvedValue(undefined) };
     await expect(signUpWithGoogle(mockGUser, '9876543210', 'pass')).rejects.toThrow('Google account is missing an email address.');
 
-    mockRunTransaction.mockRejectedValue(new Error('Tx fail'));
+    const mockFailingBatch = { set: vi.fn(), commit: vi.fn().mockRejectedValue(new Error('Tx fail')) };
+    (mockWriteBatch as any).mockReturnValue(mockFailingBatch);
     const mockGUser2 = { uid: 'g123', email: 'g@test.com', delete: vi.fn().mockRejectedValue(new Error('del fail')) };
     await expect(signUpWithGoogle(mockGUser2, '9876543210', 'pass')).rejects.toThrow('Tx fail');
   });

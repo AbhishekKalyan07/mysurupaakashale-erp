@@ -1,5 +1,6 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { ErrorState } from './ErrorState';
+import { logger } from '@/shared/utils/logger';
 
 export interface WidgetErrorBoundaryProps {
   children: ReactNode;
@@ -22,6 +23,10 @@ export class WidgetErrorBoundary extends Component<WidgetErrorBoundaryProps, Sta
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    logger.error(error, { componentStack: errorInfo.componentStack, boundary: 'WidgetErrorBoundary' });
   }
 
   public render() {

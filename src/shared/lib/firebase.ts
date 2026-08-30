@@ -18,10 +18,12 @@ import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'fireba
 
 // In Node/CI (automation scripts run via vite-node), import.meta.env properties
 // may be undefined, so we fallback to process.env.
-function getEnv(key: string, metaValue: any): string | undefined {
-  if (metaValue) return metaValue;
-  if (typeof process !== 'undefined') return process.env[key];
-  return undefined;
+function getEnv(key: string, metaValue: any, required: boolean = true): string | undefined {
+  const value = metaValue ?? (typeof process !== 'undefined' ? process.env[key] : undefined);
+  if (required && !value) {
+    throw new Error(`[config] Missing required environment variable: ${key}. Check your .env / deploy secrets against .env.example.`);
+  }
+  return value;
 }
 
 const firebaseConfig = {
@@ -33,7 +35,7 @@ const firebaseConfig = {
   appId:             getEnv('VITE_FIREBASE_APP_ID', import.meta.env.VITE_FIREBASE_APP_ID),
 };
 
-const useEmulators = getEnv('VITE_USE_FIREBASE_EMULATORS', import.meta.env.VITE_USE_FIREBASE_EMULATORS) === 'true';
+const useEmulators = getEnv('VITE_USE_FIREBASE_EMULATORS', import.meta.env.VITE_USE_FIREBASE_EMULATORS, false) === 'true';
 if (import.meta.env.DEV) {
   console.log('BROWSER_DEBUG_EMULATORS:', {
     rawMeta: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
@@ -78,11 +80,14 @@ export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 //   3. Enforce App Check: Firebase Console → App Check → Firestore/Auth/Storage
 //      → Enforce (after validating existing traffic shows in the dashboard).
 // ---------------------------------------------------------------------------
-const appCheckSiteKey = getEnv('VITE_APPCHECK_SITE_KEY', import.meta.env.VITE_APPCHECK_SITE_KEY);
-const appCheckDebugToken = getEnv('VITE_APPCHECK_DEBUG_TOKEN', import.meta.env.VITE_APPCHECK_DEBUG_TOKEN);
+const appCheckSiteKey = getEnv('VITE_APPCHECK_SITE_KEY', import.meta.env.VITE_APPCHECK_SITE_KEY, false);
+const appCheckDebugToken = getEnv('VITE_APPCHECK_DEBUG_TOKEN', import.meta.env.VITE_APPCHECK_DEBUG_TOKEN, false);
 
 if (import.meta.env.PROD && appCheckDebugToken) {
   throw new Error('SECURITY: VITE_APPCHECK_DEBUG_TOKEN must not be set in production builds.');
+}
+if (import.meta.env.PROD && !appCheckSiteKey) {
+  throw new Error('Production build requires VITE_APPCHECK_SITE_KEY');
 }
 const isEmulatorMode = useEmulators;
 
