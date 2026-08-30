@@ -193,4 +193,68 @@ describe('AuthContext - Role Cache and Resolution', () => {
 
     expect(getStatus()).toBe('authenticated');
   });
+
+  it('9. handles firestore subscription error', () => {
+    let firestoreErrorCallback: any;
+    (userRepository.subscribeToDoc as any).mockImplementation((_uid: string, cb: any, errCb: any) => {
+      firestoreCallback = cb;
+      firestoreErrorCallback = errCb;
+      return vi.fn();
+    });
+
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
+
+    act(() => {
+      if (firestoreErrorCallback) firestoreErrorCallback(new Error('test error'));
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+  });
+
+  it('10. handles timeout for profile load', async () => {
+    vi.useFakeTimers();
+    const { signOutUser } = await import('../../services/authService');
+    (signOutUser as any).mockRejectedValueOnce(new Error('timeout signout error'));
+
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(21000);
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+    vi.useRealTimers();
+  });
+
+  it('11. dispatches app-ready event after 5s when authenticated', async () => {
+    vi.useFakeTimers();
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
+    
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
+
+    expect(getStatus()).toBe('authenticated');
+    
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    expect(dispatchSpy.mock.calls[0][0].type).toBe('app-ready');
+    
+    dispatchSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });
