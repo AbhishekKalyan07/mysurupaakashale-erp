@@ -54,12 +54,17 @@ export function useProductionBoard() {
     return unsubscribe;
   }, [date]);
 
+  const [advancingOrderId, setAdvancingOrderId] = useState<string | null>(null);
+
   const advanceStatus = async (
     orderId: string,
     newStatus: string
   ): Promise<void> => {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
+
+    setAdvancingOrderId(orderId);
+    try {
 
     const oldStatus = order.kitchenStatus || 'scheduled';
 
@@ -99,6 +104,9 @@ export function useProductionBoard() {
         );
       }
     }
+    } finally {
+      setAdvancingOrderId(null);
+    }
   };
 
   return {
@@ -108,6 +116,7 @@ export function useProductionBoard() {
     customerMap,
     isLoading: isOrdersLoading || isReferenceLoading || !productionState,
     advanceStatus,
+    advancingOrderId,
     productionState,
     role,
     user: firebaseUser,

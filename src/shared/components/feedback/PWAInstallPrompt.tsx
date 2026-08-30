@@ -15,12 +15,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
 export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  
+
   useEffect(() => {
     // Check if app is already installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                          (window.navigator as any).standalone === true;
-                         
+
     if (isStandalone) {
       return;
     }
@@ -30,7 +30,13 @@ export function PWAInstallPrompt() {
     setIsIOS(ios);
 
     // Check if dismissed recently
-    const dismissed = localStorage.getItem('pwa-install-dismissed');
+    let dismissed: string | null = null;
+    try {
+      dismissed = localStorage.getItem('pwa-install-dismissed');
+    } catch (_e) {
+      // Ignore localStorage errors
+    }
+
     if (dismissed) {
       const dismissTime = parseInt(dismissed, 10);
       const daysSinceDismiss = (Date.now() - dismissTime) / (1000 * 60 * 60 * 24);
@@ -64,7 +70,11 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    try {
+      localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    } catch (_e) {
+      // Ignore localStorage errors
+    }
   };
 
   if (!showPrompt) return null;
@@ -74,8 +84,8 @@ export function PWAInstallPrompt() {
       <div className="bg-background rounded-2xl shadow-2xl border border-primary/20 p-4 relative overflow-hidden">
         {/* Background accent */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-        
-        <button 
+
+        <button
           onClick={handleDismiss}
           className="absolute top-2 right-2 p-2 text-text-muted hover:text-primary transition-colors"
           aria-label="Close install prompt"
@@ -87,13 +97,13 @@ export function PWAInstallPrompt() {
           <div className="bg-primary/5 p-3 rounded-xl shrink-0">
             <Smartphone className="w-8 h-8 text-gold" />
           </div>
-          
+
           <div className="flex-1">
             <h3 className="font-display font-bold text-lg text-primary">Get the App</h3>
             <p className="text-sm font-sans text-text-muted mt-1 leading-relaxed">
               Install the Mysuru Paakashale app for a better experience and quick access to your meals.
             </p>
-            
+
             <div className="mt-4">
               {isIOS ? (
                 <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary">

@@ -282,6 +282,11 @@ export function OrderCard({
               )}>
                 {customerName}
               </div>
+              {variant === 'kitchen' && (
+                <div className="font-mono text-xs text-text-muted mt-0.5 opacity-70">
+                  {order.id.split('_')[0] === 'ord' ? order.id.split('_').slice(1,2).join('') : order.id.slice(0, 8)}
+                </div>
+              )}
               {variant === 'delivery' && customer?.phone && (
                 <div className="text-text-muted text-xs font-medium mt-0.5 flex items-center gap-1">
                   <Phone size={10} /> {customer.phone}
@@ -312,27 +317,36 @@ export function OrderCard({
 
         {/* Kitchen Pack Row */}
         {variant === 'kitchen' && (
-          <div className="mt-3 p-2 bg-surface-2 border border-border rounded-lg">
-            <div className="flex justify-between items-center gap-2">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-0.5">Meal to Pack</p>
-                <p className="text-sm font-semibold text-text leading-tight">{order.mealName || order.itemsLabel}</p>
+          <div className="mt-3 p-3 bg-surface-2 border border-border rounded-lg shadow-sm">
+            <div className="flex justify-between items-start gap-2">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-0.5">Meal to Pack</p>
+                <p className="text-base font-bold text-ink-900 leading-tight">{order.mealName || order.itemsLabel}</p>
+
+                {order.specialInstructions && (
+                  <p className="text-xs text-warning-dark font-medium bg-warning-subtle px-2 py-1 rounded inline-flex items-center gap-1 border border-warning/20">
+                    <span>⚠️</span> {order.specialInstructions}
+                  </p>
+                )}
+                {order.packingNotes && (
+                  <p className="text-xs text-info-dark font-medium bg-info-subtle px-2 py-1 rounded inline-flex items-center gap-1 border border-info/20 mt-1">
+                    <span>📝</span> {order.packingNotes}
+                  </p>
+                )}
               </div>
-              {order.mealQuantity && order.mealQuantity > 1 && (
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-0.5">Qty</p>
-                  <div className="w-7 h-7 rounded bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-bold text-sm shadow-xs border border-turmeric-200">
-                    {order.mealQuantity}
-                  </div>
+              <div className="shrink-0 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1">Qty</p>
+                <div className="w-10 h-10 rounded-xl bg-turmeric-100 text-turmeric-800 flex items-center justify-center font-black text-xl shadow-xs border-2 border-turmeric-300">
+                  {order.mealQuantity || 1}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Badges Row */}
         <div className="flex flex-wrap gap-1.5 mt-2.5">
-          {variant !== 'delivery' && <MealBadge mealType={order.mealType} compact />}
+          {variant !== 'delivery' && <MealBadge mealType={order.mealType} compact={variant !== 'kitchen'} />}
           {planName && (
             <span className={cn(
               "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border",

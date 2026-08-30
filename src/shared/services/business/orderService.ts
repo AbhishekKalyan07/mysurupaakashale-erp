@@ -6,6 +6,7 @@ import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
 import { mealPlanRepository } from '../firestore/mealPlanRepository';
+import { kitchenRepository } from '../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
@@ -88,18 +89,20 @@ class OrderService {
 
     try {
       // 1. Fetch data
-      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners, todaysOrders] = await Promise.all([
+      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners, todaysOrders, allKitchens] = await Promise.all([
         subscriptionRepository.list(where('status', '==', 'active')),
         mealPlanRepository.list(),
         userRepository.list(where('role', '==', 'customer')),
         deliveryZoneRepository.list(),
         userRepository.list(where('role', '==', 'delivery_partner')),
-        orderRepository.list(where('date', '==', today))
+        orderRepository.list(where('date', '==', today)),
+        kitchenRepository.list()
       ]);
       const customerMap = new Map<string, CustomerProfile>(allCustomers.map(c => [c.id, c as CustomerProfile]));
       const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
       const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
       const zoneMap = new Map(allZones.map(z => [z.id, z]));
+      const defaultKitchenId = allKitchens.length === 0 ? null : allKitchens[0].id;
 
       const workloadMap = new Map<string, number>();
       todaysOrders.forEach(o => {
@@ -139,7 +142,7 @@ class OrderService {
               continue;
             }
 
-            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap);
+            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
             ordersToCreate.push(order);
             success = true;
 
@@ -274,7 +277,8 @@ class OrderService {
     activePartners: DeliveryPartnerProfile[],
     allZones: any[],
     mealPlans: MealPlan[],
-    workloadMap: Map<string, number>
+    workloadMap: Map<string, number>,
+    defaultKitchenId: string | null
   ): Partial<Order> {
     const customer = customerMap.get(sub.customerId);
     
@@ -357,7 +361,7 @@ class OrderService {
       status: 'scheduled',
       deliveryAddressId: sub.deliveryAddressId ?? null,
       zoneId: zoneId ?? null,
-      kitchenId: null,
+      kitchenId: zoneId ? (zoneMap.get(zoneId)?.kitchenId ?? defaultKitchenId) : defaultKitchenId,
       deliveryPartnerId: partnerId ?? null,
       deliveryWindow: null,
       paymentId: sub.latestPaymentId ?? null,
@@ -388,12 +392,13 @@ class OrderService {
       return;
     }
 
-    const [mealPlans, customer, allZones, allPartners, todaysOrders] = await Promise.all([
+    const [mealPlans, customer, allZones, allPartners, todaysOrders, allKitchens] = await Promise.all([
       mealPlanRepository.list(),
       userRepository.getById(subscription.customerId),
       deliveryZoneRepository.list(),
       userRepository.list(where('role', '==', 'delivery_partner')),
-      orderRepository.list(where('date', '==', date))
+      orderRepository.list(where('date', '==', date)),
+      kitchenRepository.list()
     ]);
     
     const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
@@ -401,6 +406,7 @@ class OrderService {
     if (customer) customerMap.set(customer.id, customer as CustomerProfile);
     const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
     const zoneMap = new Map(allZones.map(z => [z.id, z]));
+    const defaultKitchenId = allKitchens.length === 0 ? null : allKitchens[0].id;
 
     const workloadMap = new Map<string, number>();
     todaysOrders.forEach(o => {
@@ -413,7 +419,7 @@ class OrderService {
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
-      const order = this.buildOrderSnapshot(subscription, pref, pref.mealType, date, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap);
+      const order = this.buildOrderSnapshot(subscription, pref, pref.mealType, date, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
       ordersToCreate.push(order);
 
       if (!order.deliveryPartnerId) {

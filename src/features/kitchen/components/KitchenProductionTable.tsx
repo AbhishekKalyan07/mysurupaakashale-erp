@@ -16,7 +16,7 @@ interface Props {
   partnerMap: Map<string, string>;
   customerMap: Map<string, string>;
   onAdvanceStatus: (orderId: string, status: string) => Promise<void>;
-  isAdvancing: boolean;
+  advancingOrderId: string | null;
 }
 
 export function KitchenProductionTable({
@@ -25,7 +25,7 @@ export function KitchenProductionTable({
   partnerMap,
   customerMap,
   onAdvanceStatus,
-  isAdvancing
+  advancingOrderId
 }: Props) {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,17 +101,41 @@ export function KitchenProductionTable({
           />
         </div>
 
-        {/* Meal Filter */}
-        <select
-          value={mealFilter}
-          onChange={e => setMealFilter(e.target.value as any)}
-          className="h-9 px-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none"
-        >
-          <option value="all">All Meals</option>
-          <option value="breakfast">Breakfast</option>
-          <option value="lunch">Lunch</option>
-          <option value="dinner">Dinner</option>
-        </select>
+        {/* Meal Filter Pills */}
+        <div className="flex flex-wrap gap-2 items-center mr-auto">
+          <button aria-label="Button action"
+            onClick={() => setMealFilter('all')}
+            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
+              mealFilter === 'all' ? 'bg-ink-900 text-white' : 'bg-rice-100 text-ink-600 hover:bg-rice-200'
+            }`}
+          >
+            ALL
+          </button>
+          <button aria-label="Button action"
+            onClick={() => setMealFilter('breakfast')}
+            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
+              mealFilter === 'breakfast' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+            }`}
+          >
+            BREAKFAST
+          </button>
+          <button aria-label="Button action"
+            onClick={() => setMealFilter('lunch')}
+            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
+              mealFilter === 'lunch' ? 'bg-sky-500 text-white' : 'bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200'
+            }`}
+          >
+            LUNCH
+          </button>
+          <button aria-label="Button action"
+            onClick={() => setMealFilter('dinner')}
+            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
+              mealFilter === 'dinner' ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+            }`}
+          >
+            DINNER
+          </button>
+        </div>
 
         {/* Status Filter */}
         <select
@@ -171,7 +195,7 @@ export function KitchenProductionTable({
                   onStatusChange={async (id, st) => {
                     await onAdvanceStatus(id, st);
                   }}
-                  isAdvancing={isAdvancing}
+                  isAdvancing={advancingOrderId === order.id}
                 />
               );
             })}

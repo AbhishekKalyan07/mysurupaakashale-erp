@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { orderService } from '../orderService';
 import { subscriptionRepository } from '../../firestore/subscriptionRepository';
 import { orderRepository } from '../../firestore/orderRepository';
+import { kitchenRepository } from '../../firestore/kitchenRepository';
 
 // Mock Firebase
 vi.mock('firebase/firestore', async (importOriginal) => {
@@ -31,6 +32,7 @@ vi.mock('@/shared/lib/firebase', () => ({
 describe('Unskip Meal Feature', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(kitchenRepository, 'list').mockResolvedValue([{ id: 'k1' } as any]);
   });
 
   describe('subscriptionRepository.removeSkip (Cutoff and DB)', () => {

@@ -31,6 +31,17 @@ export interface MealBreakdownItem {
   count: number;
 }
 
+export interface OrderDetail {
+  id: string;
+  displayId: string;
+  customerName: string;
+  mealType: string;
+  mealName: string;
+  quantity: number;
+  specialInstructions?: string;
+  packingNotes?: string;
+}
+
 export interface AreaPackingGroup {
   areaName: string;
   breakfast: number;
@@ -39,14 +50,21 @@ export interface AreaPackingGroup {
   basic: number;
   regular: number;
   oneTime: number;
+  orders: OrderDetail[];
 }
 
 export interface PrintPackingRow {
+  orderId: string;
+  displayId: string;
   area: string;
   customerName: string;
+  mealType: string;
   meal: string;
+  quantity: number;
   plan: string;
   deliveryPartner: string;
+  specialInstructions?: string;
+  packingNotes?: string;
 }
 
 export class ProductionService {
@@ -155,7 +173,8 @@ export class ProductionService {
    */
   static getAreaPacking(
     orders: Order[],
-    zoneMap: Map<string, string>
+    zoneMap: Map<string, string>,
+    customerMap: Map<string, string>
   ): AreaPackingGroup[] {
     const areaMap = new Map<string, AreaPackingGroup>();
 
@@ -174,6 +193,7 @@ export class ProductionService {
           basic: 0,
           regular: 0,
           oneTime: 0,
+          orders: [],
         });
       }
 
@@ -186,9 +206,33 @@ export class ProductionService {
       if (o.source === 'one_time') group.oneTime++;
       else if (o.planTier === 'basic') group.basic++;
       else if (o.planTier === 'regular') group.regular++;
+
+      const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
+      group.orders.push({
+        id: o.id,
+        displayId: o.displayId || (orderId => orderId.split('_')[0] === 'ord' ? orderId.split('_').slice(1,2).join('') : orderId.slice(0, 8))(o.id),
+        customerName,
+        mealType: o.mealType,
+        mealName: o.mealName || o.itemsLabel || o.mealType,
+        quantity: o.mealQuantity || 1,
+        specialInstructions: o.specialInstructions,
+        packingNotes: o.packingNotes
+      });
     }
 
-    return Array.from(areaMap.values()).sort((a, b) => a.areaName.localeCompare(b.areaName));
+    // Sort groups by areaName, and sort orders within groups by mealType then customerName
+    return Array.from(areaMap.values())
+      .sort((a, b) => a.areaName.localeCompare(b.areaName))
+      .map(group => ({
+        ...group,
+        orders: group.orders.sort((a, b) => {
+          const mealOrder: Record<string, number> = { breakfast: 1, lunch: 2, dinner: 3 };
+          const aMeal = mealOrder[a.mealType] || 99;
+          const bMeal = mealOrder[b.mealType] || 99;
+          if (aMeal !== bMeal) return aMeal - bMeal;
+          return a.customerName.localeCompare(b.customerName);
+        })
+      }));
   }
 
   /**
@@ -207,12 +251,12 @@ export class ProductionService {
 
       const areaId = o.zoneId;
       const areaName = areaId ? (zoneMap.get(areaId) || areaId) : 'Unassigned Area';
-      
+
       const partnerId = o.deliveryPartnerId;
       const deliveryPartner = partnerId ? (partnerMap.get(partnerId) || partnerId) : 'Unassigned';
 
       const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
-      
+
       let plan = 'One-Time';
       if (o.source === 'subscription' && o.planTier) {
         plan = o.planTier.charAt(0).toUpperCase() + o.planTier.slice(1);
@@ -220,12 +264,20 @@ export class ProductionService {
 
       const meal = o.itemsLabel || o.mealType;
 
+      const displayId = o.displayId || (o.id.split('_')[0] === 'ord' ? o.id.split('_').slice(1,2).join('') : o.id.slice(0, 8));
+
       rows.push({
+        orderId: o.id,
+        displayId,
         area: areaName,
         customerName,
+        mealType: o.mealType,
         meal,
+        quantity: o.mealQuantity || 1,
         plan,
         deliveryPartner,
+        specialInstructions: o.specialInstructions,
+        packingNotes: o.packingNotes
       });
     }
 
@@ -248,9 +300,9 @@ export class ProductionService {
     if (order.status !== 'scheduled' && order.status !== 'reopened') {
       throw new Error(`Cannot transition from ${order.status} to preparing.`);
     }
-    
+
     await orderRepository.update(orderId, { status: 'preparing' });
-    
+
     await auditRepository.logAction('production_preparing', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'preparing' });
   }
 
@@ -265,9 +317,9 @@ export class ProductionService {
     if (order.status !== 'preparing') {
       throw new Error(`Cannot transition from ${order.status} to ready_for_pickup.`);
     }
-    
+
     await orderRepository.update(orderId, { status: 'ready_for_pickup' });
-    
+
     await auditRepository.logAction('production_ready', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'ready_for_pickup' });
   }
 
@@ -282,9 +334,9 @@ export class ProductionService {
     if (order.status !== 'ready_for_pickup') {
       throw new Error(`Cannot transition from ${order.status} to locked.`);
     }
-    
+
     await orderRepository.update(orderId, { status: 'locked' });
-    
+
     await auditRepository.logAction('production_locked', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'locked' });
   }
 
@@ -299,9 +351,9 @@ export class ProductionService {
     if (order.status !== 'locked') {
       throw new Error(`Cannot transition from ${order.status} to closed.`);
     }
-    
+
     await orderRepository.update(orderId, { status: 'closed' });
-    
+
     await auditRepository.logAction('production_closed', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'closed' });
   }
 
@@ -317,9 +369,9 @@ export class ProductionService {
     if (order.status !== 'closed' && order.status !== 'locked') {
       throw new Error(`Cannot transition from ${order.status} to reopened.`);
     }
-    
+
     await orderRepository.update(orderId, { status: 'reopened' });
-    
+
     const { auditRepository } = await import('../firestore/auditRepository');
     await auditRepository.logAction('production_reopened', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'reopened' });
   }

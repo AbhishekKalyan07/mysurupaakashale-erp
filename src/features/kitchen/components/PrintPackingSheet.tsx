@@ -47,22 +47,28 @@ export function PrintPackingSheet({ date, rows }: Props) {
                 <table className="w-full text-sm text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-100 border-b-2 border-gray-400 text-gray-700">
-                      <th className="py-2 px-3 font-bold w-12">#</th>
+                      <th className="py-2 px-3 font-bold w-20">Order ID</th>
                       <th className="py-2 px-3 font-bold w-1/4">Customer</th>
-                      <th className="py-2 px-3 font-bold">Plan</th>
+                      <th className="py-2 px-3 font-bold w-16 text-center">Qty</th>
+                      <th className="py-2 px-3 font-bold w-1/4">Plan & Notes</th>
                       <th className="py-2 px-3 font-bold">Delivery Partner</th>
                       <th className="py-2 px-3 font-bold w-16 text-center">Packed</th>
                     </tr>
                   </thead>
                   <tbody>
                     {areaRows.map((row, idx) => (
-                      <tr key={`${row.customerName}-${idx}`} className="border-b border-gray-300">
-                        <td className="py-2 px-3 text-gray-500">{idx + 1}</td>
+                      <tr key={`${row.orderId}-${idx}`} className="border-b border-gray-300">
+                        <td className="py-2 px-3 font-mono text-xs font-bold text-gray-600">{row.displayId}</td>
                         <td className="py-2 px-3 font-semibold">{row.customerName}</td>
-                        <td className="py-2 px-3">{row.plan}</td>
-                        <td className="py-2 px-3">{row.deliveryPartner}</td>
+                        <td className="py-2 px-3 text-center font-black text-lg">{row.quantity}</td>
+                        <td className="py-2 px-3 text-xs space-y-1">
+                          <div className="font-semibold text-gray-500 uppercase tracking-wider text-[10px]">{row.plan}</div>
+                          {row.specialInstructions && <div className="font-bold text-red-600">⚠️ {row.specialInstructions}</div>}
+                          {row.packingNotes && <div className="font-semibold text-blue-700">📝 {row.packingNotes}</div>}
+                        </td>
+                        <td className="py-2 px-3 text-sm">{row.deliveryPartner}</td>
                         <td className="py-2 px-3">
-                          <div className="w-6 h-6 border border-gray-500 mx-auto rounded-sm"></div>
+                          <div className="w-6 h-6 border-2 border-gray-400 mx-auto rounded-sm"></div>
                         </td>
                       </tr>
                     ))}

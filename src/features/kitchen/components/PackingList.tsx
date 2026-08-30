@@ -46,6 +46,36 @@ export function PackingList({ areaGroups }: Props) {
                   {group.oneTime > 0 && <div className="flex justify-between text-sm text-ink-700"><span>One-Time</span> <span className="font-data font-bold">{group.oneTime}</span></div>}
                 </div>
               </div>
+
+              {/* Customer Packing List */}
+              <div className="mt-6">
+                <h4 className="text-[10px] font-bold text-ink-500 uppercase tracking-wider mb-2 border-b border-rice-100 pb-1">Customer Packing List</h4>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                  {group.orders.map(order => (
+                    <div key={order.id} className="flex items-start justify-between bg-rice-25 p-2 rounded border border-rice-100">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`w-2 h-2 rounded-full ${order.mealType === 'breakfast' ? 'bg-orange-500' : order.mealType === 'lunch' ? 'bg-sky-500' : 'bg-purple-500'}`} />
+                          <span className="font-bold text-sm text-ink-900 leading-tight">{order.customerName}</span>
+                          <span className="text-[10px] font-mono text-ink-500 ml-1 bg-rice-100 px-1 rounded">{order.displayId}</span>
+                        </div>
+                        <div className="text-xs text-ink-700 font-medium ml-3.5">
+                          {order.mealName}
+                        </div>
+                        {(order.specialInstructions || order.packingNotes) && (
+                          <div className="ml-3.5 mt-1 space-y-0.5">
+                            {order.specialInstructions && <div className="text-[10px] text-warning-dark font-medium bg-warning-subtle px-1.5 py-0.5 rounded inline-block">⚠️ {order.specialInstructions}</div>}
+                            {order.packingNotes && <div className="text-[10px] text-info-dark font-medium bg-info-subtle px-1.5 py-0.5 rounded inline-block ml-1">📝 {order.packingNotes}</div>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-center shrink-0 w-6 h-6 rounded bg-turmeric-100 text-turmeric-800 font-bold text-xs border border-turmeric-200 ml-2">
+                        {order.quantity}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </Card>
         );
