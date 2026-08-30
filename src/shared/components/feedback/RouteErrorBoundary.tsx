@@ -2,10 +2,11 @@ import { useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { PremiumCard as Card } from '../ui/PremiumCard';
 import { PremiumButton as Button } from '../ui/PremiumButton';
+import { logger } from '@/shared/utils/logger';
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
-  console.error('[RouteErrorBoundary]', error);
+  logger.error(error as Error, { boundary: 'RouteErrorBoundary' });
 
   let title = 'Something went wrong';
   let message = 'An unexpected error occurred while loading this page.';

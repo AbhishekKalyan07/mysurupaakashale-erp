@@ -96,38 +96,42 @@ export async function signUpCustomer(
   const credential = await createUserWithEmailAndPassword(auth, email, password);
 
   try {
-    const { doc, runTransaction } = await import('firebase/firestore');
+    const { doc } = await import('firebase/firestore');
     const { db } = await import('@/shared/lib/firebase');
 
     const phoneDocRef = doc(db, 'userPhones', phone);
     const displayId = await userRepository.generateNextDisplayId('customer', fullName);
     const userDocRef = doc(db, 'users', credential.user.uid);
 
-    await runTransaction(db, async (tx) => {
-      const existingPhone = await tx.get(phoneDocRef);
-      if (existingPhone.exists()) {
+    const { writeBatch } = await import('firebase/firestore');
+    const batch = writeBatch(db);
+    batch.set(phoneDocRef, { uid: credential.user.uid });
+    batch.set(userDocRef, {
+      displayId,
+      role: 'customer',
+      fullName,
+      email,
+      phone,
+      photoUrl: null,
+      isActive: true,
+      addresses: [],
+      defaultAddressId: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      emailVerified: credential.user.emailVerified,
+      googleConnected: false,
+      passwordCreated: true,
+      id: credential.user.uid
+    });
+
+    try {
+      await batch.commit();
+    } catch (e: any) {
+      if (e.code === 'permission-denied') {
         throw new Error('An account with this mobile number already exists — try signing in instead.');
       }
-      
-      tx.set(phoneDocRef, { uid: credential.user.uid });
-      tx.set(userDocRef, {
-        displayId,
-        role: 'customer',
-        fullName,
-        email,
-        phone,
-        photoUrl: null,
-        isActive: true,
-        addresses: [],
-        defaultAddressId: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        emailVerified: credential.user.emailVerified,
-        googleConnected: false,
-        passwordCreated: true,
-        id: credential.user.uid
-      });
-    });
+      throw e;
+    }
 
     await updateProfile(credential.user, { displayName: fullName });
   } catch (error) {
@@ -166,7 +170,7 @@ export async function authenticateWithGoogleForSignup() {
 
 export async function signUpWithGoogle(user: any, phone: string, password: string): Promise<void> {
   try {
-    const { doc, runTransaction } = await import('firebase/firestore');
+    const { doc } = await import('firebase/firestore');
     const { EmailAuthProvider, linkWithCredential } = await import('firebase/auth');
     const { db } = await import('@/shared/lib/firebase');
 
@@ -181,31 +185,35 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
     const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
     const userDocRef = doc(db, 'users', user.uid);
 
-    await runTransaction(db, async (tx) => {
-      const existingPhone = await tx.get(phoneDocRef);
-      if (existingPhone.exists()) {
+    const { writeBatch } = await import('firebase/firestore');
+    const batch = writeBatch(db);
+    batch.set(phoneDocRef, { uid: user.uid });
+    batch.set(userDocRef, {
+      displayId,
+      role: 'customer',
+      fullName: user.displayName || 'Google User',
+      email: user.email,
+      phone: phone,
+      photoUrl: user.photoURL || null,
+      isActive: true,
+      addresses: [],
+      defaultAddressId: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      emailVerified: user.emailVerified,
+      googleConnected: true,
+      passwordCreated: true,
+      id: user.uid
+    });
+
+    try {
+      await batch.commit();
+    } catch (e: any) {
+      if (e.code === 'permission-denied') {
         throw new Error('An account with this mobile number already exists.');
       }
-      
-      tx.set(phoneDocRef, { uid: user.uid });
-      tx.set(userDocRef, {
-        displayId,
-        role: 'customer',
-        fullName: user.displayName || 'Google User',
-        email: user.email,
-        phone: phone,
-        photoUrl: user.photoURL || null,
-        isActive: true,
-        addresses: [],
-        defaultAddressId: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        emailVerified: user.emailVerified,
-        googleConnected: true,
-        passwordCreated: true,
-        id: user.uid
-      });
-    });
+      throw e;
+    }
   } catch (error) {
     console.error('Failed to initialize Google customer profile:', error);
     const { signOut: firebaseSignOut } = await import('firebase/auth');

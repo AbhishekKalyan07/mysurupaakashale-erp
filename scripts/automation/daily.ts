@@ -4,6 +4,8 @@ import './env';
 import { authenticateForAutomation } from './auth';
 import { automationService } from '@/shared/services/firestore/automationService';
 import { orderService } from '@/shared/services/business/orderService';
+import { billingService } from '@/shared/services/business/billingService';
+import { format } from 'date-fns';
 
 async function runDailyTasks() {
   try {
@@ -25,6 +27,11 @@ async function runDailyTasks() {
 
     console.log('4. Processing pending unskip requests...');
     await automationService.processUnskipRequests();
+
+    console.log('5. Processing Daily Billing...');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const billingRes = await billingService.processDailyBilling(todayStr);
+    console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);
 
     console.log('--- Daily Automation Tasks Completed Successfully ---');
     process.exit(0);

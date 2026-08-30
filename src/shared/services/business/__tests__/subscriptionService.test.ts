@@ -15,7 +15,8 @@ vi.mock('../../firestore/paymentRepository', () => ({
 
 vi.mock('../orderService', () => ({
   orderService: {
-    generateOrdersForSubscription: vi.fn()
+    generateOrdersForSubscription: vi.fn(),
+    cancelOrdersForSkipDay: vi.fn()
   }
 }));
 

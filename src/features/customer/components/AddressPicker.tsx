@@ -103,6 +103,8 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
 
   // Debounced search
   useEffect(() => {
+    let currentRequestId = Date.now();
+    
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.length < 3) {
       setSuggestions([]);
@@ -110,13 +112,19 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const requestId = currentRequestId;
       setIsSearching(true);
       const results = await searchAddress(query);
+      
+      // If a newer request was started, discard these results
+      if (currentRequestId !== requestId) return;
+      
       setSuggestions(results);
       setShowDropdown(results.length > 0);
       setIsSearching(false);
     }, 500);
     return () => {
+      currentRequestId = -1; // invalidate any pending requests on unmount/re-render
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
