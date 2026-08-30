@@ -37,11 +37,12 @@ try {
 
 // Set up runtime caching for static assets that are excluded from precache (e.g. large dynamic chunks)
 registerRoute(
-  ({ request }) =>
-    request.destination === "script" ||
-    request.destination === "style" ||
-    request.destination === "font" ||
-    request.destination === "image",
+  ({ request, url }) =>
+    url.origin === self.location.origin &&
+    (request.destination === "script" ||
+      request.destination === "style" ||
+      request.destination === "font" ||
+      request.destination === "image"),
   new StaleWhileRevalidate({
     cacheName: "static-assets-runtime",
   }),
