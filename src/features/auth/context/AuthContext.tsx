@@ -102,7 +102,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const uid = firebaseUser?.uid;
     if (!uid) {
       setProfile(null);
-      setRole(null);
       return;
     }
 

@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
-      filename: 'service-worker.ts',
+      filename: 'sw.ts',
       registerType: 'prompt',
       injectRegister: null,
       injectManifest: {

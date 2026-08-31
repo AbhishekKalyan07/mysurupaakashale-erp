@@ -65,10 +65,9 @@ The original diagnosis was **mostly right**:
 
 No app is unhackable — that's not a real state, just a direction to keep moving in. What I can say concretely: the two most severe issues I found (the public admin-elevation endpoint, and the free-subscription-self-activation gap) are closed, the role-check inconsistency in Storage rules is fixed, and the write path is now enforced by the rules file itself. The follow-up list above is the honest next set of things worth tightening.
 
- 
- # #   8 .   P h a s e   2   ( S t a r t u p   P e r f o r m a n c e   &   A d d i t i o n a l   F i x e s ) 
- -   A d d e d   m a s s i v e   t e s t   s u i t e   ( 3 7 9   t e s t s   v i a   V i t e s t )   c o v e r i n g   s e c u r i t y ,   b u s i n e s s   l o g i c ,   a n d   U I . 
- -   A d m i n   d a s h b o a r d   p a g e s   ( O r d e r s ,   C u s t o m e r s ,   K i t c h e n ,   A c c o u n t s )   h a v e   a l l   b e e n   f u l l y   i m p l e m e n t e d . 
- -   * * S t a r t u p   P e r f o r m a n c e   F i x : * *   R e m o v e d   b l o c k i n g   p r o f i l e   l o o k u p   i n   \ A p p S h e l l . t s x \   a n d   a d d e d   a n   o p t i m i s t i c   s y n c h r o n o u s   \ l o c a l S t o r a g e \   c a c h e   i n   \ A u t h C o n t e x t . t s x \ .   T i m e   t o   i n i t i a l   d a s h b o a r d   p a i n t   i s   n o w   ~ 1 . 6 s ,   e l i m i n a t i n g   t h e   p r e v i o u s   1 7 s +   l o a d i n g   s c r e e n   b l o c k   w h i l e   p r e s e r v i n g   a b s o l u t e   F i r e b a s e / F i r e s t o r e   a u t h o r i t y .   D e t a i l e d   m e t r i c s   i n   \ P E R F O R M A N C E _ F I X _ R E P O R T . m d \ . 
-  
- 
+
+## 8. Phase 2 (Startup Performance & Additional Fixes)
+- Added massive test suite (379 tests via Vitest) covering security, business logic, and UI.
+- Admin dashboard pages (Orders, Customers, Kitchen, Accounts) have all been fully implemented.
+- **Startup Performance Fix:** Removed blocking profile lookup in \AppShell.tsx\ and added an optimistic synchronous \localStorage\ cache in \AuthContext.tsx\. Time to initial dashboard paint is now ~1.6s, eliminating the previous 17s+ loading screen block while preserving absolute Firebase/Firestore authority. Detailed metrics in \PERFORMANCE_FIX_REPORT.md\.
+

@@ -49,7 +49,7 @@ describe('orderService', () => {
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue({ status: 'success' } as any);
       const res = await orderService.generateDailyOrders('2026-08-01'); // Not a Sunday
       expect(res.success).toBe(true);
-      expect(res.message).toBe('Orchestrator finished. Generated 0 total orders.');
+      expect(res.message).toBe('0 new orders generated. (Orders may have already been generated for today)');
       expect(res.ordersGenerated).toBe(0);
     });
 
@@ -308,9 +308,17 @@ describe('orderService', () => {
   describe('cancelOrdersForSkipDay', () => {
     it('cancels orders if they are not locked by kitchen', async () => {
       vi.spyOn(orderRepository, 'list').mockResolvedValue([
-        { id: 'ord1', kitchenStatus: 'pending', mealType: 'lunch' },
-        { id: 'ord2', kitchenStatus: undefined, mealType: 'lunch' }
+        { id: 'ord1', kitchenStatus: 'pending', mealType: 'lunch', price: 60 },
+        { id: 'ord2', kitchenStatus: undefined, mealType: 'lunch', price: 60 }
       ] as any);
+      const { subscriptionRepository } = await import('../../firestore/subscriptionRepository');
+      vi.spyOn(subscriptionRepository, 'getById').mockResolvedValue({ 
+        id: 'sub1', 
+        quantity: 1,
+        pricingMatrixSnapshot: {
+          basic: { breakfast: 60, lunch: 65, dinner: 65, breakfast_lunch: 115, lunch_dinner: 115, breakfast_dinner: 115, breakfast_lunch_dinner: 159 }
+        }
+      } as any);
       
       const { writeBatch } = await import('firebase/firestore');
       const batchCommit = vi.fn().mockResolvedValue(undefined);
@@ -324,9 +332,9 @@ describe('orderService', () => {
 
       await orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']);
 
-      expect(batchUpdate).toHaveBeenCalledTimes(2);
+      expect(batchUpdate).toHaveBeenCalledTimes(4);
       expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'cancelled' }));
-      expect(batchCommit).toHaveBeenCalledTimes(1);
+      expect(batchCommit).toHaveBeenCalledTimes(2);
     });
 
     it('throws error if any order is locked by kitchen', async () => {

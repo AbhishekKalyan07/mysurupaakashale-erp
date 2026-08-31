@@ -143,8 +143,8 @@ function queueNonCriticalInitialization() {
             );
           },
           onRegisteredSW(_swUrl, r) {
-            // Check for updates every hour in the background
             if (r) {
+              // 1. Check for updates every hour in the background
               setInterval(
                 () => {
                   if (r.installing || !navigator.onLine) return;
@@ -152,6 +152,14 @@ function queueNonCriticalInitialization() {
                 },
                 60 * 60 * 1000,
               );
+
+              // 2. Check for updates when the app comes back to the foreground
+              // This is CRITICAL for mobile installed PWAs where users just background the app
+              document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible" && navigator.onLine) {
+                  r.update().catch(() => {});
+                }
+              });
             }
           },
           onRegisterError(error: unknown) {

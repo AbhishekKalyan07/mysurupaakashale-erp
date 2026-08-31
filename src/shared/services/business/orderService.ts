@@ -43,7 +43,11 @@ class OrderService {
     totalGenerated += await this.generateLunchOrders(today);
     totalGenerated += await this.generateDinnerOrders(today);
 
-    return { success: true, message: `Orchestrator finished. Generated ${totalGenerated} total orders.`, ordersGenerated: totalGenerated };
+    if (totalGenerated === 0) {
+      return { success: true, message: `0 new orders generated. (Orders may have already been generated for today)`, ordersGenerated: 0 };
+    }
+
+    return { success: true, message: `Successfully generated ${totalGenerated} new orders.`, ordersGenerated: totalGenerated };
   }
 
   async generateBreakfastOrders(dateOverride?: string): Promise<number> {
@@ -112,6 +116,7 @@ class OrderService {
       });
 
       const ordersToCreate: Partial<Order>[] = [];
+      const backgroundTasks: Promise<any>[] = [];
 
       for (const sub of allSubscriptions) {
         if (sub.endDate && sub.endDate < today) {
@@ -147,18 +152,22 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
-              import('@/shared/services/firestore/auditRepository').then(m => {
-                m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
-                  orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
-                }).catch(console.error);
-              }).catch(console.error);
-              import('@/shared/services/firestore/notificationService').then(m => {
-                import('@/shared/services/firestore/userRepository').then(ur => {
-                  ur.userRepository.list(where('role', '==', 'admin')).then(admins => {
-                    m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`);
-                  }).catch(console.error);
-                }).catch(console.error);
-              }).catch(console.error);
+              backgroundTasks.push(
+                import('@/shared/services/firestore/auditRepository').then(m => 
+                  m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
+                    orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
+                  })
+                ).catch(console.error)
+              );
+              backgroundTasks.push(
+                import('@/shared/services/firestore/notificationService').then(m => 
+                  import('@/shared/services/firestore/userRepository').then(ur => 
+                    ur.userRepository.list(where('role', '==', 'admin')).then(admins => 
+                      m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`)
+                    )
+                  )
+                ).catch(console.error)
+              );
             }
           } catch (err) {
             attempts++;
@@ -636,6 +645,8 @@ class OrderService {
           }).catch(console.error);
         });
       }).catch(console.error);
+      
+      await this.recalculateDailyPrices(subscriptionId, date);
     }
   }
 
@@ -720,6 +731,53 @@ class OrderService {
       
       await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
       console.log(`[orderService] Regenerated ${mealTypesToGenerate.length} missing orders for unskipped day ${date}`);
+    }
+
+    await this.recalculateDailyPrices(subscriptionId, date);
+  }
+
+  /**
+   * Recalculates and distributes the new total matrix price among the remaining active orders
+   * for a specific subscription and date.
+   */
+  private async recalculateDailyPrices(subscriptionId: string, date: string): Promise<void> {
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription || !subscription.pricingMatrixSnapshot) return;
+
+    const allDailyOrders = await orderRepository.list(
+      where('subscriptionId', '==', subscriptionId),
+      where('date', '==', date)
+    );
+
+    const activeOrders = allDailyOrders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped');
+    if (activeOrders.length === 0) return;
+
+    const activeMealTypes = activeOrders.map(o => o.mealType!).filter(Boolean);
+    const mockSub = { ...subscription, mealPreferences: activeMealTypes.map(m => ({ mealType: m })) } as import('@/shared/types').Subscription;
+    const newTotalPrice = calculateDailyPrice(mockSub) * (subscription.quantity || 1);
+
+    const basePrice = Math.floor(newTotalPrice / activeOrders.length);
+    let remainder = newTotalPrice % activeOrders.length;
+
+    const batch = writeBatch(db);
+    let updates = 0;
+    
+    for (const order of activeOrders) {
+      const orderPrice = basePrice + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+
+      if (order.price !== orderPrice) {
+        batch.update(doc(db, 'orders', order.id!), { 
+          price: orderPrice,
+          updatedAt: serverTimestamp() as unknown as Timestamp
+        });
+        updates++;
+      }
+    }
+    
+    if (updates > 0) {
+      await batch.commit();
+      console.log(`[orderService] Recalculated prices for ${activeOrders.length} active orders on ${date}. New total: ${newTotalPrice}`);
     }
   }
 }

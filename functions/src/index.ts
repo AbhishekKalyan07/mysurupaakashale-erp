@@ -25,7 +25,7 @@ export const onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (eve
     try {
       // 1. Resolve recipients
       const [kitchenQuery, adminQuery] = await Promise.all([
-        db.collection('users').where('role', '==', 'kitchen').where('isActive', '==', true).get(),
+        db.collection('users').where('role', '==', 'kitchen').where('isActive', '==', true).where('kitchenId', '==', after.kitchenId || 'default').get(),
         db.collection('users').where('role', '==', 'admin').where('isActive', '==', true).get(),
       ]);
 

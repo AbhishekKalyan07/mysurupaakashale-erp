@@ -36,12 +36,13 @@ function useCustomerMap(customerIds: string[]) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_KPI_CHIPS: Array<{
-  key: OrderStatus | 'all';
+  key: OrderStatus | 'all' | 'unassigned';
   label: string;
   color: string;
   activeColor: string;
 }> = [
   { key: 'all',              label: 'All',           color: 'bg-surface-2 text-text-muted border-border',                        activeColor: 'bg-primary text-white border-primary' },
+  { key: 'unassigned',       label: 'Unassigned',    color: 'bg-danger-subtle text-danger border-danger/30',                     activeColor: 'bg-danger text-white border-danger' },
   { key: 'scheduled',        label: 'Scheduled',     color: 'bg-[#F3EBF7] text-[#6A1B9A] border-[#CE93D8]',                     activeColor: 'bg-[#6A1B9A] text-white border-[#6A1B9A]' },
   { key: 'preparing',        label: 'Preparing',     color: 'bg-info-subtle text-info border-info/30',                           activeColor: 'bg-info text-white border-info' },
   { key: 'ready_for_pickup', label: 'Ready',         color: 'bg-pastel-lavender text-secondary border-secondary/30',             activeColor: 'bg-secondary text-white border-secondary' },
@@ -72,7 +73,7 @@ export function AdminOrdersPage() {
   const today = getTodayIST();
   
   const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all' | 'unassigned'>('all');
   const [mealTypeFilter, setMealTypeFilter] = useState<MealType | 'all'>(getDefaultMealType());
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -117,9 +118,12 @@ export function AdminOrdersPage() {
 
   // Compute per-status counts for KPI chips
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: orders.length };
+    const counts: Record<string, number> = { all: orders.length, unassigned: 0 };
     for (const o of orders) {
       counts[o.status] = (counts[o.status] || 0) + 1;
+      if (!o.deliveryPartnerId) {
+        counts.unassigned++;
+      }
     }
     return counts;
   }, [orders]);
@@ -132,7 +136,8 @@ export function AdminOrdersPage() {
 
   const filteredOrders = orders
     .filter(o => {
-      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (statusFilter === 'unassigned' && o.deliveryPartnerId) return false;
+      if (statusFilter !== 'all' && statusFilter !== 'unassigned' && o.status !== statusFilter) return false;
       if (mealTypeFilter !== 'all' && o.mealType !== mealTypeFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
