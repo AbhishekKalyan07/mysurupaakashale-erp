@@ -26,7 +26,8 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
   beforeEach(async () => {
     // Setup active users for Kitchen, Admin, Driver
     const batch = db.batch();
-    batch.set(db.doc('users/kitchen1'), { role: 'kitchen', isActive: true });
+    batch.set(db.doc('users/kitchen1'), { role: 'kitchen', isActive: true, kitchenId: 'k1' });
+    batch.set(db.doc('users/kitchen2'), { role: 'kitchen', isActive: true, kitchenId: 'k2' });
     batch.set(db.doc('users/admin1'), { role: 'admin', isActive: true });
     batch.set(db.doc('users/driver1'), { role: 'delivery', isActive: true });
     batch.set(db.doc('users/cust1'), { id: 'cust1', role: 'customer' });
@@ -43,7 +44,8 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
       customerName: 'Test Cust',
       mealType: 'lunch',
       date: '2026-08-30',
-      deliveryPartnerId: 'driver1'
+      deliveryPartnerId: 'driver1',
+      kitchenId: 'k1'
     });
 
     // Cancel order (trigger CF)
@@ -105,9 +107,42 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     expect(docSnap.exists).toBe(true);
 
     // Verify duplicate execution does not create more records
-    // Manually trigger another update to the same status or simulate retry if possible.
-    // We can simulate idempotency by verifying the document ID format directly enforces it.
-    // The fact that docSnap.id is adminNotifId proves deterministic ID generation.
+    // Manually trigger another update to the same status or simulate retry
+    await db.doc(`orders/${orderId}`).update({ status: 'cancelled', updatedAt: 'mock2' });
+    
+    // Wait to ensure CF has time to process (it should exit early or overwrite idemptotently)
+    await sleep(2000);
+    
+    const snap2 = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
+    expect(snap2.docs.length).toBe(count);
+
     expect(docSnap.id).toBe(adminNotifId);
+  }, 30000);
+
+  it('notifies only the specific kitchen assigned to the order', async () => {
+    const orderId = 'order-test-k2';
+    
+    // Order assigned to k2
+    await db.doc(`orders/${orderId}`).set({
+      status: 'scheduled',
+      customerId: 'cust1',
+      mealType: 'dinner',
+      date: '2026-08-30',
+      kitchenId: 'k2'
+    });
+
+    await db.doc(`orders/${orderId}`).update({ status: 'cancelled', updatedAt: 'timestamp' });
+
+    let notifications: any[] = [];
+    for (let i = 0; i < 40; i++) {
+      await sleep(500);
+      const snap = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
+      notifications = snap.docs.map(d => d.data());
+      if (notifications.length >= 2) break; // Expecting admin and kitchen2
+    }
+
+    const kitchenNotifs = notifications.filter(n => n.recipientRole === 'kitchen');
+    expect(kitchenNotifs.length).toBe(1);
+    expect(kitchenNotifs[0].recipientId).toBe('kitchen2'); // Kitchen 1 should NOT be notified
   }, 30000);
 });

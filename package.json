@@ -18,7 +18,7 @@
     "preview": "vite preview",
     "db:wipe": "vite-node scripts/wipeUserData.ts",
     "db:seed-plans": "vite-node scripts/seedPlans.ts",
-    "emulators:start": "firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data"
+    "emulators:start": "firebase emulators:start --project demo-test --export-on-exit=./emulator-data --import=./emulator-data"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

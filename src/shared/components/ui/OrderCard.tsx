@@ -91,7 +91,7 @@ function WorkflowTimeline({ status, variant, onStatusChange, isAdvancing }: Work
   if (TERMINAL_STATUSES.includes(status)) {
     return (
       <div className="text-xs text-text-muted italic font-medium">
-        {status === 'delivered' ? '✓ Completed' : '⚠ Terminal State'}
+        {status === 'delivered' ? '✓ Completed' : `✗ ${status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}`}
       </div>
     );
   }

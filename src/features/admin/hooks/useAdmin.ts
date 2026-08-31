@@ -56,6 +56,7 @@ export function useCreateStaffUser() {
       kitchenId?: string;
       zoneIds?: string[];
       vehicleType?: string;
+      shifts?: string[];
     }) => {
       // Phase 3: Client-side staff creation using secondary app to prevent admin logout
       const tempAppName = `temp-admin-creation-${Date.now()}`;
@@ -97,6 +98,7 @@ export function useCreateStaffUser() {
         } else if (data.role === 'delivery_partner') {
           profileData.zoneIds = data.zoneIds || [];
           profileData.vehicleType = data.vehicleType || 'bike';
+          profileData.shifts = data.shifts || ['breakfast', 'lunch', 'dinner'];
           profileData.isAvailable = true;
           profileData.currentLocation = null;
         }

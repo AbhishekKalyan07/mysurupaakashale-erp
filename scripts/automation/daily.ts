@@ -12,26 +12,27 @@ async function runDailyTasks() {
     console.log('--- Starting Daily Automation Tasks ---');
     await authenticateForAutomation();
 
-    console.log('1. Generating Today\'s Orders...');
+    console.log('1. Processing Daily Billing...');
+    const { getTodayInTimezone } = await import('@/shared/utils/dateUtils');
+    const todayStr = getTodayInTimezone();
+    const billingRes = await billingService.processDailyBilling(todayStr);
+    console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);
+
+    console.log('2. Generating Today\'s Orders...');
     const orderRes = await orderService.generateDailyOrders();
     console.log(orderRes.message);
 
-    console.log('2. Generating Daily Summary (Sales, Kitchen, Delivery)...');
+    console.log('3. Generating Daily Summary (Sales, Kitchen, Delivery)...');
     await automationService.generateDailySummary();
 
-    console.log('2. Checking for expiring subscriptions...');
+    console.log('4. Checking for expiring subscriptions...');
     await automationService.checkSubscriptionExpiry();
 
-    console.log('3. Processing scheduled pauses and resumes...');
+    console.log('5. Processing scheduled pauses and resumes...');
     await automationService.processScheduledPauses();
 
-    console.log('4. Processing pending unskip requests...');
+    console.log('6. Processing pending unskip requests...');
     await automationService.processUnskipRequests();
-
-    console.log('5. Processing Daily Billing...');
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const billingRes = await billingService.processDailyBilling(todayStr);
-    console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);
 
     console.log('--- Daily Automation Tasks Completed Successfully ---');
     process.exit(0);

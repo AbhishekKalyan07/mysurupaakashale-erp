@@ -30,6 +30,9 @@ const staffSchema = z.object({
   }
   if (data.role === 'delivery_partner') {
     if (!data.vehicleType) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['vehicleType'], message: 'Vehicle Type is required' });
+    if (!data.zoneIds || data.zoneIds.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['zoneIds'], message: 'At least one Delivery Zone must be assigned' });
+    }
   }
 });
 
@@ -137,8 +140,8 @@ export function CreateStaffModal({ onClose }: Props) {
                   </label>
                   
                   {zones.length === 0 ? (
-                    <div className="text-xs text-ink-500 italic py-2 bg-white rounded-lg px-3 border border-dashed border-rice-300">
-                      No delivery zones created yet. You can create staff now and assign zones later in staff edit view.
+                    <div className="text-xs text-danger italic py-2 bg-white rounded-lg px-3 border border-dashed border-danger">
+                      No delivery zones exist. You must create a delivery zone before creating a Delivery Partner.
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-rice-300 rounded-lg p-2.5 bg-white">

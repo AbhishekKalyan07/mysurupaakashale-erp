@@ -16,9 +16,7 @@ export function useAutomatedDailyOrders() {
       try {
         const today = getTodayIST();
         
-        // 1. Process daily billing and auto-renewals first so active states and renewals are updated
-        const { billingService } = await import('@/shared/services/business/billingService');
-        await billingService.processDailyBilling(today);
+
 
         // 2. Check if orders were already generated today
         const existingRun = await orderGenerationRunRepository.getById(today);

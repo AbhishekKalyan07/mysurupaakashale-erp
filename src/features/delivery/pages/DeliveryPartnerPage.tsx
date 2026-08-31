@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePartnerBoard } from '../hooks/usePartnerBoard';
 import { getTodayInTimezone } from '@/shared/lib/date';
@@ -26,7 +27,7 @@ function getDefaultMealType(): string {
 export function DeliveryPartnerPage() {
   const { firebaseUser, profile } = useAuth();
   const today = getTodayInTimezone();
-  const activeMeal = getDefaultMealType();
+  const [activeMeal, setActiveMeal] = useState<string>(getDefaultMealType());
 
   const { orders, session, allTerminal, isLoading, error, updateMutation, completeRouteMutation } = usePartnerBoard(firebaseUser?.uid || '', today, activeMeal);
   const { zoneMap } = useReferenceData();
@@ -82,6 +83,22 @@ export function DeliveryPartnerPage() {
         )}
       </div>
 
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {(['breakfast', 'lunch', 'dinner'] as const).map(meal => (
+          <button
+            key={meal}
+            onClick={() => setActiveMeal(meal)}
+            className={`px-4 py-2 rounded-full font-bold text-sm flex-shrink-0 transition-colors ${
+              activeMeal === meal
+                ? 'bg-ink-900 text-white'
+                : 'bg-surface-2 text-ink-500 border border-border hover:bg-surface-3'
+            }`}
+          >
+            {meal.charAt(0).toUpperCase() + meal.slice(1)} Route
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-surface rounded-xl p-3 border border-border">
           <p className="text-xs text-text-muted font-medium">Pending</p>
@@ -106,7 +123,7 @@ export function DeliveryPartnerPage() {
       <StaffAttendanceCard />
 
       <DeliveryPartnerTable 
-        orders={orders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped')}
+        orders={orders}
         customerMap={customerMap}
         onAdvance={handleAdvance}
         isAdvancingId={updateMutation.isPending ? updateMutation.variables?.orderId || null : null}
