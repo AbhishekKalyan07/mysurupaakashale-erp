@@ -332,9 +332,9 @@ describe('orderService', () => {
 
       await orderService.cancelOrdersForSkipDay('sub1', 'c1', '2026-08-01', ['lunch']);
 
-      expect(batchUpdate).toHaveBeenCalledTimes(4);
+      expect(batchUpdate).toHaveBeenCalledTimes(2);
       expect(batchUpdate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'cancelled' }));
-      expect(batchCommit).toHaveBeenCalledTimes(2);
+      expect(batchCommit).toHaveBeenCalledTimes(1);
     });
 
     it('throws error if any order is locked by kitchen', async () => {

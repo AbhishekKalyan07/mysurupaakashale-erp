@@ -39,6 +39,7 @@ import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
 import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
 import { PauseSubscriptionModal } from '@/features/customer/components/PauseSubscriptionModal';
 import { calculateDailyPrice } from '@/shared/utils/pricing';
+import { calculateAccruedBill } from '@/shared/utils/billing';
 import { Truck, XCircle, PauseCircle } from 'lucide-react';
 import { PauseDeliveryModal } from '@/features/customer/components/PauseDeliveryModal';
 import { CancelTodayModal } from '@/features/customer/components/CancelTodayModal';
@@ -94,11 +95,9 @@ export function CustomerDashboardPage() {
   }, [customerOrders, today]);
 
   const accruedBill = useMemo(() => {
-    if (!subscription?.id) return 0;
-    return customerOrders
-      .filter(o => o.subscriptionId === subscription.id && o.status === 'delivered')
-      .reduce((sum, order) => sum + (order.price || 0), 0);
-  }, [customerOrders, subscription?.id]);
+    if (!subscription) return 0;
+    return calculateAccruedBill(customerOrders, subscription);
+  }, [customerOrders, subscription]);
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -395,7 +394,10 @@ export function CustomerDashboardPage() {
               </span>
               {todayOrders && todayOrders.length > 0 && (
                 <span className="text-xs font-sans font-bold text-gold bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
-                  Total: ₹{todayOrders.filter(o => o.status !== 'cancelled').reduce((sum, order) => sum + (order.price || 0), 0)}
+                  Total: ₹{
+                    (subscription ? calculateAccruedBill(todayOrders.filter(o => o.subscriptionId === subscription.id), subscription) : 0) +
+                    todayOrders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped' && (!subscription || o.subscriptionId !== subscription.id)).reduce((sum, order) => sum + (order.price || 0), 0)
+                  }
                 </span>
               )}
             </h3>

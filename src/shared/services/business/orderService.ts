@@ -11,7 +11,6 @@ import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
 import { getTodayInTimezone } from '@/shared/lib/date';
-import { calculateDailyPrice } from '@/shared/utils/pricing';
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -365,7 +364,9 @@ class OrderService {
 
       itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
       selectedOptionId: pref.selectedOptionId ?? null,
-      price: Math.round((calculateDailyPrice(sub) * (sub.quantity || 1)) / sub.mealPreferences.length),
+      price: sub.pricingMatrixSnapshot ? 
+        ((sub.pricingMatrixSnapshot as unknown as Record<string, number>)[mealType] || 0) * (sub.quantity || 1) : 
+        Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
       currency: 'INR',
       status: 'scheduled',
       deliveryAddressId: sub.deliveryAddressId ?? null,
@@ -646,7 +647,6 @@ class OrderService {
         });
       }).catch(console.error);
       
-      await this.recalculateDailyPrices(subscriptionId, date);
     }
   }
 
@@ -731,53 +731,6 @@ class OrderService {
       
       await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
       console.log(`[orderService] Regenerated ${mealTypesToGenerate.length} missing orders for unskipped day ${date}`);
-    }
-
-    await this.recalculateDailyPrices(subscriptionId, date);
-  }
-
-  /**
-   * Recalculates and distributes the new total matrix price among the remaining active orders
-   * for a specific subscription and date.
-   */
-  private async recalculateDailyPrices(subscriptionId: string, date: string): Promise<void> {
-    const subscription = await subscriptionRepository.getById(subscriptionId);
-    if (!subscription || !subscription.pricingMatrixSnapshot) return;
-
-    const allDailyOrders = await orderRepository.list(
-      where('subscriptionId', '==', subscriptionId),
-      where('date', '==', date)
-    );
-
-    const activeOrders = allDailyOrders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped');
-    if (activeOrders.length === 0) return;
-
-    const activeMealTypes = activeOrders.map(o => o.mealType!).filter(Boolean);
-    const mockSub = { ...subscription, mealPreferences: activeMealTypes.map(m => ({ mealType: m })) } as import('@/shared/types').Subscription;
-    const newTotalPrice = calculateDailyPrice(mockSub) * (subscription.quantity || 1);
-
-    const basePrice = Math.floor(newTotalPrice / activeOrders.length);
-    let remainder = newTotalPrice % activeOrders.length;
-
-    const batch = writeBatch(db);
-    let updates = 0;
-    
-    for (const order of activeOrders) {
-      const orderPrice = basePrice + (remainder > 0 ? 1 : 0);
-      if (remainder > 0) remainder--;
-
-      if (order.price !== orderPrice) {
-        batch.update(doc(db, 'orders', order.id!), { 
-          price: orderPrice,
-          updatedAt: serverTimestamp() as unknown as Timestamp
-        });
-        updates++;
-      }
-    }
-    
-    if (updates > 0) {
-      await batch.commit();
-      console.log(`[orderService] Recalculated prices for ${activeOrders.length} active orders on ${date}. New total: ${newTotalPrice}`);
     }
   }
 }
