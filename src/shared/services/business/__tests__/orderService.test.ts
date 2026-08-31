@@ -49,7 +49,7 @@ describe('orderService', () => {
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue({ status: 'success' } as any);
       const res = await orderService.generateDailyOrders('2026-08-01'); // Not a Sunday
       expect(res.success).toBe(true);
-      expect(res.message).toBe('Orchestrator finished. Generated 0 total orders.');
+      expect(res.message).toBe('0 new orders generated. (Orders may have already been generated for today)');
       expect(res.ordersGenerated).toBe(0);
     });
 
