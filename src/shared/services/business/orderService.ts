@@ -116,6 +116,7 @@ class OrderService {
       });
 
       const ordersToCreate: Partial<Order>[] = [];
+      const backgroundTasks: Promise<any>[] = [];
 
       for (const sub of allSubscriptions) {
         if (sub.endDate && sub.endDate < today) {
@@ -151,18 +152,22 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
-              import('@/shared/services/firestore/auditRepository').then(m => {
-                m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
-                  orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
-                }).catch(console.error);
-              }).catch(console.error);
-              import('@/shared/services/firestore/notificationService').then(m => {
-                import('@/shared/services/firestore/userRepository').then(ur => {
-                  ur.userRepository.list(where('role', '==', 'admin')).then(admins => {
-                    m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`);
-                  }).catch(console.error);
-                }).catch(console.error);
-              }).catch(console.error);
+              backgroundTasks.push(
+                import('@/shared/services/firestore/auditRepository').then(m => 
+                  m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
+                    orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
+                  })
+                ).catch(console.error)
+              );
+              backgroundTasks.push(
+                import('@/shared/services/firestore/notificationService').then(m => 
+                  import('@/shared/services/firestore/userRepository').then(ur => 
+                    ur.userRepository.list(where('role', '==', 'admin')).then(admins => 
+                      m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`)
+                    )
+                  )
+                ).catch(console.error)
+              );
             }
           } catch (err) {
             attempts++;
