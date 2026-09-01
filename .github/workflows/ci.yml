@@ -81,7 +81,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - name: Install Java (Required for Firebase Emulators)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -123,7 +123,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - name: Install Java (Required for Firebase Emulators)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
