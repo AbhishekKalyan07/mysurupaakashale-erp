@@ -251,7 +251,8 @@ service cloud.firestore {
                        (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences']) &&
                         request.resource.data.get('quantity', 1) > 0 &&
                         (isAllowedCustomerTransition() || 
-                         (request.resource.data.status == 'pending_payment' && request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences']))));
+                         ((resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
+                          request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -327,11 +328,12 @@ service cloud.firestore {
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
                        request.resource.data.status == 'scheduled' &&
-                       // Must provide a planId for one-time orders to look up price
-                       request.resource.data.planId is string &&
+                       (request.resource.data.get('planId', null) == null ||
+                        (request.resource.data.planId is string &&
+                         exists(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)) &&
+                         request.resource.data.price == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix[request.resource.data.mealType])) &&
                        request.resource.data.planTier is string &&
-                       // Price validation against mealPlans catalog
-                       request.resource.data.price == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix[request.resource.data.mealType] &&
+                       request.resource.data.price is number &&
                        request.resource.data.price > 0 &&
                        // Currency must be INR
                        request.resource.data.currency == 'INR' &&
