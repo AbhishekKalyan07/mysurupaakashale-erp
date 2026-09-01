@@ -15,7 +15,7 @@ export function RequireCompleteProfile({ children }: RequireCompleteProfileProps
   const { profile, status } = useAuth();
   const location = useLocation();
 
-  if (status === 'loading') {
+  if (status === 'loading' || profile === null) {
     return <LoadingScreen />;
   }
 

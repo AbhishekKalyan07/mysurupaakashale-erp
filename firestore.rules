@@ -313,9 +313,9 @@ service cloud.firestore {
 
 
       allow read: if isSignedIn() &&
-                      (resource.data.get('customerId', null) == request.auth.uid ||
-                       resource.data.get('deliveryPartnerId', null) == request.auth.uid ||
-                      isAdmin() || isAccounts() || isAuthorizedKitchen(resource.data.get('kitchenId', null)));
+                      (resource.data.customerId == request.auth.uid ||
+                       resource.data.deliveryPartnerId == request.auth.uid ||
+                      isAdmin() || isAccounts() || isAuthorizedKitchen(resource.data.kitchenId));
 
       // Phase 4: Admins can generate orders
       // Customers can create one-time trial orders only. Subscription orders
