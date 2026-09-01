@@ -17,14 +17,15 @@ import {
 import { deliveryService } from '@/shared/services/business/deliveryService';
 
 export function usePartnerBoard(partnerId: string, date: string, mealType: string) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const orders = useMemo(() => allOrders.filter(o => o.mealType === mealType), [allOrders, mealType]);
   const [session, setSession] = useState<DriverSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!partnerId || !date || !mealType) {
-      setOrders([]);
+      setAllOrders([]);
       setSession(null);
       setIsLoading(false);
       return;
@@ -37,9 +38,9 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
     ordersUnsub = deliveryRepository.subscribePartnerOrders(
       partnerId,
       date,
-      mealType,
+      undefined,
       (data) => {
-        setOrders(data);
+        setAllOrders(data);
         setIsLoading(false);
       },
       (err) => {
@@ -62,9 +63,9 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
   }, [partnerId, date, mealType]);
 
   const allTerminal = useMemo(() => {
-    if (orders.length === 0) return false;
-    return orders.every(o => ['delivered', 'failed_delivery', 'returned_delivery'].includes(o.status));
-  }, [orders]);
+    if (allOrders.length === 0) return false;
+    return allOrders.every(o => ['delivered', 'failed_delivery', 'returned_delivery'].includes(o.status));
+  }, [allOrders]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ 
@@ -77,7 +78,7 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
       deliveryResult?: { reasonCode: string; notes?: string }
     }) => {
       
-      const currentOrder = orders.find(o => o.id === orderId);
+      const currentOrder = allOrders.find(o => o.id === orderId);
 
       const payload: Partial<Order> = {
         status: newStatus,
@@ -119,7 +120,7 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
           pickup: {
             pickedUpAt: serverTimestamp() as unknown as Timestamp,
             pickedUpBy: partnerId,
-            totalOrders: orders.length,
+            totalOrders: allOrders.length,
           }
         });
       } else if (newStatus === 'out_for_delivery' && session?.status !== 'in_progress') {
@@ -128,7 +129,7 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
           deliverySession: {
             ...session?.deliverySession,
             startedAt: serverTimestamp() as unknown as Timestamp,
-            totalAssigned: orders.length,
+            totalAssigned: allOrders.length,
             delivered: 0,
             failed: 0,
             returned: 0
@@ -161,7 +162,7 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
     mutationFn: async () => {
       if (!allTerminal) throw new Error('Not all orders are complete.');
       
-      const summary = deliveryService.getDeliverySummary(orders);
+      const summary = deliveryService.getDeliverySummary(allOrders);
       
       await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
         status: 'completed',

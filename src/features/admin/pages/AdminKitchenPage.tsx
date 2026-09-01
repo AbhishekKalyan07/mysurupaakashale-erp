@@ -117,12 +117,12 @@ export function AdminKitchenPage() {
                 <div className="pt-2">
                   <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
                     <span className="text-text-muted">Overall Progress</span>
-                    <span className="text-primary">{Math.round(dashboard?.progressPercent || 0)}%</span>
+                    <span className="text-primary">{dashboard?.totalOrders ? Math.round(((dashboard.completedCount || 0) / dashboard.totalOrders) * 100) : 0}%</span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-primary/10 overflow-hidden shadow-inner">
                     <div
                       className="h-full rounded-full bg-gold transition-all duration-500"
-                      style={{ width: `${dashboard?.progressPercent || 0}%` }}
+                      style={{ width: `${dashboard?.totalOrders ? Math.round(((dashboard.completedCount || 0) / dashboard.totalOrders) * 100) : 0}%` }}
                     />
                   </div>
                 </div>

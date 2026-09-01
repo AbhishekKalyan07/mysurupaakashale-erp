@@ -1,6 +1,7 @@
 // env.ts MUST be first — maps process.env VITE_* into import.meta.env
 // before Firebase (or any module that reads import.meta.env) is imported.
 import './env';
+import { getTodayInTimezone } from '@/shared/lib/date';
 import { authenticateForAutomation } from './auth';
 import { automationService } from '@/shared/services/firestore/automationService';
 import { orderService } from '@/shared/services/business/orderService';
@@ -13,7 +14,6 @@ async function runDailyTasks() {
     await authenticateForAutomation();
 
     console.log('1. Processing Daily Billing...');
-    const { getTodayInTimezone } = await import('@/shared/lib/date');
     const todayStr = getTodayInTimezone();
     const billingRes = await billingService.processDailyBilling(todayStr);
     console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);

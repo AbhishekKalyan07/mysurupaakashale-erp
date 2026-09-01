@@ -23,7 +23,7 @@ class OrderRepository extends BaseRepository<Order> {
    */
   async getByDate(date: string, kitchenId?: string | null): Promise<Order[]> {
     const constraints: QueryConstraint[] = [where('date', '==', date)];
-    if (kitchenId) {
+    if (kitchenId && kitchenId !== 'all') {
       constraints.push(where('kitchenId', '==', kitchenId));
     }
     constraints.push(orderBy('mealType', 'asc'));
@@ -54,7 +54,7 @@ class OrderRepository extends BaseRepository<Order> {
     onError?: (error: Error) => void
   ) {
     const constraints: QueryConstraint[] = [where('date', '==', date)];
-    if (kitchenId) {
+    if (kitchenId && kitchenId !== 'all') {
       constraints.push(where('kitchenId', '==', kitchenId));
     }
     return this.subscribeToList(onNext, onError, ...constraints);

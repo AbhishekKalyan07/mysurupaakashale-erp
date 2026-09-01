@@ -71,8 +71,8 @@ export function KitchenDashboardPage() {
   }
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
-  const { byMealType, byStatus, completedCount, progressPercent, byZone, totalOrders } =
-    dashboard;
+  const { byMealType, byStatus, completedCount, byZone, totalOrders } = dashboard;
+  const progressPercent = totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
 
   const scheduledCount   = byStatus.scheduled        ?? 0;
   const packingCount     = byStatus.packing          ?? 0;

@@ -610,6 +610,25 @@ class OrderService {
    * Applies Kitchen Lock and cancels generated orders for a skipped day.
    */
   async cancelOrdersForSkipDay(subscriptionId: string, customerId: string, date: string, mealTypes: string[]): Promise<void> {
+    const batch = writeBatch(db);
+    const cancelledOrders = await this.appendCancelOrdersToBatch(batch, subscriptionId, customerId, date, mealTypes);
+    
+    if (cancelledOrders.length > 0) {
+      await batch.commit();
+      console.log(`[orderService] Cancelled ${cancelledOrders.length} orders for skipped day ${date}`);
+      
+      import('@/shared/services/firestore/auditRepository').then(m => {
+        cancelledOrders.forEach(o => {
+          m.auditRepository.logAction('meal_cancelled', customerId, 'Customer', o.id!, 'order', {
+            date,
+            mealType: o.mealType
+          }).catch(console.error);
+        });
+      }).catch(console.error);
+    }
+  }
+
+  async appendCancelOrdersToBatch(batch: import('firebase/firestore').WriteBatch, subscriptionId: string, customerId: string, date: string, mealTypes: string[]): Promise<Order[]> {
     const allDailyOrders = await orderRepository.list(
       where('subscriptionId', '==', subscriptionId),
       where('customerId', '==', customerId),
@@ -625,7 +644,6 @@ class OrderService {
       throw new Error('Order is already being prepared by the kitchen and cannot be cancelled.');
     }
 
-    const batch = writeBatch(db);
     orders.forEach(order => {
       const ref = doc(db, 'orders', order.id!);
       batch.update(ref, {
@@ -634,27 +652,9 @@ class OrderService {
       });
     });
 
-    if (orders.length > 0) {
-      await batch.commit();
-      console.log(`[orderService] Cancelled ${orders.length} orders for skipped day ${date}`);
-      
-      import('@/shared/services/firestore/auditRepository').then(m => {
-        orders.forEach(o => {
-          m.auditRepository.logAction('meal_cancelled', customerId, 'Customer', o.id!, 'order', {
-            date,
-            mealType: o.mealType
-          }).catch(console.error);
-        });
-      }).catch(console.error);
-      
-    }
+    return orders;
   }
 
-  /**
-   * Reverts a skip for a specific day and meal types.
-   * If orders exist and were cancelled/skipped, it restores them to 'scheduled' and syncs the partner.
-   * If orders do not exist (skipped before generation), it regenerates them using the trusted
-   * subscription-based order generation logic. The customer cannot manipulate any operational fields
   /**
    * Restores orders for an unskipped day.
    * If generateMissing is false, it only restores existing cancelled/skipped orders.

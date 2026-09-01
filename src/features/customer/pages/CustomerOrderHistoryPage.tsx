@@ -78,7 +78,7 @@ export function CustomerOrderHistoryPage() {
         <div className="mb-8 grid grid-cols-3 gap-4">
           <div className="bg-surface-1 rounded-xl p-4 border border-border text-center">
             <div className="text-2xl font-bold text-text">{orders.length}</div>
-            <div className="text-xs font-medium text-text-muted uppercase tracking-wider mt-1">Total Orders</div>
+            <div className="text-xs font-medium text-text-muted uppercase tracking-wider mt-1">Loaded Orders</div>
           </div>
           <div className="bg-success/10 rounded-xl p-4 border border-success/20 text-center">
             <div className="text-2xl font-bold text-success">{orders.filter(o => o.status === 'delivered').length}</div>

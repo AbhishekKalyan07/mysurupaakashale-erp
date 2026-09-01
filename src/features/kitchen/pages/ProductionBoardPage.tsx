@@ -24,7 +24,7 @@ export function ProductionBoardPage() {
     customerMap,
     isLoading,
     advanceStatus,
-    advancingOrderId
+    advancingOrders
   } = useProductionBoard();
 
   const [activeTab, setActiveTab] = useState<'summary' | 'production' | 'packing'>('summary');
@@ -131,7 +131,7 @@ export function ProductionBoardPage() {
             partnerMap={partnerMap}
             customerMap={customerMap}
             onAdvanceStatus={advanceStatus}
-            advancingOrderId={advancingOrderId}
+            advancingOrders={advancingOrders}
           />
         )}
 

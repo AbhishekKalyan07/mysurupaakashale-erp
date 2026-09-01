@@ -27,9 +27,9 @@ import toast from 'react-hot-toast';
 // ----------------------------------------------------------------------------
 
 function getStartAndEndOfMonth() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const today = getTodayIST();
+  const year = parseInt(today.substring(0, 4), 10);
+  const month = parseInt(today.substring(5, 7), 10);
   const paddedMonth = month.toString().padStart(2, '0');
   const lastDay = new Date(year, month, 0).getDate().toString().padStart(2, '0');
 

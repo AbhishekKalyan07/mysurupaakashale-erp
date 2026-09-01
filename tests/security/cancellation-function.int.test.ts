@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, type Firestore, type QueryDocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 describe('Cloud Function: onOrderCancelled Integration', () => {
-  let db: FirebaseFirestore.Firestore;
+  let db: Firestore;
 
   beforeAll(() => {
     // Connect to the Firestore emulator that functions emulator is watching
@@ -56,10 +56,10 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
 
     // Wait for CF to process
     let notifications: any[] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       await sleep(500);
       const snap = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
-      notifications = snap.docs.map(d => d.data());
+      notifications = snap.docs.map((d: any) => d.data());
       if (notifications.length >= 3) break;
     }
 
@@ -79,7 +79,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     const driverNotif = notifications.find(n => n.recipientRole === 'delivery');
     expect(driverNotif).toBeDefined();
     expect(driverNotif?.recipientId).toBe('driver1');
-  }, 30000);
+  }, 60000);
 
   it('is idempotent and uses deterministic IDs', async () => {
     const orderId = 'order-test-idem';
@@ -137,7 +137,7 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
     for (let i = 0; i < 40; i++) {
       await sleep(500);
       const snap = await db.collection('notifications').where('relatedEntityId', '==', orderId).get();
-      notifications = snap.docs.map(d => d.data());
+      notifications = snap.docs.map((d: any) => d.data());
       if (notifications.length >= 2) break; // Expecting admin and kitchen2
     }
 

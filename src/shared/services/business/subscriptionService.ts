@@ -1,6 +1,7 @@
-import { Timestamp, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { getTodayInTimezone } from '@/shared/lib/date';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
+import { db } from "@/shared/lib/firebase";
 import { settingsRepository } from '../firestore/settingsRepository';
 import { orderService } from './orderService';
 import type { MealPreference, PlanTier, Subscription, MealPlanPricing } from '@/shared/types';
@@ -155,7 +156,9 @@ class SubscriptionService {
     if (subscription.status === 'paused' && shouldPauseNow && subscription.pauseStartDate === pauseStartDate && subscription.pauseEndDate === pauseEndDate) {
       return; // Idempotency
     }
-    await subscriptionRepository.update(subscription.id, {
+    const batch = writeBatch(db);
+    const subRef = doc(db, 'subscriptions', subscription.id);
+    batch.update(subRef, {
       status: shouldPauseNow ? 'paused' : 'active',
       pauseStartDate,
       pauseEndDate,
@@ -163,12 +166,28 @@ class SubscriptionService {
 
     if (shouldPauseNow) {
       const today = getTodayInTimezone();
-      await orderService.cancelOrdersForSkipDay(
+      const cancelledOrders = await orderService.appendCancelOrdersToBatch(
+        batch,
         subscription.id,
         subscription.customerId,
         today,
         ['breakfast', 'lunch', 'dinner'] // Cancel all eligible meals for today
       );
+
+      await batch.commit();
+
+      if (cancelledOrders.length > 0) {
+        import('@/shared/services/firestore/auditRepository').then(m => {
+          cancelledOrders.forEach(o => {
+            m.auditRepository.logAction('meal_cancelled', subscription.customerId, 'Customer', o.id!, 'order', {
+              date: today,
+              mealType: o.mealType
+            }).catch(console.error);
+          });
+        }).catch(console.error);
+      }
+    } else {
+      await batch.commit();
     }
   }
 

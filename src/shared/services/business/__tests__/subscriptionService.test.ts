@@ -5,6 +5,7 @@ import { subscriptionRepository } from '../../firestore/subscriptionRepository';
 import { settingsRepository } from '../../firestore/settingsRepository';
 import { paymentRepository } from '../../firestore/paymentRepository';
 import { orderService } from '../orderService';
+import { writeBatch } from 'firebase/firestore';
 
 vi.mock('../../firestore/paymentRepository', () => ({
   paymentRepository: {
@@ -16,7 +17,8 @@ vi.mock('../../firestore/paymentRepository', () => ({
 vi.mock('../orderService', () => ({
   orderService: {
     generateOrdersForSubscription: vi.fn(),
-    cancelOrdersForSkipDay: vi.fn()
+    cancelOrdersForSkipDay: vi.fn(),
+    appendCancelOrdersToBatch: vi.fn().mockResolvedValue([])
   }
 }));
 
@@ -165,9 +167,16 @@ describe('subscriptionService', () => {
     });
 
     it('pauses a subscription', async () => {
-      vi.spyOn(subscriptionRepository, 'update').mockResolvedValue(undefined);
-      await subscriptionService.pauseSubscription({ id: 'sub1', status: 'active' } as any);
-      expect(subscriptionRepository.update).toHaveBeenCalledWith('sub1', expect.objectContaining({ status: 'paused' }));
+      const mockBatch = {
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      };
+      (writeBatch as any).mockReturnValue(mockBatch);
+
+      await subscriptionService.pauseSubscription({ id: 'sub1', status: 'active', customerId: 'c1' } as any);
+      
+      expect(mockBatch.update).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'paused' }));
+      expect(mockBatch.commit).toHaveBeenCalled();
     });
   });
 

@@ -195,8 +195,8 @@ describe('usePartnerBoard complete route & notifications', () => {
   });
 
   it('completes route successfully if allTerminal is true', async () => {
-    // Override useMemo to make allTerminal true
-    vi.mocked(useMemo).mockReturnValueOnce(true); 
+    // Override useMemo to make allTerminal true (orders returns [], allTerminal returns true)
+    vi.mocked(useMemo).mockReturnValueOnce([]).mockReturnValueOnce(true); 
 
     // Re-render hook with allTerminal=true
     const boardWithTerminal = usePartnerBoard('driver-1', '2026-08-01', 'lunch');

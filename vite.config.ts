@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 import { VitePWA } from 'vite-plugin-pwa'
+// @ts-ignore - type definitions might not match runtime exports
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { visualizer } from 'rollup-plugin-visualizer'
 
@@ -131,6 +132,8 @@ export default defineConfig(({ mode }) => {
   ],
   resolve: {
     alias: {
+      '@reduxjs/toolkit': path.resolve(__dirname, './node_modules/@reduxjs/toolkit/dist/redux-toolkit.legacy-esm.js'),
+      '@hookform/resolvers/zod': path.resolve(__dirname, './node_modules/@hookform/resolvers/zod/dist/zod.js'),
       '@': path.resolve(__dirname, './src'),
     },
   },
@@ -151,15 +154,15 @@ export default defineConfig(({ mode }) => {
           // 'react' in its path and would otherwise match the vendor-react rule.
           if (id.includes('@sentry')) return 'vendor-sentry'
           if (/[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'vendor-react'
-          if (id.includes('recharts')) return 'vendor-charts'
+          if (/[\\/](recharts|@reduxjs[\\/]toolkit)[\\/]/.test(id)) return 'vendor-charts'
           if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps'
           if (/[\\/](exceljs|jspdf|jspdf-autotable)[\\/]/.test(id)) return 'vendor-reports'
           
           // Surgical chunks to shrink index.esm
-          if (id.includes('firebase') || id.includes('@firebase')) return 'vendor-firebase'
-          if (id.includes('lucide-react')) return 'vendor-icons'
-          if (id.includes('@tanstack/react-query')) return 'vendor-query'
-          if (id.includes('react-hook-form') || id.includes('@hookform')) return 'vendor-forms'
+          if (/[\\/](firebase|@firebase)[\\/]/.test(id)) return 'vendor-firebase'
+          if (/[\\/]lucide-react[\\/]/.test(id)) return 'vendor-icons'
+          if (/[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) return 'vendor-query'
+          if (/[\\/](react-hook-form|@hookform[\\/]resolvers)[\\/]/.test(id)) return 'vendor-forms'
           
           return undefined
         },

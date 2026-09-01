@@ -31,8 +31,14 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Type check
+      - name: Type check frontend
         run: npm run type-check
+      - name: Type check Cloud Functions
+        run: |
+          cd functions
+          npm ci
+          npm run build
+          cd ..
       - name: Lint
         run: npm run lint
 
@@ -62,9 +68,9 @@ jobs:
           path: coverage/
           retention-days: 30
 
-  # ─── Stage 3: Security Tests (Firebase Emulator) ─────────────────────────
+  # ─── Stage 3: Security & Functions Tests (Firebase Emulator) ──────────────
   security-tests:
-    name: Security & Penetration Tests
+    name: Security & Functions Integration Tests
     runs-on: ubuntu-latest
     needs: unit-tests
     steps:
@@ -81,12 +87,18 @@ jobs:
           java-version: '21'
       - name: Install dependencies
         run: npm ci
-      - name: Start Firebase Emulators and run security tests
+      - name: Build Cloud Functions for emulator
+        run: |
+          cd functions
+          npm ci
+          npm run build
+          cd ..
+      - name: Start Firebase Emulators and run security & function tests
         run: |
           npx firebase emulators:exec \
             --project demo-test \
-            --only firestore,storage \
-            "npm run test:security"
+            --only firestore,storage,functions \
+            "npm run test:security && npm run test:functions"
         env:
           FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080'
           FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199'

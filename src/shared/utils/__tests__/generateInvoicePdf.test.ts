@@ -4,20 +4,22 @@ import { generateInvoicePdf, type InvoiceData } from '../generateInvoicePdf';
 
 // Mock jsPDF
 vi.mock('jspdf', () => {
+  const MockJsPDF = class {
+    setFillColor = vi.fn();
+    rect = vi.fn();
+    setFont = vi.fn();
+    setFontSize = vi.fn();
+    setTextColor = vi.fn();
+    text = vi.fn();
+    setDrawColor = vi.fn();
+    roundedRect = vi.fn();
+    splitTextToSize = vi.fn((text: string) => text.split('\n'));
+    setLineWidth = vi.fn();
+    line = vi.fn();
+  };
   return {
-    jsPDF: class MockJsPDF {
-      setFillColor = vi.fn();
-      rect = vi.fn();
-      setFont = vi.fn();
-      setFontSize = vi.fn();
-      setTextColor = vi.fn();
-      text = vi.fn();
-      setDrawColor = vi.fn();
-      roundedRect = vi.fn();
-      splitTextToSize = vi.fn((text: string) => text.split('\n'));
-      setLineWidth = vi.fn();
-      line = vi.fn();
-    }
+    default: MockJsPDF,
+    jsPDF: MockJsPDF
   };
 });
 

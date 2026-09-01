@@ -16,7 +16,7 @@ interface Props {
   partnerMap: Map<string, string>;
   customerMap: Map<string, string>;
   onAdvanceStatus: (orderId: string, status: string) => Promise<void>;
-  advancingOrderId: string | null;
+  advancingOrders: Set<string>;
 }
 
 export function KitchenProductionTable({
@@ -25,7 +25,7 @@ export function KitchenProductionTable({
   partnerMap,
   customerMap,
   onAdvanceStatus,
-  advancingOrderId
+  advancingOrders
 }: Props) {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,39 +102,21 @@ export function KitchenProductionTable({
         </div>
 
         {/* Meal Filter Pills */}
-        <div className="flex flex-wrap gap-2 items-center mr-auto">
-          <button aria-label="Button action"
-            onClick={() => setMealFilter('all')}
-            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
-              mealFilter === 'all' ? 'bg-ink-900 text-white' : 'bg-rice-100 text-ink-600 hover:bg-rice-200'
-            }`}
-          >
-            ALL
-          </button>
-          <button aria-label="Button action"
-            onClick={() => setMealFilter('breakfast')}
-            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
-              mealFilter === 'breakfast' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
-            }`}
-          >
-            BREAKFAST
-          </button>
-          <button aria-label="Button action"
-            onClick={() => setMealFilter('lunch')}
-            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
-              mealFilter === 'lunch' ? 'bg-sky-500 text-white' : 'bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200'
-            }`}
-          >
-            LUNCH
-          </button>
-          <button aria-label="Button action"
-            onClick={() => setMealFilter('dinner')}
-            className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors ${
-              mealFilter === 'dinner' ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
-            }`}
-          >
-            DINNER
-          </button>
+        <div className="flex gap-2 items-center mr-auto">
+          {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(meal => (
+            <button
+              key={meal}
+              aria-label="Button action"
+              onClick={() => setMealFilter(meal)}
+              className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors uppercase ${
+                mealFilter === meal
+                  ? 'bg-ink-900 text-white'
+                  : 'bg-surface-2 text-ink-500 border border-border hover:bg-surface-3'
+              }`}
+            >
+              {meal}
+            </button>
+          ))}
         </div>
 
         {/* Status Filter */}
@@ -195,7 +177,7 @@ export function KitchenProductionTable({
                   onStatusChange={async (id, st) => {
                     await onAdvanceStatus(id, st);
                   }}
-                  isAdvancing={advancingOrderId === order.id}
+                  isAdvancing={advancingOrders.has(order.id)}
                 />
               );
             })}

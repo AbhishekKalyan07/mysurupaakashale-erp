@@ -12,7 +12,7 @@ Successfully eliminated the global loading-screen block caused by the `Auth -> F
 
 ### 2. Authoritative Auth Validation
 - Maintained `onAuthStateChanged` as the source of truth.
-- If Firebase indicates the user is unauthenticated, the application instantly clears `last_active_uid` and `auth_cache` and routes the user back to `/login`.
+- If Firebase indicates the user is unauthenticated, the application instantly clears `last_active_uid` and routes the user back to `/login` (auth_cache is intentionally preserved for fast re-login).
 - If Firestore profile listener (`userRepository.subscribeToDoc`) resolves and returns a different authoritative role, the cache is replaced and the React state updates seamlessly.
 
 ### 3. Removed `AppShell.tsx` Startup Gate

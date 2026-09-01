@@ -1,0 +1,1111 @@
+MYSURU PAAKSHALE ERP/PWA — CLEAN MASTER AUDIT REPORT
+Audit basis: All audit artifacts currently available in the File Library, including the 26-Aug read-only bug verification, 29-Aug comprehensive issue audits, combined master audit, Phase 2 implementation/verification reports, and the latest production-verification claims.
+Audit standard: I am deliberately separating confirmed fixed, confirmed outstanding, previously fixed, stale/false-positive, and not currently proven. A test being reported as passed is not treated as proof that unrelated source-code defects disappeared.
+The 29-Aug combined audit itself explicitly says that older findings must be re-verified against the current code rather than automatically assumed fixed. 
+
+1. FINAL EXECUTIVE VERDICT
+🔴 CURRENT STATUS: NOT READY FOR FINAL PRODUCTION SIGN-OFF
+The repository has made substantial progress, and several Phase 2 bugs are genuinely fixed.
+However, the available evidence does not support the previous blanket statement "all bugs are fixed."
+There are still:
+🔴 Production blockers / high-risk unresolved areas
+
+Kitchen kitchenId routing
+Kitchen realtime subscription lifecycle
+Kitchen initial/realtime query scope mismatch
+One-time/trial order operational routing
+Cancellation operational notifications
+Cancellation/skip atomicity
+Cutoff consistency across UI vs backend
+Several older confirmed production bugs that were not demonstrated as fixed
+Production Functions deployment verification
+Actual FCM push verification, if push is required
+
+🟠 Important outstanding issues
+
+Kitchen customer-level packing
+Production order-count vs meal-quantity inconsistency
+Printable packing-sheet grouping
+Notification Center's 60-second polling
+Dependency audit
+Placeholder Admin functionality
+Dead/legacy Functions architecture documentation
+Production smoke testing
+
+The current evidence therefore supports:
+
+Phase 2 fixes validated, but repository-wide production readiness is NOT yet proven.
+
+
+2. VERIFIED FIXED
+These should not be unnecessarily reimplemented.
+FIX-01 — Customer N+1 reads
+Severity: High
+Status: 🟢 FIXED
+Problem
+useReferenceData previously performed individual customer reads.
+Fix
+Customer IDs are:
+unique
+→ filter(Boolean)
+→ sort()
+→ chunked into 30
+→ Firestore "in" queries
+
+This removes the N+1 pattern and stabilizes the React Query key.
+The combined audit specifically listed customer-profile fetching as a required performance item, and the Phase 2 implementation reports that it was changed to 30-item batching. 
+Regression requirement
+Keep the test proving:
+
+duplicate IDs are removed;
+order changes don't change the cache key;
+31 customers result in 2 batch requests rather than 31 individual reads.
+
+Final: 🟢 FIXED.
+
+3. CSV EXPORT
+Severity: Medium
+Status: 🟢 FIXED
+Previous problem
+Reports were encoded as:
+data:text/csv,...
+
+which is unsuitable for large reports.
+Current implementation
+Uses:
+CSV string
+→ Blob
+→ URL.createObjectURL()
+→ <a download>
+→ revokeObjectURL()
+
+Both Accounts pages were reported as updated.
+CSV quoting/escaping was also improved.
+Final: 🟢 FIXED.
+
+4. ACCOUNTS MONTHLY IST REPORT
+Severity: High
+Status: 🟢 FIXED
+Monthly report generation was changed from browser-local:
+new Date(year, month - 1, 1)
+
+to explicit IST/+05:30 boundaries.
+The report now scopes the financial period to the intended Asia/Kolkata business calendar.
+Final: 🟢 FIXED for monthly report generation.
+
+5. FAILED-PAYMENT KPI
+Severity: Medium
+Status: 🟢 FIXED
+Previous problem
+The query counted:
+status == failed
+
+across all historical payments.
+Current implementation
+The Phase 2 change adds a createdAt >= startOfTodayIST boundary.
+Therefore yesterday's failed payments no longer contaminate today's KPI.
+Final: 🟢 FIXED.
+
+6. DELIVERY PARTNER WORKFLOW
+Status: 🟢 PREVIOUSLY FIXED
+The supplied current-source audit confirms the Delivery Partner changes:
+
+scheduled → picked_up shortcut removed;
+driver starts at ready_for_pickup;
+meal filtering supported;
+assignment badge corrected;
+SLA timestamp security allowlist corrected.
+
+The 29-Aug audit explicitly records these Delivery fixes as present. 
+Final: 🟢 FIXED.
+
+7. PWA
+Status: 🟢 PREVIOUSLY FIXED
+Verified/present according to the current audit:
+
+Firebase /__/ route protection
+runtime static asset caching
+controlled service-worker activation
+registerType: 'prompt'
+update prompt
+improved preload-error handling
+duplicate notification handling
+
+The current audit confirms these fixes are present. 
+Remaining validation
+Real-device/browser testing should still verify:
+
+stale lazy chunk;
+active unsaved form;
+update prompt;
+background FCM;
+offline previously visited route.
+
+Final: 🟢 Functionally fixed; 🟠 final real-device smoke test still recommended.
+
+8. CANCELLATION SECURITY
+Status: 🟢 BACKEND SECURITY IS WORKING
+The available audit evidence shows customer cancellation is restricted by:
+customer ownership
++
+scheduled → cancelled
++
+only status/updatedAt changes
++
+server-side cutoff
+
+The cutoff uses Firestore request.time, preventing a customer from manipulating the browser clock to bypass the rule.
+The earlier audit explicitly confirms this server-authoritative behavior. 
+Important distinction
+This means:
+
+Customer cancellation security is not the same issue as cancellation workflow completeness.
+
+Security can be correct while notifications, atomicity, or UI cutoff consistency remain broken.
+
+9. CANCELLATION CLOUD FUNCTION
+Status: 🟢 ARCHITECTURALLY SOUND, WITH DEPLOYMENT/PUSH VERIFICATION PENDING
+The current supplied implementation has:
+before.status !== 'cancelled'
+&&
+after.status === 'cancelled'
+
+and deterministic IDs:
+cancellation_${orderId}_${role}_${recipientId}
+
+with batch writes.
+This provides idempotent notification records.
+It does not provide exactly-once push delivery.
+The terminology correction made in the later report is technically appropriate.
+Atomic batch
+Kitchen/Admin/Driver notification records are written as one Firestore batch.
+This gives all-or-nothing Firestore persistence.
+Final: 🟢 Correct architecture.
+
+10. 🔴 CRITICAL — KITCHEN ORDER ROUTING
+Status: ❌ OUTSTANDING / MUST VERIFY AND FIX
+This is the biggest unresolved issue in the supplied audits.
+The 29-Aug source audit found generated subscription orders containing:
+kitchenId: null
+
+while Kitchen authorization depends on:
+order.kitchenId === kitchenUser.kitchenId
+
+Therefore:
+Subscription
+     ↓
+Daily Order
+     ↓
+kitchenId = null
+     ↓
+Kitchen query/security
+     ↓
+Order may be invisible
+
+The audit specifically identifies this as capable of causing:
+
+Kitchen dashboard = 0 orders
+
+despite orders existing. 
+Required fix
+Routing must be:
+Customer address
+      ↓
+Zone
+      ↓
+Zone.kitchenId
+      ↓
+Daily order.kitchenId
+      ↓
+Kitchen
+
+Required test
+Create a real subscription → generate today's order → assert:
+order.kitchenId === expectedZone.kitchenId
+
+Then authenticate as that Kitchen and verify the order appears.
+Final: 🔴 NOT FIXED / NOT PROVEN FIXED.
+
+11. 🔴 KITCHEN REALTIME kitchenId DEPENDENCY
+Severity: High
+Status: ❌ OUTSTANDING / NOT PROVEN FIXED
+The audit found that useKitchenDashboard / useProductionBoard can establish their listener before asynchronous user-profile hydration completes.
+If:
+kitchenId = undefined
+
+at mount time, and the effect does not depend on kitchenId, the listener may never be recreated with the actual kitchen.
+The required behavior is:
+profile loads
+      ↓
+kitchenId becomes available
+      ↓
+listener re-subscribes
+
+The combined audit explicitly lists this as a required acceptance criterion. 
+Final: 🔴 NOT PROVEN FIXED.
+
+12. 🔴 KITCHEN INITIAL QUERY VS REALTIME QUERY
+Severity: High
+Status: ❌ OUTSTANDING / NOT PROVEN FIXED
+The reported mismatch is:
+Realtime:
+subscribePartnerOrders(... kitchenId)
+
+Initial:
+getByDate(date)
+
+These must have identical scope.
+Correct:
+Initial:
+getByDate(date, kitchenId)
+
+Realtime:
+subscribeToDayOrders(date, kitchenId)
+
+Otherwise the initial screen and subsequent realtime state can represent different datasets.
+Final: 🔴 NOT PROVEN FIXED.
+
+13. 🔴 ONE-TIME / TRIAL ORDER ROUTING
+Severity: High
+Status: ❌ OUTSTANDING
+The current audit reports trial orders being created with:
+source: one_time
+zoneId: null
+kitchenId: null
+deliveryPartnerId: null
+
+That means the customer can successfully create an order which is not operationally assigned.
+The Kitchen and Delivery systems cannot reliably act on it.
+The audit explicitly identifies this as a separate issue from subscription order routing. 
+Required behavior
+Either:
+Trial
+ ↓
+Address
+ ↓
+Zone
+ ↓
+Kitchen
+ ↓
+Driver
+
+or implement an explicitly separate operational workflow.
+Final: 🔴 NOT FIXED.
+
+14. 🔴 CANCELLATION OPERATIONAL NOTIFICATIONS
+Severity: High
+Status: ❌ OUTSTANDING / ARCHITECTURE NEEDS CURRENT VERIFICATION
+The original cancellation path changes the order and writes an audit record, but the comprehensive audit found no direct operational notification to:
+
+Kitchen
+assigned Delivery Partner
+Admin.
+
+This was explicitly identified as a remaining operational gap. 
+Important conflict to resolve
+Later Phase 2 reports claim that onOrderCancelled now creates notification records.
+Therefore there are two possibilities:
+
+The Cloud Function has now fixed this, or
+The later report describes an implementation that is not actually in the same source version.
+
+Because the latest available evidence does not include the actual current Function source as an attachment, this must be verified against the current working tree.
+Also verify
+Does it create:
+Firestore in-app notification
+
+or actually:
+FCM push
+
+These are not equivalent.
+Final: 🟠 CURRENT SOURCE VERIFICATION REQUIRED.
+
+15. 🔴 CANCELLATION/SKIP ATOMICITY
+Severity: High
+Status: ❌ OUTSTANDING
+Current reported flow:
+cancelOrdersForSkipDay()
+       ↓
+orders cancelled
+       ↓
+addSkip()
+       ↓
+skip record
+
+These are separate writes.
+Possible state:
+order = cancelled
+skip record = missing
+
+The combined audit explicitly identifies this divergence risk. 
+Required behavior
+Repeated cancellation should be idempotent and the order/skip state should be reconciled atomically or through a trusted retryable workflow.
+Final: 🔴 NOT FIXED / NOT PROVEN FIXED.
+
+16. 🔴 CUTOFF CONSISTENCY
+Severity: High
+Status: ❌ OUTSTANDING
+Backend rules use:
+
+
+
+Meal
+Server cutoff
+
+
+
+
+Breakfast
+05:00 IST
+
+
+Lunch
+10:30 IST
+
+
+Dinner
+16:00 IST
+
+
+
+But the audit found inconsistent client values.
+PauseSubscriptionModal:
+Breakfast 07:30
+
+and ResumeDeliveryModal uses:
+09:00
+12:30
+19:00
+
+along with local-device time.
+This can produce:
+UI says allowed
+       ↓
+Firestore says denied
+
+The comprehensive audit explicitly identifies this as a current problem. 
+Required fix
+Centralize cutoff definitions and use the same business-time model throughout.
+Firestore must remain authoritative.
+Final: 🔴 NOT FIXED / NOT PROVEN FIXED.
+
+17. 🟠 PRODUCTION COUNTS VS MEAL QUANTITY
+Severity: Medium
+Status: ❌ OUTSTANDING
+mealQuantity can represent:
+1 order = 3 meals
+
+but several production functions reportedly count order documents instead of servings.
+This can create:
+Orders: 48
+Meals: 52
+
+being represented inconsistently across the UI.
+The audit specifically recommends separating:
+Orders / Packages
+
+from:
+Meals / Servings
+
+
+Required fix
+Use:
+sum(mealQuantity)
+
+for production quantities.
+Use order count for customer/package counts.
+Final: 🟠 OUTSTANDING.
+
+18. 🟠 CUSTOMER-LEVEL KITCHEN PACKING
+Severity: Medium/High
+Status: ❌ INCOMPLETE
+Current aggregate packing is useful for:
+Area
+Meal
+Plan
+Count
+
+but operators need:
+Customer
+Plan
+Meal
+Quantity
+Items
+Special instructions
+Packing notes
+Area
+Driver
+Packing status
+
+The audit explicitly says the interactive Area-wise Packing view is not a complete customer-level packing workflow. 
+Final: 🟠 INCOMPLETE.
+
+19. 🔴 PRINTABLE PACKING SHEET
+Severity: High operational
+Status: ❌ OUTSTANDING / NOT PROVEN FIXED
+The comprehensive audit reported a meal-grouping mismatch that can produce:
+
+"No orders for today"
+
+even when valid rows exist.
+This was not part of the Phase 2 N+1 fix.
+Therefore it cannot be assumed fixed.
+Required test:
+Generate:
+
+breakfast subscription;
+lunch subscription;
+dinner subscription;
+one-time order;
+
+then print each meal type and verify that each appears.
+Final: 🔴 NOT PROVEN FIXED.
+
+20. DELIVERY CANCELLATION AWARENESS
+Severity: High
+Status: 🟠 NOT PROVEN
+A cancelled assigned order should disappear from active delivery workload and produce an explicit cancellation event if operational notifications are required.
+The earlier audit found passive board updates but no direct driver notification.
+The later Cloud Function claims may address this, but current-source verification is required.
+Final: 🟠 NEEDS VERIFICATION.
+
+21. NOTIFICATION CENTER — 60 SECOND POLLING
+Severity: Medium
+Status: 🟡 INTENTIONAL LIMITATION
+Current design:
+React Query
+refetchInterval: 60_000
+
+This is not inherently a bug.
+It means the notification center may be delayed by approximately one minute.
+If your requirement is:
+
+immediate operational notification display
+
+then this is insufficient.
+If the requirement is:
+
+low-cost near-real-time in-app notifications
+
+then the current architecture is acceptable.
+The combined audit correctly lists this as something that must be intentionally documented rather than automatically labelled broken. 
+Final: 🟡 ACCEPTABLE LIMITATION, DOCUMENT IT.
+
+22. ACTUAL FCM PUSH
+Severity: High if push is required
+Status: 🟠 NOT VERIFIED
+Firestore notification record:
+notifications/{id}
+
+is not the same as:
+Firebase Cloud Messaging
+→ device
+
+The current cancellation Function architecture must be explicitly classified as either:
+Option A
+Firestore in-app notification only
+
+or:
+Option B
+Firestore notification
++
+FCM push
+
+Do not call Option A "FCM push."
+The combined master audit specifically requires this distinction. 
+Final: 🟠 NOT VERIFIED.
+
+23. FUNCTIONS PRODUCTION DEPLOYMENT
+Severity: 🔴 Critical
+Status: ❌ NOT PROVEN
+This is a major deployment gate.
+A successful:
+cd functions
+npm run build
+
+proves compilation.
+It does not prove production deployment.
+The audit requires proof that:
+GitHub Actions
+        ↓
+Firebase deploy
+        ↓
+Functions
+
+actually occurs.
+The combined audit explicitly lists production CI Functions deployment as an acceptance criterion. 
+Final: 🔴 NOT VERIFIED.
+
+24. OLDER CONFIRMED BUG #1 — ESM require()
+Severity: Critical
+Status: 🟠 NEEDS CURRENT-TREE VERIFICATION
+The 26-Aug read-only audit found:
+SubscriptionDetailsPage.tsx
+
+using an inline:
+require('@/shared/utils/dateUtils')
+
+inside rendering.
+That was classified as a Critical browser/ESM issue. 
+A later audit claims the current source no longer has the affected browser require() problem.
+Therefore:
+Do not report it as definitely still broken.
+But it must be marked:
+
+Verified fixed only after inspecting the current file.
+
+Final: 🟠 CURRENT SOURCE RECHECK REQUIRED.
+
+25. OLDER CONFIRMED BUG #2 — WEBKIT DATE PARSING
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Affected files previously included:
+CancelTodayModal.tsx
+PauseSubscriptionModal.tsx
+PauseDeliveryModal.tsx
+
+with:
+new Date(
+  new Date().toLocaleString(...)
+)
+
+This is fragile across browser engines.
+The later Phase 2 report fixed Accounts timezone handling, but does not establish that these customer modal date-parsing bugs were fixed.
+Final: 🔴 NOT PROVEN FIXED.
+
+26. OLDER CONFIRMED BUG #3 — BILLING PRICE SNAPSHOT
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Previous source audit found billingService.ts using static:
+PRICING_MATRIX
+
+rather than:
+subscription.pricingMatrixSnapshot
+
+This can violate price-lock expectations.
+The Phase 2 changes you described did not list this as a modification.
+Therefore it must remain open until current source proves otherwise.
+Final: 🔴 NOT PROVEN FIXED.
+
+27. OLDER CONFIRMED BUG #4 — RENEWAL EXECUTION ORDER
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Previous finding:
+generateDailyOrders()
+        ↓
+processDailyBilling()
+
+was reversed from the desired business ordering.
+The Phase 2 change list did not include this.
+Final: 🔴 NOT PROVEN FIXED.
+
+28. OLDER CONFIRMED BUG #5 — FIRESTORE INDEXES
+Severity: High
+Status: 🟠 NEEDS CURRENT INDEX AUDIT
+The 26-Aug audit reported missing compound indexes for:
+
+leaves
+payroll
+audit logs.
+
+There is later evidence that an orders index was added but may be redundant because an existing four-field index already covered the query. 
+That does not prove the leave/payroll/audit indexes are fixed.
+Therefore:
+Final: 🟠 NEEDS CURRENT firestore.indexes.json verification.
+
+29. OLDER CONFIRMED BUG #6 — DELIVERY ROLE LITERAL
+Severity: High
+Status: 🟠 NEEDS CURRENT VERIFICATION
+Previous finding:
+useAdminDashboardMetrics.ts
+
+queried:
+role == 'delivery'
+
+instead of canonical:
+delivery_partner
+
+The Phase 2 report says useAdminDashboardMetrics.ts was modified for failed payments, but that doesn't prove this separate role query was corrected.
+Final: 🟠 NEEDS CURRENT SOURCE VERIFICATION.
+
+30. OLDER CONFIRMED BUG #7 — AUDIT LOG CLEANUP FIELD
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Previous issue:
+where('createdAt', '<', ...)
+
+instead of the actual audit-log timestamp field:
+timestamp
+
+The Phase 2 fixes don't mention this.
+Final: 🔴 NOT PROVEN FIXED.
+
+31. OLDER CONFIRMED BUG #8 — MAP CSP
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Previous audit found CSP missing:
+*.tile.openstreetmap.org
+
+and:
+nominatim.openstreetmap.org
+
+for map tiles/geocoding.
+This can break the address/map workflow.
+No Phase 2 change listed firebase.json.
+Final: 🔴 NOT PROVEN FIXED.
+
+32. OLDER CONFIRMED BUG #9 — GEOLOCATION POLICY
+Severity: High
+Status: 🔴 NOT PROVEN FIXED
+Previous finding:
+Permissions-Policy:
+geolocation=()
+
+while AddressPicker uses:
+navigator.geolocation
+
+Therefore the browser may refuse location access.
+No Phase 2 change listed firebase.json.
+Final: 🔴 NOT PROVEN FIXED.
+
+33. OLDER CONFIRMED BUG #10 — PRODUCTION PII LOGGING
+Severity: High
+Status: 🟠 PARTIALLY ADDRESSED / VERIFY
+Previous audit found full profile information being logged from AuthContext.
+The later Phase 2 report says AuthContext.tsx was modified to fix empty catch blocks and also added localStorage role caching.
+That does not conclusively prove that all PII/debug logs were removed.
+Previous issue:
+name
+phone
+email
+address
+
+being logged.
+Final: 🟠 CURRENT SOURCE VERIFICATION REQUIRED.
+
+34. OLDER FINDING — DEAD functions/ ARCHITECTURE
+Severity: Medium
+Status: 🟠 NEEDS ARCHITECTURAL CLEANUP
+There is contradictory documentation around whether Functions are:
+unused legacy code
+
+or:
+current cancellation architecture.
+
+Since the current reports now describe onOrderCancelled, the architecture documentation must be brought into agreement.
+The combined audit specifically calls for removing obsolete architecture claims and documenting Functions properly. 
+Final: 🟠 DOCUMENTATION/ARCHITECTURE CLEANUP REQUIRED.
+
+35. PLACEHOLDER ADMIN PAGES
+Severity: Medium/High depending on business usage
+Status: 🟠 NEEDS CURRENT UI VERIFICATION
+Older audits identified potentially incomplete:
+
+Admin Orders
+Admin Customers
+parts of Admin Kitchen/Accounts.
+
+The latest reports focus heavily on backend/test correctness but do not establish that all Admin screens are fully functional.
+Final: 🟠 VERIFY BEFORE DECLARING COMPLETE ERP.
+
+36. DEPENDENCY SECURITY
+Severity: Medium
+Status: 🟠 PENDING
+Older audit reported moderate dependency vulnerabilities.
+A production sign-off needs a fresh:
+npm audit
+
+and, separately if applicable:
+cd functions
+npm audit
+
+Do not assume an old dependency audit remains current.
+Final: 🟠 PENDING.
+
+37. AUTOMATION CI SECRETS
+Severity: High operational
+Status: 🟠 PENDING EXTERNAL VERIFICATION
+The earlier automation audit says the workflow requires:
+VITE_AUTOMATION_EMAIL
+VITE_AUTOMATION_PASSWORD
+
+GitHub Actions secrets.
+The report explicitly identified a manual step to verify these repository secrets. 
+Source code cannot prove repository secrets exist.
+Final: 🟠 EXTERNAL CI CONFIGURATION CHECK REQUIRED.
+
+38. SECURITY TESTING
+Status: 🟢 REPORTED PASS
+The latest supplied verification reports:
+239 security tests
+0 skipped
+PASS
+
+and successful Firebase Emulator execution.
+This is much stronger than static rules inspection.
+However, the current repository itself should be the source of the final run.
+Final: 🟢 PASS according to supplied latest execution.
+
+39. UNIT / BUILD VERIFICATION
+The latest supplied results report:
+
+
+
+Test
+Reported result
+
+
+
+
+Type-check
+🟢 PASS
+
+
+Lint
+🟢 PASS
+
+
+Unit tests
+🟢 379/379
+
+
+App build
+🟢 PASS
+
+
+Functions build
+🟢 PASS
+
+
+Security tests
+🟢 239/239
+
+
+git diff --check
+🟢 PASS
+
+
+
+These are useful and should be retained.
+But these tests do not automatically prove:
+
+Kitchen routing correctness
+production Functions deployment
+actual FCM delivery
+real-device PWA behavior
+CI secrets
+map CSP behavior
+business workflow correctness.
+
+
+40. CLEAN FINAL CLASSIFICATION
+🟢 FIXED
+
+Customer-profile N+1 batching.
+Stable customer cache key.
+CSV Data URI removal.
+Blob report downloads.
+CSV escaping.
+Accounts monthly IST boundary.
+Failed-payments date scoping.
+Delivery Partner workflow fixes.
+PWA /__/ protection.
+PWA runtime static asset handling.
+PWA controlled update activation.
+Cancellation Cloud Function architecture — source claim accepted as architecturally sound, current-tree deployment still pending.
+Deterministic notification-record IDs.
+Customer cancellation authorization/cutoff security — based on supplied rules/runtime evidence.
+
+
+41. 🔴 DEFINITELY NOT SAFE TO CALL "DONE"
+
+Kitchen kitchenId assignment
+Kitchen realtime kitchenId lifecycle
+Kitchen initial/realtime query consistency
+One-time/trial operational routing
+Cancellation/skip atomicity
+UI/backend cutoff consistency
+Printable packing-sheet grouping
+Older WebKit date compatibility
+Billing price snapshot
+Renewal execution ordering
+Audit-log cleanup field
+Map CSP
+Geolocation Permissions Policy
+Production Functions deployment
+
+
+42. 🟠 NEEDS VERIFICATION
+
+Cancellation notification records in the actual current Function source.
+Actual FCM push.
+Delivery cancellation awareness.
+Production quantity calculations.
+Customer-level packing workflow.
+SubscriptionDetailsPage ESM require().
+Firestore leave/payroll/audit indexes.
+Delivery role literal.
+Production PII logging.
+Admin placeholder pages.
+GitHub Actions secrets.
+npm audit.
+Real-device PWA testing.
+
+
+43. 🟡 ACCEPTED LIMITATIONS
+Notification Center
+60-second polling
+
+is an intentional architecture decision unless the business explicitly requires instantaneous notification-center updates.
+Cloud Function atomic batch
+One batch means:
+all notification records succeed
+OR
+none succeed
+
+This is acceptable at current business scale.
+Notification idempotency
+The guarantee is:
+
+idempotent Firestore notification records
+
+not:
+
+exactly-once push delivery.
+
+That distinction is correct.
+
+44. IMPORTANT CONTRADICTIONS BETWEEN REPORTS
+There are several places where earlier reports conflict.
+Contradiction 1 — Cancellation notifications
+Older source audit:
+❌ Missing
+
+Later Phase 2 audit:
+✅ Cloud Function implemented
+
+Resolution: Current Function source must win. Do not rely on either report.
+
+Contradiction 2 — require()
+26-Aug:
+🔴 Critical browser ESM bug
+
+Later audit:
+browser require issue no longer present
+
+Resolution: inspect the current file.
+
+Contradiction 3 — Firestore indexes
+One report says missing indexes.
+Later work added an orders index but another investigation says it may be redundant because an existing index already covers that query. 
+Resolution: audit the complete current firestore.indexes.json, not just the newly added index.
+
+Contradiction 4 — "379 tests pass = production ready"
+This is false as a general conclusion.
+A green unit/security suite does not prove:
+CI deployment
++
+real FCM
++
+browser map permissions
++
+Kitchen routing
++
+real-device PWA
+
+are all correct.
+
+45. FINAL PRODUCTION ACCEPTANCE CHECKLIST
+Before the repository gets a genuine GO, every item below must be checked:
+Security
+
+[ ] Customer cannot cancel progressed delivery orders.
+[ ] Customer cannot bypass cutoff.
+[ ] Customer cannot write privileged notifications.
+[ ] Storage rules pass.
+[ ] Firestore rules pass.
+[ ] No security rule weakened.
+
+Kitchen
+
+[ ] Generated subscription order has correct kitchenId.
+[ ] Trial/one-time order has correct routing.
+[ ] Initial query includes kitchenId.
+[ ] Realtime listener includes kitchenId.
+[ ] Listener re-subscribes after profile hydration.
+[ ] Kitchen cannot see another Kitchen.
+[ ] Kitchen workflow transitions work.
+[ ] Meal filtering works.
+[ ] Production quantities use mealQuantity.
+[ ] Packing sheet works for breakfast/lunch/dinner.
+[ ] Customer-level packing information is available.
+
+Cancellation
+
+[ ] Scheduled cancellation succeeds.
+[ ] Kitchen-locked cancellation fails.
+[ ] Delivery-state cancellation fails.
+[ ] Cutoff cancellation fails.
+[ ] Skip record and order state cannot silently diverge.
+[ ] Repeated cancellation is idempotent.
+[ ] Kitchen receives cancellation event.
+[ ] Assigned driver receives cancellation event.
+[ ] Admin receives cancellation event.
+[ ] Notification records are idempotent.
+[ ] Actual FCM verified if required.
+
+Accounts
+
+[ ] Today is IST-correct.
+[ ] Week is IST-correct.
+[ ] Month is IST-correct.
+[ ] Monthly reports use IST.
+[ ] CSV download works with large data.
+[ ] CSV escaping works.
+
+Billing/Automation
+
+[ ] Pricing snapshot honored.
+[ ] Renewal ordering correct.
+[ ] Automation credentials exist.
+[ ] Audit cleanup uses correct timestamp field.
+[ ] Required Firestore indexes exist.
+
+PWA
+
+[ ] /__/ protected.
+[ ] Service-worker update flow works.
+[ ] No duplicate FCM handling.
+[ ] Lazy chunks work after deployment.
+[ ] Offline previously visited pages work.
+[ ] Google Auth works.
+[ ] Background notifications work.
+[ ] Map tiles work.
+[ ] Geolocation works.
+[ ] No production PII/debug logging.
+
+Deployment
+
+[ ] Functions build.
+[ ] Functions are included in Firebase deployment.
+[ ] CI actually deploys Functions.
+[ ] Required GitHub secrets exist.
+[ ] Emulator starts cleanly.
+[ ] Security tests execute with 0 skipped.
+[ ] Unit tests pass.
+[ ] Type-check passes.
+[ ] Lint passes.
+[ ] App build passes.
+[ ] git diff --check passes.
+[ ] Working tree contains only intended changes.
+[ ] npm audit reviewed.
+
+
+46. FINAL GO / NO-GO
+
+
+
+Category
+Decision
+
+
+
+
+Phase 2 N+1 fix
+🟢 GO
+
+
+CSV fix
+🟢 GO
+
+
+Accounts monthly report
+🟢 GO
+
+
+Failed payments KPI
+🟢 GO
+
+
+Delivery workflow
+🟢 GO
+
+
+PWA architecture
+🟢 GO
+
+
+Cancellation security
+🟢 GO
+
+
+Cancellation Function design
+🟢 Architecturally GO
+
+
+Kitchen routing
+🔴 NO-GO
+
+
+Kitchen realtime lifecycle
+🔴 NO-GO
+
+
+Trial/one-time routing
+🔴 NO-GO
+
+
+Cancellation consistency
+🔴 NO-GO
+
+
+Cutoff consistency
+🔴 NO-GO
+
+
+Older confirmed bugs
+🔴 Several not proven fixed
+
+
+Functions production deployment
+🔴 NO-GO until verified
+
+
+Actual FCM
+🟠 Pending requirement/verification
+
+
+Full production smoke test
+🟠 Pending
+
+
+
+FINAL DECISION
+🔴 NO-GO FOR FINAL PRODUCTION SIGN-OFF
+The repository is not a disaster—the Phase 2 fixes are meaningful and several are verified—but the previous reports were prematurely declaring the entire project clean.
+The most important remaining technical path is:
+1. Kitchen kitchenId routing
+        ↓
+2. Kitchen initial/realtime query lifecycle
+        ↓
+3. Trial/one-time routing
+        ↓
+4. Cancellation atomicity + delivery-state protection
+        ↓
+5. Cancellation notifications / FCM
+        ↓
+6. Cutoff consistency
+        ↓
+7. Packing sheet + quantity correctness
+        ↓
+8. Reconcile the 10 older confirmed bugs
+        ↓
+9. Functions CI deployment
+        ↓
+10. Full emulator + browser + PWA regression
+        ↓
+11. Final git diff audit
+        ↓
+12. GO / NO-GO
+
+This conclusion is consistent with the latest comprehensive audit, which explicitly says the project should not be considered fully production-ready until the Kitchen routing, cancellation workflow, and acceptance criteria are satisfied. 

@@ -36,8 +36,8 @@ export const queryKeys = {
   },
   kitchen: {
     base: ['kitchen'] as const,
-    dayOrders: (date: string) => ['kitchen', 'orders', date] as const,
-    dashboard: (date: string) => ['kitchen', 'dashboard', date] as const,
+    dayOrders: (date: string, kitchenId: string = 'all') => ['kitchen', 'orders', date, kitchenId] as const,
+    dashboard: (date: string, kitchenId: string) => ['kitchen', 'dashboard', date, kitchenId] as const,
     dailyMenu: (date: string) => ['kitchen', 'dailyMenu', date] as const,
     dailyMenuList: ['kitchen', 'dailyMenus'] as const,
     dailyMenuDetail: (id: string) => ['kitchen', 'dailyMenus', 'detail', id] as const,

@@ -109,6 +109,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
     if (query.length < 3) {
       setSuggestions([]);
       setShowDropdown(false);
+      setIsSearching(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {

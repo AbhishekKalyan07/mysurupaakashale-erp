@@ -103,7 +103,7 @@ export function DeliveryPartnerPage() {
         <div className="bg-surface rounded-xl p-3 border border-border">
           <p className="text-xs text-text-muted font-medium">Pending</p>
           <p className="text-lg font-bold text-text">
-            {orders.filter(o => !['delivered', 'failed_delivery', 'returned_delivery', 'cancelled'].includes(o.status)).length}
+            {orders.filter(o => !['delivered', 'failed_delivery', 'returned_delivery', 'cancelled', 'skipped'].includes(o.status)).length}
           </p>
         </div>
         <div className="bg-success-subtle rounded-xl p-3 border border-success/20">

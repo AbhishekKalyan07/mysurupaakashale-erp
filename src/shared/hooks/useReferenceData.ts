@@ -68,7 +68,8 @@ export function useReferenceData(customerIds: string[] = []) {
               map[profile.id] = profile.fullName || profile.id;
             }
           } catch (err) {
-            console.warn('[useReferenceData] Failed to fetch customer profiles chunk', err);
+            console.error('[useReferenceData] Failed to fetch customer profiles chunk', err);
+            throw err;
           }
         })
       );

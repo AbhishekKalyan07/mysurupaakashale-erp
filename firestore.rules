@@ -55,7 +55,7 @@ service cloud.firestore {
     
     function isAuthorizedKitchen(kitchenId) {
       let myKitchen = callerKitchenId();
-      return isKitchen() && myKitchen != null && kitchenId == myKitchen;
+      return isKitchen() && (myKitchen == null || kitchenId == null || kitchenId == myKitchen);
     }
 
     function isOwner(userId) {
@@ -85,6 +85,13 @@ service cloud.firestore {
       let dOk = !('dinner' in mealTypes) || request.time < dCutoff;
 
       return bOk && lOk && dOk;
+    }
+
+    function getCombinationKey(prefs) {
+      return prefs.size() == 3 ? 'breakfast_lunch_dinner' :
+             prefs.size() == 1 ? prefs[0] :
+             (prefs.hasAll(['breakfast', 'lunch']) ? 'breakfast_lunch' :
+             (prefs.hasAll(['lunch', 'dinner']) ? 'lunch_dinner' : 'breakfast_dinner'));
     }
 
     // ---------- users/{userId} ----------
@@ -155,6 +162,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---------- inventory/{itemId} ----------
+    match /inventory/{itemId} {
+      allow read: if isSignedIn();
+      // Only admins or kitchen staff can create/update their own inventory
+      allow create: if isAdmin() || (isKitchen() && request.resource.data.kitchenId == callerKitchenId());
+      allow update: if isAdmin() || (isKitchen() && resource.data.kitchenId == callerKitchenId());
+      allow delete: if isAdmin();
+    }
+
     // ---------- deliveryZones/{zoneId} ----------
     match /deliveryZones/{zoneId} {
       allow read: if isSignedIn();
@@ -220,10 +236,11 @@ service cloud.firestore {
                       (isSignedIn() &&
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.status == 'pending_payment' &&
-                       request.resource.data.quantity is number &&
-                       request.resource.data.quantity > 0 &&
+                       request.resource.data.get('quantity', 1) is number &&
+                       request.resource.data.get('quantity', 1) > 0 &&
                        request.resource.data.pricePerDaySnapshot is number &&
                        request.resource.data.pricePerDaySnapshot > 0 &&
+                       request.resource.data.pricePerDaySnapshot == request.resource.data.pricingMatrixSnapshot[getCombinationKey(request.resource.data.mealPreferences)] &&
                        request.resource.data.deliveryPartnerId == null &&
                        request.resource.data.latestPaymentId == null &&
                        request.resource.data.pricingMatrixSnapshot == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix &&
@@ -232,9 +249,9 @@ service cloud.firestore {
       // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above, plus legitimate customer edits.
       allow update: if isAdmin() ||
                        (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences']) &&
-                        request.resource.data.quantity > 0 &&
+                        request.resource.data.get('quantity', 1) > 0 &&
                         (isAllowedCustomerTransition() || 
-                         (unchanged('status') && request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences']))));
+                         (request.resource.data.status == 'pending_payment' && request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -310,8 +327,11 @@ service cloud.firestore {
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
                        request.resource.data.status == 'scheduled' &&
-                       // Price must be a positive number
-                       request.resource.data.price is number &&
+                       // Must provide a planId for one-time orders to look up price
+                       request.resource.data.planId is string &&
+                       request.resource.data.planTier is string &&
+                       // Price validation against mealPlans catalog
+                       request.resource.data.price == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix[request.resource.data.mealType] &&
                        request.resource.data.price > 0 &&
                        // Currency must be INR
                        request.resource.data.currency == 'INR' &&
@@ -331,7 +351,7 @@ service cloud.firestore {
                        // Strict field allowlist — no unauthorized operational fields
                        request.resource.data.keys().hasOnly([
                          'id', 'displayId', 'source', 'customerId', 'customerName',
-                         'customerCode', 'customerPhone', 'address',
+                         'customerCode', 'customerPhone', 'address', 'planId',
                          'subscriptionId', 'planTier', 'mealType', 'date',
                          'itemsLabel', 'selectedOptionId', 'price', 'currency',
                          'status', 'deliveryAddressId', 'zoneId', 'kitchenId',

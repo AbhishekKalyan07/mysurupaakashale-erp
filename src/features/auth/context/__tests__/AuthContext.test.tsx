@@ -98,6 +98,7 @@ describe('AuthContext - Role Cache and Resolution', () => {
   });
 
   it('2. successfully resolves a valid cached customer role instantly', () => {
+    localStorage.setItem('last_active_uid', 'user123');
     localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
     renderComponent();
     

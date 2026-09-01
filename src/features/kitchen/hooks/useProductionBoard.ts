@@ -20,26 +20,27 @@ export type KitchenWorkflowStatus = Extract<
 export function useProductionBoard() {
   const date = getTodayIST();
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.kitchen.dayOrders(date);
   const { firebaseUser, role, profile } = useAuth();
-
-  const kitchenId = (profile as any)?.kitchenId;
+  
+  const kitchenId = (profile as any)?.kitchenId || null;
+  const queryKey = queryKeys.kitchen.dayOrders(date, kitchenId || 'all');
 
   // 1. Single realtime listener for today's orders
   useEffect(() => {
+    const effectQueryKey = queryKeys.kitchen.dayOrders(date, kitchenId || 'all');
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
       kitchenId,
-      (orders: Order[]) => queryClient.setQueryData(queryKey, orders),
+      (orders: Order[]) => queryClient.setQueryData(effectQueryKey, orders),
       (err) => console.error(`[useProductionBoard] orders onSnapshot error:`, err)
     );
     return unsubscribe;
-  }, [date, queryClient, queryKey, kitchenId]);
+  }, [date, queryClient, kitchenId]);
 
   const { data: orders = [], isLoading: isOrdersLoading } = useQuery<Order[]>({
     queryKey,
     // Pass kitchenId so the initial fetch scope matches the onSnapshot listener.
-    queryFn: () => orderRepository.getByDate(date, kitchenId ?? null),
+    queryFn: () => orderRepository.getByDate(date, kitchenId),
     staleTime: 0,
   });
 
@@ -54,7 +55,7 @@ export function useProductionBoard() {
     return unsubscribe;
   }, [date]);
 
-  const [advancingOrderId, setAdvancingOrderId] = useState<string | null>(null);
+  const [advancingOrders, setAdvancingOrders] = useState<Set<string>>(new Set());
 
   const advanceStatus = async (
     orderId: string,
@@ -63,7 +64,7 @@ export function useProductionBoard() {
     const order = orders.find((o) => o.id === orderId);
     if (!order) return;
 
-    setAdvancingOrderId(orderId);
+    setAdvancingOrders((prev) => new Set(prev).add(orderId));
     try {
 
     const oldStatus = order.kitchenStatus || 'scheduled';
@@ -105,7 +106,11 @@ export function useProductionBoard() {
       }
     }
     } finally {
-      setAdvancingOrderId(null);
+      setAdvancingOrders((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
     }
   };
 
@@ -116,7 +121,7 @@ export function useProductionBoard() {
     customerMap,
     isLoading: isOrdersLoading || isReferenceLoading || !productionState,
     advanceStatus,
-    advancingOrderId,
+    advancingOrders,
     productionState,
     role,
     user: firebaseUser,

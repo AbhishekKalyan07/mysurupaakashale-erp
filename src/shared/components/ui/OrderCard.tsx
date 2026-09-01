@@ -249,10 +249,10 @@ export function OrderCard({
       )}
     >
       {/* Delivery Zone Banner */}
-      {variant === 'delivery' && zoneName && (
+      {variant === 'delivery' && (
         <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center justify-between">
           <div className="font-display font-bold text-primary text-sm flex items-center gap-1.5">
-            📍 {zoneName}
+            📍 {zoneName || 'Unassigned Zone'}
           </div>
           <MealBadge mealType={order.mealType} compact={false} className="shadow-sm" />
         </div>

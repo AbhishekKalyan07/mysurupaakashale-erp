@@ -8,7 +8,7 @@ interface Props {
 
 export function KitchenSummaryCards({ progress }: Props) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
       
       {/* 1. Today's Orders */}
       <Card className="p-4 flex flex-col justify-between gap-2 border-l-4 border-l-turmeric-500">
@@ -76,16 +76,7 @@ export function KitchenSummaryCards({ progress }: Props) {
         </div>
       </Card>
 
-      {/* 5. Completion % */}
-      <Card className="p-4 flex flex-col justify-between gap-2 border-l-4 border-l-leaf-600 bg-leaf-50/30">
-        <div className="flex items-center gap-1.5 text-ink-500 font-sans text-xs uppercase tracking-wider font-bold">
-          <Percent size={14} className="text-leaf-600" />
-          Completion
-        </div>
-        <div className="text-2xl font-data font-bold text-leaf-700">
-          {progress.completionPercentage}%
-        </div>
-      </Card>
+
       
     </div>
   );
