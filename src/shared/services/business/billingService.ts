@@ -1,7 +1,8 @@
-import { Timestamp, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { Timestamp, doc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
 import { orderRepository } from '../firestore/orderRepository';
+import { paymentRepository } from '../firestore/paymentRepository';
 import type { Subscription } from '@/shared/types';
 
 class BillingService {
@@ -37,11 +38,17 @@ class BillingService {
     return { processed, errors };
   }
 
-  private async processSubscriptionEnd(subscription: Subscription, today: string): Promise<void> {
+  async processSubscriptionEnd(subscription: Subscription, today: string, reason: 'expired' | 'cancelled' = 'expired'): Promise<void> {
+    const effectiveEndDate = subscription.cancellationDate || subscription.endDate!;
+    const invoiceId = `inv_${subscription.id}_${effectiveEndDate}`;
+    const invoiceRef = doc(db, 'invoices', invoiceId);
+    
+    // We do NOT do a pre-check here anymore, the transaction handles idempotency
+
     const customerOrders = await orderRepository.getCustomerOrdersInRange(
       subscription.customerId,
       subscription.startDate,
-      subscription.endDate!
+      effectiveEndDate
     );
     
     // Calculate total bill for the ended cycle
@@ -50,7 +57,7 @@ class BillingService {
       (o) => o.subscriptionId === subscription.id && 
              !terminalStatuses.includes(o.status) && 
              o.date >= subscription.startDate && 
-             o.date <= subscription.endDate!
+             o.date <= effectiveEndDate
     );
     
     const PRICING_MATRIX = {
@@ -109,81 +116,98 @@ class BillingService {
       }
     }
 
-    const batch = writeBatch(db);
+    // 1b. Calculate verified payments
+    const payments = await paymentRepository.getByCustomerId(subscription.customerId);
+    const verifiedUsagePayments = payments.filter(p => p.subscriptionId === subscription.id && p.status === 'verified' && p.purpose !== 'security_deposit');
+    const verifiedSecurityDeposits = payments.filter(p => p.subscriptionId === subscription.id && p.status === 'verified' && p.purpose === 'security_deposit');
+    const paymentsTotal = verifiedUsagePayments.reduce((sum, p) => sum + p.amount, 0);
+    const depositHeld = verifiedSecurityDeposits.reduce((sum, p) => sum + p.amount, 0);
 
-    // 1. Generate Invoice
-    const invoiceId = crypto.randomUUID();
+    const balanceDue = totalAmount - paymentsTotal;
+
     const invoiceNumber = `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
     
-    const invoiceRef = doc(db, 'invoices', invoiceId);
-    batch.set(invoiceRef, {
-      id: invoiceId,
-      invoiceNumber,
-      customerId: subscription.customerId,
-      subscriptionId: subscription.id,
-      lineItems: [
-        {
-          description: `${subscription.planTier.toUpperCase()} Plan (${subscription.billingCycle})`,
-          quantity: 1,
-          unitPrice: totalAmount,
-          amount: totalAmount
-        }
-      ],
-      subtotal: totalAmount,
-      taxRate: 0,
-      taxAmount: 0,
-      totalAmount: totalAmount,
-      currency: 'INR',
-      status: 'issued',
-      billingPeriodStart: subscription.startDate,
-      billingPeriodEnd: subscription.endDate!,
-      dueDate: today, // due immediately on generation
-      paidAt: null,
-      paymentId: null,
-      createdAt: serverTimestamp() as unknown as Timestamp
-    });
-
-    // 2. Auto-renew or Expire
-    const subRef = doc(db, 'subscriptions', subscription.id);
-    
-    if (subscription.autoRenew) {
-      // Calculate new dates
-      let d = new Date(subscription.endDate!);
-      let foundStart = false;
+    // Start Transaction for Idempotency
+    await runTransaction(db, async (txn) => {
+      const existingInv = await txn.get(invoiceRef);
+      if (existingInv.exists()) {
+        console.log(`[BillingService] Invoice already exists for subscription ${subscription.id} ending on ${effectiveEndDate}`);
+        return; // Idempotent block
+      }
       
-      // Find next valid start date (skip Sundays)
-      while (!foundStart) {
-        d.setDate(d.getDate() + 1);
-        if (d.getDay() !== 0) foundStart = true;
-      }
-      const newStartDate = d.toISOString().split('T')[0];
-
-      // Calculate new end date
-      const activeDaysToAdd = subscription.billingCycle === 'weekly' ? 7 : 30;
-      let remainingDaysToAdd = activeDaysToAdd - 1; // start date is day 1
-
-      while (remainingDaysToAdd > 0) {
-        d.setDate(d.getDate() + 1);
-        if (d.getDay() !== 0) remainingDaysToAdd--;
-      }
-      const newEndDate = d.toISOString().split('T')[0];
-
-      batch.update(subRef, {
-        startDate: newStartDate,
-        endDate: newEndDate,
-        updatedAt: serverTimestamp() as unknown as Timestamp
-        // Status remains 'active'
+      txn.set(invoiceRef, {
+        id: invoiceId,
+        invoiceNumber,
+        customerId: subscription.customerId,
+        subscriptionId: subscription.id,
+        lineItems: [
+          {
+            description: `${subscription.planTier.toUpperCase()} Plan (${subscription.billingCycle})`,
+            quantity: 1,
+            unitPrice: totalAmount,
+            amount: totalAmount
+          },
+          {
+            description: 'Less: Verified Payments Received',
+            quantity: 1,
+            unitPrice: -paymentsTotal,
+            amount: -paymentsTotal
+          }
+        ],
+        subtotal: totalAmount,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: balanceDue,
+        depositHeld,
+        currency: 'INR',
+        status: balanceDue <= 0 ? 'paid' : 'issued',
+        billingPeriodStart: subscription.startDate,
+        billingPeriodEnd: effectiveEndDate,
+        dueDate: today, // due immediately on generation
+        paidAt: balanceDue <= 0 ? today : null,
+        paymentId: null,
+        createdAt: serverTimestamp() as unknown as Timestamp
       });
-      console.log(`[BillingService] Auto-renewed subscription ${subscription.id} for cycle ${newStartDate} to ${newEndDate}`);
-    } else {
-      batch.update(subRef, {
-        status: 'expired',
-        updatedAt: serverTimestamp() as unknown as Timestamp
-      });
-      console.log(`[BillingService] Expired subscription ${subscription.id} (autoRenew is false)`);
-    }
 
-    await batch.commit();
+      // 2. Auto-renew or Expire (skip if manually cancelled)
+      if (reason !== 'cancelled') {
+        const subRef = doc(db, 'subscriptions', subscription.id);
+        if (subscription.autoRenew) {
+          // Calculate new dates
+          let d = new Date(subscription.endDate!);
+          let foundStart = false;
+          while (!foundStart) {
+            d.setDate(d.getDate() + 1);
+            if (d.getDay() !== 0) foundStart = true;
+          }
+          const nextStart = d.toISOString().split('T')[0];
+          
+          let durationDays = subscription.billingCycle === 'weekly' ? 6 : 29;
+          let daysAdded = 0;
+          let e = new Date(nextStart);
+          while (daysAdded < durationDays) {
+            e.setDate(e.getDate() + 1);
+            if (e.getDay() !== 0) daysAdded++;
+          }
+          const nextEnd = e.toISOString().split('T')[0];
+
+          txn.update(subRef, {
+            startDate: nextStart,
+            endDate: nextEnd,
+            status: 'active',
+            updatedAt: serverTimestamp() as unknown as Timestamp
+          });
+          
+          console.log(`[BillingService] Auto-renewed subscription ${subscription.id}: ${nextStart} to ${nextEnd}`);
+        } else {
+          txn.update(subRef, {
+            status: 'expired',
+            updatedAt: serverTimestamp() as unknown as Timestamp
+          });
+          console.log(`[BillingService] Expired subscription ${subscription.id}`);
+        }
+      }
+    });
   }
 }
 

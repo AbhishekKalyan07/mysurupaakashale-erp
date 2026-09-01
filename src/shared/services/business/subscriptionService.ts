@@ -128,7 +128,11 @@ class SubscriptionService {
     if (subscription.status === 'cancelled') {
       return; // Idempotency
     }
-    await subscriptionRepository.updateStatus(subscription.id, 'cancelled');
+    const { getTodayInTimezone } = await import('@/shared/lib/date');
+    await subscriptionRepository.update(subscription.id, { 
+      status: 'cancelled',
+      cancellationDate: getTodayInTimezone()
+    });
 
     // Reject any pending payments associated with this subscription
     const { paymentRepository } = await import('../firestore/paymentRepository');
@@ -137,6 +141,17 @@ class SubscriptionService {
     
     for (const payment of relatedPayments) {
       await paymentRepository.update(payment.id, { status: 'rejected', verificationNotes: 'Subscription draft was cancelled by the customer or admin.' });
+    }
+
+    // Unify natural expiry + manual cancellation settlement
+    if (subscription.status === 'active' || subscription.status === 'paused') {
+      const { billingService } = await import('./billingService');
+      const today = getTodayInTimezone();
+      try {
+        await billingService.processSubscriptionEnd(subscription, today, 'cancelled');
+      } catch (err) {
+        console.error(`[SubscriptionService] Failed to process final settlement for cancelled subscription ${subscription.id}:`, err);
+      }
     }
   }
 

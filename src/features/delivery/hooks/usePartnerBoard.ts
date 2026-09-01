@@ -63,8 +63,9 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
   }, [partnerId, date, mealType]);
 
   const allTerminal = useMemo(() => {
-    if (allOrders.length === 0) return false;
-    return allOrders.every(o => ['delivered', 'failed_delivery', 'returned_delivery'].includes(o.status));
+    const activeRouteOrders = allOrders.filter(o => !['cancelled', 'skipped'].includes(o.status));
+    if (activeRouteOrders.length === 0) return false;
+    return activeRouteOrders.every(o => ['delivered', 'failed_delivery', 'returned_delivery'].includes(o.status));
   }, [allOrders]);
 
   const updateMutation = useMutation({
@@ -77,28 +78,38 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
       newStatus: OrderStatus;
       deliveryResult?: { reasonCode: string; notes?: string }
     }) => {
+      const { runTransaction, doc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('@/shared/lib/firebase');
       
-      const currentOrder = allOrders.find(o => o.id === orderId);
+      await runTransaction(db, async (txn) => {
+        const orderRef = doc(db, 'orders', orderId);
+        const orderSnap = await txn.get(orderRef);
+        
+        if (!orderSnap.exists()) {
+          throw new Error('Order not found');
+        }
+        
+        const currentData = orderSnap.data();
+        
+        const payload: any = {
+          status: newStatus,
+          updatedAt: serverTimestamp(),
+        };
 
-      const payload: Partial<Order> = {
-        status: newStatus,
-        updatedAt: serverTimestamp() as unknown as Timestamp,
-      };
+        if (newStatus === 'out_for_delivery' && !currentData.outForDeliveryAt) {
+          payload.outForDeliveryAt = serverTimestamp();
+        }
 
-      if (newStatus === 'out_for_delivery' && (!currentOrder || !currentOrder.outForDeliveryAt)) {
-        payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp;
-      }
+        if (newStatus === 'delivered' && !currentData.deliveredAt) {
+          payload.deliveredAt = serverTimestamp();
+        }
 
-      if (newStatus === 'delivered' && (!currentOrder || !currentOrder.deliveredAt)) {
-        payload.deliveredAt = serverTimestamp() as unknown as Timestamp;
-      }
+        if (deliveryResult) {
+          payload.deliveryResult = deliveryResult;
+        }
 
-      if (deliveryResult) {
-        payload.deliveryResult = deliveryResult;
-      }
-
-      await orderRepository.update(orderId, payload);
-
+        txn.update(orderRef, payload);
+      });
       const user = getAuth().currentUser;
       if (user) {
         const actionMap: Record<string, string> = {
@@ -160,9 +171,23 @@ export function usePartnerBoard(partnerId: string, date: string, mealType: strin
 
   const completeRouteMutation = useMutation({
     mutationFn: async () => {
-      if (!allTerminal) throw new Error('Not all orders are complete.');
+      // 1. Fetch fresh orders directly from Firestore to avoid race conditions
+      // with the local optimistic/stale state.
+      const { where } = await import('firebase/firestore');
+      const freshOrders = await orderRepository.list(
+        where('deliveryPartnerId', '==', partnerId),
+        where('date', '==', date),
+        where('mealType', '==', mealType)
+      );
+
+      const activeRouteOrders = freshOrders.filter(o => !['cancelled', 'skipped'].includes(o.status));
+      const isAllTerminal = activeRouteOrders.length > 0 && activeRouteOrders.every(o => ['delivered', 'failed_delivery', 'returned_delivery'].includes(o.status));
       
-      const summary = deliveryService.getDeliverySummary(allOrders);
+      if (!isAllTerminal && activeRouteOrders.length > 0) {
+        throw new Error('Not all orders are complete. Please finish all deliveries before completing the route.');
+      }
+      
+      const summary = deliveryService.getDeliverySummary(activeRouteOrders);
       
       await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
         status: 'completed',

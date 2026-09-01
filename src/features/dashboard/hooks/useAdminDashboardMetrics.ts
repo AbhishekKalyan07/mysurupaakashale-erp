@@ -90,12 +90,14 @@ export function useAdminDashboardMetrics() {
           if (doc.data().role === 'delivery_partner') drivers++;
         });
         updateMetrics({ totalCustomers: customers, activeDrivers: drivers });
-      }
+      },
+      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
     );
 
     const unsubSubs = onSnapshot(
       query(collection(db, 'subscriptions'), where('status', '==', 'active')),
-      (snap) => updateMetrics({ activeSubscriptions: snap.size })
+      (snap) => updateMetrics({ activeSubscriptions: snap.size }),
+      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
     );
 
     const unsubOrders = onSnapshot(
@@ -222,7 +224,8 @@ export function useAdminDashboardMetrics() {
 
     const unsubFeedback = onSnapshot(
       query(collection(db, 'feedback'), where('status', 'in', ['new', 'investigating'])),
-      (snap) => updateMetrics({ openComplaints: snap.size })
+      (snap) => updateMetrics({ openComplaints: snap.size }),
+      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
     );
 
     // Calculate IST boundaries for 'today'
@@ -247,7 +250,8 @@ export function useAdminDashboardMetrics() {
       ),
       (snap) => {
         updateMetrics({ failedPayments: snap.size });
-      }
+      },
+      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
     );
 
     const unsubRuns = onSnapshot(
@@ -255,7 +259,8 @@ export function useAdminDashboardMetrics() {
       (snap) => {
         const runs = snap.docs.map(doc => doc.data() as import('@/shared/types').OrderGenerationRun);
         updateMetrics({ generationRuns: runs });
-      }
+      },
+      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
     );
 
     return () => {

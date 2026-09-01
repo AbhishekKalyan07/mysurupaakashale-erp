@@ -11,11 +11,15 @@ vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
-    writeBatch: vi.fn(() => ({
-      set: vi.fn(),
-      update: vi.fn(),
-      commit: vi.fn().mockResolvedValue(undefined),
-    })),
+    runTransaction: vi.fn(async (db, cb) => {
+      const txn = {
+        get: vi.fn().mockResolvedValue({ exists: () => false }),
+        set: vi.fn(),
+        update: vi.fn()
+      };
+      await cb(txn);
+      return txn;
+    }),
     doc: vi.fn((_db, collectionName, id) => ({ collectionName, id })),
     serverTimestamp: vi.fn(() => 'MOCK_TIMESTAMP'),
   };
@@ -32,6 +36,12 @@ vi.mock('@/shared/services/firestore/orderRepository', () => ({
   orderRepository: {
     list: vi.fn(),
     getCustomerOrdersInRange: vi.fn(),
+  },
+}));
+
+vi.mock('@/shared/services/firestore/paymentRepository', () => ({
+  paymentRepository: {
+    getByCustomerId: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -69,18 +79,17 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
     vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
 
-    const mockBatch = {
-      set: vi.fn(),
-      update: vi.fn(),
-      commit: vi.fn().mockResolvedValue(undefined),
-    };
-    vi.mocked(writeBatch).mockReturnValue(mockBatch as any);
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
 
     const result = await billingService.processDailyBilling('2026-08-01');
 
     expect(result.processed).toBe(1);
-    expect(mockBatch.set).toHaveBeenCalled();
-    const setPayload = mockBatch.set.mock.calls[0][1] as any;
+    
+    // Check what was set in the transaction
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.set).toHaveBeenCalled();
+    const setPayload = mockTxn.set.mock.calls[0][1] as any;
     // Uses snapshot price 70 instead of regular live matrix price 85
     expect(setPayload.totalAmount).toBe(70);
   });
@@ -103,19 +112,16 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
     vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
 
-    const mockBatch = {
-      set: vi.fn(),
-      update: vi.fn(),
-      commit: vi.fn().mockResolvedValue(undefined),
-    };
-    vi.mocked(writeBatch).mockReturnValue(mockBatch as any);
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
 
     const result = await billingService.processDailyBilling('2026-08-01');
 
     expect(result.processed).toBe(1);
-    expect(mockBatch.set).toHaveBeenCalled();
-    const setPayload = mockBatch.set.mock.calls[0][1] as any;
-    // Uses fallback regular matrix price 85
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.set).toHaveBeenCalled();
+    const setPayload = mockTxn.set.mock.calls[0][1] as any;
+    // Uses live price 85
     expect(setPayload.totalAmount).toBe(85);
   });
 });

@@ -78,9 +78,10 @@ export class ProductionService {
 
     for (const o of orders) {
       if (o.status === 'cancelled' || o.status === 'skipped') continue;
-      if (o.mealType === 'breakfast') breakfast++;
-      else if (o.mealType === 'lunch') lunch++;
-      else if (o.mealType === 'dinner') dinner++;
+      const qty = o.mealQuantity || 1;
+      if (o.mealType === 'breakfast') breakfast += qty;
+      else if (o.mealType === 'lunch') lunch += qty;
+      else if (o.mealType === 'dinner') dinner += qty;
     }
 
     return { breakfast, lunch, dinner, total: breakfast + lunch + dinner };
@@ -96,12 +97,13 @@ export class ProductionService {
 
     for (const o of orders) {
       if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      const qty = o.mealQuantity || 1;
       if (o.source === 'one_time') {
-        oneTime++;
+        oneTime += qty;
       } else if (o.planTier === 'basic') {
-        basic++;
+        basic += qty;
       } else if (o.planTier === 'regular') {
-        regular++;
+        regular += qty;
       }
     }
 
@@ -119,7 +121,8 @@ export class ProductionService {
       if (o.mealType !== mealType) continue;
 
       const label = o.itemsLabel || 'Unknown Item';
-      counts.set(label, (counts.get(label) || 0) + 1);
+      const qty = o.mealQuantity || 1;
+      counts.set(label, (counts.get(label) || 0) + qty);
     }
 
     return Array.from(counts.entries())
@@ -141,16 +144,17 @@ export class ProductionService {
     let completed = 0;
 
     for (const o of orders) {
+      const qty = o.mealQuantity || 1;
       if (o.status === 'cancelled') {
-        cancelled++;
+        cancelled += qty;
       } else if (o.status !== 'skipped') {
-        total++;
-        if (o.status === 'scheduled') scheduled++;
-        if (o.status === 'packing') packing++;
-        if (o.status === 'packed') packed++;
-        if (o.status === 'ready_for_pickup') ready++;
+        total += qty;
+        if (o.status === 'scheduled') scheduled += qty;
+        if (o.status === 'packing') packing += qty;
+        if (o.status === 'packed') packed += qty;
+        if (o.status === 'ready_for_pickup') ready += qty;
         if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
-          completed++;
+          completed += qty;
         }
       }
     }
@@ -199,13 +203,15 @@ export class ProductionService {
 
       const group = areaMap.get(areaName)!;
 
-      if (o.mealType === 'breakfast') group.breakfast++;
-      else if (o.mealType === 'lunch') group.lunch++;
-      else if (o.mealType === 'dinner') group.dinner++;
+      const qty = o.mealQuantity || 1;
 
-      if (o.source === 'one_time') group.oneTime++;
-      else if (o.planTier === 'basic') group.basic++;
-      else if (o.planTier === 'regular') group.regular++;
+      if (o.mealType === 'breakfast') group.breakfast += qty;
+      else if (o.mealType === 'lunch') group.lunch += qty;
+      else if (o.mealType === 'dinner') group.dinner += qty;
+
+      if (o.source === 'one_time') group.oneTime += qty;
+      else if (o.planTier === 'basic') group.basic += qty;
+      else if (o.planTier === 'regular') group.regular += qty;
 
       const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
       group.orders.push({

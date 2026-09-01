@@ -132,7 +132,7 @@ describe('subscriptionService', () => {
     });
 
     it('rejects subscription and associated payments', async () => {
-      vi.spyOn(subscriptionRepository, 'updateStatus').mockResolvedValue(undefined);
+      vi.spyOn(subscriptionRepository, 'update').mockResolvedValue(undefined);
       vi.mocked(paymentRepository.getPaymentsPaginated).mockResolvedValue({ 
         payments: [{ id: 'p1', subscriptionId: 'sub1', status: 'pending' } as any],
         lastDoc: null
@@ -140,7 +140,7 @@ describe('subscriptionService', () => {
 
       await subscriptionService.rejectSubscription({ id: 'sub1', status: 'pending_payment' } as any);
 
-      expect(subscriptionRepository.updateStatus).toHaveBeenCalledWith('sub1', 'cancelled');
+      expect(subscriptionRepository.update).toHaveBeenCalledWith('sub1', expect.objectContaining({ status: 'cancelled' }));
       expect(paymentRepository.update).toHaveBeenCalledWith('p1', expect.objectContaining({ status: 'rejected' }));
     });
   });

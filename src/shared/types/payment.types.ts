@@ -41,6 +41,8 @@ export interface ManualPayment {
   paymentMethod: PaymentMethod;
   /** UPI transaction ID, bank UTR number, or cash receipt ref. */
   referenceNumber: string | null;
+  /** Purpose of the payment, separating security deposits from usage balance. Missing indicates legacy usage payment. */
+  purpose?: 'usage' | 'security_deposit';
   /** Date on which the customer made the payment (YYYY-MM-DD). */
   paymentDate: ISODateString;
 
@@ -71,6 +73,7 @@ export interface SubmitPaymentInput {
   paymentMethod: PaymentMethod;
   referenceNumber: string | null;
   paymentDate: ISODateString;
+  purpose?: 'usage' | 'security_deposit';
   /** Firebase Storage URL of the payment proof screenshot (optional for cash). */
   screenshotUrl?: string | null;
   /** Billing month this advance covers, e.g. "2025-07". */

@@ -30,6 +30,7 @@ class PaymentService {
       customerName,
       amount: input.amount,
       currency: 'INR',
+      purpose: input.purpose || 'usage',
       paymentMethod: input.paymentMethod,
       referenceNumber: input.referenceNumber,
       paymentDate: input.paymentDate || getTodayInTimezone(),

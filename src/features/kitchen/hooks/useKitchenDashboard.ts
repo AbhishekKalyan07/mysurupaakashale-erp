@@ -61,10 +61,15 @@ export interface KitchenDashboardData {
 export function useKitchenOrdersSummary(date: string) {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
-  const kitchenId = profile?.role === 'kitchen' ? (profile.kitchenId || null) : null;
+  const isKitchenStaff = profile?.role === 'kitchen';
+  const kitchenId = isKitchenStaff ? (profile.kitchenId || null) : null;
+  const isReady = isKitchenStaff ? !!kitchenId : true;
+  
   const queryKey = queryKeys.kitchen.dayOrders(date, kitchenId || 'all');
 
   useEffect(() => {
+    if (!isReady) return;
+    
     const effectQueryKey = queryKeys.kitchen.dayOrders(date, kitchenId || 'all');
     const unsubscribe = orderRepository.subscribeToDayOrders(
       date,
@@ -77,12 +82,13 @@ export function useKitchenOrdersSummary(date: string) {
       }
     );
     return unsubscribe;
-  }, [date, kitchenId, queryClient]);
+  }, [date, kitchenId, queryClient, isReady]);
 
   return useQuery<Order[]>({
     queryKey,
     queryFn: () => orderRepository.getByDate(date, kitchenId),
     staleTime: 0,
+    enabled: isReady,
   });
 }
 
@@ -117,10 +123,13 @@ export function useKitchenDashboard(date: string) {
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner'];
 
-const KITCHEN_DONE_STATUSES: OrderStatus[] = [
-  'packing',
-  'packed',
+const KITCHEN_COMPLETED_STATUSES: OrderStatus[] = [
   'ready_for_pickup',
+  'out_for_delivery',
+  'delivered',
+];
+
+const KITCHEN_PICKED_UP_STATUSES: OrderStatus[] = [
   'out_for_delivery',
   'delivered',
 ];
@@ -155,11 +164,11 @@ function computeDashboard(orders: Order[]): KitchenDashboardData {
     if (order.status === 'packing')       mt.packing++;
     if (order.status === 'packed')        mt.packed++;
     if (order.status === 'ready_for_pickup') mt.readyForPickup++;
-    if (KITCHEN_DONE_STATUSES.includes(order.status as OrderStatus)) mt.pickedUp++;
+    if (KITCHEN_PICKED_UP_STATUSES.includes(order.status as OrderStatus)) mt.pickedUp++;
   }
 
   const completedCount = orders.filter((o) =>
-    KITCHEN_DONE_STATUSES.includes(o.status as OrderStatus)
+    KITCHEN_COMPLETED_STATUSES.includes(o.status as OrderStatus)
   ).length;
 
 

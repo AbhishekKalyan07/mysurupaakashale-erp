@@ -34,23 +34,30 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function role() {
-      // Phase 3: Read role from Firestore instead of Custom Claims
+    function callerDoc() {
       let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      let userDoc = (isSignedIn() && exists(path)) ? get(path) : null;
-      return (userDoc != null) ? userDoc.data.get('role', null) : null;
+      return (isSignedIn() && exists(path)) ? get(path).data : null;
     }
 
-    function isAdmin() { return role() == 'admin'; }
+    function role() {
+      let doc = callerDoc();
+      return doc != null ? doc.get('role', null) : null;
+    }
+
+    function isActive() {
+      let doc = callerDoc();
+      return doc != null ? doc.get('isActive', true) == true : false;
+    }
+
+    function isAdmin() { return role() == 'admin' && isActive(); }
     function isCustomer() { return role() == 'customer'; }
-    function isKitchen() { return role() == 'kitchen'; }
-    function isDeliveryPartner() { return role() == 'delivery_partner'; }
-    function isAccounts() { return role() == 'accounts'; }
+    function isKitchen() { return role() == 'kitchen' && isActive(); }
+    function isDeliveryPartner() { return role() == 'delivery_partner' && isActive(); }
+    function isAccounts() { return role() == 'accounts' && isActive(); }
 
     function callerKitchenId() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      let userDoc = (isSignedIn() && exists(path)) ? get(path) : null;
-      return (userDoc != null) ? userDoc.data.get('kitchenId', null) : null;
+      let doc = callerDoc();
+      return doc != null ? doc.get('kitchenId', null) : null;
     }
     
     function isAuthorizedKitchen(kitchenId) {
@@ -328,10 +335,9 @@ service cloud.firestore {
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
                        request.resource.data.status == 'scheduled' &&
-                       (request.resource.data.get('planId', null) == null ||
-                        (request.resource.data.planId is string &&
-                         exists(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)) &&
-                         request.resource.data.price == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix[request.resource.data.mealType])) &&
+                       request.resource.data.planId is string &&
+                       exists(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)) &&
+                       request.resource.data.price == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix[request.resource.data.mealType] &&
                        request.resource.data.planTier is string &&
                        request.resource.data.price is number &&
                        request.resource.data.price > 0 &&
