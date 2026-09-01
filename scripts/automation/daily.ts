@@ -13,8 +13,8 @@ async function runDailyTasks() {
     await authenticateForAutomation();
 
     console.log('1. Processing Daily Billing...');
-    const { getTodayIST } = await import('@/shared/utils/dateUtils');
-    const todayStr = getTodayIST();
+    const { getTodayInTimezone } = await import('@/shared/lib/date');
+    const todayStr = getTodayInTimezone();
     const billingRes = await billingService.processDailyBilling(todayStr);
     console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);
 
