@@ -59,8 +59,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setFirebaseUser(user);
 
         if (!user) {
-          try { localStorage.removeItem('last_active_uid'); } catch (_e) {}
+          try {
+            localStorage.removeItem('last_active_uid');
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('auth_cache_') || key.startsWith('pwa_'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach((k) => localStorage.removeItem(k));
+          } catch (_e) {}
           setRole(null);
+          setProfile(null);
           setStatus('unauthenticated');
         } else {
           try { localStorage.setItem('last_active_uid', user.uid); } catch (_e) {}

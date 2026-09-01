@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { serverTimestamp } from 'firebase/firestore';
 import { auth } from '@/shared/lib/firebase';
+import { queryClient } from '@/shared/lib/queryClient';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import type { UserProfile } from '@/shared/types';
 
@@ -152,7 +153,18 @@ export async function signUpCustomer(
 export async function signOutUser(): Promise<void> {
   try {
     localStorage.removeItem('last_active_uid');
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('auth_cache_') || key.startsWith('pwa_'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    sessionStorage.clear();
   } catch (_e) {}
+
+  queryClient.clear();
   await firebaseSignOut(auth);
 }
 
