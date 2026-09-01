@@ -145,10 +145,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (import.meta.env.DEV) {
           console.log('[auth] Received profile data:', data);
         }
-        setProfile(data);
-        if (import.meta.env.DEV) {
-          console.log('[auth] isRole check:', data?.role, data ? isRole(data.role) : false);
+        if (data && data.isActive === false) {
+          clearTimeout(timeoutId);
+          setError('Your account has been deactivated. Please contact support.');
+          signOutUser().catch(() => setStatus('unauthenticated'));
+          return;
         }
+
         if (data && isRole(data.role)) {
           clearTimeout(timeoutId);
           // Persist the authoritative role to cache for the next cold boot

@@ -45,6 +45,7 @@ export async function signIn(email: string, password: string): Promise<UserCrede
 }
 export async function signInWithGoogle(): Promise<UserCredential> {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters?.({ prompt: 'select_account' });
   const credential = await signInWithPopup(auth, provider);
 
   // Check if the user profile exists.
@@ -175,6 +176,7 @@ export async function resetPassword(email: string): Promise<void> {
 export async function authenticateWithGoogleForSignup() {
   const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters?.({ prompt: 'select_account' });
   const credential = await signInWithPopup(auth, provider);
   const profile = await userRepository.getById(credential.user.uid);
   return { user: credential.user, exists: !!profile };

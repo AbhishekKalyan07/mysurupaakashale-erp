@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signIn } from '@/features/auth/services/authService';
+import { signIn, signOutUser } from '@/features/auth/services/authService';
 import toast from 'react-hot-toast';
 
 export function DevLoginWidget() {
@@ -15,6 +15,7 @@ export function DevLoginWidget() {
   const handleDevLogin = async (email: string, role: string) => {
     setLoadingRole(role);
     try {
+      await signOutUser();
       await signIn(email, `${role}123`);
       toast.success(`Logged in as ${role}`);
       navigate('/');

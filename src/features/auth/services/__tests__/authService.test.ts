@@ -43,7 +43,9 @@ vi.mock('firebase/auth', () => ({
   signOut: mockSignOut,
   signInWithEmailAndPassword: (...args: any[]) => mockSignInWithEmailAndPassword(...args),
   signInWithPopup: (...args: any[]) => mockSignInWithPopup(...args),
-  GoogleAuthProvider: vi.fn(),
+  GoogleAuthProvider: vi.fn(function (this: any) {
+    this.setCustomParameters = vi.fn();
+  }),
   sendPasswordResetEmail: (...args: any[]) => mockSendPasswordResetEmail(...args),
   EmailAuthProvider: { credential: vi.fn(() => 'mock-cred') },
   linkWithCredential: (...args: any[]) => mockLinkWithCredential(...args),
