@@ -97,7 +97,7 @@ jobs:
         run: |
           npx firebase emulators:exec \
             --project demo-test \
-            --only firestore,storage,functions \
+            --only firestore,storage,functions,eventarc \
             "npm run test:security && npm run test:functions"
         env:
           FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080'

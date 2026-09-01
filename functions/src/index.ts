@@ -24,12 +24,14 @@ export const onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (eve
 
     try {
       // 1. Resolve recipients
-      const [kitchenQuery, adminQuery] = await Promise.all([
-        db.collection('users').where('role', '==', 'kitchen').where('isActive', '==', true).where('kitchenId', '==', after.kitchenId || 'default').get(),
+      const [allKitchenQuery, adminQuery] = await Promise.all([
+        db.collection('users').where('role', '==', 'kitchen').where('isActive', '==', true).get(),
         db.collection('users').where('role', '==', 'admin').where('isActive', '==', true).get(),
       ]);
 
-      const kitchenIds = kitchenQuery.docs.map(d => d.id);
+      const kitchenIds = allKitchenQuery.docs
+        .filter(d => !after.kitchenId || d.data().kitchenId === after.kitchenId)
+        .map(d => d.id);
       const adminIds = adminQuery.docs.map(d => d.id);
       const mealTypeStr = mealType.charAt(0).toUpperCase() + mealType.slice(1);
 

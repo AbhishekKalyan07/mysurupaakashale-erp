@@ -53,6 +53,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@lhci/cli": "^0.15.1",
+    "@oxlint/binding-win32-x64-msvc": "^1.80.0",
     "@playwright/test": "^1.62.1",
     "@sentry/vite-plugin": "^5.4.0",
     "@tailwindcss/vite": "^4.3.2",
