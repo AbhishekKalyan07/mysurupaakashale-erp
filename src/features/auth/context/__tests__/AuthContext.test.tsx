@@ -98,7 +98,10 @@ describe('AuthContext - Strict Firestore Resolution', () => {
     expect(getRole()).toBe('none');
   });
 
-  it('2. becomes unauthenticated immediately if auth state is null', () => {
+  it('2. becomes unauthenticated immediately and clears cache if auth state is null', () => {
+    localStorage.setItem('auth_cache_123', 'val');
+    localStorage.setItem('pwa_prompt', 'val');
+    
     renderComponent();
     
     act(() => {
@@ -107,6 +110,8 @@ describe('AuthContext - Strict Firestore Resolution', () => {
 
     expect(getStatus()).toBe('unauthenticated');
     expect(getRole()).toBe('none');
+    expect(localStorage.getItem('auth_cache_123')).toBeNull();
+    expect(localStorage.getItem('pwa_prompt')).toBeNull();
   });
 
   it('3. resolves to authenticated and sets role once Firestore returns valid profile', () => {
@@ -221,5 +226,63 @@ describe('AuthContext - Strict Firestore Resolution', () => {
     
     dispatchSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('9. handles deactivated user profile', async () => {
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
+    
+    act(() => {
+      firestoreCallback({ role: 'customer', isActive: false });
+    });
+
+    const { signOutUser } = await import('../../services/authService');
+    expect(signOutUser).toHaveBeenCalled();
+
+    act(() => {
+      authStateCallback(null);
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+  });
+
+  it('10. handles onAuthStateChanged error', () => {
+    let authStateErrorCallback: any;
+    (onAuthStateChanged as any).mockImplementation((_auth: any, cb: any, errCb: any) => {
+      authStateCallback = cb;
+      authStateErrorCallback = errCb;
+      return vi.fn();
+    });
+
+    renderComponent();
+    
+    act(() => {
+      if (authStateErrorCallback) authStateErrorCallback(new Error('test auth error'));
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+  });
+
+  it('11. throws if useAuth is used outside of AuthProvider', () => {
+    let error: Error | undefined;
+    
+    function TestErrorComponent() {
+      try {
+        useAuth();
+      } catch (e: any) {
+        error = e;
+      }
+      return null;
+    }
+    
+    act(() => {
+      root.render(<TestErrorComponent />);
+    });
+    
+    expect(error).toBeDefined();
+    expect(error?.message).toBe('useAuth() must be called within an <AuthProvider>.');
   });
 });
