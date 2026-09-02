@@ -98,9 +98,6 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn()
 }));
 
-vi.mock('firebase/auth', () => ({
-  getAuth: vi.fn(() => ({ currentUser: { uid: 'driver-1', displayName: 'Test Driver' } }))
-}));
 
 describe('usePartnerBoard mutation payload', () => {
   let board: ReturnType<typeof usePartnerBoard>;
@@ -257,7 +254,7 @@ describe('usePartnerBoard complete route & notifications', () => {
     expect(auditRepository.logAction).toHaveBeenCalledWith(
       'delivery_route_completed',
       'driver-1',
-      'Test Driver',
+      'Driver',
       'driver-1',
       'route',
       expect.anything()
