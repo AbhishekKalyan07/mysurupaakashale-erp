@@ -71,6 +71,8 @@ async function initSentryLazy() {
         /IndexedDB persistence is only available on platforms that support LocalStorage/i,
         /QuotaExceededError/i,
         /IndexedDbTransactionError/i,
+        /Cannot read properties of undefined \(reading 'startTime'\)/i,
+        /Cannot read properties of undefined \(reading 'install'\)/i
       ],
       integrations: [
         Sentry.reactRouterV6BrowserTracingIntegration({
@@ -79,6 +81,7 @@ async function initSentryLazy() {
           useNavigationType,
           createRoutesFromChildren,
           matchRoutes,
+          enableInp: false, // Disables web-vitals INP tracking which causes startTime crashes on some browsers
         }),
         Sentry.replayIntegration({
           maskAllText: false,

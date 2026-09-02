@@ -271,22 +271,24 @@ export function OrderCard({
               <CustomerAvatar name={customerName} photoUrl={customer?.photoUrl} size="md" />
             )}
             <div className="min-w-0">
-              {displayId && (
+              {displayId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(displayId) && (
                 <div className="font-mono text-[13px] font-bold text-primary leading-tight tracking-wide">
                   {displayId}
                 </div>
               )}
               <div className={cn(
                 'font-semibold text-text leading-tight truncate',
-                displayId ? 'text-sm' : 'text-base'
+                displayId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(displayId) ? 'text-sm' : 'text-base'
               )}>
                 {customerName}
               </div>
-              {variant === 'kitchen' && (
+
+              {order.displayId && (
                 <div className="font-mono text-xs text-text-muted mt-0.5 opacity-70">
-                  {order.id.split('_')[0] === 'ord' ? order.id.split('_').slice(1,2).join('') : order.id.slice(0, 8)}
+                  {order.displayId}
                 </div>
               )}
+
               {variant === 'delivery' && customer?.phone && (
                 <div className="text-text-muted text-xs font-medium mt-0.5 flex items-center gap-1">
                   <Phone size={10} /> {customer.phone}

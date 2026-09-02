@@ -144,7 +144,8 @@ export function AdminOrdersPage() {
         const cName = (nameMap.get(o.customerId) || '').toLowerCase();
         const customer = customerMap.get(o.customerId);
         const displayId = (customer?.displayId || '').toLowerCase();
-        if (!cName.includes(q) && !displayId.includes(q) && !o.id.includes(q)) return false;
+        const oDisplayId = (o.displayId || '').toLowerCase();
+        if (!cName.includes(q) && !displayId.includes(q) && !oDisplayId.includes(q) && !o.id.includes(q)) return false;
       }
       return true;
     })
@@ -180,7 +181,7 @@ export function AdminOrdersPage() {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
           <input
             type="text"
-            placeholder="Search customer, MP-A001..."
+            placeholder="Search customer, MP-A001, ORD-..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-11 pl-10 pr-4 rounded-[14px] border border-border bg-card text-sm text-text placeholder:text-text-faint focus:border-secondary/60 focus:outline-none focus:ring-2 focus:ring-secondary/20 shadow-xs"
