@@ -25,20 +25,6 @@ interface AuthProviderProps {
  *    profile exists".
  */
 function getInitialState(): { status: AuthStatus; role: Role | null; uid: string | null } {
-  try {
-    const lastUid = localStorage.getItem('last_active_uid');
-    if (lastUid) {
-      const rawCache = localStorage.getItem(`auth_cache_${lastUid}`);
-      if (rawCache) {
-        const parsed = JSON.parse(rawCache);
-        if (parsed && parsed.uid === lastUid && isRole(parsed.role)) {
-          return { status: 'authenticated', role: parsed.role as Role, uid: lastUid };
-        }
-      }
-    }
-  } catch (_err) {
-    // Ignore invalid JSON or blocked localStorage
-  }
   return { status: 'loading', role: null, uid: null };
 }
 
@@ -69,34 +55,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
               }
             }
             keysToRemove.forEach((k) => localStorage.removeItem(k));
-          } catch (_e) {}
+          } catch {}
           setRole(null);
           setProfile(null);
           setStatus('unauthenticated');
         } else {
-          try { localStorage.setItem('last_active_uid', user.uid); } catch (_e) {}
-          // Check if we are already optimistically authenticated with the same UID
-          if (init.status === 'authenticated' && init.uid === user.uid) {
-            // Already showing UI; do not revert to loading. Wait for authoritative profile.
-          } else {
-            // Fallback: check cache just in case last_active_uid was missing
-            try {
-              const rawCache = localStorage.getItem(`auth_cache_${user.uid}`);
-              if (rawCache) {
-                const parsed = JSON.parse(rawCache);
-                if (parsed && parsed.uid === user.uid && isRole(parsed.role)) {
-                  setRole(parsed.role as Role);
-                  setStatus('authenticated');
-                } else {
-                  setStatus('loading');
-                }
-              } else {
-                setStatus('loading');
-              }
-            } catch (_err) {
-              setStatus('loading');
-            }
-          }
+          try { localStorage.setItem('last_active_uid', user.uid); } catch {}
+          // Always wait for the authoritative profile from Firestore before switching to authenticated
+          setStatus('loading');
         }
       },
       (err) => {
@@ -121,19 +87,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setStatus((prev) => (prev !== 'authenticated' ? 'loading' : prev));
 
     // Safety timeout: if the Firestore subscription hasn't resolved after an
-    // extended wait, sign out so the user isn't stuck on a loading screen.
-    // We intentionally do NOT create a fallback profile here — doing so would
-    // overwrite legitimate role-specific profiles (e.g. admin) with 'customer',
-    // breaking both production UX and E2E tests. The subscription will fire as
-    // soon as Firestore connects; we just need to give it enough time.
-    const timeoutId = setTimeout(async () => {
-      console.error('[auth] Profile load timed out after 20s — signing out.');
-      setError('Could not load your profile. Please try signing in again.');
-      try {
-        await signOutUser();
-      } catch {
-        setStatus('unauthenticated');
-      }
+    // extended wait, show an error state but DO NOT sign them out automatically.
+    // Signing out automatically breaks offline support if the cache is empty but
+    // the user is technically signed in.
+    const timeoutId = setTimeout(() => {
+      console.error('[auth] Profile load timed out after 20s — entering error state.');
+      setError('Could not load your profile. Please check your connection or try signing out and back in.');
+      // Keep them unauthenticated so the app doesn't load a broken dashboard,
+      // but let them decide whether to retry or sign out manually.
+      setStatus('unauthenticated');
     }, 20000);
 
     if (import.meta.env.DEV) {
@@ -162,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               `auth_cache_${uid}`,
               JSON.stringify({ uid, role: data.role })
             );
-          } catch (_e) {
+          } catch {
             // Ignore localStorage quota/blocking errors
           }
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
 import { Timestamp } from 'firebase/firestore';
@@ -9,26 +10,49 @@ import { toast } from 'react-hot-toast';
 // ── Current user's notifications (notification bell) ──────────────────────────
 export function useNotifications() {
   const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const unsubscribe = notificationRepository.subscribeToByRecipientId(
+      firebaseUser.uid,
+      (data) => {
+        queryClient.setQueryData(queryKeys.notifications.byRecipient(firebaseUser.uid), data);
+      }
+    );
+    return () => unsubscribe();
+  }, [firebaseUser, queryClient]);
 
   return useQuery({
     queryKey: queryKeys.notifications.byRecipient(firebaseUser?.uid ?? ''),
     queryFn: () => notificationRepository.getByRecipientId(firebaseUser!.uid),
     enabled: !!firebaseUser,
-    staleTime: 30_000,
-    refetchInterval: 60_000, // Poll every minute for real-time feel without WebSocket cost
+    staleTime: Infinity,
   });
 }
 
 // ── Unread count for badge ─────────────────────────────────────────────────────
 export function useUnreadNotificationCount() {
   const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const unsubscribe = notificationRepository.subscribeToUnreadCount(
+      firebaseUser.uid,
+      (count) => {
+        queryClient.setQueryData(queryKeys.notifications.unreadCount(firebaseUser.uid), count);
+      }
+    );
+    return () => unsubscribe();
+  }, [firebaseUser, queryClient]);
 
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(firebaseUser?.uid ?? ''),
     queryFn: () => notificationRepository.getUnreadCount(firebaseUser!.uid),
     enabled: !!firebaseUser,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: Infinity,
   });
 }
 

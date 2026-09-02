@@ -103,24 +103,26 @@ export function useAdminDashboardMetrics() {
     const unsubOrders = onSnapshot(
       query(collection(db, 'orders'), where('date', '==', today)),
       (snap) => {
-        let scheduled = 0, preparing = 0, ready = 0, outForDelivery = 0;
-        let delivered = 0, cancelled = 0, unassigned = 0, failedDeliveries = 0;
-        let revenue = 0;
+          let scheduled = 0, preparing = 0, packing = 0, packed = 0, ready = 0, outForDelivery = 0;
+          let delivered = 0, cancelled = 0, unassigned = 0, failedDeliveries = 0;
+          let revenue = 0;
 
-        let preparingCount = 0, packingCount = 0, packedCount = 0, readyCount = 0;
-        let totalPrepMins = 0, prepSamples = 0;
-        let totalPackMins = 0, packSamples = 0;
-        let totalDeliveryMins = 0, deliverySamples = 0;
+          let preparingCount = 0, packingCount = 0, packedCount = 0, readyCount = 0;
+          let totalPrepMins = 0, prepSamples = 0;
+          let totalPackMins = 0, packSamples = 0;
+          let totalDeliveryMins = 0, deliverySamples = 0;
 
-        snap.forEach(doc => {
-          const data = doc.data() as Order;
-          if (data.status === 'scheduled') scheduled++;
-          if (data.status === 'preparing') preparing++;
-          if (data.status === 'ready_for_pickup') ready++;
-          if (data.status === 'out_for_delivery') outForDelivery++;
-          if (data.status === 'delivered') delivered++;
-          if (data.status === 'cancelled') cancelled++;
-          if (data.status === 'failed_delivery') failedDeliveries++;
+          snap.forEach(doc => {
+            const data = doc.data() as Order;
+            if (data.status === 'scheduled') scheduled++;
+            if (data.status === 'preparing') preparing++;
+            if (data.status === 'packing') packing++;
+            if (data.status === 'packed') packed++;
+            if (data.status === 'ready_for_pickup') ready++;
+            if (data.status === 'out_for_delivery') outForDelivery++;
+            if (data.status === 'delivered') delivered++;
+            if (data.status === 'cancelled') cancelled++;
+            if (data.status === 'failed_delivery') failedDeliveries++;
           
           if (data.kitchenStatus === 'scheduled') preparingCount++;
           if (data.kitchenStatus === 'packing') packingCount++;
@@ -153,7 +155,7 @@ export function useAdminDashboardMetrics() {
           }
         });
         
-        const totalKitchenExpected = scheduled + preparing + ready + outForDelivery + delivered;
+        const totalKitchenExpected = scheduled + preparing + packing + packed + ready + outForDelivery + delivered;
         const kitchenSLA = totalKitchenExpected === 0 ? 100 : Math.round(((ready + outForDelivery + delivered) / totalKitchenExpected) * 100);
         
         const totalDeliveryExpected = outForDelivery + delivered + failedDeliveries;

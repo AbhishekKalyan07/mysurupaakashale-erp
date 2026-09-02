@@ -3,6 +3,7 @@ import { clientsClaim } from "workbox-core";
 import { createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { StaleWhileRevalidate } from "workbox-strategies";
+import { ExpirationPlugin } from "workbox-expiration";
 import { initializeApp } from "firebase/app";
 import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
 
@@ -45,6 +46,12 @@ registerRoute(
       request.destination === "image"),
   new StaleWhileRevalidate({
     cacheName: "static-assets-runtime",
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 100,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+      }),
+    ],
   }),
 );
 
@@ -98,3 +105,27 @@ if (typeof indexedDB !== "undefined") {
     "[SW] IndexedDB unavailable – skipping Firebase Messaging init.",
   );
 }
+
+// Handle notification click to focus or open the app window
+self.addEventListener('notificationclick', (event: any) => {
+  event.notification.close();
+
+  // Determine the URL to open (can be provided in payload.data.url)
+  const urlToOpen = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if there is already a window/tab open with the target URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url === new URL(urlToOpen, self.location.origin).href && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If not, open a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

@@ -1,13 +1,41 @@
-import { useState } from 'react';
-import { getMessaging, getToken } from 'firebase/messaging';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, firebaseApp } from '@/shared/lib/firebase';
+import { useState, useEffect } from 'react';
+import { getToken, onMessage } from 'firebase/messaging';
+import { doc, updateDoc, arrayUnion, deleteField } from 'firebase/firestore';
+import { db, getMessagingIfSupported } from '@/shared/lib/firebase';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'react-hot-toast';
 
 export function usePushNotifications() {
   const { firebaseUser } = useAuth();
   const [isRequesting, setIsRequesting] = useState(false);
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+
+    async function setupForegroundListener() {
+      if (!firebaseUser) return;
+      const messaging = await getMessagingIfSupported();
+      if (messaging) {
+        unsubscribe = onMessage(messaging, (payload) => {
+          if (payload.notification) {
+            toast(payload.notification.title || 'New notification', {
+              icon: '🔔',
+            });
+          } else if (payload.data && payload.data.title) {
+            toast(payload.data.title, { icon: '🔔' });
+          }
+        });
+      }
+    }
+
+    setupForegroundListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [firebaseUser]);
 
   const requestPermission = async () => {
     if (!firebaseUser) {
@@ -25,7 +53,11 @@ export function usePushNotifications() {
       const permission = await Notification.requestPermission();
       
       if (permission === 'granted') {
-        const messaging = getMessaging(firebaseApp);
+        const messaging = await getMessagingIfSupported();
+        if (!messaging) {
+          toast.error('Push notifications are not supported in this environment');
+          return;
+        }
         
         // Use the VAPID key from environment variables
         const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
@@ -42,11 +74,16 @@ export function usePushNotifications() {
         });
         
         if (currentToken) {
-          // Save the token to the user's document
+          // Save the token to the user's document using arrayUnion for multi-device support
+          // Also remove the legacy fcmToken string if it exists
           const userRef = doc(db, 'users', firebaseUser.uid);
           await updateDoc(userRef, {
-            fcmToken: currentToken,
+            fcmTokens: arrayUnion(currentToken),
+            fcmToken: deleteField(),
           });
+          
+          try { localStorage.setItem('current_fcm_token', currentToken); } catch {}
+          
           toast.success('Push notifications enabled!');
         } else {
           toast.error('Failed to generate push notification token');

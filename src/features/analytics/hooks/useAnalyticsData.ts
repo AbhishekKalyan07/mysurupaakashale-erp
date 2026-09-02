@@ -183,7 +183,7 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
           if (o.deliveryPartnerId) partnerCount[o.deliveryPartnerId] = (partnerCount[o.deliveryPartnerId] || 0) + 1;
         } else if (o.status === 'failed_delivery') {
           deliveryFailed++;
-        } else if (['scheduled', 'preparing', 'ready_for_pickup', 'out_for_delivery'].includes(o.status)) {
+        } else if (['scheduled', 'preparing', 'packing', 'packed', 'ready_for_pickup', 'out_for_delivery'].includes(o.status)) {
           pendingOrders++;
         }
         
@@ -191,7 +191,7 @@ export function useAnalyticsData(filter: DateRangeFilter, customRange?: DateRang
           todayTotalOrders++;
           if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
             kitchenPreparedToday++;
-          } else if (['scheduled', 'preparing'].includes(o.status)) {
+          } else if (['scheduled', 'preparing', 'packing', 'packed'].includes(o.status)) {
             kitchenPendingToday++;
           }
         }

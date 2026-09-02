@@ -33,7 +33,7 @@ export function PWAInstallPrompt() {
     let dismissed: string | null = null;
     try {
       dismissed = localStorage.getItem('pwa-install-dismissed');
-    } catch (_e) {
+    } catch {
       // Ignore localStorage errors
     }
 
@@ -72,7 +72,7 @@ export function PWAInstallPrompt() {
     setShowPrompt(false);
     try {
       localStorage.setItem('pwa-install-dismissed', Date.now().toString());
-    } catch (_e) {
+    } catch {
       // Ignore localStorage errors
     }
   };
