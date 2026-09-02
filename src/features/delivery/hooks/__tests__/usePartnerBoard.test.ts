@@ -86,7 +86,7 @@ vi.mock('@/shared/lib/firebase', () => ({
 vi.mock('firebase/firestore', () => ({
   serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
   doc: vi.fn(),
-  runTransaction: vi.fn(async (db, cb) => {
+  runTransaction: vi.fn(async (_db, cb) => {
     const txn = {
       get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ outForDeliveryAt: null, deliveredAt: null }) }),
       update: vi.fn(),

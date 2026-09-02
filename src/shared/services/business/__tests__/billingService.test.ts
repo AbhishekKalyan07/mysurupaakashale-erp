@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
 import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import { writeBatch } from 'firebase/firestore';
+
 
 vi.mock('@/shared/lib/firebase', () => ({
   db: {},
@@ -11,7 +11,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
-    runTransaction: vi.fn(async (db, cb) => {
+    runTransaction: vi.fn(async (_db, cb) => {
       const txn = {
         get: vi.fn().mockResolvedValue({ exists: () => false }),
         set: vi.fn(),
