@@ -52,7 +52,7 @@ class BillingService {
     );
     
     // Calculate total bill for the ended cycle
-    const terminalStatuses = ['skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];
+    const terminalStatuses = ['scheduled', 'skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];
     const billableOrders = customerOrders.filter(
       (o) => o.subscriptionId === subscription.id && 
              !terminalStatuses.includes(o.status) && 

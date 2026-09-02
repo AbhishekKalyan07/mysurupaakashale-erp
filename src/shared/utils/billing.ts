@@ -6,14 +6,11 @@ export function calculateAccruedBill(
 ): number {
   if (!subscription) return 0;
 
-  // Filter orders for this subscription that are NOT purely cancelled before cutoff.
-  // Chargeable statuses include: delivered, picked_up, out_for_delivery, failed_delivery, returned_delivery.
-  // If a cancellation happened after the cutoff, it shouldn't just be 'cancelled' if we strictly follow the rules,
-  // but in the current schema if the kitchen lock is on, cancelOrdersForSkipDay throws an error instead of setting 'cancelled'.
-  // So 'cancelled' strictly means a successful before-cutoff cancellation. 
-  // All other non-cancelled orders (and non-scheduled) are chargeable.
+  // Chargeable statuses include: preparing, packing, packed, ready_for_pickup, picked_up, out_for_delivery, delivered.
+  // We exclude statuses where the meal was not produced or not successfully delivered to the point of being billable.
+  const excludedStatuses = ['scheduled', 'skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];
   const subOrders = orders.filter(
-    o => o.subscriptionId === subscription.id && o.status !== 'cancelled' && o.status !== 'scheduled'
+    o => o.subscriptionId === subscription.id && !excludedStatuses.includes(o.status)
   );
 
   // Group by date, and prevent duplicate charging for the same meal/date
