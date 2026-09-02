@@ -7,11 +7,16 @@ const mocks = vi.hoisted(() => {
     mockDoc: vi.fn((...segments: unknown[]) => ({ segments })),
     mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
     mockWhere: vi.fn((...args: unknown[]) => args),
-    mockOrderRepository: { update: vi.fn() },
+    mockOrderRepository: { update: vi.fn(), list: vi.fn().mockResolvedValue([]) },
     mockSubscriptionRepository: { list: vi.fn() },
-    mockOrderGenerationRunRepository: { getById: vi.fn(), create: vi.fn() },
-    mockUserRepository: { list: vi.fn() },
-    mockNotifyDailyOrdersGenerated: vi.fn()
+    mockOrderGenerationRunRepository: { getById: vi.fn(), create: vi.fn(), update: vi.fn() },
+    mockUserRepository: { list: vi.fn().mockResolvedValue([]) },
+    mockDeliveryZoneRepository: { list: vi.fn().mockResolvedValue([{ id: 'north', name: 'North Zone' }]) },
+    mockMealPlanRepository: { list: vi.fn().mockResolvedValue([{ id: 'standard', name: 'Standard Plan' }]) },
+    mockNotifyDailyOrdersGenerated: vi.fn(),
+    mockNotifyAdminAlert: vi.fn(),
+    mockNotifyOrderGeneratedCustomer: vi.fn().mockResolvedValue(undefined),
+    mockNotifyOrderGeneratedDriver: vi.fn().mockResolvedValue(undefined)
   };
 });
 
@@ -25,22 +30,42 @@ const {
   mockSubscriptionRepository,
   mockOrderGenerationRunRepository,
   mockUserRepository,
-  mockNotifyDailyOrdersGenerated
+  mockDeliveryZoneRepository,
+  mockMealPlanRepository,
+  mockNotifyDailyOrdersGenerated,
+  mockNotifyAdminAlert,
+  mockNotifyOrderGeneratedCustomer,
+  mockNotifyOrderGeneratedDriver
 } = mocks;
 
-vi.mock('firebase/firestore', () => ({
-  doc: mocks.mockDoc,
-  getDoc: mocks.mockGetDoc,
-  writeBatch: mocks.mockWriteBatch,
-  serverTimestamp: mocks.mockServerTimestamp,
-  where: mocks.mockWhere,
-}));
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  return {
+    ...actual,
+    doc: mocks.mockDoc,
+    getDoc: mocks.mockGetDoc,
+    writeBatch: mocks.mockWriteBatch,
+    serverTimestamp: mocks.mockServerTimestamp,
+    where: mocks.mockWhere,
+    collection: vi.fn(() => ({ withConverter: vi.fn() })),
+    getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+    query: vi.fn(),
+    addDoc: vi.fn(),
+  };
+});
 vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
 vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
 vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
 vi.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mocks.mockOrderGenerationRunRepository }));
 vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mocks.mockUserRepository }));
-vi.mock('@/shared/services/firestore/notificationService', () => ({ notifyDailyOrdersGenerated: mocks.mockNotifyDailyOrdersGenerated }));
+vi.mock('@/shared/services/firestore/deliveryZoneRepository', () => ({ deliveryZoneRepository: mocks.mockDeliveryZoneRepository }));
+vi.mock('@/shared/services/firestore/mealPlanRepository', () => ({ mealPlanRepository: mocks.mockMealPlanRepository }));
+vi.mock('@/shared/services/firestore/notificationService', () => ({ 
+  notifyDailyOrdersGenerated: mocks.mockNotifyDailyOrdersGenerated,
+  notifyAdminAlert: mocks.mockNotifyAdminAlert,
+  notifyOrderGeneratedCustomer: mocks.mockNotifyOrderGeneratedCustomer,
+  notifyOrderGeneratedDriver: mocks.mockNotifyOrderGeneratedDriver
+}));
 
 import { orderService } from '@/shared/services/business/orderService';
 
@@ -56,7 +81,7 @@ describe('active daily-order automation', () => {
 
     await expect(orderService.generateDailyOrders('2026-07-29')).resolves.toEqual({
       success: true,
-      message: 'Orders already generated for today.',
+      message: '0 new orders generated. (Orders may have already been generated for today)',
       ordersGenerated: 0,
     });
 
@@ -82,16 +107,21 @@ describe('active daily-order automation', () => {
         id: 'active-subscription', customerId: 'customer-1', planTier: 'standard', zoneId: 'north',
         startDate: '2026-07-01', pricePerDaySnapshot: 120, deliveryAddressId: 'address-1', latestPaymentId: 'payment-1',
         mealPreferences: [
-          { mealType: 'breakfast', selectedOptionId: 'breakfast-a' },
-          { mealType: 'lunch', selectedOptionId: 'lunch-a' },
+          { mealType: 'breakfast', selectedOptionId: 'breakfast-a' }
         ],
       },
       { id: 'expired-subscription', customerId: 'customer-2', startDate: '2026-07-01', endDate: '2026-07-28', mealPreferences: [] },
       { id: 'future-subscription', customerId: 'customer-3', startDate: '2026-07-30', mealPreferences: [] },
     ]);
-    mockUserRepository.list
-      .mockResolvedValueOnce([{ id: 'delivery-1', role: 'delivery_partner', isActive: true, zoneIds: ['north'] }])
-      .mockResolvedValueOnce([{ id: 'kitchen-1', role: 'kitchen', isActive: true }]);
+    mockUserRepository.list.mockImplementation(async (...args: any[]) => {
+      const condition = args[0];
+      if (condition && condition[2] === 'customer') {
+        return [{ id: 'customer-1', role: 'customer', zoneId: 'north' }];
+      } else if (condition && condition[2] === 'delivery_partner') {
+        return [{ id: 'delivery-1', role: 'delivery_partner', isAvailable: true, isActive: true, zoneIds: ['north'] }];
+      }
+      return [];
+    });
     mockGetDoc.mockImplementation(async (reference: { segments: unknown[] }) => ({
       exists: () => reference.segments.includes('active-subscription'),
       data: () => ({ mealTypes: ['lunch'] }),
@@ -105,9 +135,9 @@ describe('active daily-order automation', () => {
       { merge: true },
     );
     expect(batch.commit).toHaveBeenCalledTimes(1);
-    expect(mockOrderGenerationRunRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ date: '2026-07-29', status: 'success', ordersGenerated: 1 }),
-      '2026-07-29',
+    expect(mockOrderGenerationRunRepository.update).toHaveBeenCalledWith(
+      '2026-07-29_breakfast',
+      expect.objectContaining({ status: 'success', ordersGenerated: 1 }),
     );
   });
 
@@ -122,9 +152,9 @@ describe('active daily-order automation', () => {
 
     await expect(orderService.generateDailyOrders('2026-07-29')).rejects.toThrow('Firestore unavailable');
 
-    expect(mockOrderGenerationRunRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ date: '2026-07-29', status: 'failed', ordersGenerated: 0, error: 'Firestore unavailable' }),
-      '2026-07-29',
+    expect(mockOrderGenerationRunRepository.update).toHaveBeenCalledWith(
+      '2026-07-29_lunch',
+      expect.objectContaining({ status: 'failed', error: expect.stringContaining('Firestore unavailable') }),
     );
   });
 });

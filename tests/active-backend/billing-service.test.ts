@@ -29,16 +29,20 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('firebase/firestore', () => ({
-  runTransaction: mocks.mockRunTransaction,
-  writeBatch: mocks.mockWriteBatch,
-  getDocs: mocks.mockGetDocs,
-  query: mocks.mockQuery,
-  where: mocks.mockWhere,
-  collection: mocks.mockCollection,
-  doc: mocks.mockDoc,
-  serverTimestamp: mocks.mockServerTimestamp,
-}));
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  return {
+    ...actual,
+    runTransaction: mocks.mockRunTransaction,
+    writeBatch: mocks.mockWriteBatch,
+    getDocs: mocks.mockGetDocs,
+    query: mocks.mockQuery,
+    where: mocks.mockWhere,
+    collection: mocks.mockCollection,
+    doc: mocks.mockDoc,
+    serverTimestamp: mocks.mockServerTimestamp,
+  };
+});
 vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
 vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
 vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));

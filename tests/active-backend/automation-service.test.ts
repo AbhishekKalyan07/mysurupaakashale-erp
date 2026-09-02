@@ -26,16 +26,21 @@ const {
   mockNotifySubscriptionRenewalReminder
 } = mocks;
 
-vi.mock('firebase/firestore', () => ({
-  where: mocks.mockWhere,
-  serverTimestamp: mocks.mockServerTimestamp,
-  getDocs: vi.fn(),
-  collection: vi.fn(),
-  runTransaction: vi.fn(async (_, cb) => cb({
-    get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ status: 'active' }) }),
-    update: vi.fn()
-  }))
-}));
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  return {
+    ...actual,
+    where: mocks.mockWhere,
+    serverTimestamp: mocks.mockServerTimestamp,
+    getDocs: vi.fn(),
+    collection: vi.fn(),
+    doc: vi.fn(),
+    runTransaction: vi.fn(async (_, cb) => cb({
+      get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ status: 'active' }) }),
+      update: vi.fn()
+    }))
+  };
+});
 vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
 vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
 vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
