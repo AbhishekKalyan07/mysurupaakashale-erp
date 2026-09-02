@@ -31,6 +31,8 @@ interface TestOrder {
   displayId?: string;
   specialInstructions?: string | null;
   packingNotes?: string | null;
+  mealQuantity?: number;
+  itemsLabel?: string;
 }
 
 function applyFiltersAndSort(

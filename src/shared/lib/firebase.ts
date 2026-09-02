@@ -86,8 +86,21 @@ const appCheckDebugToken = getEnv('VITE_APPCHECK_DEBUG_TOKEN', import.meta.env.V
 if (import.meta.env.PROD && appCheckDebugToken) {
   throw new Error('SECURITY: VITE_APPCHECK_DEBUG_TOKEN must not be set in production builds.');
 }
+
+/**
+ * Exported config error flag. When set, App.tsx renders a blocking error
+ * screen instead of the normal application — React does mount, so the
+ * error boundary can show a human-readable message rather than leaving
+ * the user staring at a frozen loading spinner.
+ *
+ * App Check remains required for production security; we simply surface
+ * the misconfiguration clearly rather than crashing at module scope.
+ */
+export let appCheckConfigError: string | null = null;
 if (import.meta.env.PROD && !appCheckSiteKey) {
-  throw new Error('Production build requires VITE_APPCHECK_SITE_KEY');
+  appCheckConfigError = 'Production build requires VITE_APPCHECK_SITE_KEY. '
+    + 'Configure it in your hosting environment (Vercel / Firebase Hosting / etc).';
+  console.error('[CRITICAL]', appCheckConfigError);
 }
 const isEmulatorMode = useEmulators;
 

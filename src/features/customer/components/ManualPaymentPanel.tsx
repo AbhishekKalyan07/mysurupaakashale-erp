@@ -39,11 +39,13 @@ interface PaymentFormData {
 export function ManualPaymentPanel({
   subscriptionId,
   amount,
+  purpose,
   onClose,
   onSuccess,
 }: {
   subscriptionId: string;
   amount: number;
+  purpose?: 'usage' | 'security_deposit';
   onClose?: () => void;
   onSuccess?: () => void;
 }) {
@@ -97,8 +99,9 @@ export function ManualPaymentPanel({
       await submitPayment.mutateAsync({
         subscriptionId,
         amount,
+        purpose: purpose || 'usage',
         paymentMethod: form.paymentMethod,
-        referenceNumber: form.referenceNumber.trim() || null,
+        referenceNumber: form.paymentMethod === 'cash' ? null : form.referenceNumber.trim() || null,
         paymentDate: form.paymentDate,
         screenshotUrl,
         billingMonth,

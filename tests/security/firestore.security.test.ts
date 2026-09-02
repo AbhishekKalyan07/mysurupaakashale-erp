@@ -737,6 +737,7 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       customerPhone: '987',
       address: 'Test Addr',
       subscriptionId: null,
+      planId: 'basic-plan',
       planTier: 'basic',
       mealType: 'lunch',
       date: '2025-05-05',
@@ -795,6 +796,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     });
 
     it('ALLOW: Legitimate existing one-time/trial flow succeeds', async () => {
+      // Seed the meal plan so the price validation passes
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      await setDoc(doc(adminDb, 'mealPlans', 'basic-plan'), { pricePerDay: 150, pricingMatrix: { lunch: 150 } });
+
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(setDoc(doc(db, 'orders', 'trial-valid'), validOneTimeOrder));
     });

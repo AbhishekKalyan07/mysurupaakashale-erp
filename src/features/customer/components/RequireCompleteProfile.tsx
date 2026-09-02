@@ -19,6 +19,12 @@ export function RequireCompleteProfile({ children }: RequireCompleteProfileProps
     return <LoadingScreen />;
   }
 
+  // Admins, Kitchen, and Delivery staff don't strictly require a phone number
+  // to use their respective dashboards. Only customers need to complete onboarding.
+  if (profile.role !== 'customer') {
+    return <>{children}</>;
+  }
+
   // If there's no profile, or the profile is missing a phone number
   // and we are NOT already on the profile page, redirect them.
   const isProfileComplete = profile && profile.phone && profile.phone.trim().length >= 10;

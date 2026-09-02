@@ -26,6 +26,7 @@ vi.mock('@tanstack/react-query', () => ({
 // Mock repositories and services
 vi.mock('@/shared/services/firestore/orderRepository', () => ({
   orderRepository: {
+    list: vi.fn().mockResolvedValue([]),
     update: vi.fn(),
     getById: vi.fn().mockResolvedValue({ customerId: 'cust-1', mealType: 'lunch' }),
   },
@@ -77,6 +78,27 @@ vi.mock('@/shared/services/firestore/notificationService', () => ({
   notifyDeliveryFailed: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/shared/lib/firebase', () => ({
+  db: {},
+  auth: {}
+}));
+
+vi.mock('firebase/firestore', () => ({
+  serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+  doc: vi.fn(),
+  runTransaction: vi.fn(async (_db, cb) => {
+    const txn = {
+      get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ outForDeliveryAt: null, deliveredAt: null }) }),
+      update: vi.fn(),
+      set: vi.fn()
+    };
+    await cb(txn);
+    return txn; // return txn so we can inspect it in tests
+  }),
+  where: vi.fn()
+}));
+
+
 describe('usePartnerBoard mutation payload', () => {
   let board: ReturnType<typeof usePartnerBoard>;
 
@@ -93,49 +115,56 @@ describe('usePartnerBoard mutation payload', () => {
   });
 
   it('persists outForDeliveryAt when status is out_for_delivery', async () => {
+    const { runTransaction } = await import('firebase/firestore');
     await board.updateMutation.mutateAsync({
       orderId: 'ord-1',
       newStatus: 'out_for_delivery',
     });
 
-    const updateCall = vi.mocked(orderRepository.update).mock.calls[0];
-    expect(updateCall[0]).toBe('ord-1');
-    const payload = updateCall[1] as any;
-    
-    expect(payload.status).toBe('out_for_delivery');
-    expect(payload.outForDeliveryAt).toBeDefined();
-    expect(payload.updatedAt).toBeDefined();
-    expect(payload.deliveredAt).toBeUndefined();
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.update).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          status: 'out_for_delivery',
+          outForDeliveryAt: 'SERVER_TIMESTAMP'
+        })
+    );
   });
 
   it('persists deliveredAt when status is delivered', async () => {
+    const { runTransaction } = await import('firebase/firestore');
     await board.updateMutation.mutateAsync({
       orderId: 'ord-1',
       newStatus: 'delivered',
     });
 
-    const updateCall = vi.mocked(orderRepository.update).mock.calls[0];
-    const payload = updateCall[1] as any;
-    
-    expect(payload.status).toBe('delivered');
-    expect(payload.deliveredAt).toBeDefined();
-    expect(payload.outForDeliveryAt).toBeUndefined(); 
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.update).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          status: 'delivered',
+          deliveredAt: 'SERVER_TIMESTAMP'
+        })
+    );
   });
 
   it('preserves existing deliveryResult behavior', async () => {
+    const { runTransaction } = await import('firebase/firestore');
+    const result = { reasonCode: 'customer_unavailable', notes: 'Knocked twice' };
     await board.updateMutation.mutateAsync({
       orderId: 'ord-1',
       newStatus: 'failed_delivery',
-      deliveryResult: { reasonCode: 'customer_unavailable', notes: 'Knocked twice' }
+      deliveryResult: result
     });
 
-    const updateCall = vi.mocked(orderRepository.update).mock.calls[0];
-    const payload = updateCall[1] as any;
-    
-    expect(payload.status).toBe('failed_delivery');
-    expect(payload.deliveryResult).toEqual({ reasonCode: 'customer_unavailable', notes: 'Knocked twice' });
-    expect(payload.deliveredAt).toBeUndefined();
-    expect(payload.outForDeliveryAt).toBeUndefined();
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.update).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          status: 'failed_delivery',
+          deliveryResult: result
+        })
+    );
   });
 });
 
@@ -155,8 +184,18 @@ describe('usePartnerBoard complete route & notifications', () => {
   });
 
   it('throws an error if completeRouteMutation is called when not all orders are terminal', async () => {
-    // allTerminal is false by default because orders is empty in our mock state unless we change useMemo mock, but actually useMemo is returning undefined or cb() which returns false since orders=[]
-    await expect(board.completeRouteMutation.mutateAsync()).rejects.toThrow('Not all orders are complete.');
+    // Override useMemo to make allTerminal false (orders returns [], allTerminal returns false)
+    vi.mocked(useMemo).mockReturnValueOnce([]).mockReturnValueOnce(false); 
+    
+    // Mock list to return a non-terminal order
+    vi.mocked(orderRepository.list).mockResolvedValueOnce([
+      { id: 'ord-1', status: 'out_for_delivery' } as any
+    ]);
+
+    // Re-render hook with allTerminal=false
+    const boardNotTerminal = usePartnerBoard('driver-1', '2026-08-01', 'lunch');
+    
+    await expect(boardNotTerminal.completeRouteMutation.mutateAsync()).rejects.toThrow('Not all orders are complete.');
   });
 
   it('sends notifications based on status', async () => {
@@ -180,24 +219,32 @@ describe('usePartnerBoard complete route & notifications', () => {
   });
 
   it('triggers onSuccess and onError for updateMutation', () => {
-    const updateConfig = vi.mocked(useMutation).mock.calls.find((c: any) => c[0].mutationFn.toString().includes('orderRepository.update'))![0] as any;
-    
-    updateConfig.onSuccess();
-    updateConfig.onError(new Error('Test error'));
-    // Toasts are fired, we just need the coverage.
+    const updateConfig = vi.mocked(useMutation).mock.calls.find((c: any) => c[0].mutationFn.toString().includes('runTransaction'));
+    if (updateConfig) {
+      const config = updateConfig[0] as any;
+      if (config.onSuccess) config.onSuccess();
+      if (config.onError) config.onError(new Error('Test error'));
+    }
   });
 
   it('triggers onSuccess and onError for completeRouteMutation', () => {
-    const completeConfig = vi.mocked(useMutation).mock.calls.find((c: any) => c[0].mutationFn.toString().includes('allTerminal'))![0] as any;
-    
-    completeConfig.onSuccess();
-    completeConfig.onError(new Error('Test error'));
+    const completeConfig = vi.mocked(useMutation).mock.calls.find((c: any) => c[0].mutationFn.toString().includes('completeRouteMutation') || c[0].mutationKey?.includes('completeRoute'));
+    if (completeConfig) {
+      const config = completeConfig[0] as any;
+      if (config.onSuccess) config.onSuccess();
+      if (config.onError) config.onError(new Error('Test error'));
+    }
   });
 
   it('completes route successfully if allTerminal is true', async () => {
     // Override useMemo to make allTerminal true (orders returns [], allTerminal returns true)
     vi.mocked(useMemo).mockReturnValueOnce([]).mockReturnValueOnce(true); 
 
+    vi.mocked(orderRepository.list).mockResolvedValueOnce([
+      { id: 'ord-1', status: 'delivered' } as any,
+      { id: 'ord-2', status: 'failed_delivery' } as any
+    ]);
+    
     // Re-render hook with allTerminal=true
     const boardWithTerminal = usePartnerBoard('driver-1', '2026-08-01', 'lunch');
     

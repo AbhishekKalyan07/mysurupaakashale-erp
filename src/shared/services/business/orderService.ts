@@ -142,6 +142,15 @@ class OrderService {
             const skipDoc = await getDoc(skipRef);
             if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
               ordersCancelled++;
+              
+              // We must still generate an order document with status='cancelled' 
+              // so that the Kitchen Dashboard can track cancelled metrics accurately,
+              // and so customers/admins see the cancellation in their order histories.
+              const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
+              order.status = 'cancelled';
+              // kitchenStatus is not applicable for cancelled orders
+              ordersToCreate.push(order);
+              
               success = true;
               continue;
             }
@@ -541,6 +550,7 @@ class OrderService {
     }
 
     const zoneName = zoneId ? zoneMap.get(zoneId)?.name : undefined;
+    const kitchenId = zoneId ? zoneMap.get(zoneId)?.kitchenId : undefined;
 
     const batch = writeBatch(db);
     ordersToSync.forEach(order => {
@@ -583,6 +593,7 @@ class OrderService {
       const updatePayload: any = {
         deliveryPartnerId: partnerId ?? null,
         zoneId: zoneId ?? null,
+        kitchenId: kitchenId ?? null,
         driverName: driver?.fullName ?? null,
         driverPhone: driver?.phone ?? null,
         zoneName: zoneName ?? null,

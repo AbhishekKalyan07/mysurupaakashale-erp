@@ -26,6 +26,7 @@ export interface Invoice {
   taxRate: number; // 0 until Accounts configures it
   taxAmount: number;
   totalAmount: number;
+  depositHeld?: number;
   currency: 'INR';
   status: InvoiceStatus;
   billingPeriodStart: ISODateString;

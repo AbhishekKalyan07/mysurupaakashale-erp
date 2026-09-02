@@ -34,6 +34,7 @@ export interface Subscription {
   status: SubscriptionStatus;
   startDate: ISODateString;
   endDate: ISODateString | null; // explicitly calculated now
+  cancellationDate?: ISODateString | null; // actual closure date if cancelled early
   billingCycle: 'weekly' | 'monthly';
   autoRenew: boolean;
   /** Set once the admin approves a payment — links to the verified payment record. */

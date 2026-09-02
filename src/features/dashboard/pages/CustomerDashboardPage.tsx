@@ -755,12 +755,13 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
         customerPhone: profile?.phone,
         address: addressString,
         subscriptionId: null,
+        planId: plan?.id || null,
         planTier: plan?.tier || 'basic',
         mealType: 'lunch', // Default trial is lunch
         date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
         itemsLabel: 'Trial Meal (Lunch)',
         selectedOptionId: null,
-        price: plan?.pricePerDay ? Math.round(plan.pricePerDay / 3) : 100, // Roughly 1/3rd of daily price
+        price: plan?.pricingMatrix?.lunch || 65, // Use strict matrix price
         currency: 'INR',
         status: 'scheduled',
         deliveryAddressId: addressId,

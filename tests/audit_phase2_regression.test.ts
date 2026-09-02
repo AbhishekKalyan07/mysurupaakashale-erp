@@ -1,7 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 
-// Mock repositories and hooks before importing the targets
+// Mock Firebase before any module that imports firebase.ts tries to call initializeFirestore
+vi.mock('firebase/firestore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('firebase/firestore')>();
+  return {
+    ...actual,
+    initializeFirestore: vi.fn(() => ({} as any)),
+    collection: vi.fn((...args: any[]) => ({ _path: args })),
+    query: vi.fn((coll: any, ...args: any[]) => ({ coll, args })),
+    where: vi.fn((field: string, op: string, val: any) => ({ field, op, val })),
+    getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+    orderBy: vi.fn(),
+    doc: vi.fn(),
+    setDoc: vi.fn(),
+    serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+    onSnapshot: vi.fn(),
+  };
+});
+vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
+vi.mock('@/shared/lib/date', () => ({
+  getTodayInTimezone: vi.fn().mockReturnValue('2026-08-25')
+}));
+
+// Mock repositories before importing the targets
 vi.mock('@/shared/services/firestore/userRepository', () => ({
   userRepository: {
     list: vi.fn(),
@@ -15,21 +36,34 @@ vi.mock('@/shared/services/firestore/deliveryZoneRepository', () => ({
   }
 }));
 
-// Mock react-query
+// Mock react-query — capture queryFn/queryKey for customerProfiles
 let lastQueryFn: any = null;
 let lastQueryKey: any = null;
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn((opts) => {
-    // Capture the queryFn and queryKey for customerProfiles so we can test it directly
+  useQuery: vi.fn((opts: any) => {
     if (opts.queryKey && opts.queryKey.includes('customerProfiles')) {
       lastQueryFn = opts.queryFn;
       lastQueryKey = opts.queryKey;
     }
-    return { data: new Map() };
+    return { data: new Map(), isLoading: false };
   }),
+  useQueryClient: vi.fn(() => ({
+    getQueryData: vi.fn(),
+    setQueryData: vi.fn(),
+  })),
 }));
 
-// Use actual date parsing logic to test accounts timezone bounds
+// Mock React hooks so they work outside a component context
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>();
+  return {
+    ...actual,
+    useMemo: (fn: () => any) => fn(),
+    useEffect: (fn: () => any) => { fn(); },
+    useCallback: (fn: any) => fn,
+  };
+});
+
 import { accountsRepository } from '@/shared/services/firestore/accountsRepository';
 import { useReferenceData } from '@/shared/hooks/useReferenceData';
 import { userRepository } from '@/shared/services/firestore/userRepository';
@@ -150,20 +184,6 @@ describe('Phase 2 Regression Tests', () => {
 
   describe('4. Dashboard KPI Failed Payments Date Filter', () => {
     it('useAdminDashboardMetrics filters failed payments by today using IST boundaries', async () => {
-      vi.mock('@/shared/lib/date', () => ({
-        getTodayInTimezone: vi.fn().mockReturnValue('2026-08-25')
-      }));
-
-      vi.mock('firebase/firestore', async () => {
-        const actual = await vi.importActual('firebase/firestore');
-        return {
-          ...actual as any,
-          onSnapshot: vi.fn(),
-          query: vi.fn((coll, ...args) => ({ coll, args })),
-          where: vi.fn((field, op, val) => ({ field, op, val })),
-        };
-      });
-
       const { useAdminDashboardMetrics } = await import('@/features/dashboard/hooks/useAdminDashboardMetrics');
       
       try {

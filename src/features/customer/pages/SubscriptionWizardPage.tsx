@@ -787,6 +787,7 @@ export function SubscriptionWizardPage() {
           <ManualPaymentPanel
             subscriptionId={createdSubscriptionId}
             amount={settings?.pricing.securityDepositAmount || 1000}
+            purpose="security_deposit"
             onSuccess={() => {
               navigate('/customer/subscription', { state: { justCreated: true } });
             }}

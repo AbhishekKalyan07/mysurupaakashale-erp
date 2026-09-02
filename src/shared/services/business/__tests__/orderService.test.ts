@@ -127,7 +127,7 @@ describe('orderService', () => {
 
       const res = await orderService.generateDailyOrders('2026-08-01');
       
-      expect(res.ordersGenerated).toBe(1); // Dinner is skipped, only lunch generated
+      expect(res.ordersGenerated).toBe(2); // Lunch is generated normally, Dinner is generated as cancelled
       const { writeBatch } = await import('firebase/firestore');
       expect(writeBatch).toHaveBeenCalled();
       expect(notificationService.notifyDailyOrdersGenerated).toHaveBeenCalledWith(['k1'], '2026-08-01', 1);

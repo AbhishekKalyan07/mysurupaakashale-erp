@@ -131,6 +131,12 @@ export function CustomerOrderHistoryPage() {
                           
                           <div className="space-y-1.5 text-sm font-sans mt-3 border-t border-rice-200 pt-3">
                             <div className="flex justify-between text-ink-600">
+                              <span className="font-medium text-xs">Items:</span>
+                              <span className="font-bold text-ink-900 text-xs truncate max-w-[60%] text-right" title={order.itemsLabel || order.mealName || 'Standard Meal'}>
+                                {order.itemsLabel || order.mealName || 'Standard Meal'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-ink-600">
                               <span className="font-medium text-xs">Quantity:</span>
                               <span className="font-bold text-ink-900 text-xs">{order.mealQuantity || 1}</span>
                             </div>
