@@ -151,28 +151,28 @@ describe('calculateAccruedBill', () => {
     expect(calculateAccruedBill(orders, sub)).toBe(60);
   });
 
-  it('Cancel D after cutoff -> B + L + D -> ₹159 (Basic)', () => {
+  it('Cancel D after cutoff (failed_delivery) -> B + L -> ₹115 (Basic)', () => {
     const sub = createSub(basicPricing);
     // Late cancellation doesn't get marked as 'cancelled' (kitchen lock prevents it).
-    // It is a chargeable status (like 'failed_delivery' or left as 'delivered').
+    // The user requested that we do NOT bill if it's not delivered (e.g. failed_delivery).
     const orders = [
       createOrder('breakfast', '2026-08-17', 'delivered'),
       createOrder('lunch', '2026-08-17', 'delivered'),
-      createOrder('dinner', '2026-08-17', 'failed_delivery'), // chargeable
+      createOrder('dinner', '2026-08-17', 'failed_delivery'), // no longer chargeable
     ];
-    // Chargeable for B+L+D
-    expect(calculateAccruedBill(orders, sub)).toBe(159);
+    // Chargeable for B+L only
+    expect(calculateAccruedBill(orders, sub)).toBe(115);
   });
 
-  it('Cancel D after cutoff -> ₹210 (Regular)', () => {
+  it('Cancel D after cutoff (failed_delivery) -> B + L -> ₹140 (Regular)', () => {
     const sub = createSub(regularPricing);
     const orders = [
       createOrder('breakfast', '2026-08-17', 'delivered'),
       createOrder('lunch', '2026-08-17', 'delivered'),
-      createOrder('dinner', '2026-08-17', 'failed_delivery'), // chargeable
+      createOrder('dinner', '2026-08-17', 'failed_delivery'), // no longer chargeable
     ];
-    // Chargeable for B+L+D
-    expect(calculateAccruedBill(orders, sub)).toBe(210);
+    // Chargeable for B+L only
+    expect(calculateAccruedBill(orders, sub)).toBe(140);
   });
 
   it('Quantity 2: Basic B + L -> ₹115 × 2 = ₹230', () => {
