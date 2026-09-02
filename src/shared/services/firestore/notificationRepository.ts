@@ -88,6 +88,29 @@ class NotificationRepository extends BaseRepository<Notification> {
     return results.length;
   }
 
+  /** Real-time subscription for all in-app notifications */
+  subscribeToByRecipientId(recipientId: string, onNext: (data: Notification[]) => void, onError?: (error: Error) => void) {
+    return this.subscribeToList(
+      onNext,
+      onError,
+      where('recipientId', '==', recipientId),
+      where('channel', '==', 'in_app'),
+      orderBy('createdAt', 'desc'),
+      limit(50),
+    );
+  }
+
+  /** Real-time subscription for unread count */
+  subscribeToUnreadCount(recipientId: string, onNext: (count: number) => void, onError?: (error: Error) => void) {
+    return this.subscribeToList(
+      (data) => onNext(data.length),
+      onError,
+      where('recipientId', '==', recipientId),
+      where('channel', '==', 'in_app'),
+      where('inAppStatus', '==', 'unread'),
+    );
+  }
+
   /**
    * Cursor-paginated list for Notification History page.
    * Admin version fetches all; customer version filters by recipientId.

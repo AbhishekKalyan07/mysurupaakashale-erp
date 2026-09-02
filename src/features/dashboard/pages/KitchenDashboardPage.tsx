@@ -424,6 +424,7 @@ function WorkflowRow({ label, count, total, variant: tone }: WorkflowRowProps) {
 
 const TONE_BAR: Record<string, string> = {
   neutral: 'bg-primary/30',
+  default: 'bg-primary/30',
   warning: 'bg-amber-500',
   info:    'bg-blue-500',
   success: 'bg-emerald-500',

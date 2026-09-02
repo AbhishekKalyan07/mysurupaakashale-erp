@@ -250,6 +250,26 @@ describe('authService - additional helper functions', () => {
     (mockWriteBatch as any).mockReturnValue(mockFailingBatch);
     const mockGUser2 = { uid: 'g123', email: 'g@test.com', delete: vi.fn().mockRejectedValue(new Error('del fail')) };
     await expect(signUpWithGoogle(mockGUser2, '9876543210', 'pass')).rejects.toThrow('Tx fail');
+
+    const mockPermissionDeniedBatch = { set: vi.fn(), commit: vi.fn().mockRejectedValue({ code: 'permission-denied' }) };
+    (mockWriteBatch as any).mockReturnValue(mockPermissionDeniedBatch);
+    const mockGUser3 = { uid: 'g123', email: 'g@test.com', delete: vi.fn().mockResolvedValue(undefined) };
+    await expect(signUpWithGoogle(mockGUser3, '9876543210', 'pass')).rejects.toThrow('An account with this mobile number already exists.');
+  });
+
+  it('signOutUser clears auth_cache_ and pwa_ from localStorage', async () => {
+    localStorage.setItem('auth_cache_123', 'val');
+    localStorage.setItem('pwa_prompt', 'val');
+    localStorage.setItem('current_fcm_token', 'token');
+    localStorage.setItem('keep_me', 'val');
+
+    mockSignOut.mockResolvedValue(undefined);
+    await signOutUser();
+
+    expect(localStorage.getItem('auth_cache_123')).toBeNull();
+    expect(localStorage.getItem('pwa_prompt')).toBeNull();
+    expect(localStorage.getItem('current_fcm_token')).toBeNull();
+    expect(localStorage.getItem('keep_me')).toBe('val');
   });
 
   it('signInWithGoogle creates a profile if non-existent or updates if existing', async () => {

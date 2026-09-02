@@ -10,10 +10,11 @@ import {
   type UserCredential,
 } from 'firebase/auth';
 import { serverTimestamp } from 'firebase/firestore';
-import { auth } from '@/shared/lib/firebase';
 import { queryClient } from '@/shared/lib/queryClient';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import type { UserProfile } from '@/shared/types';
+import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { db, auth } from '@/shared/lib/firebase';
 
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -153,17 +154,31 @@ export async function signUpCustomer(
 
 export async function signOutUser(): Promise<void> {
   try {
+    const currentUser = auth.currentUser;
+    const currentToken = localStorage.getItem('current_fcm_token');
+    
+    if (currentUser && currentToken) {
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
+          fcmTokens: arrayRemove(currentToken)
+        });
+      } catch (err) {
+        console.warn('Failed to remove FCM token on signout:', err);
+      }
+    }
+    
     localStorage.removeItem('last_active_uid');
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('auth_cache_') || key.startsWith('pwa_'))) {
+      if (key && (key.startsWith('auth_cache_') || key.startsWith('pwa_') || key === 'current_fcm_token')) {
         keysToRemove.push(key);
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
     sessionStorage.clear();
-  } catch (_e) {}
+  } catch {}
 
   queryClient.clear();
   await firebaseSignOut(auth);

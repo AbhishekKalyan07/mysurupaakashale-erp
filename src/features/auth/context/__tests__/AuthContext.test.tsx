@@ -38,7 +38,7 @@ function TestComponent() {
   );
 }
 
-describe('AuthContext - Role Cache and Resolution', () => {
+describe('AuthContext - Strict Firestore Resolution', () => {
   let authStateCallback: (user: any) => void;
   let firestoreCallback: (data: any) => void;
   let container: HTMLDivElement | null = null;
@@ -86,8 +86,9 @@ describe('AuthContext - Role Cache and Resolution', () => {
     return container?.querySelector('#role')?.textContent;
   }
 
-  it('1. falls back to loading if cache is missing', () => {
+  it('1. starts as loading and remains loading after auth state changes to user', () => {
     renderComponent();
+    expect(getStatus()).toBe('loading');
     
     act(() => {
       authStateCallback({ uid: 'user123', email: 'test@test.com' });
@@ -97,76 +98,30 @@ describe('AuthContext - Role Cache and Resolution', () => {
     expect(getRole()).toBe('none');
   });
 
-  it('2. successfully resolves a valid cached customer role instantly', () => {
-    localStorage.setItem('last_active_uid', 'user123');
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
+  it('2. becomes unauthenticated immediately and clears cache if auth state is null', () => {
+    localStorage.setItem('auth_cache_123', 'val');
+    localStorage.setItem('pwa_prompt', 'val');
+    
+    renderComponent();
+    
+    act(() => {
+      authStateCallback(null);
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+    expect(getRole()).toBe('none');
+    expect(localStorage.getItem('auth_cache_123')).toBeNull();
+    expect(localStorage.getItem('pwa_prompt')).toBeNull();
+  });
+
+  it('3. resolves to authenticated and sets role once Firestore returns valid profile', () => {
     renderComponent();
     
     act(() => {
       authStateCallback({ uid: 'user123', email: 'test@test.com' });
     });
-
-    expect(getStatus()).toBe('authenticated');
-    expect(getRole()).toBe('customer');
-  });
-
-  it('3. successfully resolves a valid cached admin role instantly', () => {
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'admin' }));
-    renderComponent();
     
-    act(() => {
-      authStateCallback({ uid: 'user123' });
-    });
-
-    expect(getStatus()).toBe('authenticated');
-    expect(getRole()).toBe('admin');
-  });
-
-  it('4. ignores malformed cached role', () => {
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'superhacker' }));
-    renderComponent();
-    
-    act(() => {
-      authStateCallback({ uid: 'user123' });
-    });
-
     expect(getStatus()).toBe('loading');
-  });
-
-  it('5. ignores invalid localStorage JSON', () => {
-    localStorage.setItem('auth_cache_user123', '{ invalid_json...');
-    renderComponent();
-    
-    act(() => {
-      authStateCallback({ uid: 'user123' });
-    });
-
-    expect(getStatus()).toBe('loading');
-  });
-
-  it('6. ignores cached role if UID mismatches (account switching)', () => {
-    localStorage.setItem('auth_cache_userA', JSON.stringify({ uid: 'userA', role: 'admin' }));
-    localStorage.setItem('auth_cache_userB', JSON.stringify({ uid: 'userA', role: 'admin' })); 
-    
-    renderComponent();
-    
-    act(() => {
-      authStateCallback({ uid: 'userB' });
-    });
-
-    expect(getStatus()).toBe('loading');
-  });
-
-  it('7. Firestore role overwrites a stale cached role (cache invalidation)', () => {
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
-    renderComponent();
-    
-    act(() => {
-      authStateCallback({ uid: 'user123' });
-    });
-
-    expect(getStatus()).toBe('authenticated');
-    expect(getRole()).toBe('customer');
 
     act(() => {
       firestoreCallback({ role: 'admin' });
@@ -174,28 +129,39 @@ describe('AuthContext - Role Cache and Resolution', () => {
 
     expect(getStatus()).toBe('authenticated');
     expect(getRole()).toBe('admin');
-    
-    expect(JSON.parse(localStorage.getItem('auth_cache_user123')!)).toEqual({ uid: 'user123', role: 'admin' });
   });
 
-  it('8. missing Firestore profile leaves app in loading or unauthenticated eventually', () => {
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
+  it('4. persists role to localStorage once fetched', () => {
     renderComponent();
     
     act(() => {
       authStateCallback({ uid: 'user123' });
     });
 
+    act(() => {
+      firestoreCallback({ role: 'customer' });
+    });
+
     expect(getStatus()).toBe('authenticated');
+    expect(JSON.parse(localStorage.getItem('auth_cache_user123')!)).toEqual({ uid: 'user123', role: 'customer' });
+  });
+
+  it('5. remains loading if Firestore profile is missing/null', () => {
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
 
     act(() => {
       firestoreCallback(null);
     });
 
-    expect(getStatus()).toBe('authenticated');
+    // Profile is missing, so it should stay loading until timeout or data creation
+    expect(getStatus()).toBe('loading');
   });
 
-  it('9. handles firestore subscription error', () => {
+  it('6. handles firestore subscription error', () => {
     let firestoreErrorCallback: any;
     (userRepository.subscribeToDoc as any).mockImplementation((_uid: string, cb: any, errCb: any) => {
       firestoreCallback = cb;
@@ -216,7 +182,7 @@ describe('AuthContext - Role Cache and Resolution', () => {
     expect(getStatus()).toBe('unauthenticated');
   });
 
-  it('10. handles timeout for profile load', async () => {
+  it('7. handles timeout for profile load', async () => {
     vi.useFakeTimers();
     const { signOutUser } = await import('../../services/authService');
     (signOutUser as any).mockRejectedValueOnce(new Error('timeout signout error'));
@@ -235,15 +201,18 @@ describe('AuthContext - Role Cache and Resolution', () => {
     vi.useRealTimers();
   });
 
-  it('11. dispatches app-ready event after 5s when authenticated', async () => {
+  it('8. dispatches app-ready event after 5s when authenticated', async () => {
     vi.useFakeTimers();
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
-    localStorage.setItem('auth_cache_user123', JSON.stringify({ uid: 'user123', role: 'customer' }));
     
     renderComponent();
     
     act(() => {
       authStateCallback({ uid: 'user123' });
+    });
+    
+    act(() => {
+      firestoreCallback({ role: 'customer' });
     });
 
     expect(getStatus()).toBe('authenticated');
@@ -257,5 +226,63 @@ describe('AuthContext - Role Cache and Resolution', () => {
     
     dispatchSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('9. handles deactivated user profile', async () => {
+    renderComponent();
+    
+    act(() => {
+      authStateCallback({ uid: 'user123' });
+    });
+    
+    act(() => {
+      firestoreCallback({ role: 'customer', isActive: false });
+    });
+
+    const { signOutUser } = await import('../../services/authService');
+    expect(signOutUser).toHaveBeenCalled();
+
+    act(() => {
+      authStateCallback(null);
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+  });
+
+  it('10. handles onAuthStateChanged error', () => {
+    let authStateErrorCallback: any;
+    (onAuthStateChanged as any).mockImplementation((_auth: any, cb: any, errCb: any) => {
+      authStateCallback = cb;
+      authStateErrorCallback = errCb;
+      return vi.fn();
+    });
+
+    renderComponent();
+    
+    act(() => {
+      if (authStateErrorCallback) authStateErrorCallback(new Error('test auth error'));
+    });
+
+    expect(getStatus()).toBe('unauthenticated');
+  });
+
+  it('11. throws if useAuth is used outside of AuthProvider', () => {
+    let error: Error | undefined;
+    
+    function TestErrorComponent() {
+      try {
+        useAuth();
+      } catch (e: any) {
+        error = e;
+      }
+      return null;
+    }
+    
+    act(() => {
+      root.render(<TestErrorComponent />);
+    });
+    
+    expect(error).toBeDefined();
+    expect(error?.message).toBe('useAuth() must be called within an <AuthProvider>.');
   });
 });
