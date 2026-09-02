@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
     // Keep memory usage predictable on developer machines and CI runners.
     fileParallelism: false,
     maxWorkers: 2,
-    exclude: ['node_modules', 'dist', 'tests/**', 'src/shared/services/business/__tests__/paymentService.test.ts', 'functions/**', '**/*.int.test.ts'],
+    exclude: ['node_modules', 'dist', 'tests/e2e/**', 'tests/security/**', 'src/shared/services/business/__tests__/paymentService.test.ts', 'functions/**', '**/*.int.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
