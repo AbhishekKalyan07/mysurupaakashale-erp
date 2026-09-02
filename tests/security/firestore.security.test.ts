@@ -544,10 +544,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(addDoc(collection(db, 'auditLogs'), {
         actorId: CUSTOMER_A_UID,
+        actorName: 'customer',
         action: 'admin_override',
         entityType: 'subscription',
         entityId: 'sub-a',
-        actorRole: 'admin', // injecting false role
         timestamp: new Date(),
         maliciousField: 'injected_payload', // extra disallowed field
       }));
@@ -557,10 +557,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(addDoc(collection(db, 'auditLogs'), {
         actorId: ADMIN_UID, // spoofing admin UID
+        actorName: 'admin',
         action: 'delete_user',
         entityType: 'user',
         entityId: CUSTOMER_B_UID,
-        actorRole: 'admin',
         timestamp: new Date(),
       }));
     });
@@ -568,8 +568,8 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Customer can create valid audit log for their own actions', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(addDoc(collection(db, 'auditLogs'), {
-        performedBy: CUSTOMER_A_UID,
-        performedByRole: 'customer',
+        actorId: CUSTOMER_A_UID,
+        actorName: 'customer',
         action: 'subscription_paused',
         entityType: 'subscription',
         entityId: 'sub-a',

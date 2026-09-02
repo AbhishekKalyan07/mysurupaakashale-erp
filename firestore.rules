@@ -588,8 +588,12 @@ service cloud.firestore {
     // ---------- auditLogs/{logId} ----------
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      // Allow any signed-in user to create an audit log, but only if they are the actor
-      allow create: if isSignedIn() && request.resource.data.actorId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+                    && request.resource.data.actorId == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['action', 'actorId', 'actorName', 'entityId', 'entityType', 'previousValue', 'newValue', 'timestamp'])
+                    && request.resource.data.keys().hasAll(['action', 'actorId', 'actorName', 'entityId', 'entityType', 'timestamp']);
+      
       allow update, delete: if false; // append-only immutable logs
     }
 
