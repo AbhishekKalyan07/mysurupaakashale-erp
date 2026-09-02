@@ -283,6 +283,12 @@ export function OrderCard({
                 {customerName}
               </div>
 
+              {order.displayId && (
+                <div className="font-mono text-xs text-text-muted mt-0.5 opacity-70">
+                  {order.displayId}
+                </div>
+              )}
+
               {variant === 'delivery' && customer?.phone && (
                 <div className="text-text-muted text-xs font-medium mt-0.5 flex items-center gap-1">
                   <Phone size={10} /> {customer.phone}
