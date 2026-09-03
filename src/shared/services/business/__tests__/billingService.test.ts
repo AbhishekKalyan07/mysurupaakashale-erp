@@ -4,6 +4,8 @@ import { orderRepository } from '@/shared/services/firestore/orderRepository';
 
 
 vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+
   db: {},
 }));
 

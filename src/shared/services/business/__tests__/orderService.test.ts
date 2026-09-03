@@ -40,6 +40,8 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 
 // Mock DB
 vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+
   db: {},
   auth: { currentUser: { uid: 'system' } }
 }));

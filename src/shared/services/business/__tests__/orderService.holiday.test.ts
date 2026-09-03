@@ -19,6 +19,8 @@ vi.mock('../../firestore/holidayRepository', () => ({
 }));
 
 vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+
   auth: { currentUser: { uid: 'test-admin-uid' } },
   db: {},
 }));

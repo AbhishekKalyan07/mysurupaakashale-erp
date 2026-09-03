@@ -62,6 +62,8 @@ vi.mock('firebase/storage', () => ({
 }));
 
 vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+
   db: {},
   auth: { currentUser: { uid: 'admin_sys' } }
 }));
