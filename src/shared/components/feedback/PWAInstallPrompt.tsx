@@ -5,7 +5,7 @@ import { PremiumButton } from '@/shared/components/ui/PremiumButton';
 // Global variable to catch the install prompt event
 let deferredPrompt: any = null;
 
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt' as any, (e: any) => {
   // Prevent Chrome 67 and earlier from automatically showing the prompt
   e.preventDefault();
   // Stash the event so it can be triggered later.
@@ -112,7 +112,7 @@ export function PWAInstallPrompt() {
                   Tap the <span className="inline-block px-1 bg-white rounded border shadow-sm">Share</span> icon at the bottom of Safari, then tap <strong>Add to Home Screen</strong>.
                 </div>
               ) : (
-                <PremiumButton onClick={handleInstallClick} className="w-full font-bold">
+                <PremiumButton onClick={() => void handleInstallClick()} className="w-full font-bold">
                   <Download className="w-4 h-4 mr-2" />
                   Install App
                 </PremiumButton>
