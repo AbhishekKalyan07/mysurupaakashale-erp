@@ -9,6 +9,12 @@ import { kitchenRepository } from '../../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
 import * as notificationService from '../../firestore/notificationService';
 
+vi.mock('../../firestore/holidayRepository', () => ({
+  holidayRepository: {
+    isHoliday: vi.fn().mockResolvedValue(false),
+  },
+}));
+
 // Mock Firebase
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();

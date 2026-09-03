@@ -14,6 +14,7 @@ import {
   UserCheck,
   X,
   Receipt,
+  CalendarX,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/cn';
 import type { Role } from '@/shared/constants/roles';
@@ -71,6 +72,7 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: 'Customers',   to: '/admin/customers',     icon: Users },
     { label: 'Subscriptions', to: '/admin/subscriptions', icon: ClipboardList },
     { label: 'Staff',       to: '/admin/staff',         icon: UserCheck },
+    { label: 'Holidays',    to: '/admin/holidays',      icon: CalendarX },
     { label: 'Accounts',    to: '/admin/accounts',      icon: CreditCard },
     { label: 'Analytics',   to: '/admin/analytics',     icon: BarChart3 },
     { label: 'Complaints',  to: '/admin/complaints',    icon: Receipt },
