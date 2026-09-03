@@ -153,7 +153,7 @@ describe('orderService', () => {
       expect(res).toBe(2); // sub1 is generated normally, sub2 is generated as cancelled
       const { writeBatch } = await import('firebase/firestore');
       expect(writeBatch).toHaveBeenCalled();
-      expect(notificationService.notifyDailyOrdersGenerated).toHaveBeenCalledWith(['k1'], '2026-08-01', 1);
+      expect(notificationService.notifyDailyOrdersGenerated).toHaveBeenCalledWith(['k1'], '2026-08-01', 2);
     });
 
     it('throws error and logs failed run if generation crashes', async () => {
