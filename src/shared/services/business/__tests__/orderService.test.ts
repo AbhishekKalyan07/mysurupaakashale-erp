@@ -6,6 +6,8 @@ import { mealPlanRepository } from '../../firestore/mealPlanRepository';
 import { kitchenRepository } from '../../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
 import * as notificationService from '../../firestore/notificationService';
+import { orderGenerationRunRepository } from '../../firestore/analyticsRepository';
+import { subscriptionRepository } from '../../firestore/subscriptionRepository';
 
 vi.mock('../../firestore/holidayRepository', () => ({
   holidayRepository: {
