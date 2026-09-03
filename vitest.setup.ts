@@ -110,5 +110,5 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/functions', () => ({
   getFunctions: vi.fn(() => ({})),
   connectFunctionsEmulator: vi.fn(),
-  httpsCallable: vi.fn(() => vi.fn())
+  httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} })))
 }));

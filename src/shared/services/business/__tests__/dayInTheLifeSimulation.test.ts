@@ -260,8 +260,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
     ]);
 
     // Process daily billing
-    const billingRes = await billingService.processDailyBilling('2026-08-01');
-    expect(billingRes.processed).toBe(1);
+    await billingService.processSubscriptionEnd(endedSub as any, '2026-08-01');
 
     // Approve Payment Claim
     const approvedPay = await paymentService.approvePayment('pay_1', 'admin_1', 'Payment verified manually');

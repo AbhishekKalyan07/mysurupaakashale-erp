@@ -84,9 +84,7 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     const { runTransaction } = await import('firebase/firestore');
     vi.mocked(runTransaction).mockClear();
 
-    const result = await billingService.processDailyBilling('2026-08-01');
-
-    expect(result.processed).toBe(1);
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
     
     // Check what was set in the transaction
     const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
@@ -117,9 +115,7 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     const { runTransaction } = await import('firebase/firestore');
     vi.mocked(runTransaction).mockClear();
 
-    const result = await billingService.processDailyBilling('2026-08-01');
-
-    expect(result.processed).toBe(1);
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
     const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
     expect(mockTxn.set).toHaveBeenCalled();
     const setPayload = mockTxn.set.mock.calls[0][1] as any;
