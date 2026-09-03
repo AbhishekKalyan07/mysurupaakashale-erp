@@ -11,6 +11,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
 // Note: Messaging, Analytics, Performance, and RemoteConfig are dynamically
 // imported in their respective helper functions below to significantly reduce
 // the initial Javascript bundle size and improve Total Blocking Time (TBT).
@@ -198,6 +199,7 @@ if (useEmulators) {
 }
 
 export const storage: FirebaseStorage = getStorage(firebaseApp);
+export const functions: Functions = getFunctions(firebaseApp, 'asia-south1');
 
 
 let messagingInstance: any = null;
@@ -283,6 +285,6 @@ if (useEmulators) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
   connectStorageEmulator(storage, '127.0.0.1', 9199);
-  // functions emulator removed for Spark plan
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
   console.info('[firebase] Connected to local Emulator Suite.');
 }

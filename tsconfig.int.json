@@ -34,6 +34,7 @@
     "tests/**/*.ts",
     "vite.config.ts",
     "vitest.int.config.ts",
-    "vitest.int.setup.ts"
+    "vitest.int.setup.ts",
+    "functions/src/**/*.ts"
   ]
 }
