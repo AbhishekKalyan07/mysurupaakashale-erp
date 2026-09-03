@@ -61,9 +61,11 @@ describe('orderService', () => {
       expect(res).toBe(0);
     });
 
-    it('returns early if date is a Sunday', async () => {
+    it('returns early if date is a holiday', async () => {
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue(null);
-      const res = await orderService.generateBreakfastOrders('2026-08-02'); // Aug 2, 2026 is Sunday
+      const { holidayRepository } = await import('../../firestore/holidayRepository');
+      vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(true);
+      const res = await orderService.generateBreakfastOrders('2026-08-02');
       expect(res).toBe(0);
     });
 
@@ -92,9 +94,14 @@ describe('orderService', () => {
 
     it('generates orders handling routing logic, skips skipped meals, logs failure', async () => {
       const mockGetDoc = await import('firebase/firestore').then(m => m.getDoc as import('vitest').Mock);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        data: () => ({ mealTypes: ['dinner'] })
+      mockGetDoc.mockImplementation(async (ref: any) => {
+        if (ref.id === 'sub2') {
+          return {
+            exists: () => true,
+            data: () => ({ mealTypes: ['breakfast'] })
+          };
+        }
+        return { exists: () => false };
       });
 
       vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue(null);
@@ -107,10 +114,20 @@ describe('orderService', () => {
           customerId: 'c1', 
           startDate: '2026-01-01', 
           endDate: null, 
-          mealPreferences: [{ mealType: 'lunch', selectedOptionId: 'opt1' }, { mealType: 'dinner' }],
+          mealPreferences: [{ mealType: 'breakfast', selectedOptionId: 'opt1' }],
           planId: 'plan1',
           pricePerDaySnapshot: 100,
           quantity: 2
+        } as any,
+        { 
+          id: 'sub2', 
+          customerId: 'c1', 
+          startDate: '2026-01-01', 
+          endDate: null, 
+          mealPreferences: [{ mealType: 'breakfast', selectedOptionId: 'opt1' }],
+          planId: 'plan1',
+          pricePerDaySnapshot: 100,
+          quantity: 1
         } as any
       ];
 
@@ -133,7 +150,7 @@ describe('orderService', () => {
 
       const res = await orderService.generateBreakfastOrders('2026-08-01');
       
-      expect(res).toBe(2); // Lunch is generated normally, Dinner is generated as cancelled
+      expect(res).toBe(2); // sub1 is generated normally, sub2 is generated as cancelled
       const { writeBatch } = await import('firebase/firestore');
       expect(writeBatch).toHaveBeenCalled();
       expect(notificationService.notifyDailyOrdersGenerated).toHaveBeenCalledWith(['k1'], '2026-08-01', 1);
