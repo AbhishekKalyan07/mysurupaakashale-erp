@@ -1,8 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { orderService } from '../orderService';
 import { orderRepository } from '../../firestore/orderRepository';
-import { subscriptionRepository } from '../../firestore/subscriptionRepository';
-import { orderGenerationRunRepository } from '../../firestore/analyticsRepository';
 import { userRepository } from '../../firestore/userRepository';
 import { mealPlanRepository } from '../../firestore/mealPlanRepository';
 import { kitchenRepository } from '../../firestore/kitchenRepository';
