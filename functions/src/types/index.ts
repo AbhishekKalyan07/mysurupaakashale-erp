@@ -34,17 +34,6 @@ export type {
 
 export type { InvoiceStatus, InvoiceLineItem, Invoice } from './billing.types';
 
-export type {
-  NotificationChannel,
-  NotificationPriority,
-  NotificationInAppStatus,
-  NotificationDeliveryStatus,
-  NotificationStatus,
-  NotificationType,
-  Notification,
-  CreateNotificationPayload,
-} from '../../features/notifications/types/notification.types';
-
 export type { AuditLog } from './audit.types';
 
 export type { BusinessSettings } from './settings.types';

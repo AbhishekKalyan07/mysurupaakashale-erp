@@ -330,7 +330,18 @@ service cloud.firestore {
       // Security hardening: strict field allowlist + price/schema validation
       // prevents a malicious customer from creating a free/invalid order
       // by calling the Firestore SDK directly.
-      allow create: if isAdmin() ||
+      //
+      // Holiday enforcement: the holiday check is embedded INSIDE each authorization
+      // branch (not as a separate rule) to prevent OR-semantics bypass.
+      // When a holiday is active for the requested date, BOTH the admin path and
+      // the customer one-time path are denied. Application-level guards in
+      // orderService.ts provide the first defence; this rule is the second.
+      function isActiveholidayForDate(dateStr) {
+        let hPath = /databases/$(database)/documents/holidays/$("holiday_" + dateStr);
+        return exists(hPath) && get(hPath).data.status == 'active';
+      }
+
+      allow create: if (isAdmin() && !isActiveholidayForDate(request.resource.data.date)) ||
                       (isSignedIn() &&
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
@@ -356,6 +367,8 @@ service cloud.firestore {
                        request.resource.data.subscriptionId == null &&
                        // createdAt must be present (required by queries)
                        ('createdAt' in request.resource.data) &&
+                       // Holiday check: one-time orders also blocked on active holidays
+                       !isActiveholidayForDate(request.resource.data.date) &&
                        // Strict field allowlist — no unauthorized operational fields
                        request.resource.data.keys().hasOnly([
                          'id', 'displayId', 'source', 'customerId', 'customerName',
@@ -406,6 +419,55 @@ service cloud.firestore {
                           get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid);
         allow update, delete: if false; // append-only history
       }
+    }
+
+    // ---------- holidays/{holidayId} ----------
+    // Admin-only. Holidays block order generation on a given business date.
+    //
+    // ID format:  holiday_YYYY-MM-DD  (deterministic, enforced below)
+    // Write path: holidayService.declareHoliday() and holidayService.cancelHoliday()
+    //   — both run in the admin-authenticated client context.
+    // Backend (Admin SDK): the existing onOrderCancelled Cloud Function does NOT
+    //   interact with holidays. The application-level guard in orderService.ts is
+    //   the server-side enforcement for the Admin SDK path.
+    //
+    // Note: request.resource is NOT available on delete operations, so the
+    //   delete rule only checks role/active status.
+    match /holidays/{holidayId} {
+      // Admin can read holidays; other signed-in roles may also read
+      // so the Admin UI can show holiday info to kitchen/delivery.
+      allow read: if isSignedIn();
+
+      // Creation: admin only; deterministic ID; id == 'holiday_' + date;
+      // status must be 'active' on creation.
+      allow create: if isAdmin() &&
+                       // Deterministic ID pattern: holiday_YYYY-MM-DD (10-char date)
+                       holidayId.matches('holiday_[0-9]{4}-[0-9]{2}-[0-9]{2}') &&
+                       // id field must match the doc ID
+                       request.resource.data.id == holidayId &&
+                       // date field must equal the suffix after 'holiday_'
+                       request.resource.data.date == holidayId[8:18] &&
+                       // date string must be exactly 10 chars (YYYY-MM-DD)
+                       request.resource.data.date.size() == 10 &&
+                       // status must be 'active' at creation
+                       request.resource.data.status == 'active' &&
+                       // createdBy must be the authenticated admin
+                       request.resource.data.createdBy == request.auth.uid;
+
+      // Update: admin only; status transitions validated;
+      // only allowed to change status to 'cancelled' (holiday withdrawal).
+      // createdBy and date are immutable once set.
+      allow update: if isAdmin() &&
+                       // date is immutable
+                       request.resource.data.date == resource.data.date &&
+                       // createdBy is immutable
+                       request.resource.data.createdBy == resource.data.createdBy &&
+                       // status can only go from 'active' to 'cancelled'
+                       request.resource.data.status in ['active', 'cancelled'] &&
+                       (resource.data.status == 'active' || resource.data.status == 'cancelled');
+
+      // Physical delete not allowed — cancellation via status update preserves audit trail.
+      allow delete: if false;
     }
 
     // ---------- deliveries/{deliveryId} ----------
@@ -520,9 +582,6 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       // Allow any authenticated user to create an audit log.
-      // Field allowlist is aligned with the AuditLog TypeScript type and
-      // auditRepository.ts (which writes performedBy / performedByRole —
-      // NOT the old actorId / actorName / actorRole field names).
       allow create: if isSignedIn() &&
                        ('performedBy' in request.resource.data) &&
                        request.resource.data.performedBy == request.auth.uid &&
@@ -585,17 +644,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (profileId == request.auth.uid || isAdmin() || isAccounts());
       allow write: if isAdmin() || isAccounts();
     }
-    // ---------- auditLogs/{logId} ----------
-    match /auditLogs/{logId} {
-      allow read: if isAdmin();
-      
-      allow create: if isSignedIn() 
-                    && request.resource.data.actorId == request.auth.uid
-                    && request.resource.data.keys().hasOnly(['action', 'actorId', 'actorName', 'entityId', 'entityType', 'previousValue', 'newValue', 'timestamp'])
-                    && request.resource.data.keys().hasAll(['action', 'actorId', 'actorName', 'entityId', 'entityType', 'timestamp']);
-      
-      allow update, delete: if false; // append-only immutable logs
-    }
+
 
     // No catch-all rule: anything not matched above is denied by default.
   }

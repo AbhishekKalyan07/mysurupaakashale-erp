@@ -11,31 +11,17 @@ class BillingService {
    * Runs daily to catch subscriptions whose cycle has ended.
    */
   async processDailyBilling(today: string): Promise<{ processed: number; errors: number }> {
-    let processed = 0;
-    let errors = 0;
-
     try {
-      // 1. Fetch active and paused subscriptions
-      const subscriptions = await subscriptionRepository.list();
-      const activeOrPaused = subscriptions.filter(sub => sub.status === 'active' || sub.status === 'paused');
-
-      for (const sub of activeOrPaused) {
-        if (!sub.endDate || sub.endDate >= today) continue;
-
-        // The subscription cycle ended yesterday or earlier
-        try {
-          await this.processSubscriptionEnd(sub, today);
-          processed++;
-        } catch (err) {
-          console.error(`[BillingService] Error processing subscription ${sub.id}:`, err);
-          errors++;
-        }
-      }
-    } catch (err) {
-      console.error('[BillingService] Failed to list subscriptions for billing:', err);
+      const { functions } = await import('@/shared/lib/firebase');
+      const { httpsCallable } = await import('firebase/functions');
+      const callable = httpsCallable<{date: string}, {processed: number, errors: number}>(functions, 'manualProcessDailyBilling');
+      
+      const result = await callable({ date: today });
+      return result.data;
+    } catch (err: any) {
+      console.error('[BillingService] RPC failed:', err);
+      return { processed: 0, errors: 1 };
     }
-
-    return { processed, errors };
   }
 
   async processSubscriptionEnd(subscription: Subscription, today: string, reason: 'expired' | 'cancelled' = 'expired'): Promise<void> {

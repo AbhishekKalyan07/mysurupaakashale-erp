@@ -24,6 +24,7 @@ const AdminKitchenPage = lazy(() => import('@/features/admin/pages/AdminKitchenP
 const AdminAccountsPage = lazy(() => import('@/features/admin/pages/AdminAccountsPage').then(m => ({ default: m.AdminAccountsPage })));
 const AdminComplaintsPage = lazy(() => import('@/features/admin/pages/AdminComplaintsPage').then(m => ({ default: m.AdminComplaintsPage })));
 const AdminZonesPage = lazy(() => import('@/features/admin/pages/AdminZonesPage').then(m => ({ default: m.AdminZonesPage })));
+const AdminHolidayPage = lazy(() => import('@/features/admin/pages/AdminHolidayPage').then(m => ({ default: m.AdminHolidayPage })));
 const NotificationCenter = lazy(() => import('@/features/notifications/pages/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 const NotificationHistoryPage = lazy(() => import('@/features/notifications/pages/NotificationHistoryPage').then(m => ({ default: m.NotificationHistoryPage })));
 const BusinessAnalyticsPage = lazy(() => import('@/features/analytics/pages/BusinessAnalyticsPage').then(m => ({ default: m.BusinessAnalyticsPage })));
@@ -117,6 +118,7 @@ const router = createBrowserRouter([
           { path: '/admin/notifications', element: withSuspense(NotificationCenter) },
           { path: '/admin/notifications/history', element: withSuspense(NotificationHistoryPage) },
           { path: '/admin/attendance', element: withSuspense(AttendanceDashboardPage) },
+          { path: '/admin/holidays', element: withSuspense(AdminHolidayPage) },
         ],
       },
     ],

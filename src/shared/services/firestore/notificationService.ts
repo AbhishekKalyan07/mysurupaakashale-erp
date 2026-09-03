@@ -505,3 +505,25 @@ export async function notifyStaffAccountCreated(
     { priority: 'high' },
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Holiday notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sends a `holiday_declared` notification to every active user in the system.
+ *
+ * Guarantees:
+ *   - Deterministic per-user doc ID: `holiday_notify_${date}_${userId}`
+ *     prevents duplicate notifications on retry.
+ *   - Already-read notifications are NOT reset to `unread`.
+ *     Implemented via a Firestore transaction per user that preserves the
+ *     existing `inAppStatus` when the document already exists.
+ *   - Chunked into batches of ≤ HOLIDAY_NOTIF_BATCH_SIZE (400) to stay
+ *     within the Firestore 500-write-per-batch limit and match the
+ *     project's existing BATCH_SIZE constant.
+ *   - Notification failure is fire-and-forget; the caller must `.catch()`.
+ *
+ * Roles notified: admin, kitchen, customer, delivery_partner
+ */
+

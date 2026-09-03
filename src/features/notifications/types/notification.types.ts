@@ -62,7 +62,10 @@ export type NotificationType =
   // System
   | 'system_alert'
   | 'system_error'
-  | 'backup_completed';
+  | 'backup_completed'
+  // Holiday
+  | 'holiday_declared';
+
 
 /**
  * Firestore: `notifications/{notificationId}`.

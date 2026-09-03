@@ -26,29 +26,47 @@ const mocks = vi.hoisted(() => {
     mockOrderRepository: { getCustomerOrdersInRange: vi.fn() },
     mockSubscriptionRepository: { list: vi.fn() },
     mockPaymentRepository: { getByCustomerId: vi.fn() },
+    mockTransactionRepository: { runTransaction: vi.fn() },
+    mockCustomerRepository: { getById: vi.fn() },
+    mockInvoiceRepository: { create: vi.fn() },
   };
 });
 
-vi.mock('firebase/firestore', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    runTransaction: mocks.mockRunTransaction,
-    writeBatch: mocks.mockWriteBatch,
-    getDocs: mocks.mockGetDocs,
-    query: mocks.mockQuery,
-    where: mocks.mockWhere,
-    collection: mocks.mockCollection,
-    doc: mocks.mockDoc,
-    serverTimestamp: mocks.mockServerTimestamp,
-  };
-});
-vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
-vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
-vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
-vi.mock('@/shared/services/firestore/paymentRepository', () => ({ paymentRepository: mocks.mockPaymentRepository }));
+vi.mock('firebase-admin/app', () => ({
+  getApps: vi.fn().mockReturnValue(['app']),
+  initializeApp: vi.fn(),
+}));
 
-import { billingService } from '@/shared/services/business/billingService';
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: vi.fn(() => ({
+    collection: vi.fn(() => ({
+      doc: vi.fn(() => ({
+        get: vi.fn(),
+        set: vi.fn(),
+        update: vi.fn(),
+      })),
+      where: vi.fn(() => ({
+        get: vi.fn().mockResolvedValue({ docs: [] })
+      })),
+      get: vi.fn().mockResolvedValue({ docs: [] })
+    })),
+    runTransaction: mocks.mockRunTransaction
+  })),
+  FieldValue: {
+    serverTimestamp: mocks.mockServerTimestamp
+  }
+}));
+
+vi.mock('../../functions/src/repositories', () => ({
+  subscriptionRepository: mocks.mockSubscriptionRepository,
+  transactionRepository: mocks.mockTransactionRepository,
+  customerRepository: mocks.mockCustomerRepository,
+  invoiceRepository: mocks.mockInvoiceRepository,
+  orderRepository: mocks.mockOrderRepository,
+  paymentRepository: mocks.mockPaymentRepository,
+}));
+
+import { billingService } from '../../functions/src/billing';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -79,8 +97,8 @@ describe('Billing Settlement', () => {
 
   it('Scenario A: Normal subscription (Usage and Deposit remain separate)', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => false }), set: vi.fn(), update: vi.fn() };
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
 
@@ -109,8 +127,8 @@ describe('Billing Settlement', () => {
 
   it('Scenario B: Deposit only (Usage balance full, deposit held)', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => false }), set: vi.fn(), update: vi.fn() };
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
 
@@ -132,8 +150,8 @@ describe('Billing Settlement', () => {
 
   it('Scenario C: Early cancellation (effectiveEndDate overrides original)', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => false }), set: vi.fn(), update: vi.fn() };
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
 
@@ -156,8 +174,8 @@ describe('Billing Settlement', () => {
 
   it('Scenario D: Natural expiry', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => false }), set: vi.fn(), update: vi.fn() };
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
     mocks.mockOrderRepository.getCustomerOrdersInRange.mockResolvedValue([]);
@@ -172,9 +190,9 @@ describe('Billing Settlement', () => {
 
   it('Scenario E/F: Concurrent settlement is blocked (idempotency)', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
       // Mock that an invoice already exists for this cycle inside the txn
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => true }), set: vi.fn(), update: vi.fn() };
+      txnMock = { get: vi.fn().mockResolvedValue({ id: 'some-id' }), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
 
@@ -186,8 +204,8 @@ describe('Billing Settlement', () => {
 
   it('Scenario H: Overpayment results in negative balance', async () => {
     let txnMock: any;
-    mocks.mockRunTransaction.mockImplementationOnce(async (db, callback) => {
-      txnMock = { get: vi.fn().mockResolvedValue({ exists: () => false }), set: vi.fn(), update: vi.fn() };
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
       return callback(txnMock);
     });
 

@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   return {
-    mockGetDoc: vi.fn(),
+    mockGetDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
     mockWriteBatch: vi.fn(),
     mockDoc: vi.fn((...segments: unknown[]) => ({ segments })),
     mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
@@ -38,36 +38,46 @@ const {
   mockNotifyOrderGeneratedDriver
 } = mocks;
 
-vi.mock('firebase/firestore', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('firebase/firestore')>();
-  return {
-    ...actual,
-    doc: mocks.mockDoc,
-    getDoc: mocks.mockGetDoc,
-    writeBatch: mocks.mockWriteBatch,
-    serverTimestamp: mocks.mockServerTimestamp,
-    where: mocks.mockWhere,
-    collection: vi.fn(() => ({ withConverter: vi.fn() })),
-    getDocs: vi.fn().mockResolvedValue({ docs: [] }),
-    query: vi.fn(),
-    addDoc: vi.fn(),
-  };
-});
-vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
-vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
-vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
-vi.mock('@/shared/services/firestore/analyticsRepository', () => ({ orderGenerationRunRepository: mocks.mockOrderGenerationRunRepository }));
-vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mocks.mockUserRepository }));
-vi.mock('@/shared/services/firestore/deliveryZoneRepository', () => ({ deliveryZoneRepository: mocks.mockDeliveryZoneRepository }));
-vi.mock('@/shared/services/firestore/mealPlanRepository', () => ({ mealPlanRepository: mocks.mockMealPlanRepository }));
-vi.mock('@/shared/services/firestore/notificationService', () => ({ 
-  notifyDailyOrdersGenerated: mocks.mockNotifyDailyOrdersGenerated,
-  notifyAdminAlert: mocks.mockNotifyAdminAlert,
-  notifyOrderGeneratedCustomer: mocks.mockNotifyOrderGeneratedCustomer,
-  notifyOrderGeneratedDriver: mocks.mockNotifyOrderGeneratedDriver
+vi.mock('../../functions/src/compat', () => ({
+  doc: mocks.mockDoc,
+  getDoc: mocks.mockGetDoc,
+  writeBatch: mocks.mockWriteBatch,
+  serverTimestamp: mocks.mockServerTimestamp,
+  where: mocks.mockWhere,
+  collection: vi.fn(() => ({ withConverter: vi.fn() })),
+  db: { name: 'test-db' }
 }));
 
-import { orderService } from '@/shared/services/business/orderService';
+vi.mock('../../functions/src/repositories', () => ({
+  orderRepository: mocks.mockOrderRepository,
+  subscriptionRepository: mocks.mockSubscriptionRepository,
+  orderGenerationRunRepository: mocks.mockOrderGenerationRunRepository,
+  userRepository: {
+    ...mocks.mockUserRepository,
+    listAdmins: vi.fn().mockResolvedValue([{ id: 'admin1', email: 'admin@example.com' }])
+  },
+  holidayRepository: { isHoliday: vi.fn().mockResolvedValue(false) },
+  deliveryZoneRepository: mocks.mockDeliveryZoneRepository,
+  mealPlanRepository: mocks.mockMealPlanRepository,
+  kitchenRepository: { 
+    getById: vi.fn().mockResolvedValue({ id: 'kitchen-1', name: 'Main Kitchen', isDefault: true }),
+    list: vi.fn().mockResolvedValue([{ id: 'kitchen-1', name: 'Main Kitchen', isDefault: true }])
+  },
+  failureQueueRepository: {
+    logFailure: vi.fn().mockResolvedValue(undefined)
+  },
+  auditRepository: {
+    logAction: vi.fn().mockResolvedValue(undefined)
+  },
+  notificationService: { 
+    notifyDailyOrdersGenerated: mocks.mockNotifyDailyOrdersGenerated,
+    notifyAdminAlert: mocks.mockNotifyAdminAlert,
+    notifyOrderGeneratedCustomer: mocks.mockNotifyOrderGeneratedCustomer,
+    notifyOrderGeneratedDriver: mocks.mockNotifyOrderGeneratedDriver
+  }
+}));
+
+import { orderService } from '../../functions/src/orders';
 
 beforeEach(() => {
   vi.clearAllMocks();
