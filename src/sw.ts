@@ -51,6 +51,15 @@ registerRoute(
         maxEntries: 100,
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
       }),
+      {
+        cacheWillUpdate: async ({ response }) => {
+          // Do not cache SPA fallback (HTML) for static asset requests
+          if (response && response.headers.get("content-type")?.includes("text/html")) {
+            return null;
+          }
+          return response;
+        },
+      },
     ],
   }),
 );

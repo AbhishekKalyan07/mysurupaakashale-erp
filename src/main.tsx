@@ -11,27 +11,17 @@ import { toast } from "react-hot-toast";
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
   if (!navigator.onLine) {
-    toast.error("You are offline and this section is not cached yet.", {
-      duration: 5000,
-    });
+    alert("You are offline and this section is not cached yet.");
   } else {
-    toast(
-      () => (
-        <div className="flex flex-col gap-2">
-          <p className="font-medium text-sm">
-            A required app component was updated. Please save your work and
-            refresh.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-[#3A4D23] text-white px-3 py-1 rounded-md text-sm font-medium self-end"
-          >
-            Reload Now
-          </button>
-        </div>
-      ),
-      { duration: Infinity, id: "preload-error" },
-    );
+    if (confirm("A required app component was updated. Please click OK to refresh.")) {
+      // Unregister service workers to break out of stale cache loop, then reload
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+        window.location.reload();
+      });
+    }
   }
 });
 

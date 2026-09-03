@@ -106,3 +106,9 @@ vi.mock('firebase/firestore', () => ({
   },
   onSnapshot: vi.fn(),
 }));
+
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({})),
+  connectFunctionsEmulator: vi.fn(),
+  httpsCallable: vi.fn(() => vi.fn())
+}));
