@@ -16,6 +16,8 @@ export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
   useEffect(() => {
     // Check if app is already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
@@ -46,7 +48,6 @@ export function PWAInstallPrompt() {
     }
 
     // Logic to show prompt:
-    // If we have deferredPrompt (Android/Desktop), or it's iOS (which doesn't have deferredPrompt)
     const timer = setTimeout(() => {
       setShowPrompt(true);
     }, 3000);
@@ -63,8 +64,8 @@ export function PWAInstallPrompt() {
       }
       deferredPrompt = null;
     } else if (isIOS) {
-      // iOS doesn't support programmatic install, just show the instructions
-      alert('To install on iOS: tap the Share button at the bottom of Safari, then tap "Add to Home Screen".');
+      // iOS doesn't support programmatic install, reveal instructions
+      setShowIOSInstructions(true);
     }
   };
 
@@ -105,8 +106,8 @@ export function PWAInstallPrompt() {
             </p>
 
             <div className="mt-4">
-              {isIOS ? (
-                <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary">
+              {isIOS && showIOSInstructions ? (
+                <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary animate-in fade-in slide-in-from-top-2">
                   <span className="block font-bold mb-1">iOS Install Instructions:</span>
                   Tap the <span className="inline-block px-1 bg-white rounded border shadow-sm">Share</span> icon at the bottom of Safari, then tap <strong>Add to Home Screen</strong>.
                 </div>
