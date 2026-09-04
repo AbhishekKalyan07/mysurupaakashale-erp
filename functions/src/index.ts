@@ -5,7 +5,7 @@ import * as logger from 'firebase-functions/logger';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
-initializeApp({ projectId: 'mysuru-paakashale-erp' });
+initializeApp();
 
 import { orderService, getTodayInTimezone } from './orders';
 import { billingService } from './billing';

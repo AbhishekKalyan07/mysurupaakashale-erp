@@ -5,7 +5,12 @@ import { doc, setDoc } from 'firebase/firestore';
 // Mock Firebase
 vi.mock('firebase/firestore', () => {
   return {
-    getFirestore: vi.fn(),
+    initializeFirestore: vi.fn(() => ({})),
+    getFirestore: vi.fn(() => ({})),
+    memoryLocalCache: vi.fn(() => ({})),
+    persistentLocalCache: vi.fn(),
+    persistentSingleTabManager: vi.fn(() => ({})),
+    persistentMultipleTabManager: vi.fn(),
     collection: vi.fn(() => ({ withConverter: vi.fn(() => 'failureQueue_collection_ref') })),
     doc: vi.fn(() => ({ id: 'test_failure_id' })),
     getDoc: vi.fn(),

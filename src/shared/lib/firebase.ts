@@ -174,7 +174,7 @@ if (typeof globalThis.window !== 'undefined') {
 import { persistentSingleTabManager } from 'firebase/firestore';
 
 export const db: Firestore = initializeFirestore(firebaseApp,
-  (useEmulators || typeof globalThis.window === 'undefined')
+  (useEmulators || import.meta.env.MODE === 'test' || typeof globalThis.window === 'undefined')
     ? {
         // In emulator/E2E/Node mode:
         // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).

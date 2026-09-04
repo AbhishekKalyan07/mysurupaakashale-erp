@@ -51,6 +51,7 @@ vi.mock('firebase/firestore', () => ({
   initializeFirestore: vi.fn(() => ({})),
   memoryLocalCache: vi.fn(() => ({})),
   persistentLocalCache: vi.fn(),
+  persistentSingleTabManager: vi.fn(() => ({})),
   persistentMultipleTabManager: vi.fn(),
   collection: vi.fn(() => ({
     withConverter: vi.fn((converter) => ({ converter, type: 'collection' })),

@@ -8,6 +8,12 @@ vi.mock('@/shared/lib/firebase', () => ({
 
 vi.mock('firebase/firestore', () => {
   return {
+    initializeFirestore: vi.fn(() => ({})),
+    getFirestore: vi.fn(() => ({})),
+    memoryLocalCache: vi.fn(() => ({})),
+    persistentLocalCache: vi.fn(),
+    persistentSingleTabManager: vi.fn(() => ({})),
+    persistentMultipleTabManager: vi.fn(),
     collection: vi.fn(() => ({ withConverter: vi.fn(() => 'colRef') })),
     doc: vi.fn(),
     getDoc: vi.fn(),
