@@ -232,16 +232,16 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
 
   it('SIMULATION STEP 2: Full Day Order Generation (Breakfast, Lunch, Dinner for 25 customers)', async () => {
     // Setup repository list mocks for BACKEND order generation
-    vi.spyOn(backendRepos.subscriptionRepository, 'list').mockResolvedValue(mockSubscriptions);
-    vi.spyOn(backendRepos.orderRepository, 'getCustomerOrdersInRange').mockResolvedValue([]);
-    vi.spyOn(backendRepos.orderRepository, 'list').mockResolvedValue([]);
-    vi.spyOn(backendRepos.userRepository, 'list').mockImplementation(async (arg?: any) => {
+    vi.spyOn(subscriptionRepository, 'list').mockResolvedValue(mockSubscriptions);
+    vi.spyOn(orderRepository, 'getCustomerOrdersInRange').mockResolvedValue([]);
+    vi.spyOn(orderRepository, 'list').mockResolvedValue([]);
+    vi.spyOn(userRepository, 'list').mockImplementation(async (arg?: any) => {
       if (arg?.value === 'customer') return mockCustomers as any;
       if (arg?.value === 'delivery_partner') return mockDrivers as any;
       if (arg?.value === 'kitchen') return [{ id: 'kitch_1', role: 'kitchen', isActive: true }] as any;
       return [] as any;
     });
-    vi.spyOn(backendRepos.deliveryZoneRepository, 'list').mockResolvedValue(mockZones as any);
+    vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue(mockZones as any);
 
     // Generate Breakfast
     const bCount = await orderService.generateBreakfastOrders(TEST_DATE);
@@ -340,7 +340,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   });
 
   it('SIMULATION STEP 6: Failure Queue & Audit Logging on Errors', async () => {
-    const logFailureSpy = vi.spyOn(failureQueueRepository, 'logFailure').mockResolvedValue('fail_123');
+    const logFailureSpy = vi.spyOn(failureQueueRepository, 'logFailure').mockResolvedValue(undefined);
     const logAuditSpy = vi.spyOn(auditRepository, 'logAction').mockResolvedValue(undefined);
 
     // Trigger failure logging

@@ -191,7 +191,7 @@ export const db: Firestore = initializeFirestore(firebaseApp,
         // Use singleTabManager instead of multipleTabManager. 
         // iOS Safari/PWAs have a severe bug where multipleTabManager freezes for 10-20s
         // trying to acquire locks when the app is foregrounded after a day.
-        localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }),
+        localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
         ignoreUndefinedProperties: true,
       }
 );

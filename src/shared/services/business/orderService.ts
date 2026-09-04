@@ -1,9 +1,8 @@
 import { Timestamp } from 'firebase/firestore';
-import { getDoc, writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
+import { writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from '../firestore/orderRepository';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
-import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
 import { mealPlanRepository } from '../firestore/mealPlanRepository';
 import { kitchenRepository } from '../firestore/kitchenRepository';

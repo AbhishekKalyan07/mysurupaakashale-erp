@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { orderService } from '../orderService';
 import { orderRepository } from '../../firestore/orderRepository';
-import { userRepository } from '../../firestore/userRepository';
 import { kitchenRepository } from '../../firestore/kitchenRepository';
 
 vi.mock('../../firestore/holidayRepository', () => ({
