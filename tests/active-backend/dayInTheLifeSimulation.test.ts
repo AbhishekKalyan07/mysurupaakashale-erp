@@ -11,9 +11,54 @@ import { deliveryZoneRepository } from '../../functions/src/repositories';
 import { failureQueueRepository } from '../../functions/src/repositories';
 import { auditRepository } from '../../functions/src/repositories';
 import { holidayRepository } from '../../functions/src/repositories';
+import { kitchenRepository } from '../../functions/src/repositories';
+import { userRepository as clientUserRepository } from '../../src/shared/services/firestore/userRepository';
+import { orderRepository as clientOrderRepository } from '../../src/shared/services/firestore/orderRepository';
+import { paymentRepository as clientPaymentRepository } from '../../src/shared/services/firestore/paymentRepository';
+import { auditRepository as clientAuditRepository } from '../../src/shared/services/firestore/auditRepository';
+import { subscriptionRepository as clientSubscriptionRepository } from '../../src/shared/services/firestore/subscriptionRepository';
+import { orderService as clientOrderService } from '../../src/shared/services/business/orderService';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile } from '@/shared/types';
 
 // Mock Firebase & Storage
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({})),
+  doc: vi.fn((_db, path, id) => ({ path: id ? `${path}/${id}` : path, id })),
+  collection: vi.fn(() => ({ withConverter: vi.fn(() => 'collectionRef') })),
+  query: vi.fn((ref) => ref),
+  where: vi.fn((field, op, value) => ({ field, op, value })),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
+  startAfter: vi.fn(),
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+  getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
+  setDoc: vi.fn().mockResolvedValue(undefined),
+  updateDoc: vi.fn().mockResolvedValue(undefined),
+  addDoc: vi.fn().mockResolvedValue({ id: 'mock_doc_id' }),
+  runTransaction: vi.fn(async (_db, callback) => callback({
+    get: vi.fn().mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        id: 'pay_1',
+        subscriptionId: 'sub_1',
+        customerId: 'cust_1',
+        amount: 2500,
+        status: 'pending',
+        paymentMethod: 'upi',
+        referenceNumber: 'REF123',
+        paymentDate: '2026-08-01',
+        customerName: 'Test Customer'
+      })
+    }),
+    update: vi.fn(),
+    set: vi.fn()
+  })),
+  serverTimestamp: vi.fn(() => 'server-timestamp'),
+  Timestamp: {
+    now: vi.fn(() => ({ toMillis: () => Date.now() }))
+  }
+}));
+
 vi.mock('../../functions/src/compat', () => ({
   getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
@@ -75,6 +120,10 @@ vi.mock('../../functions/src/repositories', () => ({
     getById: vi.fn(),
     update: vi.fn()
   },
+  mealPlanRepository: {
+    list: vi.fn().mockResolvedValue([]),
+    getById: vi.fn()
+  },
   deliveryZoneRepository: {
     list: vi.fn()
   },
@@ -95,7 +144,46 @@ vi.mock('../../functions/src/repositories', () => ({
   kitchenRepository: {
     list: vi.fn(),
     getById: vi.fn()
+  },
+  paymentRepository: {
+    getByCustomerId: vi.fn().mockResolvedValue([])
+  },
+  transactionRepository: {
+    runTransaction: vi.fn(async (cb) => cb({ get: vi.fn(), set: vi.fn() }))
+  },
+  notificationService: {
+    notifyAdminAlert: vi.fn(),
+    notifyOrderGeneratedCustomer: vi.fn(),
+    notifyOrderGeneratedDriver: vi.fn(),
+    notifyDailyOrdersGenerated: vi.fn()
   }
+}));
+
+// Business services use the client-side repositories below, while the order
+// generator uses the backend repositories above. Keep both sides isolated and
+// deterministic in this unit-level simulation.
+vi.mock('../../src/shared/services/firestore/userRepository', () => ({
+  userRepository: { getById: vi.fn(), list: vi.fn(), update: vi.fn() }
+}));
+vi.mock('../../src/shared/services/firestore/orderRepository', () => ({
+  orderRepository: { getById: vi.fn(), list: vi.fn(), update: vi.fn(), getCustomerOrdersInRange: vi.fn() }
+}));
+vi.mock('../../src/shared/services/firestore/paymentRepository', () => ({
+  paymentRepository: { getByCustomerId: vi.fn(), getById: vi.fn() }
+}));
+vi.mock('../../src/shared/services/firestore/subscriptionRepository', () => ({
+  subscriptionRepository: { getById: vi.fn() }
+}));
+vi.mock('../../src/shared/services/firestore/auditRepository', () => ({
+  auditRepository: { logAction: vi.fn() }
+}));
+vi.mock('../../src/shared/services/firestore/notificationService', () => ({
+  notifyAdminAlert: vi.fn(),
+  notifyDailyOrdersGenerated: vi.fn(),
+  notifyDriverAssigned: vi.fn(),
+  notifyPaymentSubmitted: vi.fn(),
+  notifyPaymentVerified: vi.fn(),
+  notifyInvoiceGenerated: vi.fn()
 }));
 
 vi.mock('firebase/storage', () => ({
@@ -208,6 +296,15 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(false);
+    vi.spyOn(kitchenRepository, 'list').mockResolvedValue([]);
+    vi.spyOn(clientUserRepository, 'getById').mockResolvedValue(null);
+    vi.spyOn(clientUserRepository, 'update').mockResolvedValue(undefined);
+    vi.spyOn(clientOrderRepository, 'getById').mockResolvedValue(null);
+    vi.spyOn(clientOrderRepository, 'update').mockResolvedValue(undefined);
+    vi.spyOn(clientOrderRepository, 'getCustomerOrdersInRange').mockResolvedValue([]);
+    vi.spyOn(clientPaymentRepository, 'getByCustomerId').mockResolvedValue([]);
+    vi.spyOn(clientSubscriptionRepository, 'getById').mockResolvedValue(null);
+    vi.spyOn(clientAuditRepository, 'logAction').mockResolvedValue(undefined);
   });
 
   it('SIMULATION STEP 1: Cutoff Time Logic Verification', () => {
@@ -258,14 +355,14 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
 
   it('SIMULATION STEP 3: Zone & Driver Reassignment Synchronization', async () => {
     const custToReassign = mockCustomers[0];
-    vi.spyOn(userRepository, 'getById').mockImplementation(async (id) => {
+    vi.spyOn(clientUserRepository, 'getById').mockImplementation(async (id) => {
       if (id === custToReassign.id) return custToReassign as any;
       if (id === 'driver_3') return mockDrivers[2] as any;
       return null;
     });
 
-    const updateSpy = vi.spyOn(userRepository, 'update').mockResolvedValue(undefined);
-    const syncSpy = vi.spyOn(orderService, 'syncCustomerActiveOrders').mockResolvedValue();
+    const updateSpy = vi.spyOn(clientUserRepository, 'update').mockResolvedValue(undefined);
+    const syncSpy = vi.spyOn(clientOrderService, 'syncCustomerActiveOrders').mockResolvedValue();
 
     await customerService.assignDeliveryPartner(custToReassign.id, 'driver_3', 'admin_1', 'Admin');
 
@@ -302,8 +399,8 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
       updatedAt: '' as any
     };
 
-    vi.spyOn(orderRepository, 'getById').mockResolvedValue(mockOrder);
-    const orderUpdateSpy = vi.spyOn(orderRepository, 'update').mockResolvedValue(undefined);
+    vi.spyOn(clientOrderRepository, 'getById').mockResolvedValue(mockOrder);
+    const orderUpdateSpy = vi.spyOn(clientOrderRepository, 'update').mockResolvedValue(undefined);
 
     // Driver 1 picks up order
     await deliveryService.markPickedUp(mockOrder.id, 'driver_1');
@@ -327,9 +424,10 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   it('SIMULATION STEP 5: Billing Cycle End & Payment Approval Lifecycle', async () => {
     const endedSub = { ...mockSubscriptions[0], endDate: '2026-07-31' };
     vi.spyOn(subscriptionRepository, 'list').mockResolvedValue([endedSub]);
-    vi.spyOn(orderRepository, 'getCustomerOrdersInRange').mockResolvedValue([
+    vi.spyOn(clientOrderRepository, 'getCustomerOrdersInRange').mockResolvedValue([
       { id: 'ord_1', subscriptionId: endedSub.id, status: 'delivered', price: 150, date: '2026-07-30' } as any
     ]);
+    vi.spyOn(clientPaymentRepository, 'getByCustomerId').mockResolvedValue([]);
 
     // Process daily billing
     await billingService.processSubscriptionEnd(endedSub as any, '2026-08-01');
