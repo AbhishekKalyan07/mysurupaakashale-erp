@@ -5,8 +5,6 @@ import { GlobalErrorBoundary } from "./shared/components/feedback/GlobalErrorBou
 import "./index.css";
 import { initAnalytics, initPerformance } from "./shared/lib/firebase";
 import { registerSW } from "virtual:pwa-register";
-import { toast } from "react-hot-toast";
-
 // Handle dynamic import errors gracefully (e.g. when a new version is deployed and old chunks 404)
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
@@ -114,27 +112,7 @@ function queueNonCriticalInitialization() {
       try {
         const updateSW = registerSW({
           immediate: true,
-          onNeedRefresh() {
-            toast(
-              (t) => (
-                <div className="flex flex-col gap-2">
-                  <p className="font-medium text-sm">
-                    A new version of the application is available.
-                  </p>
-                  <button
-                    onClick={() => {
-                      toast.dismiss(t.id);
-                      updateSW(true);
-                    }}
-                    className="bg-[#3A4D23] text-white px-3 py-1 rounded-md text-sm font-medium self-end"
-                  >
-                    Update Now
-                  </button>
-                </div>
-              ),
-              { duration: Infinity, id: "pwa-update" },
-            );
-          },
+          // onNeedRefresh is no longer needed since we use autoUpdate in vite.config.ts
           onRegisteredSW(_swUrl, r) {
             if (r) {
               // 1. Check for updates every hour in the background

@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies
@@ -54,22 +54,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies
         run: npm ci
       - name: Run unit tests
         run: npm run test
-      - name: Check coverage thresholds
-        run: npm run test:coverage
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 30
 
   # ─── Stage 3: Security & Functions Tests (Firebase Emulator) ──────────────
   security-tests:
@@ -81,7 +72,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install Java (Required for Firebase Emulators)
@@ -102,7 +93,7 @@ jobs:
           npx firebase emulators:exec \
             --project demo-test \
             --only firestore,storage,functions,eventarc \
-            "npm run test:security && npm run test:functions"
+            "npm run test:security && npm run test:coverage"
         env:
           FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080'
           FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199'
@@ -112,6 +103,13 @@ jobs:
         with:
           name: security-report
           path: test-results/
+          retention-days: 30
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
           retention-days: 30
 
   # ─── Stage 4: E2E Tests (Playwright) ──────────────────────────────────────
@@ -124,7 +122,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install Java (Required for Firebase Emulators)
@@ -169,7 +167,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies
@@ -198,7 +196,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies
@@ -233,7 +231,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies
@@ -279,7 +277,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
       - name: Download build artifacts

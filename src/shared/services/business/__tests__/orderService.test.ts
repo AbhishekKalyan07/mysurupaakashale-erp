@@ -225,4 +225,68 @@ describe('orderService', () => {
       expect(batchCommit).toHaveBeenCalled();
     });
   });
+
+  describe('createOrderObject', () => {
+    it('generates a well-formed order object with basic fallback logic', () => {
+      const sub = {
+        id: 'sub123',
+        customerId: 'cust123',
+        planId: 'plan123',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 150,
+        mealPreferences: [{ mealType: 'lunch' }]
+      } as any;
+      
+      const pref = { mealType: 'lunch', selectedOptionId: 'opt1' } as any;
+      
+      const customerMap = new Map([
+        ['cust123', {
+          id: 'cust123',
+          fullName: 'John Doe',
+          phone: '1234567890',
+          addresses: [{ id: 'addr1', line1: '123 Main St', city: 'Mysuru', pincode: '570001' }],
+          defaultAddressId: 'addr1'
+        }]
+      ]);
+      
+      const partnerMap = new Map();
+      const zoneMap = new Map([['zone1', { id: 'zone1', name: 'North', kitchenId: 'k1' }]]);
+      const activePartners = [{ id: 'p1', isAvailable: true, zoneIds: ['zone1'], shifts: ['lunch'] }] as any[];
+      const allZones = [{ id: 'zone1', pincodes: ['570001'] }] as any[];
+      const mealPlans = [{
+        id: 'plan123',
+        name: 'Test Plan',
+        mealSlots: [{ mealType: 'lunch', options: [{ id: 'opt1', label: 'Veg Meal' }] }]
+      }] as any[];
+      const workloadMap = new Map();
+      
+      const order = (orderService as any).buildOrderSnapshot(
+        sub,
+        pref,
+        'lunch',
+        '2026-08-01',
+        customerMap,
+        partnerMap,
+        zoneMap,
+        activePartners,
+        allZones,
+        mealPlans,
+        workloadMap,
+        'k1'
+      );
+      
+      expect(order).toBeDefined();
+      expect(order.id).toBe('ord_sub123_2026-08-01_lunch');
+      expect(order.customerId).toBe('cust123');
+      expect(order.customerName).toBe('John Doe');
+      expect(order.zoneName).toBe('North');
+      expect(order.zoneId).toBe('zone1');
+      expect(order.deliveryPartnerId).toBe('p1');
+      expect(order.kitchenId).toBe('k1');
+      expect(order.mealName).toBe('Veg Meal');
+      expect(order.price).toBe(150); // Since 150 * 1 / 1
+      expect(workloadMap.get('p1')).toBe(1);
+    });
+  });
 });

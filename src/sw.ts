@@ -9,7 +9,12 @@ import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
 
 declare let self: ServiceWorkerGlobalScope;
 
-// Add message listener for update sequence
+// Immediately take control when a new version is installed
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+// We still keep the message listener just in case vite-plugin-pwa tries to send it
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
