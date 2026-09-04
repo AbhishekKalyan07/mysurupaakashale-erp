@@ -8,72 +8,40 @@
  *   3. Normal generation still works on non-holiday dates
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { orderService } from '../orderService';
-import { holidayRepository } from '../../firestore/holidayRepository';
+import { orderService } from '../../functions/src/orders';
+import { holidayRepository } from '../../functions/src/repositories';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
-vi.mock('../../firestore/holidayRepository', () => ({
-  holidayRepository: {
-    isHoliday: vi.fn(),
-  },
+vi.mock('../../functions/src/repositories', () => ({
+  holidayRepository: { isHoliday: vi.fn() },
+  orderGenerationRunRepository: { getById: vi.fn(), create: vi.fn(), update: vi.fn() },
+  subscriptionRepository: { list: vi.fn().mockResolvedValue([]) },
+  mealPlanRepository: { list: vi.fn().mockResolvedValue([]) },
+  userRepository: { list: vi.fn().mockResolvedValue([]) },
+  deliveryZoneRepository: { list: vi.fn().mockResolvedValue([]) },
+  orderRepository: { list: vi.fn().mockResolvedValue([]) },
+  kitchenRepository: { list: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('@/shared/lib/firebase', () => ({
   functions: {},
-
   auth: { currentUser: { uid: 'test-admin-uid' } },
   db: {},
 }));
 
-vi.mock('firebase/firestore', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('firebase/firestore')>();
+vi.mock('../../functions/src/compat', async (importOriginal) => {
+  const actual = await importOriginal<any>();
   return {
-    ...actual,
+    ...(actual || {}),
     writeBatch: vi.fn(() => ({ set: vi.fn(), update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) })),
     doc: vi.fn(() => ({})),
     serverTimestamp: vi.fn(() => 'SERVER_TS'),
-    where: actual.where,
+    where: actual?.where || vi.fn(),
     getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
     getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   };
 });
 
-// Mock all repositories that orderService depends on
-vi.mock('../../firestore/orderRepository', () => ({
-  orderRepository: {
-    list: vi.fn().mockResolvedValue([]),
-    getById: vi.fn().mockResolvedValue(null),
-    batchCreate: vi.fn().mockResolvedValue(undefined),
-  },
-}));
-vi.mock('../../firestore/subscriptionRepository', () => ({
-  subscriptionRepository: { list: vi.fn().mockResolvedValue([]) },
-}));
-vi.mock('../../firestore/analyticsRepository', () => ({
-  orderGenerationRunRepository: {
-    getById: vi.fn().mockResolvedValue(null),
-    create: vi.fn().mockResolvedValue(undefined),
-    update: vi.fn().mockResolvedValue(undefined),
-  },
-}));
-vi.mock('../../firestore/userRepository', () => ({
-  userRepository: { getById: vi.fn().mockResolvedValue(null), list: vi.fn().mockResolvedValue([]) },
-}));
-vi.mock('../../firestore/mealPlanRepository', () => ({
-  mealPlanRepository: { list: vi.fn().mockResolvedValue([]) },
-}));
-vi.mock('../../firestore/kitchenRepository', () => ({
-  kitchenRepository: { list: vi.fn().mockResolvedValue([]) },
-}));
-vi.mock('../../firestore/deliveryZoneRepository', () => ({
-  deliveryZoneRepository: { list: vi.fn().mockResolvedValue([]) },
-}));
-vi.mock('../../firestore/notificationService', () => ({
-  notifyDailyOrdersGenerated: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('@/shared/lib/date', () => ({
-  getTodayInTimezone: vi.fn(() => '2026-10-02'),
-}));
 
 const HOLIDAY_DATE = '2026-10-02';
 
@@ -84,7 +52,7 @@ describe('orderService — holiday guard', () => {
 
   describe('generateBreakfastOrders (via generateDailyOrders)', () => {
     it('returns 0 without creating any orders when date is a holiday', async () => {
-      vi.mocked(holidayRepository.isHoliday).mockResolvedValue(true);
+      vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(true);
 
       // Access the private generateMealOrders via the public generateBreakfastOrders
       // The public API is generateDailyOrders() → generateBreakfastOrders → generateMealOrders
@@ -95,7 +63,7 @@ describe('orderService — holiday guard', () => {
     });
 
     it('proceeds normally when date is NOT a holiday', async () => {
-      vi.mocked(holidayRepository.isHoliday).mockResolvedValue(false);
+      vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(false);
 
       // Now it will proceed to check subscriptions (which returns [])
       const result = await (orderService as any).generateMealOrders('2026-10-03', 'breakfast');
@@ -108,7 +76,7 @@ describe('orderService — holiday guard', () => {
 
   describe('generateOrdersForSubscription', () => {
     it('returns early without creating any orders when date is a holiday', async () => {
-      vi.mocked(holidayRepository.isHoliday).mockResolvedValue(true);
+      vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(true);
 
       const MOCK_SUB = {
         id: 'sub-1',
@@ -132,7 +100,7 @@ describe('orderService — holiday guard', () => {
 
     it('holiday check runs AFTER Sunday check (Sunday is still blocked)', async () => {
       // '2026-10-04' is a Sunday
-      vi.mocked(holidayRepository.isHoliday).mockResolvedValue(false);
+      vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(false);
 
       const MOCK_SUB = {
         id: 'sub-1',

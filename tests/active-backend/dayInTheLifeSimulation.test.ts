@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { orderService } from '../orderService';
-import { deliveryService } from '../deliveryService';
-import { customerService } from '../customerService';
-import { paymentService } from '../paymentService';
-import { billingService } from '../billingService';
-import { orderRepository } from '../../firestore/orderRepository';
-import { subscriptionRepository } from '../../firestore/subscriptionRepository';
-import { userRepository } from '../../firestore/userRepository';
-import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
-import { failureQueueRepository } from '../../firestore/failureQueueRepository';
-import { auditRepository } from '../../firestore/auditRepository';
+import { orderService } from '../../functions/src/orders';
+import { deliveryService } from '../../src/shared/services/business/deliveryService';
+import { customerService } from '../../src/shared/services/business/customerService';
+import { paymentService } from '../../src/shared/services/business/paymentService';
+import { billingService } from '../../src/shared/services/business/billingService';
+import { orderRepository } from '../../functions/src/repositories';
+import { subscriptionRepository } from '../../functions/src/repositories';
+import { userRepository } from '../../functions/src/repositories';
+import { deliveryZoneRepository } from '../../functions/src/repositories';
+import { failureQueueRepository } from '../../functions/src/repositories';
+import { auditRepository } from '../../functions/src/repositories';
+import { holidayRepository } from '../../functions/src/repositories';
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile } from '@/shared/types';
 
 // Mock Firebase & Storage
-vi.mock('firebase/firestore', () => ({
+vi.mock('../../functions/src/compat', () => ({
   getDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   addDoc: vi.fn().mockResolvedValue({ id: 'mock_doc_id' }),
@@ -52,6 +53,48 @@ vi.mock('firebase/firestore', () => ({
   startAfter: vi.fn(),
   Timestamp: {
     now: vi.fn(() => ({ toMillis: () => Date.now() }))
+  },
+  db: {}
+}));
+
+vi.mock('../../functions/src/repositories', () => ({
+  orderRepository: {
+    getById: vi.fn(),
+    list: vi.fn(),
+    update: vi.fn(),
+    create: vi.fn(),
+    getCustomerOrdersInRange: vi.fn()
+  },
+  subscriptionRepository: {
+    list: vi.fn(),
+    getById: vi.fn(),
+    update: vi.fn()
+  },
+  userRepository: {
+    list: vi.fn(),
+    getById: vi.fn(),
+    update: vi.fn()
+  },
+  deliveryZoneRepository: {
+    list: vi.fn()
+  },
+  failureQueueRepository: {
+    logFailure: vi.fn()
+  },
+  auditRepository: {
+    logAction: vi.fn()
+  },
+  holidayRepository: {
+    isHoliday: vi.fn()
+  },
+  orderGenerationRunRepository: {
+    getById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn()
+  },
+  kitchenRepository: {
+    list: vi.fn(),
+    getById: vi.fn()
   }
 }));
 
@@ -59,6 +102,32 @@ vi.mock('firebase/storage', () => ({
   getStorage: vi.fn(),
   ref: vi.fn(),
   deleteObject: vi.fn().mockResolvedValue(undefined)
+}));
+
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: vi.fn(() => ({
+    collection: vi.fn(() => ({
+      doc: vi.fn(() => ({
+        get: vi.fn().mockResolvedValue({ exists: false, data: () => ({}) }),
+        set: vi.fn(),
+        update: vi.fn()
+      })),
+      add: vi.fn().mockResolvedValue({ id: 'mock_id' }),
+      where: vi.fn().mockReturnThis(),
+      get: vi.fn().mockResolvedValue({ empty: true, docs: [] })
+    })),
+    runTransaction: vi.fn(async (cb) => {
+      const mockT = {
+        get: vi.fn().mockResolvedValue({ exists: false }),
+        set: vi.fn(),
+        update: vi.fn()
+      };
+      return cb(mockT);
+    })
+  })),
+  FieldValue: {
+    serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP')
+  }
 }));
 
 vi.mock('@/shared/lib/firebase', () => ({
@@ -138,6 +207,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(false);
   });
 
   it('SIMULATION STEP 1: Cutoff Time Logic Verification', () => {
@@ -161,15 +231,17 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   });
 
   it('SIMULATION STEP 2: Full Day Order Generation (Breakfast, Lunch, Dinner for 25 customers)', async () => {
-    // Setup repository list mocks
-    vi.spyOn(subscriptionRepository, 'list').mockResolvedValue(mockSubscriptions);
-    vi.spyOn(userRepository, 'list').mockImplementation(async (arg?: any) => {
+    // Setup repository list mocks for BACKEND order generation
+    vi.spyOn(backendRepos.subscriptionRepository, 'list').mockResolvedValue(mockSubscriptions);
+    vi.spyOn(backendRepos.orderRepository, 'getCustomerOrdersInRange').mockResolvedValue([]);
+    vi.spyOn(backendRepos.orderRepository, 'list').mockResolvedValue([]);
+    vi.spyOn(backendRepos.userRepository, 'list').mockImplementation(async (arg?: any) => {
       if (arg?.value === 'customer') return mockCustomers as any;
       if (arg?.value === 'delivery_partner') return mockDrivers as any;
       if (arg?.value === 'kitchen') return [{ id: 'kitch_1', role: 'kitchen', isActive: true }] as any;
       return [] as any;
     });
-    vi.spyOn(deliveryZoneRepository, 'list').mockResolvedValue(mockZones as any);
+    vi.spyOn(backendRepos.deliveryZoneRepository, 'list').mockResolvedValue(mockZones as any);
 
     // Generate Breakfast
     const bCount = await orderService.generateBreakfastOrders(TEST_DATE);
@@ -255,7 +327,7 @@ describe('Day in the Life Operational Simulation (25 Customers)', () => {
   it('SIMULATION STEP 5: Billing Cycle End & Payment Approval Lifecycle', async () => {
     const endedSub = { ...mockSubscriptions[0], endDate: '2026-07-31' };
     vi.spyOn(subscriptionRepository, 'list').mockResolvedValue([endedSub]);
-    vi.spyOn(orderRepository, 'getCustomerOrders').mockResolvedValue([
+    vi.spyOn(orderRepository, 'getCustomerOrdersInRange').mockResolvedValue([
       { id: 'ord_1', subscriptionId: endedSub.id, status: 'delivered', price: 150, date: '2026-07-30' } as any
     ]);
 

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase-admin/firestore';
 
 export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'leave';
 

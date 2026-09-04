@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { orderService } from '../orderService';
-import { orderRepository } from '../../firestore/orderRepository';
-import { subscriptionRepository } from '../../firestore/subscriptionRepository';
-import { orderGenerationRunRepository } from '../../firestore/analyticsRepository';
-import { userRepository } from '../../firestore/userRepository';
-import { deliveryZoneRepository } from '../../firestore/deliveryZoneRepository';
-import { mealPlanRepository } from '../../firestore/mealPlanRepository';
-import * as notificationService from '../../firestore/notificationService';
-import { auditRepository } from '../../firestore/auditRepository';
-import { kitchenRepository } from '../../firestore/kitchenRepository';
-import { getDoc, writeBatch } from 'firebase/firestore';
+import { orderService } from '../../functions/src/orders';
+import { orderRepository } from '../../functions/src/repositories';
+import { subscriptionRepository } from '../../functions/src/repositories';
+import { orderGenerationRunRepository } from '../../functions/src/repositories';
+import { userRepository } from '../../functions/src/repositories';
+import { deliveryZoneRepository } from '../../functions/src/repositories';
+import { mealPlanRepository } from '../../functions/src/repositories';
+import { notificationService } from '../../functions/src/repositories';
+import { auditRepository } from '../../functions/src/repositories';
+import { kitchenRepository, holidayRepository } from '../../functions/src/repositories';
+import { getDoc, writeBatch } from '../../functions/src/compat';
 
-vi.mock('firebase/firestore', async (importOriginal) => {
+vi.mock('../../functions/src/compat', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
     ...actual,
@@ -40,6 +40,7 @@ describe('Automated Delivery Partner Assignment', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(holidayRepository, 'isHoliday').mockResolvedValue(false);
     vi.spyOn(orderGenerationRunRepository, 'getById').mockResolvedValue(null);
     vi.spyOn(orderGenerationRunRepository, 'create').mockResolvedValue('run-id');
     vi.spyOn(orderGenerationRunRepository, 'update').mockResolvedValue();

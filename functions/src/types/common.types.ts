@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase-admin/firestore';
 
 /** Re-exported so domain type files don't each need their own Firestore import. */
 export type { Timestamp };

@@ -10,6 +10,7 @@ import { signIn, signInWithGoogle, mapAuthError, resetPassword } from '../servic
 import { MobileAuthLayout } from '../components/MobileAuthLayout';
 import { DevLoginWidget } from '../components/__dev__/DevLoginWidget';
 import type { LoginFormValues } from '../types/auth.types';
+import { useAuth } from '../hooks/useAuth';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
@@ -19,10 +20,13 @@ const loginSchema = z.object({
 export function MobileLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { error: globalAuthError } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -205,9 +209,9 @@ export function MobileLoginPage() {
               </button>
             </div>
 
-            {formError && (
+            {(formError || globalAuthError) && (
               <p role="alert" className="text-sm font-medium text-red-600 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
-                {formError}
+                {formError || globalAuthError}
               </p>
             )}
 

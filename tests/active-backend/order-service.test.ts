@@ -167,6 +167,14 @@ describe('active daily-order automation', () => {
       expect.objectContaining({ status: 'failed', error: expect.stringContaining('Firestore unavailable') }),
     );
   });
+
+  it('skips active holidays during daily order generation', async () => {
+    const { holidayRepository } = await import('../../functions/src/repositories');
+    vi.mocked(holidayRepository.isHoliday).mockResolvedValueOnce(true);
+
+    const res = await orderService.generateBreakfastOrders('2026-10-02');
+    expect(res).toBe(0);
+  });
 });
 
 export {};
