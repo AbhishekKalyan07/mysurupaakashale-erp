@@ -113,7 +113,7 @@ export const failureQueueRepository = {
       mealType,
       date,
       reason,
-      stack,
+      ...(stack !== undefined && { stack }),
       status: 'pending',
       createdAt: FieldValue.serverTimestamp()
     });

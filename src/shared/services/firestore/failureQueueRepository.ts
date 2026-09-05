@@ -39,7 +39,7 @@ class FailureQueueRepository extends BaseRepository<FailureQueueRecord> {
       mealType,
       date,
       reason,
-      stackTrace,
+      ...(stackTrace !== undefined && { stackTrace }),
       attempts: 1,
       retryCount: 0,
       status: 'pending',
