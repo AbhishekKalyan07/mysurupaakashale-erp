@@ -5,7 +5,6 @@ import { initializeAppCheck, ReCaptchaV3Provider, CustomProvider } from 'firebas
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
   memoryLocalCache,
   connectFirestoreEmulator,
   type Firestore,
@@ -165,15 +164,17 @@ const isNode = typeof globalThis.window === 'undefined';
  */
 export const auth: Auth = getAuth(firebaseApp);
 
-// In emulator / E2E mode, switch Firebase Auth to localStorage persistence.
-// Playwright's storageState captures localStorage (not IndexedDB), so this is
-// required for saved auth states to survive across test file boundaries.
-if (useEmulators && typeof globalThis.window !== 'undefined') {
+// Force localStorage persistence for Firebase Auth instead of IndexedDB.
+// iOS Safari and PWAs often wipe IndexedDB when the app is backgrounded or closed,
+// causing users to be randomly logged out. LocalStorage is far more reliable for PWAs.
+if (typeof globalThis.window !== 'undefined') {
   setPersistence(auth, browserLocalPersistence).catch(console.error);
 }
 
+import { persistentSingleTabManager } from 'firebase/firestore';
+
 export const db: Firestore = initializeFirestore(firebaseApp,
-  (useEmulators || typeof globalThis.window === 'undefined')
+  (useEmulators || import.meta.env.MODE === 'test' || typeof globalThis.window === 'undefined')
     ? {
         // In emulator/E2E/Node mode:
         // 1. Use in-memory cache (no IndexedDB overhead or multi-tab locking).
@@ -187,7 +188,10 @@ export const db: Firestore = initializeFirestore(firebaseApp,
         ignoreUndefinedProperties: true,
       }
     : {
-        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+        // Use singleTabManager instead of multipleTabManager. 
+        // iOS Safari/PWAs have a severe bug where multipleTabManager freezes for 10-20s
+        // trying to acquire locks when the app is foregrounded after a day.
+        localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
         ignoreUndefinedProperties: true,
       }
 );

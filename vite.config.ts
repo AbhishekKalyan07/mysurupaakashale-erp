@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       injectRegister: null,
       injectManifest: {
         // Exclude massive vendor chunks and reports/charts from precache

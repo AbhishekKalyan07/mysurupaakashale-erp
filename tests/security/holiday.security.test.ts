@@ -14,7 +14,7 @@ let testEnv: RulesTestEnvironment;
 
 beforeAll(async () => {
   // Read the local firestore.rules file
-  const rules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf8');
+  const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
   testEnv = await initializeTestEnvironment({
     projectId: 'demo-mysuru-paakashale',
     firestore: { rules },
@@ -27,6 +27,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users', 'admin-1'), { role: 'admin', isActive: true });
+    await setDoc(doc(db, 'users', 'cust-1'), { role: 'customer' });
+  });
 });
 
 describe('Holiday Security Rules', () => {

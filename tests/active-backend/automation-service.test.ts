@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => {
     mockUserRepository: { list: vi.fn() },
     mockNotifySubscriptionExpired: vi.fn(),
     mockNotifySubscriptionRenewalReminder: vi.fn(),
+    mockOrderService: { restoreOrdersForUnskipDay: vi.fn() },
+    mockPaymentRepository: { list: vi.fn() }
   };
 });
 
@@ -23,7 +25,9 @@ const {
   mockOrderGenerationRunRepository,
   mockUserRepository,
   mockNotifySubscriptionExpired,
-  mockNotifySubscriptionRenewalReminder
+  mockNotifySubscriptionRenewalReminder,
+  mockOrderService,
+  mockPaymentRepository
 } = mocks;
 
 vi.mock('firebase/firestore', async (importOriginal) => {
@@ -32,16 +36,56 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     ...actual,
     where: mocks.mockWhere,
     serverTimestamp: mocks.mockServerTimestamp,
-    getDocs: vi.fn(),
+    getDocs: vi.fn(async (q) => {
+      // Return a basic mock snapshot for any getDocs call
+      return {
+        docs: [
+          {
+            id: 'doc1',
+            data: () => ({ customerId: 'c1', subscriptionId: 's1', date: '2026-09-04', mealTypes: ['breakfast'] }),
+            ref: { id: 'ref1' }
+          }
+        ]
+      };
+    }),
     collection: vi.fn(),
     doc: vi.fn(),
+    query: vi.fn(),
+    updateDoc: vi.fn(),
     runTransaction: vi.fn(async (_, cb) => cb({
       get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ status: 'active' }) }),
       update: vi.fn()
-    }))
+    })),
+    Timestamp: {
+      fromDate: vi.fn(() => 'MOCK_TIMESTAMP')
+    }
   };
 });
-vi.mock('@/shared/lib/firebase', () => ({ db: { name: 'test-db' } }));
+
+vi.mock('firebase/storage', () => ({
+  ref: vi.fn(),
+  uploadBytes: vi.fn()
+}));
+
+vi.mock('exceljs', () => {
+  class Workbook {
+    addWorksheet() {
+      return {
+        columns: [],
+        addRow: vi.fn()
+      };
+    }
+    xlsx = {
+      writeBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8))
+    };
+  }
+  return { default: { Workbook }, Workbook };
+});
+
+vi.mock('@/shared/lib/firebase', () => ({ 
+  db: { name: 'test-db' },
+  storage: { name: 'test-storage' }
+}));
 vi.mock('@/shared/services/firestore/orderRepository', () => ({ orderRepository: mocks.mockOrderRepository }));
 vi.mock('@/shared/services/firestore/subscriptionRepository', () => ({ subscriptionRepository: mocks.mockSubscriptionRepository }));
 vi.mock('@/shared/services/firestore/analyticsRepository', () => ({
@@ -49,17 +93,30 @@ vi.mock('@/shared/services/firestore/analyticsRepository', () => ({
   orderGenerationRunRepository: mocks.mockOrderGenerationRunRepository,
 }));
 vi.mock('@/shared/services/firestore/userRepository', () => ({ userRepository: mocks.mockUserRepository }));
+vi.mock('@/shared/services/firestore/paymentRepository', () => ({ paymentRepository: mocks.mockPaymentRepository }));
 vi.mock('@/shared/services/firestore/notificationService', () => ({
   notifySubscriptionExpired: mocks.mockNotifySubscriptionExpired,
   notifySubscriptionRenewalReminder: mocks.mockNotifySubscriptionRenewalReminder,
 }));
+vi.mock('@/shared/services/business/orderService', () => ({
+  orderService: mocks.mockOrderService,
+}));
+vi.mock('@/shared/services/firestore/BaseRepository', () => ({
+  BaseRepository: class BaseRepositoryMock {
+    list = vi.fn().mockResolvedValue([{ id: 'audit1' }]);
+    delete = vi.fn();
+  },
+  createConverter: vi.fn()
+}));
 
 import { automationService } from '@/shared/services/firestore/automationService';
+import { updateDoc } from 'firebase/firestore';
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockNotifySubscriptionExpired.mockResolvedValue(undefined);
   mockNotifySubscriptionRenewalReminder.mockResolvedValue(undefined);
+  mockOrderService.restoreOrdersForUnskipDay.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -124,6 +181,48 @@ describe('active automation service', () => {
       status: 'active', pauseStartDate: null, pauseEndDate: null,
     });
   });
-});
 
-export {};
+  it('processes unskip requests', async () => {
+    await automationService.processUnskipRequests();
+    expect(mockOrderService.restoreOrdersForUnskipDay).toHaveBeenCalledWith('c1', 's1', '2026-09-04', ['breakfast'], true);
+    expect(updateDoc).toHaveBeenCalled();
+  });
+  
+  it('handles errors when processing unskip requests', async () => {
+    mockOrderService.restoreOrdersForUnskipDay.mockRejectedValueOnce(new Error('error'));
+    await automationService.processUnskipRequests();
+    // Should not throw, should handle internally
+    expect(mockOrderService.restoreOrdersForUnskipDay).toHaveBeenCalled();
+  });
+
+  it('exports database backup', async () => {
+    await automationService.exportDatabaseBackup();
+    // Check if uploadBytes was called via dynamic import mock
+    const { uploadBytes } = await import('firebase/storage');
+    expect(uploadBytes).toHaveBeenCalled();
+  });
+
+  it('generates monthly excel', async () => {
+    mockUserRepository.list.mockResolvedValue([{ id: 'u1', firstName: 'John', email: 'a@b.com' }]);
+    mockOrderRepository.list.mockResolvedValue([{ id: 'o1', date: '2026-09-04' }]);
+    mockSubscriptionRepository.list.mockResolvedValue([{ id: 's1' }]);
+    mockPaymentRepository.list.mockResolvedValue([{ id: 'p1' }]);
+    mockAnalyticsRepository.list.mockResolvedValue([{ id: 'a1', date: '2026-09-04' }]);
+
+    await automationService.generateMonthlyExcel();
+
+    const { uploadBytes } = await import('firebase/storage');
+    expect(uploadBytes).toHaveBeenCalled();
+  });
+
+  it('cleans up old logs', async () => {
+    mockOrderGenerationRunRepository.list.mockResolvedValue([{ id: 'run1' }]);
+    mockAnalyticsRepository.list.mockResolvedValue([{ id: 'analytics1' }]);
+    // BaseRepo list mocked above
+
+    await automationService.cleanupOldLogs(90);
+
+    expect(mockOrderGenerationRunRepository.delete).toHaveBeenCalledWith('run1');
+    expect(mockAnalyticsRepository.delete).toHaveBeenCalledWith('analytics1');
+  });
+});

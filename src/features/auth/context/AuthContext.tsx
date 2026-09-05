@@ -4,7 +4,7 @@ import { auth } from '@/shared/lib/firebase';
 import { userRepository } from '@/shared/services/firestore/userRepository';
 import { isRole, type Role } from '@/shared/constants/roles';
 import type { UserProfile } from '@/shared/types';
-import { signOutUser } from '../services/authService';
+import { signOutUser, handleGoogleRedirectResult } from '../services/authService';
 import type { AuthContextValue, AuthStatus } from '../types/auth.types';
 import { AuthContext } from './authContextInstance';
 
@@ -35,6 +35,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<Role | null>(init.role);
   const [error, setError] = useState<string | null>(null);
+
+  // 0. Handle Google Sign-In Redirects (PWA/Mobile)
+  useEffect(() => {
+    // If the user just completed a Google sign in via redirect (e.g. in the PWA),
+    // this will capture the result and ensure their Firestore profile is created.
+    handleGoogleRedirectResult();
+  }, []);
 
   // 1. Resolve who's signed in via Firebase Auth
   useEffect(() => {
@@ -116,7 +123,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setProfile(data);
 
-        if (data && isRole(data.role)) {
+        if (data) {
+          if (!isRole(data.role)) {
+            clearTimeout(timeoutId);
+            setError(`Invalid or missing role on profile: ${data.role}`);
+            signOutUser().catch(() => setStatus('unauthenticated'));
+            return;
+          }
+
           clearTimeout(timeoutId);
           // Persist the authoritative role to cache for the next cold boot
           try {
@@ -130,9 +144,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           setRole((prev) => (prev !== data.role ? data.role : prev));
           setStatus((prev) => (prev !== 'authenticated' ? 'authenticated' : prev));
+        } else {
+          // If data is null (profile not yet created), we wait — the timeout above
+          // will handle the case where it never arrives.
+          if (import.meta.env.DEV) {
+            console.warn('[auth] Profile document is null. Waiting for creation...');
+          }
         }
-        // If data is null (profile not yet created), we wait — the timeout above
-        // will handle the case where it never arrives.
       },
       (err) => {
         clearTimeout(timeoutId);

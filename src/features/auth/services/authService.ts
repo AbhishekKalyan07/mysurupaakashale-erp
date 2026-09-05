@@ -3,6 +3,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
@@ -44,42 +46,71 @@ export function mapAuthError(error: unknown): string {
 export async function signIn(email: string, password: string): Promise<UserCredential> {
   return signInWithEmailAndPassword(auth, email, password);
 }
-export async function signInWithGoogle(): Promise<UserCredential> {
+export async function signInWithGoogle(): Promise<UserCredential | void> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters?.({ prompt: 'select_account' });
-  const credential = await signInWithPopup(auth, provider);
+  
+  // If running as an installed PWA or on mobile, signInWithPopup often fails
+  // or hangs. We use signInWithRedirect instead.
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  
+  if (isPWA || isMobile) {
+    await signInWithRedirect(auth, provider);
+    // The page will navigate away, so this promise never really resolves here.
+    return;
+  }
 
-  // Check if the user profile exists.
-  const profile = await userRepository.getById(credential.user.uid);
+  const credential = await signInWithPopup(auth, provider);
+  await finishGoogleLogin(credential.user);
+  return credential;
+}
+
+/** Processes a completed Google Sign In (from either popup or redirect). */
+async function finishGoogleLogin(user: import('firebase/auth').User) {
+  const profile = await userRepository.getById(user.uid);
 
   if (!profile) {
-    // Automatically create a base customer profile for new Google signups
-    const displayId = await userRepository.generateNextDisplayId('customer', credential.user.displayName || 'Google User');
+    const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
     await userRepository.create({
       displayId,
       role: 'customer',
-      fullName: credential.user.displayName || 'Google User',
-      email: credential.user.email || '',
+      fullName: user.displayName || 'Google User',
+      email: user.email || '',
       phone: '', // Collect during onboarding
-      photoUrl: credential.user.photoURL || null,
+      photoUrl: user.photoURL || null,
       isActive: true,
       addresses: [],
       defaultAddressId: null,
       createdAt: serverTimestamp() as unknown as Timestamp,
       updatedAt: serverTimestamp() as unknown as Timestamp,
-      emailVerified: credential.user.emailVerified,
+      emailVerified: user.emailVerified,
       googleConnected: true,
       passwordCreated: false,
-    } as Omit<UserProfile, 'id'>, credential.user.uid);
+    } as Omit<UserProfile, 'id'>, user.uid);
   } else if (!profile.googleConnected) {
-    await userRepository.update(credential.user.uid, {
+    await userRepository.update(user.uid, {
       googleConnected: true,
       updatedAt: serverTimestamp() as unknown as Timestamp,
     } as any);
   }
-
-  return credential;
 }
+
+/**
+ * Call this exactly once on app boot to handle the case where a user
+ * was redirected back to the app from Google Sign-In.
+ */
+export async function handleGoogleRedirectResult(): Promise<void> {
+  try {
+    const credential = await getRedirectResult(auth);
+    if (credential?.user) {
+      await finishGoogleLogin(credential.user);
+    }
+  } catch (error) {
+    console.error('Failed to process Google Redirect result:', error);
+  }
+}
+
 
 /**
  * Customer self-signup. The Firestore `users/{uid}` profile (role:

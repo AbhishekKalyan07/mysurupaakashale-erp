@@ -222,4 +222,34 @@ describe('Billing Settlement', () => {
     expect(invoicePayload.totalAmount).toBe(-35); // 65 - 100
     expect(invoicePayload.status).toBe('paid'); // Due to overpayment
   });
+
+  it('Scenario I: Billing for various meal combinations', async () => {
+    let txnMock: any;
+    mocks.mockTransactionRepository.runTransaction.mockImplementationOnce(async (callback: any) => {
+      txnMock = { get: vi.fn().mockResolvedValue(null), set: vi.fn(), update: vi.fn() };
+      return callback(txnMock);
+    });
+
+    mocks.mockOrderRepository.getCustomerOrdersInRange.mockResolvedValue([
+      { id: 'o1', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-01', mealType: 'breakfast', mealQuantity: 1 }, // 60
+      { id: 'o2', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-02', mealType: 'dinner', mealQuantity: 1 }, // 65
+      { id: 'o3', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-03', mealType: 'breakfast', mealQuantity: 1 },
+      { id: 'o4', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-03', mealType: 'dinner', mealQuantity: 1 }, // 115
+      { id: 'o5', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-04', mealType: 'breakfast', mealQuantity: 1 },
+      { id: 'o6', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-04', mealType: 'lunch', mealQuantity: 1 }, // 115
+      { id: 'o7', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-05', mealType: 'lunch', mealQuantity: 1 },
+      { id: 'o8', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-05', mealType: 'dinner', mealQuantity: 1 }, // 115
+      { id: 'o9', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-06', mealType: 'breakfast', mealQuantity: 1 },
+      { id: 'o10', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-06', mealType: 'lunch', mealQuantity: 1 },
+      { id: 'o11', subscriptionId: 'sub-1', status: 'delivered', date: '2026-08-06', mealType: 'dinner', mealQuantity: 1 }, // 159
+    ]);
+    mocks.mockPaymentRepository.getByCustomerId.mockResolvedValue([]);
+    
+    // Total should be: 60 + 65 + 115 + 115 + 115 + 159 = 629
+    const customSub = { ...dummySub, pricingMatrixSnapshot: undefined };
+    await billingService.processSubscriptionEnd(customSub, '2026-08-08', 'expired');
+    
+    const invoicePayload = txnMock.set.mock.calls[0][1];
+    expect(invoicePayload.subtotal).toBe(629);
+  });
 });

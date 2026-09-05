@@ -13,7 +13,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { billingService } from '../billingService';
 
 // ── Firebase/Firestore mocks ─────────────────────────────────────────────
-vi.mock('@/shared/lib/firebase', () => ({ db: {}, auth: { currentUser: null } }));
+vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+ db: {}, auth: { currentUser: null } }));
 
 const mockSet = vi.fn();
 const mockUpdate = vi.fn();

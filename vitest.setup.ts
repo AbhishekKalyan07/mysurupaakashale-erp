@@ -11,6 +11,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Global window mocks for JSDOM
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // Deprecated
+      removeListener: vi.fn(), // Deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 // Global mock for Firebase to ensure tests never connect to production
 vi.mock('firebase/storage', () => ({
   connectStorageEmulator: vi.fn(),
@@ -51,6 +68,7 @@ vi.mock('firebase/firestore', () => ({
   initializeFirestore: vi.fn(() => ({})),
   memoryLocalCache: vi.fn(() => ({})),
   persistentLocalCache: vi.fn(),
+  persistentSingleTabManager: vi.fn(() => ({})),
   persistentMultipleTabManager: vi.fn(),
   collection: vi.fn(() => ({
     withConverter: vi.fn((converter) => ({ converter, type: 'collection' })),
@@ -105,4 +123,10 @@ vi.mock('firebase/firestore', () => ({
     static fromMillis(millis: number) { return new Timestamp(Math.floor(millis / 1000), 0); }
   },
   onSnapshot: vi.fn(),
+}));
+
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({})),
+  connectFunctionsEmulator: vi.fn(),
+  httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} })))
 }));

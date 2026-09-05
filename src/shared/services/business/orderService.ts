@@ -1,9 +1,8 @@
 import { Timestamp } from 'firebase/firestore';
-import { getDoc, writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
+import { writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from '../firestore/orderRepository';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
-import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
 import { mealPlanRepository } from '../firestore/mealPlanRepository';
 import { kitchenRepository } from '../firestore/kitchenRepository';
@@ -27,14 +26,14 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
 class OrderService {
   /**
    * Orchestrator for all daily orders.
-   * Keeps legacy compatibility by running all meal generations.
+   * Delegates order generation to the backend Cloud Function via httpsCallable.
    */
   async generateDailyOrders(dateOverride?: string): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
     const today = dateOverride || getTodayInTimezone();
     try {
       const { functions } = await import('@/shared/lib/firebase');
       const { httpsCallable } = await import('firebase/functions');
-      const callable = httpsCallable<{date: string}, {success: boolean, message: string, ordersGenerated: number}>(functions, 'manualGenerateDailyOrders');
+      const callable = httpsCallable<{date: string}, {success: boolean, message: string, ordersGenerated: number}>(functions, 'generateDailyOrders');
       
       const result = await callable({ date: today });
       return result.data;
@@ -45,382 +44,21 @@ class OrderService {
   }
 
   async generateBreakfastOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || getTodayInTimezone();
-    return this.generateMealOrders(today, 'breakfast');
+    const res = await this.generateDailyOrders(dateOverride);
+    return res.ordersGenerated;
   }
 
   async generateLunchOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || getTodayInTimezone();
-    return this.generateMealOrders(today, 'lunch');
+    const res = await this.generateDailyOrders(dateOverride);
+    return res.ordersGenerated;
   }
 
   async generateDinnerOrders(dateOverride?: string): Promise<number> {
-    const today = dateOverride || getTodayInTimezone();
-    return this.generateMealOrders(today, 'dinner');
+    const res = await this.generateDailyOrders(dateOverride);
+    return res.ordersGenerated;
   }
 
-  private async generateMealOrders(today: string, mealType: 'breakfast' | 'lunch' | 'dinner'): Promise<number> {
-    // ── Holiday Guard ─────────────────────────────────────────────────────────
-    // Must be the first check before ANY batch is built, any data fetched,
-    // or any run record created. This is the application-level defence.
-    // Firestore security rules provide the client-level defence.
-    const isHoliday = await holidayRepository.isHoliday(today);
-    if (isHoliday) {
-      console.log(`[orderService] ${today} is an active holiday — skipping ${mealType} order generation.`);
-      return 0;
-    }
 
-    const runId = `${today}_${mealType}`;
-    const existingRun = await orderGenerationRunRepository.getById(runId);
-    
-    if (existingRun && existingRun.status === 'success') {
-      console.log(`[orderService] ${mealType} orders already successfully generated for ${today}.`);
-      return 0;
-    }
-
-    const startedAt = serverTimestamp() as unknown as Timestamp;
-    let ordersGenerated = 0;
-    let ordersSkipped = 0;
-    let ordersCancelled = 0;
-    let ordersFailed = 0;
-    let notificationsFailed = 0;
-
-    await orderGenerationRunRepository.create({
-      date: today,
-      mealType,
-      status: 'running',
-      startedAt,
-      ordersGenerated: 0,
-      ordersSkipped: 0,
-      ordersCancelled: 0,
-      ordersFailed: 0,
-      notificationsFailed: 0
-    }, runId);
-
-    try {
-      // 1. Fetch data
-      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners, todaysOrders, allKitchens] = await Promise.all([
-        subscriptionRepository.list(where('status', '==', 'active')),
-        mealPlanRepository.list(),
-        userRepository.list(where('role', '==', 'customer')),
-        deliveryZoneRepository.list(),
-        userRepository.list(where('role', '==', 'delivery_partner')),
-        orderRepository.list(where('date', '==', today)),
-        kitchenRepository.list()
-      ]);
-      const customerMap = new Map<string, CustomerProfile>(allCustomers.map(c => [c.id, c as CustomerProfile]));
-      const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
-      const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
-      const zoneMap = new Map(allZones.map(z => [z.id, z]));
-      const defaultKitchenId = allKitchens.length === 0 ? null : allKitchens[0].id;
-
-      const workloadMap = new Map<string, number>();
-      todaysOrders.forEach(o => {
-        if (o.deliveryPartnerId && o.status !== 'cancelled' && o.status !== 'skipped') {
-          workloadMap.set(o.deliveryPartnerId, (workloadMap.get(o.deliveryPartnerId) || 0) + 1);
-        }
-      });
-
-      const ordersToCreate: Partial<Order>[] = [];
-
-      for (const sub of allSubscriptions) {
-        if (sub.endDate && sub.endDate < today) {
-          ordersSkipped++;
-          continue;
-        }
-        if (sub.startDate > today) {
-          ordersSkipped++;
-          continue;
-        }
-
-        let attempts = 0;
-        let success = false;
-        while (attempts < 3 && !success) {
-          try {
-            const pref = sub.mealPreferences.find(p => p.mealType === mealType);
-            if (!pref) {
-               success = true;
-               continue; // Not subscribed to this meal
-            }
-
-            // Check cancellation (skips)
-            const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
-            const skipDoc = await getDoc(skipRef);
-            if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
-              ordersCancelled++;
-              
-              // We must still generate an order document with status='cancelled' 
-              // so that the Kitchen Dashboard can track cancelled metrics accurately,
-              // and so customers/admins see the cancellation in their order histories.
-              const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
-              order.status = 'cancelled';
-              // kitchenStatus is not applicable for cancelled orders
-              ordersToCreate.push(order);
-              
-              success = true;
-              continue;
-            }
-
-            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
-            ordersToCreate.push(order);
-            success = true;
-
-            if (!order.deliveryPartnerId) {
-              try {
-                const auditMod = await import('@/shared/services/firestore/auditRepository');
-                await auditMod.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
-                  orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
-                });
-                
-                const notifMod = await import('@/shared/services/firestore/notificationService');
-                const urMod = await import('@/shared/services/firestore/userRepository');
-                const admins = await urMod.userRepository.list(where('role', '==', 'admin'));
-                await notifMod.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`);
-              } catch (e) {
-                console.error('[orderService] Failed background task for unassigned order:', e);
-                notificationsFailed++;
-              }
-            }
-          } catch (err) {
-            attempts++;
-            if (attempts >= 3) {
-              console.error(`[orderService] Failed generating ${mealType} for customer ${sub.customerId} after 3 attempts:`, err);
-              ordersFailed++;
-              
-              try {
-                const fqMod = await import('@/shared/services/firestore/failureQueueRepository');
-                await fqMod.failureQueueRepository.logFailure(
-                  sub.customerId,
-                  sub.id,
-                  mealType,
-                  today,
-                  err instanceof Error ? err.message : String(err),
-                  err instanceof Error ? err.stack : undefined
-                );
-              } catch(e) {
-                console.error('[orderService] failure queue log failed:', e);
-              }
-
-              // Admin Alert
-              try {
-                const notifMod = await import('@/shared/services/firestore/notificationService');
-                const urMod = await import('@/shared/services/firestore/userRepository');
-                const admins = await urMod.userRepository.list(where('role', '==', 'admin'));
-                await notifMod.notifyAdminAlert(admins.map(a => a.id), 'Order Generation Failed', `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`);
-              } catch(e) {
-                console.error('[orderService] notify admin failed:', e);
-                notificationsFailed++;
-              }
-            } else {
-              // Wait a bit before retrying
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-          }
-        }
-      }
-
-      // 3. Batch write
-      const BATCH_SIZE = 400;
-      for (let i = 0; i < ordersToCreate.length; i += BATCH_SIZE) {
-        const batchOrders = ordersToCreate.slice(i, i + BATCH_SIZE);
-        const batch = writeBatch(db);
-        batchOrders.forEach(order => {
-          const ref = doc(db, 'orders', order.id!);
-          batch.set(ref, stripUndefined({
-            ...order,
-            createdAt: serverTimestamp() as unknown as Timestamp,
-            updatedAt: serverTimestamp() as unknown as Timestamp
-          }), { merge: true });
-        });
-        await batch.commit();
-        ordersGenerated += batchOrders.length;
-
-        // Trigger notifications asynchronously with bounded concurrency
-        try {
-          const m = await import('@/shared/services/firestore/notificationService');
-          const BATCH_SIZE_NOTIF = 20;
-          for (let j = 0; j < batchOrders.length; j += BATCH_SIZE_NOTIF) {
-            const chunk = batchOrders.slice(j, j + BATCH_SIZE_NOTIF);
-            const promises = chunk.flatMap(o => {
-              const p = [m.notifyOrderGeneratedCustomer(o.customerId!, o.mealType || 'meal', o.date!)];
-              if (o.deliveryPartnerId) {
-                p.push(m.notifyOrderGeneratedDriver(o.deliveryPartnerId, o.id!, o.mealType || 'meal', o.customerName || 'Unknown', o.date!));
-              }
-              return p;
-            });
-            const results = await Promise.allSettled(promises);
-            const rejections = results.filter(r => r.status === 'rejected');
-            notificationsFailed += rejections.length;
-            rejections.forEach(r => console.error('[orderService] Notification failed:', (r as PromiseRejectedResult).reason));
-          }
-        } catch (e) {
-          console.error('[orderService] Notification module error:', e);
-          notificationsFailed++;
-        }
-        
-        try {
-          const audit = await import('@/shared/services/firestore/auditRepository');
-          await audit.auditRepository.logAction('orders_generated', 'system', 'System Auto-Generator', runId, 'system', {
-            date: today,
-            mealType,
-            count: batchOrders.length
-          });
-        } catch (e) {
-          console.error('[orderService] Audit log error:', e);
-          notificationsFailed++;
-        }
-      }
-
-      const completedAt = serverTimestamp() as unknown as Timestamp;
-      const finalStatus = (ordersFailed > 0 || notificationsFailed > 0) ? (ordersGenerated > 0 ? 'partial' : 'failed') : 'success';
-
-      await orderGenerationRunRepository.update(runId, {
-        status: finalStatus,
-        completedAt,
-        ordersGenerated,
-        ordersSkipped,
-        ordersCancelled,
-        ordersFailed,
-        notificationsFailed
-      } as any);
-
-      if (ordersGenerated > 0) {
-        try {
-          const kitchenStaff = await userRepository.list(where('role', '==', 'kitchen'), where('isActive', '==', true));
-          const ids = kitchenStaff.map((s) => s.id);
-          if (ids.length > 0) {
-            await notifyDailyOrdersGenerated(ids, today, ordersGenerated);
-          }
-        } catch (err) {
-          console.error('[orderService] kitchen notification failed:', err);
-        }
-      }
-
-      return ordersGenerated;
-
-    } catch (error: any) {
-      const completedAt = serverTimestamp() as unknown as Timestamp;
-      await orderGenerationRunRepository.update(runId, {
-        status: 'failed',
-        completedAt,
-        error: error.message
-      } as any);
-      throw error;
-    }
-  }
-
-  private buildOrderSnapshot(
-    sub: Subscription,
-    pref: any,
-    mealType: 'breakfast' | 'lunch' | 'dinner',
-    date: string,
-    customerMap: Map<string, CustomerProfile>,
-    partnerMap: Map<string, DeliveryPartnerProfile>,
-    zoneMap: Map<string, any>,
-    activePartners: DeliveryPartnerProfile[],
-    allZones: any[],
-    mealPlans: MealPlan[],
-    workloadMap: Map<string, number>,
-    defaultKitchenId: string | null
-  ): Partial<Order> {
-    const customer = customerMap.get(sub.customerId);
-    
-    let zoneId = customer?.zoneId ?? null;
-    if (!zoneId) {
-      const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
-      if (defaultAddress?.pincode) {
-        const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
-        if (matchedZone) zoneId = matchedZone.id;
-      }
-    }
-
-    let partnerId: string | null = null;
-    if (zoneId) {
-      const eligiblePartners = activePartners.filter(p => 
-        p.isAvailable &&
-        p.zoneIds?.includes(zoneId!) &&
-        (!p.shifts || p.shifts.length === 0 || p.shifts.includes(mealType))
-      );
-
-      if (eligiblePartners.length > 0) {
-        if (customer?.deliveryPartnerId && eligiblePartners.some(p => p.id === customer.deliveryPartnerId)) {
-          partnerId = customer.deliveryPartnerId;
-        } else {
-          eligiblePartners.sort((a, b) => {
-            const aLoad = workloadMap.get(a.id) || 0;
-            const bLoad = workloadMap.get(b.id) || 0;
-            if (aLoad !== bLoad) return aLoad - bLoad;
-            return a.id.localeCompare(b.id);
-          });
-          partnerId = eligiblePartners[0].id;
-        }
-        workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
-      }
-    }
-
-    const plan = mealPlans.find(p => p.id === sub.planId);
-    let optionLabel = '';
-    if (plan) {
-      const slot = plan.mealSlots.find(s => s.mealType === mealType);
-      let option = slot?.options?.find(o => o.id === pref.selectedOptionId);
-      if (!option && slot && slot.options && slot.options.length > 0) {
-        option = slot.options[0];
-      }
-      if (option) optionLabel = option.label;
-    }
-
-    const driver = partnerMap.get(partnerId || '');
-    const addr = customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) || customer?.addresses?.[0];
-    const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
-
-    const orderObj: Partial<Order> = {
-      id: `ord_${sub.id}_${date}_${mealType}`,
-      displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      source: 'subscription',
-      customerId: sub.customerId,
-      subscriptionId: sub.id,
-      planTier: sub.planTier,
-      mealType: mealType,
-      date: date,
-      
-      // Denormalized Operational Snapshot
-      customerName: customer?.fullName || 'Unknown Customer',
-      customerCode: customer?.displayId || undefined,
-      customerPhone: customer?.phone || undefined,
-      address: addressStr || undefined,
-      zoneName: zoneId ? (zoneMap.get(zoneId)?.name || undefined) : undefined,
-      planName: plan?.name || 'Unknown Plan',
-      driverName: driver?.fullName || undefined,
-      driverPhone: driver?.phone || undefined,
-      mealName: optionLabel || mealType,
-      mealQuantity: sub.quantity || 1,
-      billingStatus: 'Generated',
-      kitchenStatus: 'scheduled',
-
-      itemsLabel: `Subscription - ${mealType} ${optionLabel ? `(${optionLabel})` : ''}`,
-      selectedOptionId: pref.selectedOptionId ?? null,
-      price: sub.pricingMatrixSnapshot ? 
-        ((sub.pricingMatrixSnapshot as unknown as Record<string, number>)[mealType] || 0) * (sub.quantity || 1) : 
-        Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
-      currency: 'INR',
-      status: 'scheduled',
-      deliveryAddressId: sub.deliveryAddressId ?? null,
-      zoneId: zoneId ?? null,
-      kitchenId: zoneId ? (zoneMap.get(zoneId)?.kitchenId ?? defaultKitchenId) : defaultKitchenId,
-      deliveryPartnerId: partnerId ?? null,
-      deliveryWindow: null,
-      paymentId: sub.latestPaymentId ?? null,
-    };
-
-    // Remove any remaining undefined values just in case
-    Object.keys(orderObj).forEach(key => {
-      if ((orderObj as any)[key] === undefined) {
-        delete (orderObj as any)[key];
-      }
-    });
-
-    return orderObj;
-  }
 
   /**
    * Generates orders for a specific subscription and date for the specified meal types.
@@ -780,6 +418,119 @@ class OrderService {
       await this.generateOrdersForSubscription(subscription, date, mealTypesToGenerate);
       console.log(`[orderService] Regenerated ${mealTypesToGenerate.length} missing orders for unskipped day ${date}`);
     }
+  }
+
+  private buildOrderSnapshot(
+    sub: Subscription,
+    pref: any,
+    mealType: 'breakfast' | 'lunch' | 'dinner',
+    date: string,
+    customerMap: Map<string, CustomerProfile>,
+    partnerMap: Map<string, DeliveryPartnerProfile>,
+    zoneMap: Map<string, any>,
+    activePartners: DeliveryPartnerProfile[],
+    allZones: any[],
+    mealPlans: MealPlan[],
+    workloadMap: Map<string, number>,
+    defaultKitchenId: string | null
+  ): Partial<Order> {
+    const customer = customerMap.get(sub.customerId);
+    
+    let zoneId = customer?.zoneId ?? null;
+    if (!zoneId) {
+      const defaultAddress = customer?.addresses?.find((a: any) => a.id === customer.defaultAddressId) || customer?.addresses?.[0];
+      if (defaultAddress?.pincode) {
+        const matchedZone = allZones.find(z => z.pincodes.includes(defaultAddress.pincode));
+        if (matchedZone) zoneId = matchedZone.id;
+      }
+    }
+
+    let partnerId: string | null = null;
+    if (zoneId) {
+      const eligiblePartners = activePartners.filter(p => 
+        p.isAvailable &&
+        p.zoneIds?.includes(zoneId!) &&
+        (!p.shifts || p.shifts.length === 0 || p.shifts.includes(mealType))
+      );
+
+      if (eligiblePartners.length > 0) {
+        if (customer?.deliveryPartnerId && eligiblePartners.some(p => p.id === customer.deliveryPartnerId)) {
+          partnerId = customer.deliveryPartnerId;
+        } else {
+          eligiblePartners.sort((a, b) => {
+            const aLoad = workloadMap.get(a.id) || 0;
+            const bLoad = workloadMap.get(b.id) || 0;
+            if (aLoad !== bLoad) return aLoad - bLoad;
+            return a.id.localeCompare(b.id);
+          });
+          partnerId = eligiblePartners[0].id;
+        }
+        workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+      }
+    }
+
+    const plan = mealPlans.find(p => p.id === sub.planId);
+    let optionLabel = '';
+    if (plan) {
+      const slot = plan.mealSlots.find(s => s.mealType === mealType);
+      let option = slot?.options?.find(o => o.id === pref.selectedOptionId);
+      if (!option && slot && slot.options && slot.options.length > 0) {
+        option = slot.options[0];
+      }
+      if (option) optionLabel = option.label;
+    }
+
+    const driver = partnerMap.get(partnerId || '');
+    const addr = customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) || customer?.addresses?.[0];
+    const addressStr = addr ? `${addr.line1} ${addr.line2 || ''}, ${addr.city}, ${addr.pincode}`.trim() : undefined;
+
+    const orderObj: Partial<Order> = {
+      id: `ord_${sub.id}_${date}_${mealType}`,
+      displayId: customer?.displayId || `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      source: 'subscription',
+      customerId: sub.customerId,
+      subscriptionId: sub.id,
+      planTier: sub.planTier,
+      mealType: mealType,
+      date: date,
+      
+      // Denormalized Operational Snapshot
+      customerName: customer?.fullName || 'Unknown Customer',
+      customerCode: customer?.displayId || undefined,
+      customerPhone: customer?.phone || undefined,
+      address: addressStr || undefined,
+      zoneName: zoneId ? (zoneMap.get(zoneId)?.name || undefined) : undefined,
+      planName: plan?.name || 'Unknown Plan',
+      driverName: driver?.fullName || undefined,
+      driverPhone: driver?.phone || undefined,
+      mealName: optionLabel || mealType,
+      mealQuantity: sub.quantity || 1,
+      billingStatus: 'Generated',
+      kitchenStatus: 'scheduled',
+
+      itemsLabel: 'Subscription - ' + mealType + (optionLabel ? ' (' + optionLabel + ')' : ''),
+      selectedOptionId: pref.selectedOptionId ?? null,
+      price: sub.pricingMatrixSnapshot ? 
+        ((sub.pricingMatrixSnapshot as unknown as Record<string, number>)[mealType] || 0) * (sub.quantity || 1) : 
+        Math.round((sub.pricePerDaySnapshot * (sub.quantity || 1)) / sub.mealPreferences.length),
+      currency: 'INR',
+      status: 'scheduled',
+      deliveryAddressId: sub.deliveryAddressId ?? null,
+      zoneId: zoneId ?? null,
+      kitchenId: zoneId ? (zoneMap.get(zoneId)?.kitchenId ?? defaultKitchenId) : defaultKitchenId,
+      deliveryPartnerId: partnerId ?? null,
+      deliveryWindow: null,
+      paymentId: sub.latestPaymentId ?? null,
+    };
+
+    // Remove any remaining undefined values just in case
+    Object.keys(orderObj).forEach(key => {
+      if ((orderObj as any)[key] === undefined) {
+        delete (orderObj as any)[key];
+      }
+    });
+
+    return orderObj;
   }
 }
 

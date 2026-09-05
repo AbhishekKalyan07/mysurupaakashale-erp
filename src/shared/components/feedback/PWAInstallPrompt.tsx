@@ -5,7 +5,7 @@ import { PremiumButton } from '@/shared/components/ui/PremiumButton';
 // Global variable to catch the install prompt event
 let deferredPrompt: any = null;
 
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt' as any, (e: any) => {
   // Prevent Chrome 67 and earlier from automatically showing the prompt
   e.preventDefault();
   // Stash the event so it can be triggered later.
@@ -15,6 +15,8 @@ window.addEventListener('beforeinstallprompt', (e) => {
 export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
@@ -46,7 +48,6 @@ export function PWAInstallPrompt() {
     }
 
     // Logic to show prompt:
-    // If we have deferredPrompt (Android/Desktop), or it's iOS (which doesn't have deferredPrompt)
     const timer = setTimeout(() => {
       setShowPrompt(true);
     }, 3000);
@@ -63,8 +64,8 @@ export function PWAInstallPrompt() {
       }
       deferredPrompt = null;
     } else if (isIOS) {
-      // iOS doesn't support programmatic install, just show the instructions
-      alert('To install on iOS: tap the Share button at the bottom of Safari, then tap "Add to Home Screen".');
+      // iOS doesn't support programmatic install, reveal instructions
+      setShowIOSInstructions(true);
     }
   };
 
@@ -105,13 +106,13 @@ export function PWAInstallPrompt() {
             </p>
 
             <div className="mt-4">
-              {isIOS ? (
-                <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary">
+              {isIOS && showIOSInstructions ? (
+                <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary animate-in fade-in slide-in-from-top-2">
                   <span className="block font-bold mb-1">iOS Install Instructions:</span>
                   Tap the <span className="inline-block px-1 bg-white rounded border shadow-sm">Share</span> icon at the bottom of Safari, then tap <strong>Add to Home Screen</strong>.
                 </div>
               ) : (
-                <PremiumButton onClick={handleInstallClick} className="w-full font-bold">
+                <PremiumButton onClick={() => void handleInstallClick()} className="w-full font-bold">
                   <Download className="w-4 h-4 mr-2" />
                   Install App
                 </PremiumButton>

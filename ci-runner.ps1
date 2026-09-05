@@ -21,7 +21,9 @@ Invoke-Checked { npm run test }
 Write-Host "Running coverage..."
 Invoke-Checked { npm run test:coverage }
 Write-Host "Running security tests..."
-Invoke-Checked { npx firebase emulators:exec --project demo-test --only firestore,storage "npm run test:security" }
+$env:FUNCTIONS_DISCOVERY_TIMEOUT = "60"
+Invoke-Checked { npm --prefix functions run build }
+Invoke-Checked { npx firebase emulators:exec --project demo-test --only firestore,storage,functions "npm run test:security" }
 Write-Host "Running Playwright..."
 Invoke-Checked { npx playwright test --project=chromium }
 Write-Host "Running build..."

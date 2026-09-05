@@ -43,7 +43,7 @@ export function DesktopAuthLayout({ children }: DesktopAuthLayoutProps) {
 
           <div className="flex flex-col items-center">
             <img 
-              src="/no_bg_logo.webp" 
+              src="/no_bg_logo.png" 
               alt="Mysuru Paakashale Logo" 
               width="144"
               height="144"

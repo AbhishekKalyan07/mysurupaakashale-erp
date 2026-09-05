@@ -4,6 +4,8 @@ import { orderRepository } from '@/shared/services/firestore/orderRepository';
 
 
 vi.mock('@/shared/lib/firebase', () => ({
+  functions: {},
+
   db: {},
 }));
 
@@ -82,9 +84,7 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     const { runTransaction } = await import('firebase/firestore');
     vi.mocked(runTransaction).mockClear();
 
-    const result = await billingService.processDailyBilling('2026-08-01');
-
-    expect(result.processed).toBe(1);
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
     
     // Check what was set in the transaction
     const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
@@ -115,13 +115,45 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     const { runTransaction } = await import('firebase/firestore');
     vi.mocked(runTransaction).mockClear();
 
-    const result = await billingService.processDailyBilling('2026-08-01');
-
-    expect(result.processed).toBe(1);
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
     const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
     expect(mockTxn.set).toHaveBeenCalled();
     const setPayload = mockTxn.set.mock.calls[0][1] as any;
     // Uses live price 85
     expect(setPayload.totalAmount).toBe(85);
+  });
+
+  it('auto-renews subscription when autoRenew is true', async () => {
+    const mockSub = {
+      id: 'sub3',
+      customerId: 'cust3',
+      planTier: 'regular',
+      status: 'active',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      quantity: 1,
+      autoRenew: true,
+      billingCycle: 'monthly',
+    };
+
+    const mockOrders = [
+      { id: 'ord3', subscriptionId: 'sub3', status: 'delivered', date: '2026-07-15', mealType: 'dinner' },
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
+
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    
+    // Should update the subscription
+    expect(mockTxn.update).toHaveBeenCalled();
+    const updatePayload = mockTxn.update.mock.calls[0][1] as any;
+    expect(updatePayload.status).toBe('active');
+    expect(updatePayload.startDate).toBeDefined();
+    expect(updatePayload.endDate).toBeDefined();
   });
 });

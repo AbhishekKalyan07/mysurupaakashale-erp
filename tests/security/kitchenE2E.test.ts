@@ -8,7 +8,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, getDocs, setDoc, query, collection, where } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test';
+const PROJECT_ID = 'demo-kitchen';
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
 withEmulator('🔐 Kitchen Module E2E Security Tests', () => {

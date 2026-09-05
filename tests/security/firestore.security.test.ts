@@ -30,7 +30,7 @@ import {
   serverTimestamp,
 } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test';
+const PROJECT_ID = 'demo-firestore';
 
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
@@ -77,6 +77,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
 
         // Orders
         setDoc(doc(db, 'orders', 'order-a'), {
+          customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID, kitchenId: 'kitchen-1',
+          status: 'scheduled', date: '2025-01-15', price: 150,
+        }),
+        setDoc(doc(db, 'orders', 'order-scheduled-dp'), {
           customerId: CUSTOMER_A_UID, deliveryPartnerId: DELIVERY_UID, kitchenId: 'kitchen-1',
           status: 'scheduled', date: '2025-01-15', price: 150,
         }),
@@ -325,7 +329,7 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
 
     it('DENY: Delivery partner cannot move order from scheduled → out_for_delivery (skip pickup)', async () => {
       const db = env.authenticatedContext(DELIVERY_UID).firestore();
-      await assertFails(updateDoc(doc(db, 'orders', 'order-a'), {
+      await assertFails(updateDoc(doc(db, 'orders', 'order-scheduled-dp'), {
         status: 'out_for_delivery', updatedAt: new Date(),
       }));
     });

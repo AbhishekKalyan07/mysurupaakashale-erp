@@ -25,8 +25,10 @@ withFirestoreEmulator('active Firestore RBAC rules', () => {
         setDoc(doc(database, 'users', 'kitchen'), { id: 'kitchen', role: 'kitchen' }),
         setDoc(doc(database, 'users', 'delivery'), { id: 'delivery', role: 'delivery_partner' }),
         setDoc(doc(database, 'users', 'accounts'), { id: 'accounts', role: 'accounts' }),
-        setDoc(doc(database, 'orders', 'customer-order'), { customerId: 'customer', deliveryPartnerId: 'delivery', status: 'scheduled' }),
-        setDoc(doc(database, 'orders', 'other-order'), { customerId: 'other', deliveryPartnerId: 'other-delivery', status: 'scheduled' }),
+        setDoc(doc(database, 'orders', 'customer-order'), { customerId: 'customer', deliveryPartnerId: 'delivery', status: 'scheduled', date: '2025-01-15' }),
+        setDoc(doc(database, 'orders', 'other-order'), { customerId: 'other', deliveryPartnerId: 'other-delivery', status: 'scheduled', date: '2025-01-15' }),
+        setDoc(doc(database, 'orders', 'delivery-order'), { customerId: 'customer', deliveryPartnerId: 'delivery', status: 'ready_for_pickup', date: '2025-01-15' }),
+        setDoc(doc(database, 'orders', 'other-delivery-order'), { customerId: 'other', deliveryPartnerId: 'other-delivery', status: 'ready_for_pickup', date: '2025-01-15' }),
         setDoc(doc(database, 'payments', 'payment'), { customerId: 'customer', status: 'pending', amount: 100 }),
       ]);
     });
@@ -43,13 +45,13 @@ withFirestoreEmulator('active Firestore RBAC rules', () => {
 
   it('allows kitchen staff to update operational order status', async () => {
     const kitchen = environment.authenticatedContext('kitchen').firestore();
-    await assertSucceeds(updateDoc(doc(kitchen, 'orders', 'customer-order'), { status: 'preparing' }));
+    await assertSucceeds(updateDoc(doc(kitchen, 'orders', 'customer-order'), { status: 'packing', updatedAt: new Date() }));
   });
 
   it('limits delivery staff to their assigned order', async () => {
     const delivery = environment.authenticatedContext('delivery').firestore();
-    await assertSucceeds(updateDoc(doc(delivery, 'orders', 'customer-order'), { status: 'out_for_delivery' }));
-    await assertFails(updateDoc(doc(delivery, 'orders', 'other-order'), { status: 'out_for_delivery' }));
+    await assertSucceeds(updateDoc(doc(delivery, 'orders', 'delivery-order'), { status: 'picked_up', updatedAt: new Date() }));
+    await assertFails(updateDoc(doc(delivery, 'orders', 'other-delivery-order'), { status: 'picked_up', updatedAt: new Date() }));
   });
 
   it('allows accounts to read payments but not modify them', async () => {

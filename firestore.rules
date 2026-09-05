@@ -62,7 +62,9 @@ service cloud.firestore {
     
     function isAuthorizedKitchen(kitchenId) {
       let myKitchen = callerKitchenId();
-      return isKitchen() && (myKitchen == null || kitchenId == null || kitchenId == myKitchen);
+      // Unassigned kitchen staff (myKitchen == null) can manage orders,
+      // but staff assigned to a specific kitchen can only access their matching kitchenId.
+      return isKitchen() && (myKitchen == null || (kitchenId != null && kitchenId == myKitchen));
     }
 
     function isOwner(userId) {
@@ -309,12 +311,10 @@ service cloud.firestore {
                (oldStatus == 'out_for_delivery' && (newStatus == 'delivered' || newStatus == 'failed_delivery' || newStatus == 'returned_delivery'));
       }
 
-      // Kitchen status transition guard: only forward movement within the
-      // kitchen lane is permitted. Prevents kitchen staff from jumping
-      // an order to 'delivered' or any billing/delivery state.
       function isValidKitchenTransition(oldStatus, newStatus) {
-        return (oldStatus == 'scheduled' && newStatus == 'packing') ||
-               (oldStatus == 'packing' && newStatus == 'packed') ||
+        return (oldStatus == 'scheduled' && (newStatus == 'packing' || newStatus == 'preparing')) ||
+               (oldStatus == 'preparing' && (newStatus == 'packing' || newStatus == 'packed' || newStatus == 'ready_for_pickup')) ||
+               (oldStatus == 'packing' && (newStatus == 'packed' || newStatus == 'ready_for_pickup')) ||
                (oldStatus == 'packed' && newStatus == 'ready_for_pickup');
       }
 
@@ -360,11 +360,11 @@ service cloud.firestore {
                        request.resource.data.date is string &&
                        request.resource.data.date.size() == 10 &&
                        // Operational fields must be null — only admin/automation may set them
-                       request.resource.data.deliveryPartnerId == null &&
-                       request.resource.data.kitchenId == null &&
-                       request.resource.data.zoneId == null &&
+                       request.resource.data.get('deliveryPartnerId', null) == null &&
+                       request.resource.data.get('kitchenId', null) == null &&
+                       request.resource.data.get('zoneId', null) == null &&
                        // subscriptionId must be null for one-time orders
-                       request.resource.data.subscriptionId == null &&
+                       request.resource.data.get('subscriptionId', null) == null &&
                        // createdAt must be present (required by queries)
                        ('createdAt' in request.resource.data) &&
                        // Holiday check: one-time orders also blocked on active holidays

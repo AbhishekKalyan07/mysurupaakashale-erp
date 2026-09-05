@@ -3,7 +3,7 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 
 const getDb = () => {
   if (getApps().length === 0) {
-    initializeApp();
+    initializeApp({ projectId: process.env.GCP_PROJECT || process.env.FIREBASE_PROJECT || 'demo-test' });
   }
   return getFirestore();
 };

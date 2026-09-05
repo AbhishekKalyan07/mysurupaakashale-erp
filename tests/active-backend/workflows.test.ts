@@ -14,7 +14,7 @@ describe('production GitHub Actions automations', () => {
     expect(content).toContain('workflow_dispatch');
     expect(content).toContain('actions/checkout@v4');
     expect(content).toContain('actions/setup-node@v4');
-    expect(content).toContain("node-version: '22'");
+    expect(content).toContain("node-version: '20'");
     expect(content).toContain('npm ci');
     expect(content).toContain(`npx vite-node --config vite.config.ts ${entryPoint}`);
     expect(content).toContain('VITE_AUTOMATION_EMAIL: ${{ secrets.VITE_AUTOMATION_EMAIL }}');

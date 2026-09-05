@@ -24,6 +24,7 @@ vi.mock('@/shared/services/firestore/userRepository', () => ({
 
 vi.mock('../../services/authService', () => ({
   signOutUser: vi.fn(),
+  handleGoogleRedirectResult: vi.fn(),
 }));
 
 const { onAuthStateChanged } = await import('firebase/auth');

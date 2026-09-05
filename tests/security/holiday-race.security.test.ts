@@ -11,7 +11,6 @@ import { resolve } from 'path';
 let testEnv: RulesTestEnvironment;
 
 beforeAll(async () => {
-  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
   const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
   testEnv = await initializeTestEnvironment({
     projectId: 'demo-holiday-race',

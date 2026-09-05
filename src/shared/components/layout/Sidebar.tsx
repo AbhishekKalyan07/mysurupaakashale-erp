@@ -22,7 +22,7 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex items-center gap-3 px-5 py-4">
-          <img src="/no_bg_logo.webp" alt="Mysuru Paakashale Logo" width="32" height="32" className="h-8 w-auto shrink-0" />
+          <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" width="32" height="32" className="h-8 w-auto shrink-0" />
           <div className="leading-tight">
             <p className="font-display text-sm">Mysuru Paakashale</p>
             <p className="text-xs text-leaf-300">{ROLE_LABELS[role]}</p>

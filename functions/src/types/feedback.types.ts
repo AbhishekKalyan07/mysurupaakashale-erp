@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase-admin/firestore';
 export type FeedbackCategory = 'food_quality' | 'delivery_issue' | 'packaging' | 'other';
 export type FeedbackStatus = 'new' | 'investigating' | 'resolved';
 

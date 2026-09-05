@@ -12,18 +12,7 @@ process.env.VITE_USE_FIREBASE_EMULATORS = 'true';
 process.env.VITE_FIREBASE_PROJECT_ID = 'demo-test';
 process.env.VITE_FIREBASE_API_KEY = 'demo-key';
 
-afterEach(async () => {
-  try {
-    // Clear firestore emulator between tests if emulator is reachable
-    const res = await fetch('http://127.0.0.1:8080/emulator/v1/projects/demo-test/databases/(default)/documents', {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      // non-200 response
-    }
-  } catch (error: any) {
-    if (error?.cause?.code !== 'ECONNREFUSED' && error?.code !== 'ECONNREFUSED') {
-      console.error('Failed to clear emulator database:', error);
-    }
-  }
-});
+// Removed afterEach database clear because it wipes the database concurrently
+// while other tests (like Cloud Functions) are still running.
+// Individual test files should clear their own isolated databases (e.g., using env.clearFirestore())
+
