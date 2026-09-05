@@ -1,13 +1,7 @@
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import * as logger from 'firebase-functions/logger';
-
-vi.mock('firebase-functions/logger', () => ({
-  warn: vi.fn(),
-  info: vi.fn()
-}));
-
 import * as repositories from '../../functions/src/repositories';
 import { initTestApp, getFirestore } from '../../functions/src/test-init';
 
@@ -119,23 +113,31 @@ describe('repositories.ts', () => {
 
   describe('notificationService', () => {
     it('notifyAdminAlert logs a warning', async () => {
+      const spy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       await repositories.notificationService.notifyAdminAlert(['a1'], 'Title', 'Message');
-      expect(logger.warn).toHaveBeenCalledWith('[Admin Alert] Title: Message');
+      expect(spy).toHaveBeenCalledWith('[Admin Alert] Title: Message');
+      spy.mockRestore();
     });
 
     it('notifyOrderGeneratedCustomer logs info', async () => {
+      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyOrderGeneratedCustomer('c1', 'o1', 'lunch', '2026-09-01');
-      expect(logger.info).toHaveBeenCalledWith('Customer notification: order o1 generated.');
+      expect(spy).toHaveBeenCalledWith('Customer notification: order o1 generated.');
+      spy.mockRestore();
     });
 
     it('notifyOrderGeneratedDriver logs info', async () => {
+      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyOrderGeneratedDriver('d1', 'o1', 'lunch');
-      expect(logger.info).toHaveBeenCalledWith('Driver notification: order o1 generated.');
+      expect(spy).toHaveBeenCalledWith('Driver notification: order o1 generated.');
+      spy.mockRestore();
     });
 
     it('notifyDailyOrdersGenerated logs info', async () => {
+      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyDailyOrdersGenerated(['a1'], '2026-09-01', 50);
-      expect(logger.info).toHaveBeenCalledWith('Admin notification: 50 daily orders generated for 2026-09-01.');
+      expect(spy).toHaveBeenCalledWith('Admin notification: 50 daily orders generated for 2026-09-01.');
+      spy.mockRestore();
     });
   });
 });

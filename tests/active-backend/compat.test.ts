@@ -2,8 +2,7 @@ process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import * as compat from '../../functions/src/compat';
-import { initTestApp } from '../../functions/src/test-init';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initTestApp, getFirestore } from '../../functions/src/test-init';
 
 beforeAll(() => {
   initTestApp();
