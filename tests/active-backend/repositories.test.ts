@@ -20,8 +20,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  mockWarn.mockClear();
-  mockInfo.mockClear();
+  vi.clearAllMocks();
 });
 
 describe('repositories.ts', () => {
