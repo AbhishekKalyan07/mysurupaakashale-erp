@@ -360,11 +360,11 @@ service cloud.firestore {
                        request.resource.data.date is string &&
                        request.resource.data.date.size() == 10 &&
                        // Operational fields must be null — only admin/automation may set them
-                       request.resource.data.deliveryPartnerId == null &&
-                       request.resource.data.kitchenId == null &&
-                       request.resource.data.zoneId == null &&
+                       request.resource.data.get('deliveryPartnerId', null) == null &&
+                       request.resource.data.get('kitchenId', null) == null &&
+                       request.resource.data.get('zoneId', null) == null &&
                        // subscriptionId must be null for one-time orders
-                       request.resource.data.subscriptionId == null &&
+                       request.resource.data.get('subscriptionId', null) == null &&
                        // createdAt must be present (required by queries)
                        ('createdAt' in request.resource.data) &&
                        // Holiday check: one-time orders also blocked on active holidays

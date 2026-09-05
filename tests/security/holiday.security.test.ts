@@ -27,6 +27,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users', 'admin-1'), { role: 'admin', isActive: true });
+    await setDoc(doc(db, 'users', 'cust-1'), { role: 'customer' });
+  });
 });
 
 describe('Holiday Security Rules', () => {
