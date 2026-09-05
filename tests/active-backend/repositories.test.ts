@@ -41,6 +41,17 @@ describe('repositories.ts', () => {
       expect(user.name).toBe('CustomIDUser');
       expect(user.id).toBe(customId);
     });
+
+    it('list with multiple constraints filters correctly', async () => {
+      const uniqueName = 'ListTestUser_' + Date.now();
+      const docId = await repositories.userRepository.create({ name: uniqueName, age: 25, role: 'admin' });
+      expect(docId).toBeDefined();
+
+      // List with constraint - should find the user
+      const users = await repositories.userRepository.list({ field: 'name', op: '==', val: uniqueName });
+      expect(users.length).toBeGreaterThan(0);
+      expect(users.some((u: any) => u.id === docId)).toBe(true);
+    });
   });
 
   describe('Specific Repositories', () => {
@@ -89,6 +100,15 @@ describe('repositories.ts', () => {
       const snaps = await getFirestore().collection('failureQueue').where('customerId', '==', 'c1').get();
       expect(snaps.empty).toBe(false);
       expect(snaps.docs[0].data().reason).toBe('Error');
+    });
+
+    it('failureQueueRepository.logFailure without stack', async () => {
+      await repositories.failureQueueRepository.logFailure('c2', 's2', 'dinner', '2026-09-02', 'Another Error');
+      
+      const snaps = await getFirestore().collection('failureQueue').where('customerId', '==', 'c2').get();
+      expect(snaps.empty).toBe(false);
+      expect(snaps.docs[0].data().reason).toBe('Another Error');
+      expect(snaps.docs[0].data().stack).toBeUndefined();
     });
   });
 
