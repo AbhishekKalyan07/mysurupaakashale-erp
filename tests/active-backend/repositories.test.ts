@@ -107,6 +107,15 @@ describe('repositories.ts', () => {
       const updated = await docRef.get();
       expect(updated.data()?.val).toBe(2);
     });
+
+    it('runTransaction returns null when document does not exist', async () => {
+      const docRef = getFirestore().collection('txnTest').doc('nonexistent_' + Date.now());
+
+      await repositories.transactionRepository.runTransaction(async (txn) => {
+        const res = await txn.get({ path: docRef.path });
+        expect(res).toBeNull();
+      });
+    });
   });
 
   describe('notificationService', () => {
