@@ -70,4 +70,29 @@ describe('FailureQueueRepository', () => {
       createdAt: 'server_timestamp_mock'
     }));
   });
+
+  it('logFailure creates record without stackTrace when omitted', async () => {
+    const mockId = 'test_failure_id';
+
+    const result = await failureQueueRepository.logFailure(
+      'cust_789',
+      'sub_012',
+      'dinner',
+      '2026-08-02',
+      'Another error'
+    );
+
+    expect(result).toBe(mockId);
+    expect(setDoc).toHaveBeenCalledWith({ id: mockId }, expect.objectContaining({
+      customerId: 'cust_789',
+      subscriptionId: 'sub_012',
+      mealType: 'dinner',
+      date: '2026-08-02',
+      reason: 'Another error',
+      attempts: 1,
+      retryCount: 0,
+      status: 'pending',
+      createdAt: 'server_timestamp_mock'
+    }));
+  });
 });
