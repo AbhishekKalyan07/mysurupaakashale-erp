@@ -10,6 +10,8 @@ const { mockWarn, mockInfo } = vi.hoisted(() => ({
 vi.mock('firebase-functions/logger', () => ({
   warn: mockWarn,
   info: mockInfo,
+  debug: vi.fn(),
+  error: vi.fn(),
 }));
 
 import * as repositories from '../../functions/src/repositories';
