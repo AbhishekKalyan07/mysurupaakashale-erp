@@ -49,8 +49,13 @@ Run-Stage "Unit Tests + Coverage" {
 }
 
 Run-Stage "Security Tests (Firebase Emulator)" {
-    Write-Host "Running: firebase emulators:exec --project demo-security-test --only firestore,storage `"npm run test:security`""
-    npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security"
+    $env:FUNCTIONS_DISCOVERY_TIMEOUT = "60"
+    Write-Host "Running: npm --prefix functions run build"
+    npm --prefix functions run build
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    Write-Host "Running: firebase emulators:exec --project demo-test --only firestore,storage,functions `"npm run test:security`""
+    npx firebase emulators:exec --project demo-test --only firestore,storage,functions "npm run test:security"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

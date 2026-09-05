@@ -38,13 +38,20 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
 
   // Helper to get connected storage
   function getStorage(uid?: string) {
-    const ctx = uid ? env.authenticatedContext(uid) : env.unauthenticatedContext();
+    let role: string | undefined = undefined;
+    if (uid === ADMIN_UID) role = 'admin';
+    else if (uid === KITCHEN_UID) role = 'kitchen';
+    else if (uid === DELIVERY_UID || uid === DELIVERY_B_UID) role = 'delivery_partner';
+    else if (uid === ACCOUNTS_UID) role = 'accounts';
+    else if (uid === CUSTOMER_A_UID || uid === CUSTOMER_B_UID) role = 'customer';
+
+    const ctx = uid ? env.authenticatedContext(uid, role ? { role } : undefined) : env.unauthenticatedContext();
     return ctx.storage();
   }
 
   // Helper to get admin storage
   function getAdminStorage() {
-    const ctx = env.authenticatedContext(ADMIN_UID);
+    const ctx = env.authenticatedContext(ADMIN_UID, { role: 'admin' });
     return ctx.storage();
   }
 
@@ -80,9 +87,12 @@ withEmulator('🔐 Storage Security Rules — Penetration Suite', () => {
   });
 
   beforeEach(async () => {
+    // Clear between tests
     await env.clearFirestore();
     await env.clearStorage();
 
+    // Seed required documents for cross-service checks on EVERY test
+    // because vitest.int.setup.ts clears the database!
     await env.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await Promise.all([

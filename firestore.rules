@@ -62,7 +62,9 @@ service cloud.firestore {
     
     function isAuthorizedKitchen(kitchenId) {
       let myKitchen = callerKitchenId();
-      return isKitchen() && (myKitchen == null || kitchenId == null || kitchenId == myKitchen);
+      // Unassigned kitchen staff (myKitchen == null) can manage orders,
+      // but staff assigned to a specific kitchen can only access their matching kitchenId.
+      return isKitchen() && (myKitchen == null || (kitchenId != null && kitchenId == myKitchen));
     }
 
     function isOwner(userId) {
@@ -305,16 +307,15 @@ service cloud.firestore {
 
       function isValidDeliveryTransition(oldStatus, newStatus) {
         return (oldStatus == 'ready_for_pickup' && newStatus == 'picked_up') ||
+               (oldStatus == 'scheduled' && (newStatus == 'picked_up' || newStatus == 'out_for_delivery')) ||
                (oldStatus == 'picked_up' && newStatus == 'out_for_delivery') ||
                (oldStatus == 'out_for_delivery' && (newStatus == 'delivered' || newStatus == 'failed_delivery' || newStatus == 'returned_delivery'));
       }
 
-      // Kitchen status transition guard: only forward movement within the
-      // kitchen lane is permitted. Prevents kitchen staff from jumping
-      // an order to 'delivered' or any billing/delivery state.
       function isValidKitchenTransition(oldStatus, newStatus) {
-        return (oldStatus == 'scheduled' && newStatus == 'packing') ||
-               (oldStatus == 'packing' && newStatus == 'packed') ||
+        return (oldStatus == 'scheduled' && (newStatus == 'packing' || newStatus == 'preparing')) ||
+               (oldStatus == 'preparing' && (newStatus == 'packing' || newStatus == 'packed' || newStatus == 'ready_for_pickup')) ||
+               (oldStatus == 'packing' && (newStatus == 'packed' || newStatus == 'ready_for_pickup')) ||
                (oldStatus == 'packed' && newStatus == 'ready_for_pickup');
       }
 
