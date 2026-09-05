@@ -113,7 +113,7 @@ describe('notificationService', () => {
 
   describe('Payment Notifications', () => {
     it('notifyPaymentSubmitted notifies customer and admins', async () => {
-      await notificationService.notifyPaymentSubmitted('cust-1', 'pay-1', 1500, ['admin-1', 'admin-2']);
+      await notificationService.notifyPaymentSubmitted('cust-1', 'John Doe (C123)', 'pay-1', 1500, ['admin-1', 'admin-2']);
       expect(notificationRepository.createNotification).toHaveBeenCalledTimes(3);
       // Customer notification
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(

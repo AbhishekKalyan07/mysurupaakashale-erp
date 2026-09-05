@@ -136,8 +136,12 @@ function PaymentDetailDialog({
           <div className="grid grid-cols-2 gap-3 text-sm font-sans">
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Customer</div>
-              <div className="font-bold text-primary">{payment.customerName}</div>
-              <div className="text-text-muted text-[10px] font-mono mt-1">{payment.customerId}</div>
+              <div className="font-bold text-primary">
+                {payment.customerName} {user?.displayId ? `(${user.displayId})` : ''}
+              </div>
+              <div className="text-text-muted text-[10px] font-mono mt-1">
+                {user?.displayId ? user.displayId : payment.customerId}
+              </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Amount</div>

@@ -133,13 +133,15 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
           <div className="grid grid-cols-2 gap-3 text-sm font-sans">
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Customer</div>
-              <div className="font-bold text-primary text-lg">{subscription.customerName}</div>
+              <div className="font-bold text-primary text-lg">
+                {subscription.customerName} {subscription.customerDisplayId ? `(${subscription.customerDisplayId})` : ''}
+              </div>
               <div className="text-text-muted text-xs font-medium">{subscription.customerPhone}</div>
               {subscription.customerAddress && (
                 <div className="text-primary text-xs mt-2 p-2 bg-background rounded border border-primary/10">{subscription.customerAddress}</div>
               )}
-              {subscription.customerDisplayId && (
-                <div className="text-text-muted text-[10px] font-mono mt-2">{subscription.customerDisplayId}</div>
+              {!subscription.customerDisplayId && (
+                <div className="text-text-muted text-[10px] font-mono mt-2">{subscription.customerId}</div>
               )}
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
