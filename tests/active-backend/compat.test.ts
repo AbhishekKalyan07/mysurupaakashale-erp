@@ -2,13 +2,11 @@ process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import * as compat from '../../functions/src/compat';
-import { getApps, initializeApp } from 'firebase-admin/app';
+import { initTestApp } from '../../functions/src/test-init';
 import { getFirestore } from 'firebase-admin/firestore';
 
 beforeAll(() => {
-  if (getApps().length === 0) {
-    initializeApp({ projectId: 'demo-test' });
-  }
+  initTestApp();
 });
 
 describe('compat.ts (integration)', () => {
@@ -42,11 +40,11 @@ describe('compat.ts (integration)', () => {
   it('writeBatch', async () => {
     const batch = compat.writeBatch(null);
     const docId = 'batch_doc_' + Date.now();
-    const ref = getFirestore().collection('compat_col').doc(docId);
+    const ref = compat.doc(null, 'compat_col', docId);
     batch.set(ref, { batched: true });
     await batch.commit();
 
-    const snap = await ref.get();
+    const snap = await compat.getDoc(ref);
     expect(snap.data()?.batched).toBe(true);
   });
 

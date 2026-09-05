@@ -1,6 +1,7 @@
+process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { initializeApp, getApps, deleteApp } from 'firebase-admin/app';
-import { getFirestore, type Firestore, type QueryDocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
+import { initTestApp, cleanupTestApp, getFirestore, type Firestore } from '../../functions/src/test-init';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -9,17 +10,12 @@ describe('Cloud Function: onOrderCancelled Integration', () => {
 
   beforeAll(() => {
     // Connect to the Firestore emulator that functions emulator is watching
-    if (getApps().length === 0) {
-      initializeApp({ projectId: 'demo-test' });
-    }
+    initTestApp();
     db = getFirestore();
   });
 
   afterAll(async () => {
-    const apps = getApps();
-    if (apps.length > 0) {
-      await deleteApp(apps[0]);
-    }
+    await cleanupTestApp();
   });
 
   beforeEach(async () => {

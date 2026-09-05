@@ -1,9 +1,6 @@
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import * as repositories from '../../functions/src/repositories';
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 
 vi.mock('firebase-functions/logger', () => ({
@@ -11,10 +8,11 @@ vi.mock('firebase-functions/logger', () => ({
   info: vi.fn()
 }));
 
+import * as repositories from '../../functions/src/repositories';
+import { initTestApp, getFirestore } from '../../functions/src/test-init';
+
 beforeAll(() => {
-  if (getApps().length === 0) {
-    initializeApp({ projectId: 'demo-test' });
-  }
+  initTestApp();
 });
 
 describe('repositories.ts', () => {

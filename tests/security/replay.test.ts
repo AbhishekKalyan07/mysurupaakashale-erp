@@ -19,7 +19,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc, addDoc, collection, updateDoc } from '@firebase/firestore';
 
-const PROJECT_ID = 'demo-test';
+const PROJECT_ID = 'demo-replay';
 const withEmulator = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
 withEmulator('🔄 Replay Attack Tests', () => {

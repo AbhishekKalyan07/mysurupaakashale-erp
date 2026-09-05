@@ -47,19 +47,19 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return getUser().role == 'admin';
+      return request.auth.token.role == 'admin' || getUser().role == 'admin';
     }
 
     function isKitchen() {
-      return getUser().role == 'kitchen';
+      return request.auth.token.role == 'kitchen' || getUser().role == 'kitchen';
     }
 
     function isAccounts() {
-      return getUser().role == 'accounts';
+      return request.auth.token.role == 'accounts' || getUser().role == 'accounts';
     }
 
     function isDeliveryPartner() {
-      return getUser().role == 'delivery_partner';
+      return request.auth.token.role == 'delivery_partner' || getUser().role == 'delivery_partner';
     }
 
     // /profile-photos/{userId}/{fileName}

@@ -307,7 +307,6 @@ service cloud.firestore {
 
       function isValidDeliveryTransition(oldStatus, newStatus) {
         return (oldStatus == 'ready_for_pickup' && newStatus == 'picked_up') ||
-               (oldStatus == 'scheduled' && (newStatus == 'picked_up' || newStatus == 'out_for_delivery')) ||
                (oldStatus == 'picked_up' && newStatus == 'out_for_delivery') ||
                (oldStatus == 'out_for_delivery' && (newStatus == 'delivered' || newStatus == 'failed_delivery' || newStatus == 'returned_delivery'));
       }
