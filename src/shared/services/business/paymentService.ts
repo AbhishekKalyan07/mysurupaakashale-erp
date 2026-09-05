@@ -48,7 +48,10 @@ class PaymentService {
       const admins = await userRepository.list(where('role', '==', 'admin'));
       const adminIds = admins.map((a) => a.id);
       
-      await notifyPaymentSubmitted(customerId, paymentId, input.amount, adminIds);
+      const customerSnap = await userRepository.getById(customerId);
+      const displayName = customerSnap?.displayId ? `${customerName} (${customerSnap.displayId})` : customerName;
+
+      await notifyPaymentSubmitted(customerId, displayName, paymentId, input.amount, adminIds);
     } catch (err) {
       console.error('Failed to send payment submitted notification', err);
     }

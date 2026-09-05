@@ -206,6 +206,7 @@ export async function notifySubscriptionRejected(
 
 export async function notifyPaymentSubmitted(
   customerId: string,
+  customerName: string,
   paymentId: string,
   amount: number,
   adminIds: string[],
@@ -227,7 +228,7 @@ export async function notifyPaymentSubmitted(
         'admin',
         'payment_submitted',
         'New payment needs verification',
-        `A customer has submitted a payment of ₹${amount}. Please verify it in the Payments section.`,
+        `${customerName} has submitted a payment of ₹${amount}. Please verify it in the Payments section.`,
         { priority: 'high', relatedEntityType: 'payment', relatedEntityId: paymentId },
       ),
     ),

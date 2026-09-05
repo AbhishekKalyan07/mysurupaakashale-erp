@@ -1,4 +1,4 @@
-import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, Settings, BookOpen, Activity, UserCheck, Map, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, Settings, BookOpen, Activity, UserCheck, Map, CalendarX, type LucideIcon } from 'lucide-react';
 import { ROLES, type Role } from '@/shared/constants/roles';
 
 export interface NavItem {
@@ -30,6 +30,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: 'Orders', to: '/admin/orders', icon: Package },
         { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
         { label: 'Delivery', to: '/admin/delivery', icon: Truck },
+        { label: 'Holidays', to: '/admin/holidays', icon: CalendarX },
       ],
     },
     {

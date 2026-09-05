@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { where, collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+import { where, collection, query, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 
 import type { Order } from '@/shared/types';
@@ -248,7 +248,8 @@ export function useAdminDashboardMetrics() {
         collection(db, 'payments'), 
         where('status', '==', 'failed'),
         where('createdAt', '>=', Timestamp.fromDate(startOfTodayIST)),
-        where('createdAt', '<=', Timestamp.fromDate(endOfTodayIST))
+        where('createdAt', '<=', Timestamp.fromDate(endOfTodayIST)),
+        orderBy('createdAt', 'desc')
       ),
       (snap) => {
         updateMetrics({ failedPayments: snap.size });
