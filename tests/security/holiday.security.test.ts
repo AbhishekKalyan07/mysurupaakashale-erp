@@ -14,7 +14,7 @@ let testEnv: RulesTestEnvironment;
 
 beforeAll(async () => {
   // Read the local firestore.rules file
-  const rules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf8');
+  const rules = readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8');
   testEnv = await initializeTestEnvironment({
     projectId: 'demo-mysuru-paakashale',
     firestore: { rules },
