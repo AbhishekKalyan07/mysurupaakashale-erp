@@ -1,12 +1,27 @@
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import * as logger from 'firebase-functions/logger';
+
+const { mockWarn, mockInfo } = vi.hoisted(() => ({
+  mockWarn: vi.fn(),
+  mockInfo: vi.fn(),
+}));
+
+vi.mock('firebase-functions/logger', () => ({
+  warn: mockWarn,
+  info: mockInfo,
+}));
+
 import * as repositories from '../../functions/src/repositories';
 import { initTestApp, getFirestore } from '../../functions/src/test-init';
 
 beforeAll(() => {
   initTestApp();
+});
+
+beforeEach(() => {
+  mockWarn.mockClear();
+  mockInfo.mockClear();
 });
 
 describe('repositories.ts', () => {
@@ -113,31 +128,23 @@ describe('repositories.ts', () => {
 
   describe('notificationService', () => {
     it('notifyAdminAlert logs a warning', async () => {
-      const spy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
       await repositories.notificationService.notifyAdminAlert(['a1'], 'Title', 'Message');
-      expect(spy).toHaveBeenCalledWith('[Admin Alert] Title: Message');
-      spy.mockRestore();
+      expect(mockWarn).toHaveBeenCalledWith('[Admin Alert] Title: Message');
     });
 
     it('notifyOrderGeneratedCustomer logs info', async () => {
-      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyOrderGeneratedCustomer('c1', 'o1', 'lunch', '2026-09-01');
-      expect(spy).toHaveBeenCalledWith('Customer notification: order o1 generated.');
-      spy.mockRestore();
+      expect(mockInfo).toHaveBeenCalledWith('Customer notification: order o1 generated.');
     });
 
     it('notifyOrderGeneratedDriver logs info', async () => {
-      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyOrderGeneratedDriver('d1', 'o1', 'lunch');
-      expect(spy).toHaveBeenCalledWith('Driver notification: order o1 generated.');
-      spy.mockRestore();
+      expect(mockInfo).toHaveBeenCalledWith('Driver notification: order o1 generated.');
     });
 
     it('notifyDailyOrdersGenerated logs info', async () => {
-      const spy = vi.spyOn(logger, 'info').mockImplementation(() => {});
       await repositories.notificationService.notifyDailyOrdersGenerated(['a1'], '2026-09-01', 50);
-      expect(spy).toHaveBeenCalledWith('Admin notification: 50 daily orders generated for 2026-09-01.');
-      spy.mockRestore();
+      expect(mockInfo).toHaveBeenCalledWith('Admin notification: 50 daily orders generated for 2026-09-01.');
     });
   });
 });
