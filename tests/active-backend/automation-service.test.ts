@@ -132,7 +132,7 @@ describe('active automation service', () => {
       { status: 'cancelled', mealType: 'lunch' },
     ]);
     mockSubscriptionRepository.list.mockResolvedValue([
-      { customerId: 'customer-1' }, { customerId: 'customer-1' }, { customerId: 'customer-2' },
+      { customerId: 'customer-1', status: 'active' }, { customerId: 'customer-1', status: 'active' }, { customerId: 'customer-2', status: 'active' },
     ]);
 
     await expect(automationService.generateDailySummary('2026-07-29')).resolves.toMatchObject({

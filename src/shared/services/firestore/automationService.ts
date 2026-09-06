@@ -29,7 +29,7 @@ export class AutomationService {
     let verifiedRevenue = 0, pendingRevenue = 0, rejectedRevenue = 0;
     const methodDistribution: Record<string, number> = {};
     
-    todayPayments.forEach(p => {
+    (todayPayments || []).forEach(p => {
       const amt = p.amount;
       if (p.status === 'verified') {
         totalRevenue += amt;
