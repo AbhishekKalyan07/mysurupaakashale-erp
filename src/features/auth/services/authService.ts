@@ -101,13 +101,9 @@ async function finishGoogleLogin(user: import('firebase/auth').User) {
  * was redirected back to the app from Google Sign-In.
  */
 export async function handleGoogleRedirectResult(): Promise<void> {
-  try {
-    const credential = await getRedirectResult(auth);
-    if (credential?.user) {
-      await finishGoogleLogin(credential.user);
-    }
-  } catch (error) {
-    console.error('Failed to process Google Redirect result:', error);
+  const credential = await getRedirectResult(auth);
+  if (credential?.user) {
+    await finishGoogleLogin(credential.user);
   }
 }
 
