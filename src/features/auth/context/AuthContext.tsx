@@ -40,7 +40,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // If the user just completed a Google sign in via redirect (e.g. in the PWA),
     // this will capture the result and ensure their Firestore profile is created.
-    handleGoogleRedirectResult();
+    handleGoogleRedirectResult().catch((err: any) => {
+      console.error('[auth] Redirect error:', err);
+      // Don't import mapAuthError here to avoid circular dependencies, just show a generic message
+      // or extract the message if it's available.
+      setError(err?.message || 'Authentication failed. Please check your browser settings or try again.');
+    });
   }, []);
 
   // 1. Resolve who's signed in via Firebase Auth
