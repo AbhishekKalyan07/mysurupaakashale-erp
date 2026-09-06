@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from "workbox-core";
 import { createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
-import { NavigationRoute, registerRoute } from "workbox-routing";
-import { StaleWhileRevalidate } from "workbox-strategies";
+import { NavigationRoute, registerRoute, setCatchHandler } from "workbox-routing";
+import { StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { initializeApp } from "firebase/app";
 import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
@@ -69,6 +69,29 @@ registerRoute(
   }),
 );
 
+// Cross-origin requests (Google Fonts, reCAPTCHA, Google APIs, Analytics) must
+// go straight to the network. Without this, Workbox's default handler intercepts
+// the fetch event and CSP blocks the service worker's fetch() for these origins.
+registerRoute(
+  ({ url }) =>
+    url.origin !== self.location.origin &&
+    (url.hostname.endsWith(".gstatic.com") ||
+      url.hostname.endsWith(".googleapis.com") ||
+      url.hostname === "apis.google.com" ||
+      url.hostname === "www.google.com" ||
+      url.hostname === "www.recaptcha.net" ||
+      url.hostname === "www.googletagmanager.com" ||
+      url.hostname === "www.google-analytics.com" ||
+      url.hostname === "analytics.google.com"),
+  new NetworkOnly(),
+);
+
+// Gracefully handle any fetch failures that slip past the registered routes,
+// preventing noisy "no-response" errors in the console.
+setCatchHandler(async ({ url }) => {
+  console.warn("[SW] Fetch failed for", url?.href);
+  return Response.error();
+});
 // Initialize Firebase Push Notifications safely
 // This must be done synchronously at the top level of the service worker,
 // NOT inside an 'activate' listener, so the 'push' event handler is registered immediately.
