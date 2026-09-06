@@ -35,21 +35,6 @@ export function useDeliveryBoard(date: string) {
 
   const summary = useMemo(() => deliveryService.getDeliverySummary(allOrders), [allOrders]);
 
-  const assignMutation = useMutation({
-    mutationFn: async ({ orderIds, partnerId }: { orderIds: string[]; partnerId: string }) => {
-      await deliveryRepository.assignOrders(orderIds, partnerId);
-      const user = getAuth().currentUser;
-      if (user) {
-        await auditRepository.logAction('order_assigned', user.uid, user.displayName || 'Staff', orderIds.join(','), 'order', { partnerId });
-      }
-    },
-    onSuccess: () => {
-      toast.success('Orders assigned successfully');
-    },
-    onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to assign orders');
-    },
-  });
 
   const reassignMutation = useMutation({
     mutationFn: async ({ orderId, partnerId }: { orderId: string; partnerId: string | null }) => {
@@ -78,7 +63,6 @@ export function useDeliveryBoard(date: string) {
     allOrders,
     summary,
     isLoading,
-    assignMutation,
     reassignMutation,
   };
 }

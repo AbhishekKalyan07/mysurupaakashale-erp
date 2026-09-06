@@ -124,13 +124,12 @@ export const notificationService = {
   notifyAdminAlert: async (adminIds: string[], title: string, message: string) => {
     logger.warn(`[Admin Alert] ${title}: ${message}`);
   },
-  notifyOrderGeneratedCustomer: async (customerId: string, orderId: string, mealType: string, date: string) => {
+  notifyOrderGeneratedCustomer: async (_customerId: string, _orderId: string, _mealType: string, _date: string) => {
     // In backend we can skip some fine-grained notifications if we want, or implement them properly.
-    // The client was inserting into notifications collection. We can do that here.
-    logger.info(`Customer notification: order ${orderId} generated.`);
+    // E.g. we might not want to push 1000 notifications via FCM all at once at 11 PM.
   },
-  notifyOrderGeneratedDriver: async (driverId: string, orderId: string, mealType: string) => {
-    logger.info(`Driver notification: order ${orderId} generated.`);
+  notifyOrderGeneratedDriver: async (_driverId: string, _orderId: string, _mealType: string) => {
+    logger.info(`Driver notification: order ${_orderId} generated.`);
   },
   notifyDailyOrdersGenerated: async (adminIds: string[], date: string, count: number) => {
     logger.info(`Admin notification: ${count} daily orders generated for ${date}.`);

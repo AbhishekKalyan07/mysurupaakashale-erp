@@ -62,10 +62,13 @@ describe('deliveryService', () => {
 
       const groups = deliveryService.getAreaDeliveryGroups(orders, partnerMap, zoneMap);
       
-      expect(groups.length).toBe(2);
+      expect(groups.length).toBe(3);
       const driver1 = groups.find(g => g.partnerName === 'Driver 1')!;
       expect(driver1.areas.length).toBe(2); // Zone 1, Zone 3
       expect(driver1.areas.find(a => a.areaName === 'Zone 1')!.orders.length).toBe(2);
+
+      const unassigned = groups.find(g => g.partnerName === 'Unassigned Partner')!;
+      expect(unassigned.areas.length).toBe(1);
       
       const driver2 = groups.find(g => g.partnerName === 'Driver 2')!;
       const zone2 = driver2.areas.find(a => a.areaName === 'Zone 2')!;

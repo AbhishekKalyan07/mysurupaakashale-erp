@@ -1,4 +1,4 @@
-import { afterEach, vi } from 'vitest';
+import { vi } from 'vitest';
 
 // Unmock all firebase modules since we want to connect to the real emulators
 vi.unmock('firebase/app');

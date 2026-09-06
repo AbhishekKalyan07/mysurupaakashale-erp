@@ -131,7 +131,7 @@ export function ManualPaymentPanel({
             </p>
           </div>
         </div>
-        {onClose && <button aria-label="Button action" onClick={onClose} className="text-ink-500 hover:text-ink-700 p-1 shrink-0"><XCircle size={18} /></button>}
+        {onClose && <button onClick={onClose} className="text-ink-500 hover:text-ink-700 p-1 shrink-0"><XCircle size={18} /></button>}
       </div>
 
       {/* Bank details */}
@@ -152,8 +152,7 @@ export function ManualPaymentPanel({
           <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans uppercase tracking-wider">Payment Method</label>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(methodConfig) as PaymentMethod[]).map((method) => (
-              <button aria-label="Button action"
-                key={method}
+              <button key={method}
                 type="button"
                 onClick={() => {
                   setForm((f) => ({ ...f, paymentMethod: method }));
@@ -191,8 +190,7 @@ export function ManualPaymentPanel({
             {screenshotPreview ? (
               <div className="relative rounded-xl overflow-hidden border-2 border-emerald-400 bg-emerald-50">
                 <img src={screenshotPreview} alt="Payment proof" className="w-full max-h-52 object-contain" />
-                <button aria-label="Button action"
-                  type="button"
+                <button type="button"
                   onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); }}
                   className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition"
                 ><XCircle size={14} /></button>
@@ -202,8 +200,7 @@ export function ManualPaymentPanel({
                 </div>
               </div>
             ) : (
-              <button aria-label="Button action"
-                type="button"
+              <button type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full border-2 border-dashed border-rice-400 rounded-xl p-6 flex flex-col items-center gap-2 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer"
               >

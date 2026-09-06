@@ -86,8 +86,7 @@ export function ProductionBoardPage() {
 
       {/* ── Tabs ── */}
       <div className="flex border-b border-rice-200">
-        <button aria-label="Button action"
-          onClick={() => setActiveTab('summary')}
+        <button onClick={() => setActiveTab('summary')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'summary' 
               ? 'border-leaf-600 text-leaf-700' 
@@ -96,25 +95,23 @@ export function ProductionBoardPage() {
         >
           Production Summary
         </button>
-        <button aria-label="Button action"
-          onClick={() => setActiveTab('production')}
+        <button onClick={() => setActiveTab('production')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'production' 
               ? 'border-leaf-600 text-leaf-700' 
               : 'border-transparent text-ink-500 hover:text-ink-700'
           }`}
         >
-          Packing List
+          Order Status Board
         </button>
-        <button aria-label="Button action"
-          onClick={() => setActiveTab('packing')}
+        <button onClick={() => setActiveTab('packing')}
           className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
             activeTab === 'packing' 
               ? 'border-turmeric-600 text-turmeric-700' 
               : 'border-transparent text-ink-500 hover:text-ink-700'
           }`}
         >
-          Area-wise Packing
+          Packing List
         </button>
       </div>
 

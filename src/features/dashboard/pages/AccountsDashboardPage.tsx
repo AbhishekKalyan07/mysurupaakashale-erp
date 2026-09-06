@@ -110,8 +110,7 @@ export function AccountsDashboardPage() {
 
       <div className="flex gap-2 p-1 bg-white border border-gold/20 rounded-lg w-fit shadow-sm">
         {(['today', 'week', 'month'] as const).map(range => (
-          <button aria-label="Button action"
-            key={range}
+          <button key={range}
             onClick={() => setDateRange(range)}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
               dateRange === range ? 'bg-primary shadow-sm text-white' : 'text-text-muted hover:text-primary hover:bg-background'

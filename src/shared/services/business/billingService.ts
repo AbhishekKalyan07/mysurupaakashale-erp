@@ -76,7 +76,6 @@ class BillingService {
 
     let totalAmount = 0;
     const tier = subscription.planTier as 'basic' | 'regular';
-    const matrix = subscription.pricingMatrixSnapshot || PRICING_MATRIX[tier] || PRICING_MATRIX.basic;
 
     for (const [_, dailyOrders] of Array.from(ordersByDate.entries())) {
       const meals = dailyOrders.map(o => o.mealType);
@@ -97,8 +96,23 @@ class BillingService {
         key = 'dinner';
       }
 
-      if (key && (matrix as any)[key]) {
-        totalAmount += (matrix as any)[key] * (subscription.quantity || 1);
+      if (key) {
+        if (subscription.pricingMatrixSnapshot) {
+          totalAmount += (subscription.pricingMatrixSnapshot as any)[key] * (subscription.quantity || 1);
+        } else {
+          // Legacy calculation
+          const fullMeals = (subscription.mealPreferences || []).map((m: any) => m.mealType);
+          let fullKey = '';
+          if (fullMeals.includes('breakfast')) fullKey += 'breakfast';
+          if (fullMeals.includes('lunch')) fullKey += (fullKey ? '_' : '') + 'lunch';
+          if (fullMeals.includes('dinner')) fullKey += (fullKey ? '_' : '') + 'dinner';
+
+          if (key === fullKey) {
+            totalAmount += (subscription.pricePerDaySnapshot || 0) * (subscription.quantity || 1);
+          } else {
+            totalAmount += ((PRICING_MATRIX[tier] as any)[key] || subscription.pricePerDaySnapshot || 0) * (subscription.quantity || 1);
+          }
+        }
       }
     }
 

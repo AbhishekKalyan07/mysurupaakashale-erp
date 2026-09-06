@@ -16,45 +16,112 @@ export class AutomationService {
   async generateDailySummary(dateOverride?: string) {
     const today = dateOverride || getTodayInTimezone();
     
-    // 1. Fetch today's orders
     const todayOrders = await orderRepository.getByDate(today);
+    const allSubs = await subscriptionRepository.list(where('status', 'in', ['active', 'paused']));
     
-    // 2. Fetch payments (for simplicity, we assume payments have createdAt == today or we just fetch all and filter)
-    // To make it efficient, we query payments by status and created date if possible.
-    // For now, we'll just aggregate from the orders or fetch active subscriptions.
-    const allSubs = await subscriptionRepository.list(where('status', '==', 'active'));
+    // Fetch payments for today
+    const { paymentRepository } = await import('./paymentRepository');
+    const todayPayments = await paymentRepository.list(
+      where('createdAt', '>=', new Date(`${today}T00:00:00.000Z`))
+    );
     
-    let breakfastCount = 0;
-    let lunchCount = 0;
-    let dinnerCount = 0;
+    let totalRevenue = 0, cashPayments = 0, onlinePayments = 0, pendingPayments = 0, refundedPayments = 0;
+    let verifiedRevenue = 0, pendingRevenue = 0, rejectedRevenue = 0;
+    const methodDistribution: Record<string, number> = {};
     
-    for (const order of todayOrders) {
-      if (order.status !== 'cancelled' && order.status !== 'skipped') {
-        if (order.mealType === 'breakfast') breakfastCount++;
-        if (order.mealType === 'lunch') lunchCount++;
-        if (order.mealType === 'dinner') dinnerCount++;
+    (todayPayments || []).forEach(p => {
+      const amt = p.amount;
+      if (p.status === 'verified') {
+        totalRevenue += amt;
+        verifiedRevenue += amt;
+        if (p.paymentMethod === 'cash') cashPayments += amt;
+        else onlinePayments += amt;
+        methodDistribution[p.paymentMethod] = (methodDistribution[p.paymentMethod] || 0) + amt;
+      } else if (p.status === 'pending') {
+        pendingPayments += amt;
+        pendingRevenue += amt;
+      } else if (p.status === 'rejected') {
+        rejectedRevenue += amt;
+      } else if (p.status === 'refunded') {
+        refundedPayments += amt;
+      }
+    });
+
+    const planDistribution: Record<string, number> = {};
+    let activeSubscriptions = 0;
+    allSubs.forEach(s => {
+      if (s.status === 'active') activeSubscriptions++;
+      if (s.status === 'active' || s.status === 'paused') {
+        planDistribution[s.planTier] = (planDistribution[s.planTier] || 0) + 1;
+      }
+    });
+    
+    let breakfastCount = 0, lunchCount = 0, dinnerCount = 0;
+    let completedOrders = 0, pendingOrders = 0, kitchenPreparedToday = 0, kitchenPendingToday = 0;
+    const deliveryByArea: Record<string, number> = {};
+    const partnerCount: Record<string, number> = {};
+    const peakHourCount: Record<string, number> = {};
+    
+    for (const o of todayOrders) {
+      if (o.status !== 'cancelled' && o.status !== 'skipped') {
+        if (o.mealType === 'breakfast') breakfastCount++;
+        if (o.mealType === 'lunch') lunchCount++;
+        if (o.mealType === 'dinner') dinnerCount++;
+        
+        if (o.status === 'delivered') {
+          completedOrders++;
+          if (o.zoneId) deliveryByArea[o.zoneId] = (deliveryByArea[o.zoneId] || 0) + 1;
+          if (o.deliveryPartnerId) partnerCount[o.deliveryPartnerId] = (partnerCount[o.deliveryPartnerId] || 0) + 1;
+        } else if (['scheduled', 'preparing', 'packing', 'packed', 'ready_for_pickup', 'out_for_delivery'].includes(o.status)) {
+          pendingOrders++;
+        }
+        
+        if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
+          kitchenPreparedToday++;
+        } else if (['scheduled', 'preparing', 'packing', 'packed'].includes(o.status)) {
+          kitchenPendingToday++;
+        }
+        
+        if (o.createdAt) {
+          const hr = (o.createdAt as any).toDate ? (o.createdAt as any).toDate().getHours() : new Date((o.createdAt as any).seconds * 1000).getHours();
+          peakHourCount[hr.toString()] = (peakHourCount[hr.toString()] || 0) + 1;
+        }
       }
     }
 
     const summary: DailySummary = {
       id: `summary_${today}`,
       date: today,
-      totalRevenue: 0, // This would be calculated from today's successful payments
-      cashPayments: 0,
-      onlinePayments: 0,
-      pendingPayments: 0,
-      refundedPayments: 0,
+      totalRevenue,
+      cashPayments,
+      onlinePayments,
+      pendingPayments,
+      refundedPayments,
       activeCustomers: new Set(allSubs.map(s => s.customerId)).size,
       newCustomers: 0, // Would need user account creation date
-      activeSubscriptions: allSubs.length,
+      activeSubscriptions,
       breakfastCount,
       lunchCount,
       dinnerCount,
       totalDeliveries: todayOrders.length,
       completedDeliveries: todayOrders.filter(o => o.status === 'delivered').length,
       failedDeliveries: todayOrders.filter(o => o.status === 'failed_delivery').length,
-      createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      
+      planDistribution,
+      deliveryByArea,
+      methodDistribution,
+      partnerCount,
+      peakHourCount,
+      verifiedRevenue,
+      pendingRevenue,
+      rejectedRevenue,
+      completedOrders,
+      pendingOrders,
+      kitchenPreparedToday,
+      kitchenPendingToday,
+      
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     };
 
     await analyticsRepository.create(summary, summary.id);

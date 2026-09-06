@@ -335,8 +335,7 @@ export function SubscriptionWizardPage() {
             <h3 className="text-sm font-sans font-bold text-ink-800 mb-2">Switch Plan Tier:</h3>
             <div className="flex gap-3">
               {plans.map((p) => (
-                <button aria-label="Button action"
-                  key={p.id}
+                <button key={p.id}
                   type="button"
                   onClick={() => handleSelectPlan(p.id)}
                   className={`px-4 py-2 text-xs font-sans font-semibold rounded-lg border transition-all ${
@@ -622,13 +621,11 @@ export function SubscriptionWizardPage() {
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="font-sans font-bold text-ink-800 text-sm">Selected Preferences</h3>
                   <div className="flex items-center gap-2 bg-rice-100 rounded-lg p-1 border border-rice-300">
-                    <button aria-label="Button action"
-                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
                       className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
                     >-</button>
                     <span className="text-xs font-bold w-12 text-center">{quantity} {quantity === 1 ? 'Person' : 'People'}</span>
-                    <button aria-label="Button action"
-                      onClick={() => setQuantity(q => Math.min(10, q + 1))}
+                    <button onClick={() => setQuantity(q => Math.min(10, q + 1))}
                       className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
                     >+</button>
                   </div>

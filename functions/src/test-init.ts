@@ -1,4 +1,4 @@
-import { initializeApp, getApps, deleteApp, type App } from 'firebase-admin/app';
+import { initializeApp, getApps, type App } from 'firebase-admin/app';
 import { getFirestore as adminGetFirestore, type Firestore } from 'firebase-admin/firestore';
 
 export function initTestApp(): App {

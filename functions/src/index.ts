@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
 initializeApp();
@@ -10,18 +9,6 @@ initializeApp();
 import { orderService, getTodayInTimezone } from './orders';
 import { billingService } from './billing';
 
-export const scheduledDailyAutomation = onSchedule({
-  schedule: '0 2 * * *',
-  timeZone: 'Asia/Kolkata',
-  memory: '512MiB',
-  timeoutSeconds: 300,
-}, async (event) => {
-  logger.info('Running scheduledDailyAutomation: Generate Orders and Process Billing');
-  await orderService.generateDailyOrders();
-  
-  const today = getTodayInTimezone();
-  await billingService.processDailyBilling(today);
-});
 
 export const generateDailyOrders = onCall({
   enforceAppCheck: false // Configure as needed for production

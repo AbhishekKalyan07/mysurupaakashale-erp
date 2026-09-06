@@ -11,25 +11,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check if last day of the month
+        id: check_last_day
         if: github.event_name == 'schedule'
         run: |
           if [ "$(date -u -d 'tomorrow' +%d)" != "01" ]; then
             echo "Not the last day of the month. Exiting."
-            exit 0
+            echo "is_last_day=false" >> $GITHUB_OUTPUT
+          else
+            echo "is_last_day=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout Code
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Install Dependencies
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
         run: npm ci
 
       - name: Run Monthly Automation
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}

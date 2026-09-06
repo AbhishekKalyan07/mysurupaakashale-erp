@@ -111,7 +111,7 @@ export function MobileSignupPage() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-4 h-4" />
                 <input type={showPassword ? 'text' : 'password'} placeholder="Password" className="h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-11 pr-10 text-sm text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('password')} />
-                <button aria-label="Button action" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               {errors.password && <p className="text-[10px] text-red-600 ml-2 mt-1">{errors.password.message as string}</p>}
             </div>
@@ -120,7 +120,7 @@ export function MobileSignupPage() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a4a44] w-4 h-4" />
                 <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm Password" className="h-12 w-full rounded-xl border border-[#e8ded2] bg-white pl-11 pr-10 text-sm text-[#2c150c] focus:outline-none focus:border-[#5c1417] focus:ring-1 focus:ring-[#5c1417]" {...register('confirmPassword')} />
-                <button aria-label="Button action" type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5">{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5">{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
               {errors.confirmPassword && <p className="text-[10px] text-red-600 ml-2 mt-1">{errors.confirmPassword.message as string}</p>}
             </div>
@@ -134,7 +134,7 @@ export function MobileSignupPage() {
 
           {formError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg text-center">{formError}</p>}
 
-          <button aria-label="Button action" type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-colors mt-2 flex justify-center items-center">
+          <button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl bg-[#5c1417] hover:bg-[#470f12] text-white font-semibold text-base shadow-md transition-colors mt-2 flex justify-center items-center">
             {isSubmitting ? <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" /> : 'Create Account'}
           </button>
 
@@ -143,7 +143,7 @@ export function MobileSignupPage() {
             <span className="absolute bg-[#fbf5ed] px-3 text-[10px] font-bold text-[#5a4a44] uppercase tracking-widest rounded-full">Or</span>
           </div>
 
-          <button aria-label="Button action" type="button" onClick={handleGoogleSignUpClick} disabled={googleLoading} className="w-full h-12 rounded-xl border border-[#e8ded2] bg-white text-[#2c150c] font-semibold text-sm flex items-center justify-center gap-3 shadow-sm">
+          <button type="button" onClick={handleGoogleSignUpClick} disabled={googleLoading} className="w-full h-12 rounded-xl border border-[#e8ded2] bg-white text-[#2c150c] font-semibold text-sm flex items-center justify-center gap-3 shadow-sm">
             {googleLoading ? <span className="animate-spin h-4 w-4 border-2 border-[#8c746a] border-t-[#2c150c] rounded-full" /> : (
               <><svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3A11.966 11.966 0 0 0 12 0C7.03 0 2.805 3.033 1.056 7.378l4.21 2.387z" /><path fill="#FBBC05" d="M16.04 15.345c-1.07.728-2.456 1.164-4.04 1.164a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388c2.4 4.745 7.35 8.018 13.04 8.018a11.83 11.83 0 0 0 8.082-3.155l-3.83-3.072c-.886.6-1.99.982-3.108.982z" /><path fill="#4285F4" d="M23.49 12.273c0-.818-.073-1.609-.208-2.373H12v4.545h6.455a5.54 5.54 0 0 1-2.409 3.636l3.83 3.072c2.236-2.063 3.614-5.109 3.614-8.88z" /><path fill="#34A853" d="M12 24c3.24 0 5.955-1.073 7.94-2.918l-3.83-3.073c-1.077.727-2.463 1.163-4.11 1.163a7.08 7.08 0 0 1-6.734-4.856l-4.21 2.388C2.805 20.967 7.03 24 12 24z" /></svg>Create account using Google</>
             )}

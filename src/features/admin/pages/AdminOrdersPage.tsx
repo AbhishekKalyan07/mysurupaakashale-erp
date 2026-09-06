@@ -187,8 +187,7 @@ export function AdminOrdersPage() {
             className="w-full h-11 pl-10 pr-4 rounded-[14px] border border-border bg-card text-sm text-text placeholder:text-text-faint focus:border-secondary/60 focus:outline-none focus:ring-2 focus:ring-secondary/20 shadow-xs"
           />
           {searchQuery && (
-            <button aria-label="Button action"
-              onClick={() => setSearchQuery('')}
+            <button onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
             >
               <X size={14} />
@@ -218,8 +217,7 @@ export function AdminOrdersPage() {
                 <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Meal Type</label>
                 <div className="flex flex-wrap gap-2">
                   {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(m => (
-                    <button aria-label="Button action"
-                      key={m}
+                    <button key={m}
                       onClick={() => setMealTypeFilter(m)}
                       className={cn(
                         'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
@@ -243,8 +241,7 @@ export function AdminOrdersPage() {
           const count = statusCounts[chip.key] || 0;
           const isActive = statusFilter === chip.key;
           return (
-            <button aria-label="Button action"
-              key={chip.key}
+            <button key={chip.key}
               onClick={() => setStatusFilter(chip.key as OrderStatus | 'all')}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all shrink-0',

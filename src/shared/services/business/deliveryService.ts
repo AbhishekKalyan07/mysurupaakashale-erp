@@ -78,9 +78,7 @@ export class DeliveryService {
 
     for (const o of orders) {
       if (o.status === 'cancelled' || o.status === 'skipped') continue;
-      if (!o.deliveryPartnerId) continue; // Only group assigned orders
-
-      const partnerName = partnerMap.get(o.deliveryPartnerId) || o.deliveryPartnerId;
+      const partnerName = o.deliveryPartnerId ? (partnerMap.get(o.deliveryPartnerId) || o.deliveryPartnerId) : 'Unassigned Partner';
       const areaName = o.zoneId ? (zoneMap.get(o.zoneId) || o.zoneId) : 'Unassigned Area';
 
       if (!partnerGroups.has(partnerName)) {

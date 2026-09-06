@@ -127,18 +127,30 @@ describe('active automation service', () => {
   it('creates an accurate daily operational summary', async () => {
     mockOrderRepository.getByDate.mockResolvedValue([
       { status: 'scheduled', mealType: 'breakfast' },
-      { status: 'delivered', mealType: 'lunch' },
-      { status: 'failed_delivery', mealType: 'dinner' },
+      { status: 'delivered', mealType: 'lunch', zoneId: 'zone1', deliveryPartnerId: 'partner1', createdAt: { toDate: () => new Date('2026-07-29T10:00:00Z') } },
+      { status: 'failed_delivery', mealType: 'dinner', createdAt: { seconds: 1785312000 } },
       { status: 'cancelled', mealType: 'lunch' },
+      { status: 'out_for_delivery', mealType: 'dinner' },
+      { status: 'skipped', mealType: 'breakfast' }
     ]);
     mockSubscriptionRepository.list.mockResolvedValue([
-      { customerId: 'customer-1' }, { customerId: 'customer-1' }, { customerId: 'customer-2' },
+      { customerId: 'customer-1', status: 'active', planTier: 'basic' }, 
+      { customerId: 'customer-1', status: 'active', planTier: 'regular' }, 
+      { customerId: 'customer-2', status: 'active', planTier: 'basic' },
+    ]);
+    mockPaymentRepository.list.mockResolvedValue([
+      { amount: 100, status: 'verified', paymentMethod: 'cash' },
+      { amount: 50, status: 'verified', paymentMethod: 'upi' },
+      { amount: 20, status: 'pending' },
+      { amount: 10, status: 'rejected' },
+      { amount: 5, status: 'refunded' }
     ]);
 
     await expect(automationService.generateDailySummary('2026-07-29')).resolves.toMatchObject({
       id: 'summary_2026-07-29', activeCustomers: 2, activeSubscriptions: 3,
-      breakfastCount: 1, lunchCount: 1, dinnerCount: 1,
-      totalDeliveries: 4, completedDeliveries: 1, failedDeliveries: 1,
+      breakfastCount: 1, lunchCount: 1, dinnerCount: 2,
+      totalDeliveries: 6, completedDeliveries: 1, failedDeliveries: 1,
+      totalRevenue: 150, verifiedRevenue: 150, pendingRevenue: 20
     });
     expect(mockAnalyticsRepository.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'summary_2026-07-29' }), 'summary_2026-07-29');
   });
