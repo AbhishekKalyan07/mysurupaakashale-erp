@@ -199,8 +199,7 @@ export function BottomNav({ role }: BottomNavProps) {
 
           {/* More Tab */}
           {hasMore && (
-            <button aria-label="Button action"
-              onClick={() => setShowMore(!showMore)}
+            <button onClick={() => setShowMore(!showMore)}
               className={cn(
                 'flex flex-col items-center justify-center flex-1 gap-0.5 px-1 pt-2 pb-1 transition-colors relative',
                 showMore ? 'text-primary' : 'text-text-muted'

@@ -106,7 +106,6 @@ export function KitchenProductionTable({
           {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(meal => (
             <button
               key={meal}
-              aria-label="Button action"
               onClick={() => setMealFilter(meal)}
               className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors uppercase ${
                 mealFilter === meal

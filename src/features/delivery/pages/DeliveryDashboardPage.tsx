@@ -38,17 +38,26 @@ export function DeliveryDashboardPage() {
     queryKey: ['users', 'customers', customerIds],
     queryFn: async () => {
       if (customerIds.length === 0) return [];
-      const { where } = await import('firebase/firestore');
-      // Firestore 'in' query supports max 10 elements. If we have more, we should chunk them or fetch all customers.
-      // For simplicity in this scale, fetch all customers.
-      return userRepository.list(where('role', '==', 'customer'));
+      const customerPromises = customerIds.map(id => userRepository.getById(id));
+      const results = await Promise.all(customerPromises);
+      return results.filter(Boolean) as import('@/shared/types').CustomerProfile[];
     },
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch Zones
+  const { data: zones = [] } = useQuery({
+    queryKey: ['delivery_zones'],
+    queryFn: async () => {
+      const { deliveryZoneRepository } = await import('@/shared/services/firestore/deliveryZoneRepository');
+      return deliveryZoneRepository.list();
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
   const partnerMap = useMemo(() => new Map(deliveryPartners.map(p => [p.id, p.fullName || p.id])), [deliveryPartners]);
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
-  const zoneMap = useMemo(() => new Map(), []); // Extend with Zone mapping when Zones are implemented
+  const zoneMap = useMemo(() => new Map(zones.map(z => [z.id, z.name])), [zones]);
 
   // Apply filters
   const filteredOrders = useMemo(() => {

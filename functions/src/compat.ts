@@ -25,7 +25,7 @@ export const doc = (dbRef: any, col: string, id: string, ...rest: string[]) => {
 };
 
 export const getDoc = async (ref: any) => await ref.get();
-export const writeBatch = (dbRef: any) => getDb().batch();
+export const writeBatch = (_dbRef: any) => getDb().batch();
 export const serverTimestamp = () => FieldValue.serverTimestamp();
 export const collection = (dbRef: any, path: string) => getDb().collection(path);
 export const where = (field: string, op: any, val: any) => ({field, op, val});

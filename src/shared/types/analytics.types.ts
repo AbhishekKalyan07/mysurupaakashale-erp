@@ -26,6 +26,22 @@ export interface DailySummary {
   completedDeliveries: number;
   failedDeliveries: number;
   
+  // Distributions (Pre-aggregated for scalability)
+  planDistribution: Record<string, number>;
+  deliveryByArea: Record<string, number>;
+  methodDistribution: Record<string, number>;
+  partnerCount: Record<string, number>;
+  peakHourCount: Record<string, number>;
+  
+  // Status Totals
+  verifiedRevenue: number;
+  pendingRevenue: number;
+  rejectedRevenue: number;
+  completedOrders: number;
+  pendingOrders: number;
+  kitchenPreparedToday: number;
+  kitchenPendingToday: number;
+  
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

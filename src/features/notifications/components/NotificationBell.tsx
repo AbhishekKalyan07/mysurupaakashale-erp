@@ -100,8 +100,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-primary/10 bg-primary/5">
             <h3 className="font-bold text-primary text-sm font-sans">Notifications</h3>
-            <button aria-label="Button action"
-              onClick={() => setIsOpen(false)}
+            <button onClick={() => setIsOpen(false)}
               className="text-text-muted hover:text-primary transition-colors p-0.5"
             >
               <X size={14} />

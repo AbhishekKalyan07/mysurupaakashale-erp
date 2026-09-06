@@ -156,4 +156,78 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     expect(updatePayload.startDate).toBeDefined();
     expect(updatePayload.endDate).toBeDefined();
   });
+
+  it('legacy customer - full bundle', async () => {
+    const mockSub = {
+      id: 'sub4',
+      customerId: 'cust4',
+      planTier: 'basic',
+      status: 'active',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      quantity: 1,
+      pricePerDaySnapshot: 150,
+      mealPreferences: [
+        { mealType: 'breakfast' },
+        { mealType: 'lunch' },
+        { mealType: 'dinner' }
+      ]
+    };
+
+    const mockOrders = [
+      { id: 'ord4_1', subscriptionId: 'sub4', status: 'delivered', date: '2026-07-15', mealType: 'breakfast' },
+      { id: 'ord4_2', subscriptionId: 'sub4', status: 'delivered', date: '2026-07-15', mealType: 'lunch' },
+      { id: 'ord4_3', subscriptionId: 'sub4', status: 'delivered', date: '2026-07-15', mealType: 'dinner' },
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
+
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.set).toHaveBeenCalled();
+    const setPayload = mockTxn.set.mock.calls[0][1] as any;
+    // Uses pricePerDaySnapshot 150 instead of LIVE_PRICING_MATRIX.basic.breakfast_lunch_dinner 159
+    expect(setPayload.totalAmount).toBe(150);
+  });
+
+  it('legacy customer - cancelled meal', async () => {
+    const mockSub = {
+      id: 'sub5',
+      customerId: 'cust5',
+      planTier: 'basic',
+      status: 'active',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      quantity: 1,
+      pricePerDaySnapshot: 150,
+      mealPreferences: [
+        { mealType: 'breakfast' },
+        { mealType: 'lunch' },
+        { mealType: 'dinner' }
+      ]
+    };
+
+    const mockOrders = [
+      { id: 'ord5_1', subscriptionId: 'sub5', status: 'delivered', date: '2026-07-15', mealType: 'breakfast' },
+      { id: 'ord5_2', subscriptionId: 'sub5', status: 'delivered', date: '2026-07-15', mealType: 'lunch' },
+      // Dinner cancelled
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
+
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    expect(mockTxn.set).toHaveBeenCalled();
+    const setPayload = mockTxn.set.mock.calls[0][1] as any;
+    // Uses LIVE_PRICING_MATRIX.basic.breakfast_lunch 115 because a meal was cancelled
+    expect(setPayload.totalAmount).toBe(115);
+  });
 });

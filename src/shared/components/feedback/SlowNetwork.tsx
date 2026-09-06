@@ -46,15 +46,13 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
       
       {isStalled && (
         <div className="flex items-center gap-3 shrink-0">
-          <button aria-label="Button action" 
-            onClick={() => setIsDismissed(true)}
+          <button onClick={() => setIsDismissed(true)}
             className="text-ink-500 hover:text-ink-700 font-medium transition-colors"
           >
             Wait
           </button>
           {onRetry && (
-            <button aria-label="Button action" 
-              onClick={onRetry}
+            <button onClick={onRetry}
               className="flex items-center gap-1.5 text-warning-700 hover:text-warning-800 font-medium transition-colors"
             >
               <RefreshCcw size={14} />

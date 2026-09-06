@@ -220,8 +220,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
               Drag the pin to exactly where you want your meals delivered.
             </p>
           </div>
-          <button aria-label="Button action" 
-            type="button" 
+          <button type="button" 
             onClick={() => setTempAddress(null)}
             className="p-1 text-ink-500 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
           >
@@ -235,15 +234,13 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
         />
         
         <div className="flex justify-end gap-3 pt-2">
-          <button aria-label="Button action"
-            type="button"
+          <button type="button"
             onClick={() => setTempAddress(null)}
             className="px-4 py-2 text-xs font-bold text-ink-600 hover:bg-rice-200 rounded-lg transition"
           >
             Cancel
           </button>
-          <button aria-label="Button action"
-            type="button"
+          <button type="button"
             onClick={handleConfirmLocation}
             className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
           >
@@ -257,8 +254,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
   return (
     <div className="space-y-3">
       {/* Live Location Button */}
-      <button aria-label="Button action"
-        type="button"
+      <button type="button"
         onClick={handleUseLiveLocation}
         disabled={isLocating}
         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-700 font-sans font-semibold text-sm transition-all hover:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed group"
@@ -309,8 +305,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
             className="w-full pl-9 pr-9 py-2.5 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-500 transition"
           />
           {query && (
-            <button aria-label="Button action"
-              type="button"
+            <button type="button"
               onClick={() => { setQuery(''); setSuggestions([]); setShowDropdown(false); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700"
             >
@@ -323,8 +318,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
         {showDropdown && suggestions.length > 0 && (
           <div className="absolute z-50 top-full mt-1.5 left-0 right-0 bg-white border border-rice-200 rounded-xl shadow-lg overflow-hidden">
             {suggestions.map((result) => (
-              <button aria-label="Button action"
-                key={result.place_id}
+              <button key={result.place_id}
                 type="button"
                 onClick={() => handleSelectSuggestion(result)}
                 className="w-full flex items-start gap-3 px-4 py-3 hover:bg-rice-50 transition-colors text-left border-b border-rice-100 last:border-0"

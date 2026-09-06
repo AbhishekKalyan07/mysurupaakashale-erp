@@ -122,8 +122,7 @@ function PaymentDetailDialog({
               <h2 className="text-xl font-bold text-primary font-display">Payment Details</h2>
               <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">{payment.id}</p>
             </div>
-            <button aria-label="Button action"
-              onClick={onClose}
+            <button onClick={onClose}
               className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10"
             >
               <XCircle size={20} />
@@ -455,8 +454,7 @@ export function PaymentVerificationPage() {
       {/* Tab bar */}
       <div className="flex gap-2 mb-4 border-b border-primary/10 pb-1 overflow-x-auto hide-scrollbar">
         {TABS.map((tab) => (
-          <button aria-label="Button action"
-            key={tab.value}
+          <button key={tab.value}
             onClick={() => handleTabChange(tab.value)}
             className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold font-sans rounded-t-xl transition-all uppercase tracking-wider shrink-0 ${
               activeTab === tab.value

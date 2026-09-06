@@ -222,8 +222,8 @@ export function AdminHolidayPage() {
       const count = await holidayRepository.previewAffectedOrders(date);
       setPreviewCount(count);
       setStep('preview');
-    } catch (err) {
-      toast.error('Failed to preview affected orders. Please try again.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to preview affected orders. Please try again.');
     } finally {
       setPreviewLoading(false);
     }
