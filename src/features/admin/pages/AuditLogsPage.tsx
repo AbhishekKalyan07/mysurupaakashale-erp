@@ -11,6 +11,7 @@ import { ShieldAlert, Download, ChevronLeft, ChevronRight, Filter } from 'lucide
 import { APP_CONFIG } from '@/shared/config/appConfig';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import type { AuditLog } from '@/shared/types';
+import { SystemAuditReportView } from '../components/SystemAuditReportView';
 
 export function AuditLogsPage() {
   const [filters, setFilters] = useState<AuditLogFilter>({});
@@ -178,9 +179,7 @@ export function AuditLogsPage() {
                     </td>
                     <td className="block md:table-cell px-0 md:px-6 py-2 md:py-4 max-w-[300px]">
                       <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider block mb-1">Details</span>
-                      <pre className="text-[10px] text-text-muted w-full overflow-x-auto bg-background-alt p-3 rounded-lg border border-primary/10 whitespace-pre-wrap word-break shadow-inner font-medium">
-                        {JSON.stringify(log.details || {}, null, 2)}
-                      </pre>
+                      <SystemAuditReportView details={log.details} />
                     </td>
                   </tr>
                 ))}
