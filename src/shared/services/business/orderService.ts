@@ -10,7 +10,7 @@ import { kitchenRepository } from '../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import { holidayRepository } from '../firestore/holidayRepository';
-import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan, MealType } from '@/shared/types';
+import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
 import { getTodayInTimezone } from '@/shared/lib/date';
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
@@ -116,7 +116,8 @@ class OrderService {
       ordersGenerated: 0,
       ordersSkipped: 0,
       ordersCancelled: 0,
-      ordersFailed: 0
+      ordersFailed: 0,
+      notificationsFailed: 0
     }, runId);
 
     try {
