@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   return {
-    mockGetDoc: vi.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
+    mockGetDoc: vi.fn().mockResolvedValue({ exists: false, data: () => undefined }),
     mockWriteBatch: vi.fn(),
     mockDoc: vi.fn((...segments: unknown[]) => ({ segments })),
     mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
@@ -133,7 +133,7 @@ describe('active daily-order automation', () => {
       return [];
     });
     mockGetDoc.mockImplementation(async (reference: { segments: unknown[] }) => ({
-      exists: () => reference.segments.includes('active-subscription'),
+      exists: reference.segments.includes('active-subscription'),
       data: () => ({ mealTypes: ['lunch'] }),
     }));
 
@@ -158,7 +158,7 @@ describe('active daily-order automation', () => {
       { id: 'active-subscription', customerId: 'customer-1', startDate: '2026-07-01', mealPreferences: [{ mealType: 'lunch' }] },
     ]);
     mockUserRepository.list.mockResolvedValue([]);
-    mockGetDoc.mockResolvedValue({ exists: () => false });
+    mockGetDoc.mockResolvedValue({ exists: false });
 
     await expect(orderService.generateDailyOrders('2026-07-29')).rejects.toThrow('Firestore unavailable');
 

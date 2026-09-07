@@ -39,6 +39,8 @@ npm-audit-report.json
 
 # Scratch Files
 fix_ts*.cjs
+fix-a11y.cjs
+npm_audit_full.json
 
 # Env files — never commit real secrets/config (see .env.example)
 *.local

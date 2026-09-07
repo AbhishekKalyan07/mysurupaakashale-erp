@@ -164,7 +164,7 @@ class OrderService {
             // Check cancellation (skips)
             const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
             const skipDoc = await getDoc(skipRef);
-            if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
+            if (skipDoc.exists && (skipDoc.data().mealTypes || []).includes(mealType)) {
               ordersCancelled++;
               
               // We must still generate an order document with status='cancelled' 
@@ -172,7 +172,7 @@ class OrderService {
               // and so customers/admins see the cancellation in their order histories.
               const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
               order.status = 'cancelled';
-              // kitchenStatus is not applicable for cancelled orders
+              delete (order as any).kitchenStatus; // kitchenStatus is not applicable for cancelled orders
               ordersToCreate.push(order);
               
               success = true;
