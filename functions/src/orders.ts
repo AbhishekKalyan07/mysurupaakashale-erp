@@ -164,7 +164,7 @@ class OrderService {
             // Check cancellation (skips)
             const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
             const skipDoc = await getDoc(skipRef);
-            if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
+            if (skipDoc.exists && (skipDoc.data().mealTypes || []).includes(mealType)) {
               ordersCancelled++;
               
               // We must still generate an order document with status='cancelled' 
