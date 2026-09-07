@@ -1,15 +1,16 @@
 import { Timestamp } from 'firebase/firestore';
-import { writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
+import { getDoc, writeBatch, serverTimestamp, where, doc } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
 import { orderRepository } from '../firestore/orderRepository';
 import { subscriptionRepository } from '../firestore/subscriptionRepository';
+import { orderGenerationRunRepository } from '../firestore/analyticsRepository';
 import { userRepository } from '../firestore/userRepository';
 import { mealPlanRepository } from '../firestore/mealPlanRepository';
 import { kitchenRepository } from '../firestore/kitchenRepository';
 import { deliveryZoneRepository } from '../firestore/deliveryZoneRepository';
 import { notifyDailyOrdersGenerated } from '../firestore/notificationService';
 import { holidayRepository } from '../firestore/holidayRepository';
-import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan } from '@/shared/types';
+import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile, MealPlan, MealType } from '@/shared/types';
 import { getTodayInTimezone } from '@/shared/lib/date';
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
@@ -26,39 +27,301 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
 class OrderService {
   /**
    * Orchestrator for all daily orders.
-   * Delegates order generation to the backend Cloud Function via httpsCallable.
+   * Keeps legacy compatibility by running all meal generations.
    */
   async generateDailyOrders(dateOverride?: string): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
     const today = dateOverride || getTodayInTimezone();
+    
+    const isSunday = new Date(today).getDay() === 0;
+    if (isSunday) {
+      console.log(`[orderService] Today (${today}) is Sunday. Skipping order generation.`);
+      return { success: true, message: 'Today is Sunday (Holiday). No orders generated.', ordersGenerated: 0 };
+    }
+
+    let totalGenerated = 0;
+    let totalFailed = 0;
     try {
-      const { functions } = await import('@/shared/lib/firebase');
-      const { httpsCallable } = await import('firebase/functions');
-      const callable = httpsCallable<{date: string}, {success: boolean, message: string, ordersGenerated: number}>(functions, 'generateDailyOrders');
-      
-      const result = await callable({ date: today });
-      return result.data;
-    } catch (err: any) {
-      console.error('[orderService] RPC failed:', err);
-      return { success: false, message: `Failed to generate orders: ${err.message}`, ordersGenerated: 0 };
+      const bRes = await this.generateBreakfastOrders(today);
+      totalGenerated += bRes.generated;
+      totalFailed += bRes.failed;
+
+      const lRes = await this.generateLunchOrders(today);
+      totalGenerated += lRes.generated;
+      totalFailed += lRes.failed;
+
+      const dRes = await this.generateDinnerOrders(today);
+      totalGenerated += dRes.generated;
+      totalFailed += dRes.failed;
+
+      if (totalFailed > 0) {
+        return { success: false, message: `Order generation completed with failures. Generated: ${totalGenerated}, Failed: ${totalFailed}.`, ordersGenerated: totalGenerated };
+      }
+    } catch (err) {
+      return { success: false, message: String(err), ordersGenerated: totalGenerated };
+    }
+
+    if (totalGenerated === 0) {
+      return { success: true, message: `0 new orders generated. (Orders may have already been generated for today)`, ordersGenerated: 0 };
+    }
+
+    return { success: true, message: `Successfully generated ${totalGenerated} new orders.`, ordersGenerated: totalGenerated };
+  }
+
+  async generateBreakfastOrders(dateOverride?: string): Promise<{ generated: number; failed: number }> {
+    const today = dateOverride || getTodayInTimezone();
+    return this.generateMealOrders(today, 'breakfast');
+  }
+
+  async generateLunchOrders(dateOverride?: string): Promise<{ generated: number; failed: number }> {
+    const today = dateOverride || getTodayInTimezone();
+    return this.generateMealOrders(today, 'lunch');
+  }
+
+  async generateDinnerOrders(dateOverride?: string): Promise<{ generated: number; failed: number }> {
+    const today = dateOverride || getTodayInTimezone();
+    return this.generateMealOrders(today, 'dinner');
+  }
+
+  private async generateMealOrders(today: string, mealType: 'breakfast' | 'lunch' | 'dinner'): Promise<{ generated: number; failed: number }> {
+    // ── Holiday Guard ─────────────────────────────────────────────────────────
+    // Must be the first check before ANY batch is built, any data fetched,
+    // or any run record created. This is the application-level defence.
+    // Firestore security rules provide the client-level defence.
+    const isHoliday = await holidayRepository.isHoliday(today);
+    if (isHoliday) {
+      console.log(`[orderService] ${today} is an active holiday — skipping ${mealType} order generation.`);
+      return { generated: 0, failed: 0 };
+    }
+
+    const runId = `${today}_${mealType}`;
+    const existingRun = await orderGenerationRunRepository.getById(runId);
+    
+    if (existingRun && existingRun.status === 'success') {
+      console.log(`[orderService] ${mealType} orders were marked successfully generated for ${today}. Proceeding to verify idempotency for any missing subscriptions.`);
+      // We no longer early return here. We allow the generator to run and evaluate
+      // missing orders on a per-subscription basis using its robust idempotency checks.
+    }
+
+    const startedAt = serverTimestamp() as unknown as Timestamp;
+    let ordersGenerated = 0;
+    let ordersSkipped = 0;
+    let ordersCancelled = 0;
+    let ordersFailed = 0;
+
+    await orderGenerationRunRepository.create({
+      date: today,
+      mealType,
+      status: 'running',
+      startedAt,
+      ordersGenerated: 0,
+      ordersSkipped: 0,
+      ordersCancelled: 0,
+      ordersFailed: 0
+    }, runId);
+
+    try {
+      // 1. Fetch data
+      const [allSubscriptions, mealPlans, allCustomers, allZones, allPartners, todaysOrders, allKitchens] = await Promise.all([
+        subscriptionRepository.list(where('status', '==', 'active')),
+        mealPlanRepository.list(),
+        userRepository.list(where('role', '==', 'customer')),
+        deliveryZoneRepository.list(),
+        userRepository.list(where('role', '==', 'delivery_partner')),
+        orderRepository.list(where('date', '==', today)),
+        kitchenRepository.list()
+      ]);
+      const customerMap = new Map<string, CustomerProfile>(allCustomers.map(c => [c.id, c as CustomerProfile]));
+      const activePartners = allPartners.filter(p => p.isActive) as DeliveryPartnerProfile[];
+      const partnerMap = new Map<string, DeliveryPartnerProfile>(activePartners.map(p => [p.id, p]));
+      const zoneMap = new Map(allZones.map(z => [z.id, z]));
+      const defaultKitchenId = allKitchens.length === 0 ? null : allKitchens[0].id;
+
+      const workloadMap = new Map<string, number>();
+      todaysOrders.forEach(o => {
+        if (o.deliveryPartnerId && o.status !== 'cancelled' && o.status !== 'skipped') {
+          workloadMap.set(o.deliveryPartnerId, (workloadMap.get(o.deliveryPartnerId) || 0) + 1);
+        }
+      });
+
+      const ordersToCreate: Partial<Order>[] = [];
+      const backgroundTasks: Promise<any>[] = [];
+
+      for (const sub of allSubscriptions) {
+        if (sub.endDate && sub.endDate < today) {
+          ordersSkipped++;
+          continue;
+        }
+        if (sub.startDate > today) {
+          ordersSkipped++;
+          continue;
+        }
+
+        let attempts = 0;
+        let success = false;
+        while (attempts < 3 && !success) {
+          try {
+            const pref = (sub.mealPreferences || []).find(p => p.mealType === mealType);
+            if (!pref) {
+               success = true;
+               continue; // Not subscribed to this meal
+            }
+
+            // --- IDEMPOTENCY CHECK ---
+            // Verify if an order for this exact subscription, date, and mealType already exists.
+            // Using deterministic ID or logical composite key to prevent overwriting existing order status (e.g. packing/delivered).
+            const expectedId = `ord_${sub.id}_${today}_${mealType}`;
+            const existingOrder = todaysOrders.find(o => o.id === expectedId || (o.subscriptionId === sub.id && o.mealType === mealType));
+            if (existingOrder) {
+              // Order already exists, preserve it completely. Do NOT overwrite.
+              success = true;
+              continue;
+            }
+
+            // Check cancellation (skips)
+            const skipRef = doc(db, 'subscriptions', sub.id, 'skips', today);
+            const skipDoc = await getDoc(skipRef);
+            if (skipDoc.exists() && (skipDoc.data().mealTypes || []).includes(mealType)) {
+              ordersCancelled++;
+              
+              // We must still generate an order document with status='cancelled' 
+              // so that the Kitchen Dashboard can track cancelled metrics accurately,
+              // and so customers/admins see the cancellation in their order histories.
+              const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
+              order.status = 'cancelled';
+              // kitchenStatus is not applicable for cancelled orders
+              ordersToCreate.push(order);
+              
+              success = true;
+              continue;
+            }
+
+            const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
+            ordersToCreate.push(order);
+            success = true;
+
+            if (!order.deliveryPartnerId) {
+              backgroundTasks.push(
+                import('@/shared/services/firestore/auditRepository').then(m => 
+                  m.auditRepository.logAction('delivery_assignment_failed', 'system', 'System Auto-Generator', order.id!, 'order', {
+                    orderId: order.id, customerId: sub.customerId, zoneId: order.zoneId, mealType: order.mealType, date: today, reason: 'No eligible partner available for this zone and shift'
+                  })
+                ).catch(console.error)
+              );
+              backgroundTasks.push(
+                import('@/shared/services/firestore/notificationService').then(m => 
+                  import('@/shared/services/firestore/userRepository').then(ur => 
+                    ur.userRepository.list(where('role', '==', 'admin')).then(admins => 
+                      m.notifyAdminAlert(admins.map(a => a.id), 'Delivery Assignment Failed', `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`)
+                    )
+                  )
+                ).catch(console.error)
+              );
+            }
+          } catch (err) {
+            attempts++;
+            if (attempts >= 3) {
+              console.error(`[orderService] Failed generating ${mealType} for customer ${sub.customerId} after 3 attempts:`, err);
+              ordersFailed++;
+              
+              import('@/shared/services/firestore/failureQueueRepository').then(m => {
+                m.failureQueueRepository.logFailure(
+                  sub.customerId,
+                  sub.id,
+                  mealType,
+                  today,
+                  err instanceof Error ? err.message : String(err),
+                  err instanceof Error ? err.stack : undefined
+                ).catch(console.error);
+              }).catch(console.error);
+
+              // Admin Alert
+              import('@/shared/services/firestore/notificationService').then(m => {
+                import('@/shared/services/firestore/userRepository').then(ur => {
+                  ur.userRepository.list(where('role', '==', 'admin'))
+                    .then(admins => {
+                      m.notifyAdminAlert(admins.map(a => a.id), 'Order Generation Failed', `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`);
+                    }).catch(console.error);
+                }).catch(console.error);
+              }).catch(console.error);
+            } else {
+              // Wait a bit before retrying
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        }
+      }
+
+      // 3. Batch write
+      const BATCH_SIZE = 400;
+      for (let i = 0; i < ordersToCreate.length; i += BATCH_SIZE) {
+        const batchOrders = ordersToCreate.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+        batchOrders.forEach(order => {
+          const ref = doc(db, 'orders', order.id!);
+          batch.set(ref, stripUndefined({
+            ...order,
+            createdAt: serverTimestamp() as unknown as Timestamp,
+            updatedAt: serverTimestamp() as unknown as Timestamp
+          }), { merge: true });
+        });
+        await batch.commit();
+        ordersGenerated += batchOrders.length;
+
+        // Trigger notifications asynchronously
+        import('@/shared/services/firestore/notificationService').then(m => {
+          batchOrders.forEach(o => {
+            m.notifyOrderGeneratedCustomer(o.customerId!, o.mealType || 'meal', o.date!).catch(console.error);
+            if (o.deliveryPartnerId) {
+              m.notifyOrderGeneratedDriver(o.deliveryPartnerId, o.id!, o.mealType || 'meal', o.customerName || 'Unknown', o.date!).catch(console.error);
+            }
+          });
+        }).catch(console.error);
+        
+        import('@/shared/services/firestore/auditRepository').then(m => {
+          m.auditRepository.logAction('orders_generated', 'system', 'System Auto-Generator', runId, 'system', {
+            date: today,
+            mealType,
+            count: batchOrders.length
+          }).catch(console.error);
+        }).catch(console.error);
+      }
+
+      const completedAt = serverTimestamp() as unknown as Timestamp;
+      const finalStatus = ordersFailed > 0 ? (ordersGenerated > 0 ? 'partial' : 'failed') : 'success';
+
+      await orderGenerationRunRepository.update(runId, {
+        status: finalStatus,
+        completedAt,
+        ordersGenerated,
+        ordersSkipped,
+        ordersCancelled,
+        ordersFailed
+      } as any);
+
+      if (ordersGenerated > 0) {
+        try {
+          const kitchenStaff = await userRepository.list(where('role', '==', 'kitchen'), where('isActive', '==', true));
+          const ids = kitchenStaff.map((s) => s.id);
+          if (ids.length > 0) {
+            await notifyDailyOrdersGenerated(ids, today, ordersGenerated);
+          }
+        } catch (err) {
+          console.error('[orderService] kitchen notification failed:', err);
+        }
+      }
+
+      return { generated: ordersGenerated, failed: ordersFailed };
+
+    } catch (error: any) {
+      const completedAt = serverTimestamp() as unknown as Timestamp;
+      await orderGenerationRunRepository.update(runId, {
+        status: 'failed',
+        completedAt,
+        error: error.message
+      } as any);
+      throw error;
     }
   }
-
-  async generateBreakfastOrders(dateOverride?: string): Promise<number> {
-    const res = await this.generateDailyOrders(dateOverride);
-    return res.ordersGenerated;
-  }
-
-  async generateLunchOrders(dateOverride?: string): Promise<number> {
-    const res = await this.generateDailyOrders(dateOverride);
-    return res.ordersGenerated;
-  }
-
-  async generateDinnerOrders(dateOverride?: string): Promise<number> {
-    const res = await this.generateDailyOrders(dateOverride);
-    return res.ordersGenerated;
-  }
-
-
 
   /**
    * Generates orders for a specific subscription and date for the specified meal types.
