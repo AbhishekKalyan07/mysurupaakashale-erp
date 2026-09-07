@@ -31,13 +31,13 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "exceljs": "^4.4.0",
-    "firebase": "^12.16.0",
-    "framer-motion": "^13.1.1",
+    "firebase": "^12.18.0",
+    "framer-motion": "^13.2.0",
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "leaflet": "^1.9.4",
-    "lucide-react": "^1.35.0",
+    "lucide-react": "^1.40.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.86.0",
@@ -47,7 +47,7 @@
     "recharts": "^3.10.1",
     "rollup-plugin-visualizer": "^7.1.1",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
