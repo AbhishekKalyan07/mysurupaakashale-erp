@@ -24,7 +24,18 @@ export const doc = (dbRef: any, col: string, id: string, ...rest: string[]) => {
   return db.collection(col).doc(id);
 };
 
-export const getDoc = async (ref: any) => await ref.get();
+export const getDoc = async (ref: any) => {
+  const snap = await ref.get();
+  // Admin SDK: DocumentSnapshot.exists is a boolean property.
+  // Client SDK: DocumentSnapshot.exists() is a method/function.
+  // Wrap the Admin SDK snapshot to match the Client SDK interface used in orders.ts.
+  return {
+    exists: () => snap.exists as boolean,
+    data: () => snap.data() as any,
+    id: snap.id as string,
+    ref: snap.ref,
+  };
+};
 export const writeBatch = (_dbRef: any) => getDb().batch();
 export const serverTimestamp = () => FieldValue.serverTimestamp();
 export const collection = (dbRef: any, path: string) => getDb().collection(path);

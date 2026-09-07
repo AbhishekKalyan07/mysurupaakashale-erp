@@ -172,7 +172,7 @@ class OrderService {
               // and so customers/admins see the cancellation in their order histories.
               const order = this.buildOrderSnapshot(sub, pref, mealType, today, customerMap, partnerMap, zoneMap, activePartners, allZones, mealPlans, workloadMap, defaultKitchenId);
               order.status = 'cancelled';
-              // kitchenStatus is not applicable for cancelled orders
+              delete (order as any).kitchenStatus; // kitchenStatus is not applicable for cancelled orders
               ordersToCreate.push(order);
               
               success = true;
