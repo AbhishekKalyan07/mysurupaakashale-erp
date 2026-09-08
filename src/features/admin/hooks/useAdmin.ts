@@ -57,6 +57,8 @@ export function useCreateStaffUser() {
       zoneIds?: string[];
       vehicleType?: string;
       shifts?: string[];
+      basicSalary: number;
+      overtimeRate: number;
     }) => {
       // Phase 3: Client-side staff creation using secondary app to prevent admin logout
       const tempAppName = `temp-admin-creation-${Date.now()}`;
@@ -106,6 +108,16 @@ export function useCreateStaffUser() {
         await userRepository.create(profileData as UserProfile, credential.user.uid);
         
         await setDoc(phoneDocRef, { uid: credential.user.uid });
+
+        // Phase 4: Create Salary Profile
+        const salaryData = {
+          basicSalary: data.basicSalary,
+          overtimeRate: data.overtimeRate,
+          isActive: true,
+          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        };
+        const { salaryProfileRepository } = await import('@/shared/services/firestore/payrollRepository');
+        await salaryProfileRepository.create(salaryData as any, credential.user.uid);
         
         const currentUser = auth.currentUser;
         if (currentUser) {
@@ -116,6 +128,14 @@ export function useCreateStaffUser() {
             credential.user.uid,
             'user',
             { role: data.role, email: data.email }
+          );
+          await auditRepository.logAction(
+            'salary_profile_created',
+            currentUser.uid,
+            currentUser.displayName || 'Admin',
+            credential.user.uid,
+            'salary_profile',
+            { basicSalary: data.basicSalary, overtimeRate: data.overtimeRate }
           );
         }
         

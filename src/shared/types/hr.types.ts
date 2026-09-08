@@ -35,6 +35,20 @@ export interface LeaveRequest {
 
 export type PayrollStatus = 'draft' | 'review' | 'approved' | 'paid' | 'archived';
 
+export interface SalaryAdvance {
+  id: string;
+  staffId: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  reason: string;
+  notes?: string;
+  status: 'pending' | 'deducted';
+  payrollId: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;
+}
+
 export interface PayrollRecord {
   id: string;
   staffId: string;
@@ -49,7 +63,13 @@ export interface PayrollRecord {
   deductions: number;
   deductionReason: string | null;
   grossSalary: number;
-  netSalary: number;
+  netSalary: number; // The legacy net calculated salary. For backward compatibility.
+  calculatedSalary?: number; // Pure calculated gross - standard deductions
+  advanceDeduction?: number;
+  otherAdjustments?: number;
+  suggestedPayable?: number;
+  amountPaid?: number; // The actual amount paid by admin
+  advancesDeducted?: string[]; // IDs of SalaryAdvances successfully deducted in this payment
   paymentDate: string | null;
   status: PayrollStatus;
   createdAt: Timestamp;

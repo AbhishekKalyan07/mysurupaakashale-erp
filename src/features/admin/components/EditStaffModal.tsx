@@ -7,6 +7,7 @@ import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
 import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
 import { useUpdateStaffUser } from '../hooks/useAdmin';
 import { useDeliveryZones } from '../hooks/useDeliveryZones';
+import { useSalaryProfile, useUpdateSalaryProfile } from '@/features/hr/hooks/usePayroll';
 import { toast } from 'react-hot-toast';
 import type { UserProfile } from '@/shared/types';
 
@@ -19,6 +20,8 @@ const staffSchema = z.object({
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.array(z.string()).optional(),
   shifts: z.array(z.string()).optional(),
+  basicSalary: z.coerce.number().min(0, 'Base salary must be >= 0'),
+  overtimeRate: z.coerce.number().min(0, 'Overtime rate must be >= 0'),
 });
 
 type StaffForm = z.infer<typeof staffSchema>;
@@ -36,8 +39,13 @@ export function EditStaffModal({ user, onClose }: Props) {
   const currentRole = watch('role');
 
   const { data: zones = [], isLoading: isLoadingZones } = useDeliveryZones();
+  
+  const { data: salaryProfile, isLoading: isLoadingSalary } = useSalaryProfile(user.id);
+  const updateSalaryMutation = useUpdateSalaryProfile();
 
   useEffect(() => {
+    if (isLoadingSalary) return;
+    
     reset({
       fullName: user.fullName,
       phone: user.phone,
@@ -47,8 +55,10 @@ export function EditStaffModal({ user, onClose }: Props) {
       vehicleType: user.role === 'delivery_partner' ? user.vehicleType : 'bike',
       zoneIds: user.role === 'delivery_partner' ? user.zoneIds || [] : [],
       shifts: user.role === 'delivery_partner' ? (user.shifts || ['breakfast', 'lunch', 'dinner']) : [],
+      basicSalary: salaryProfile?.basicSalary ?? 15000,
+      overtimeRate: salaryProfile?.overtimeRate ?? 100,
     });
-  }, [user, reset]);
+  }, [user, reset, salaryProfile, isLoadingSalary]);
 
   const updateMutation = useUpdateStaffUser();
 
@@ -72,6 +82,15 @@ export function EditStaffModal({ user, onClose }: Props) {
       }
       
       await updateMutation.mutateAsync({ uid: user.id, data: payload });
+      
+      await updateSalaryMutation.mutateAsync({
+        id: user.id,
+        basicSalary: data.basicSalary,
+        overtimeRate: data.overtimeRate,
+        isActive: user.isActive,
+        updatedAt: null as any, // managed by mutation
+      });
+      
       toast.success('Staff account updated successfully!');
       onClose();
     } catch {
@@ -119,6 +138,23 @@ export function EditStaffModal({ user, onClose }: Props) {
                 <option value="support">Support</option>
               </select>
               {errors.role && <p className="text-xs text-danger">{errors.role.message}</p>}
+            </div>
+
+            <div className="space-y-4 bg-ink-50 p-4 rounded-lg border border-ink-100 mt-4 relative">
+              {isLoadingSalary && <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center text-sm font-medium">Loading salary profile...</div>}
+              <h3 className="text-sm font-bold text-ink-900 mb-2">Salary Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-ink-700">Base Salary (Monthly) ₹</label>
+                  <input type="number" step="0.01" {...register('basicSalary')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                  {errors.basicSalary && <p className="text-xs text-danger">{errors.basicSalary.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-ink-700">Overtime Rate (Per Hour) ₹</label>
+                  <input type="number" step="0.01" {...register('overtimeRate')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                  {errors.overtimeRate && <p className="text-xs text-danger">{errors.overtimeRate.message}</p>}
+                </div>
+              </div>
             </div>
 
             {currentRole === 'kitchen' && (

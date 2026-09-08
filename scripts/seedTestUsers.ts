@@ -11,7 +11,7 @@ process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 dotenv.config({ path: path.resolve(import.meta.dirname, '../.env.local') });
 
 if (!getApps().length) {
-  initializeApp({ projectId: 'mysuru-paakashale-erp' });
+  initializeApp({ projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'mysuru-paakashale-erp' });
 }
 
 const auth = getAuth();
@@ -43,7 +43,11 @@ async function seedTestUsers() {
       if (error.code === 'auth/email-already-exists') {
         const userRecord = await auth.getUserByEmail(user.email);
         uid = userRecord.uid;
-        console.log(`User ${user.email} already exists (UID: ${uid}).`);
+        
+        // Ensure the password is correct for dev login
+        await auth.updateUser(uid, { password: user.password });
+        
+        console.log(`User ${user.email} already exists (UID: ${uid}). Updated password to default.`);
       } else {
         console.error(`Error creating ${user.email}:`, error);
         continue;
@@ -52,7 +56,7 @@ async function seedTestUsers() {
 
     try {
       // Create in Firestore
-      await db.collection('users').doc(uid).set({
+      const profileData: any = {
         role: user.role,
         fullName: user.fullName,
         email: user.email,
@@ -60,7 +64,38 @@ async function seedTestUsers() {
         passwordCreated: true,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      if (user.role === 'customer') {
+        profileData.phone = '9876543210';
+        profileData.displayId = 'MP-T001';
+        profileData.addresses = [
+          {
+            id: 'addr-1',
+            label: 'Home',
+            line1: '123 Test Street',
+            city: 'Mysuru',
+            state: 'KA',
+            pincode: '570001',
+            lat: null,
+            lng: null,
+            isDefault: true,
+          }
+        ];
+        profileData.defaultAddressId = 'addr-1';
+        profileData.deliveryPartnerId = null;
+        profileData.zoneId = null;
+      }
+
+      if (user.role === 'delivery_partner') {
+        profileData.phone = '9998887776';
+        profileData.displayId = 'DP-T001';
+        profileData.zoneIds = [];
+        profileData.vehicleType = 'bike';
+        profileData.isAvailable = true;
+      }
+
+      await db.collection('users').doc(uid).set(profileData);
       
       console.log(`Created/Updated Firestore profile for: ${user.email}`);
     } catch (error: any) {

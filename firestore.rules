@@ -257,11 +257,11 @@ service cloud.firestore {
 
       // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above, plus legitimate customer edits.
       allow update: if isAdmin() ||
-                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences']) &&
+                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences', 'autoRenew']) &&
                         request.resource.data.get('quantity', 1) > 0 &&
                         (isAllowedCustomerTransition() || 
                          ((resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
-                          request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate']))));
+                          request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate', 'autoRenew']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -484,7 +484,8 @@ service cloud.firestore {
     // ---------- dailyDeliveryStates/{date} ----------
     match /dailyDeliveryStates/{date} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow update, delete: if isAdmin();
+      allow create: if isAdmin() || (isDeliveryPartner() && request.resource.data.keys().hasOnly(['id', 'status', 'createdAt', 'updatedAt']) && request.resource.data.status == 'open');
 
       match /driverSessions/{driverId} {
         allow read: if isSignedIn();
@@ -540,10 +541,18 @@ service cloud.firestore {
                request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'];
       }
 
+      function isStaffTriggerableNotification() {
+        return request.resource.data.createdBy == request.auth.uid &&
+               (
+                 (isDeliveryPartner() && request.resource.data.type in ['out_for_delivery', 'delivered', 'delivery_failed']) ||
+                 (isKitchen() && request.resource.data.type == 'system_alert' && get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'delivery_partner')
+               );
+      }
+
       allow read: if isSignedIn() &&
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
-      allow create: if isAdmin() || (isSignedIn() && isCustomerTriggerableNotification());
+      allow create: if isAdmin() || (isSignedIn() && (isCustomerTriggerableNotification() || isStaffTriggerableNotification()));
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.
@@ -642,6 +651,10 @@ service cloud.firestore {
     }
     match /salaryProfiles/{profileId} {
       allow read: if isSignedIn() && (profileId == request.auth.uid || isAdmin() || isAccounts());
+      allow write: if isAdmin() || isAccounts();
+    }
+    match /salaryAdvances/{advanceId} {
+      allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
       allow write: if isAdmin() || isAccounts();
     }
 

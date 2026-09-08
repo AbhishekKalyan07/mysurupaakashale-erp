@@ -1,5 +1,6 @@
 import { Timestamp, doc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/shared/lib/firebase';
+import { subscriptionRepository } from '../firestore/subscriptionRepository';
 
 import { orderRepository } from '../firestore/orderRepository';
 import { paymentRepository } from '../firestore/paymentRepository';
@@ -10,18 +11,31 @@ class BillingService {
    * Process daily billing and auto-renewals.
    * Runs daily to catch subscriptions whose cycle has ended.
    */
-  async processDailyBilling(today: string): Promise<{ processed: number; errors: number }> {
+  async processDailyBilling(today: string): Promise<{ success: boolean; processed: number; errors: number }> {
+    let processed = 0;
+    let errors = 0;
+
     try {
-      const { functions } = await import('@/shared/lib/firebase');
-      const { httpsCallable } = await import('firebase/functions');
-      const callable = httpsCallable<{date: string}, {processed: number, errors: number}>(functions, 'manualProcessDailyBilling');
-      
-      const result = await callable({ date: today });
-      return result.data;
-    } catch (err: any) {
-      console.error('[BillingService] RPC failed:', err);
-      return { processed: 0, errors: 1 };
+      const allSubs = await subscriptionRepository.list();
+      const subscriptions = allSubs.filter(sub => sub.status === 'active' || sub.status === 'paused');
+
+      for (const sub of subscriptions) {
+        if (!sub.endDate || sub.endDate >= today) continue;
+
+        try {
+          await this.processSubscriptionEnd(sub, today);
+          processed++;
+        } catch (err) {
+          console.error(`[BillingService] Error processing subscription ${sub.id}:`, err);
+          errors++;
+        }
+      }
+    } catch (err) {
+      console.error('[BillingService] Failed to list subscriptions for billing:', err);
+      return { success: false, processed, errors };
     }
+
+    return { success: errors === 0, processed, errors };
   }
 
   async processSubscriptionEnd(subscription: Subscription, today: string, reason: 'expired' | 'cancelled' = 'expired'): Promise<void> {
@@ -172,7 +186,7 @@ class BillingService {
       // 2. Auto-renew or Expire (skip if manually cancelled)
       if (reason !== 'cancelled') {
         const subRef = doc(db, 'subscriptions', subscription.id);
-        if (subscription.autoRenew) {
+        if (subscription.autoRenew !== false) {
           // Calculate new dates
           let d = new Date(subscription.endDate!);
           let foundStart = false;

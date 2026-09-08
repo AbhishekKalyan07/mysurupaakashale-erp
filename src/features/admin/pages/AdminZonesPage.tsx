@@ -45,49 +45,55 @@ export function AdminZonesPage() {
       {zones && zones.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {zones.map(zone => (
-            <Card key={zone.id} className="p-6 flex flex-col hover:border-gold/30 transition-colors shadow-sm">
-              <div className="flex justify-between items-start mb-4">
+            <Card key={zone.id} className="p-6 flex flex-col hover:border-gold/30 transition-colors shadow-sm bg-background-alt border-primary/10">
+              <div className="flex justify-between items-start mb-6">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant={zone.isActive ? 'success' : 'default'} dot className="text-[10px] shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant={zone.isActive ? 'success' : 'default'} dot className="text-[10px] shadow-sm font-bold tracking-wide">
                       {zone.isActive ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <h3 className="font-bold text-lg text-primary">{zone.name}</h3>
-                  <div className="text-xs font-mono text-text-muted">{zone.id}</div>
+                  <h3 className="font-bold text-xl text-primary">{zone.name}</h3>
                 </div>
-                <div className="bg-primary/5 text-primary p-2 rounded-lg">
-                  <Map size={20} />
+                <div className="bg-primary/5 text-primary p-2.5 rounded-xl border border-primary/10 shadow-sm">
+                  <Map size={22} className="text-primary" />
                 </div>
               </div>
 
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-5">
                 <div>
-                  <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">City</div>
-                  <div className="text-sm font-medium text-text">{zone.city}</div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-2">Pincodes ({zone.pincodes.length})</div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <MapPin size={12} className="text-primary/60" /> 
+                    <span>Pincodes ({zone.pincodes.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {zone.pincodes.map(pin => (
-                      <span key={pin} className="inline-flex items-center gap-1 px-2 py-1 bg-surface-2 border border-border rounded text-xs font-mono text-text-muted">
-                        <MapPin size={10} /> {pin}
+                      <span key={pin} className="inline-flex items-center px-2.5 py-1 bg-primary/5 border border-primary/10 rounded-md text-xs font-mono font-semibold text-primary shadow-sm">
+                        {pin}
                       </span>
                     ))}
                   </div>
                 </div>
                 
-                <div>
-                   <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">Kitchen ID</div>
-                   <div className="text-xs font-mono text-text-muted bg-surface-2 px-2 py-1 rounded inline-block border border-border">{zone.kitchenId}</div>
+                <div className="grid grid-cols-2 gap-4 bg-background p-3 rounded-lg border border-primary/5 shadow-inner">
+                  <div>
+                    <div className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-1">City</div>
+                    <div className="text-sm font-medium text-text">{zone.city}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-1">Kitchen ID</div>
+                    <div className="text-xs font-mono font-medium text-text-muted break-all">
+                      {zone.kitchenId}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-border flex justify-end gap-2 shrink-0">
+              <div className="mt-6 pt-4 border-t border-primary/10 flex justify-end gap-2 shrink-0">
                 <Button 
                   variant="secondary" 
                   size="sm"
+                  className="font-bold text-primary shadow-sm"
                   onClick={() => setEditingZone(zone)}
                 >
                   Edit
@@ -95,7 +101,7 @@ export function AdminZonesPage() {
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                  className="text-red-500 font-bold hover:bg-red-50 hover:text-red-600 transition-colors"
                   isLoading={deleteMutation.isPending && deleteMutation.variables === zone.id}
                   onClick={() => {
                     if (confirm(`Are you sure you want to delete ${zone.name}?`)) {

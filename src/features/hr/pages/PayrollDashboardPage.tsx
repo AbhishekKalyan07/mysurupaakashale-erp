@@ -6,24 +6,27 @@ import { PremiumTable, PremiumTableRow, PremiumTableCell } from '@/shared/compon
 import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { MetricCard } from '@/shared/components/ui/MetricCard';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { usePayrollByMonth, useGeneratePayroll, usePaySalary, useUpdatePayrollStatus } from '../hooks/usePayroll';
+import { usePayrollByMonth, useGeneratePayroll, useUpdatePayrollStatus } from '../hooks/usePayroll';
 import { useStaffUsers } from '@/features/admin/hooks/useAdmin';
 import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 import { salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
 import { attendanceRepository } from '@/shared/services/firestore/attendanceRepository';
-import { Banknote, FileText, CheckCircle, ArrowRight, Archive, CheckCircle2, TrendingDown } from 'lucide-react';
+import { calculatePayroll } from '../utils/payrollCalculator';
+import { Banknote, FileText, CheckCircle, ArrowRight, Archive, CheckCircle2, TrendingDown, PlusCircle } from 'lucide-react';
 import { PayslipPrintView } from '../components/PayslipPrintView';
-
+import { AddAdvanceModal } from '../components/AddAdvanceModal';
+import { PaymentConfirmationModal } from '../components/PaymentConfirmationModal';
 export function PayrollDashboardPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [printRecord, setPrintRecord] = useState<any>(null);
   const { data: staff, isLoading: isLoadingStaff } = useStaffUsers();
   const { data: payrolls, isLoading: isLoadingPayroll } = usePayrollByMonth(month);
   const generatePayroll = useGeneratePayroll();
-  const paySalary = usePaySalary();
   const { data: settings } = useBusinessSettings();
   const updateStatus = useUpdatePayrollStatus();
 
+  const [advanceModalStaff, setAdvanceModalStaff] = useState<any>(null);
+  const [paymentModalRecord, setPaymentModalRecord] = useState<{staff: any, record: any} | null>(null);
   const isLoading = isLoadingStaff || isLoadingPayroll;
 
   if (isLoading) return <LoadingScreen />;
@@ -56,14 +59,12 @@ export function PayrollDashboardPage() {
   const handleGenerate = async (user: any) => {
     // 1. Fetch Salary Profile
     const profile = await salaryProfileRepository.getProfile(user.id);
-    const basic = profile?.basicSalary || 15000;
-    const otRate = profile?.overtimeRate || 100;
 
     // 2. Fetch Business Settings
     const standardWorkingDays = settings?.payroll?.standardWorkingDays || 22;
     const standardWorkingHours = settings?.payroll?.standardWorkingHours || 8;
     const taxPercentage = settings?.payroll?.taxPercentage || 0;
-    const leaveMultiplier = settings?.payroll?.leaveDeductionMultiplier || 1;
+    const leaveDeductionMultiplier = settings?.payroll?.leaveDeductionMultiplier || 1;
 
     // 3. Fetch Attendance
     const startDate = `${month}-01`;
@@ -72,47 +73,31 @@ export function PayrollDashboardPage() {
     const attendanceRecords = await attendanceRepository.getAttendanceByStaff(user.id, startDate, endDate);
 
     // 4. Calculate
-    const presentDays = attendanceRecords.filter(a => a.status === 'present').length;
-    const halfDays = attendanceRecords.filter(a => a.status === 'half_day').length;
-    const totalWorkingDays = presentDays + (halfDays * 0.5);
-
-    let overtimeHours = 0;
-    attendanceRecords.forEach(a => {
-      if (a.totalWorkingHours > standardWorkingHours) {
-        overtimeHours += (a.totalWorkingHours - standardWorkingHours);
+    const results = calculatePayroll(
+      profile,
+      attendanceRecords,
+      {
+        standardWorkingDays,
+        standardWorkingHours,
+        taxPercentage,
+        leaveDeductionMultiplier
       }
-    });
-
-    const overtimeBonus = overtimeHours * otRate;
-    
-    // Deductions: if they worked fewer days than standard, deduct proportionately.
-    // Or just calculate daily wage.
-    const dailyWage = basic / standardWorkingDays;
-    let leaveDeduction = 0;
-    if (totalWorkingDays < standardWorkingDays) {
-      const daysShort = standardWorkingDays - totalWorkingDays;
-      leaveDeduction = daysShort * dailyWage * leaveMultiplier;
-    }
-
-    const gross = basic + overtimeBonus;
-    const taxDeduction = gross * (taxPercentage / 100);
-    const deductions = leaveDeduction + taxDeduction;
-    const net = Math.max(0, gross - deductions);
+    );
 
     await generatePayroll.mutateAsync({
       staffId: user.id,
       staffName: user.fullName,
       month,
-      basicSalary: basic,
-      workingDays: totalWorkingDays,
-      presentDays,
-      overtimeHours,
-      overtimeRate: otRate,
-      bonus: overtimeBonus,
-      deductions,
-      deductionReason: taxDeduction > 0 ? `Tax: ${taxDeduction.toFixed(0)}, Leave: ${leaveDeduction.toFixed(0)}` : `Leave: ${leaveDeduction.toFixed(0)}`,
-      grossSalary: gross,
-      netSalary: net,
+      basicSalary: results.basicSalary,
+      workingDays: results.workingDays,
+      presentDays: results.presentDays,
+      overtimeHours: results.overtimeHours,
+      overtimeRate: results.overtimeRate,
+      bonus: results.bonus,
+      deductions: results.deductions,
+      deductionReason: results.taxDeduction > 0 ? `Tax: ${results.taxDeduction.toFixed(0)}, Leave: ${results.leaveDeduction.toFixed(0)}` : `Leave: ${results.leaveDeduction.toFixed(0)}`,
+      grossSalary: results.grossSalary,
+      netSalary: results.netSalary,
     });
   };
 
@@ -120,9 +105,8 @@ export function PayrollDashboardPage() {
     await updateStatus.mutateAsync({ id, status });
   };
 
-  const handlePay = async (id: string) => {
-    if (!confirm('Mark this salary as paid?')) return;
-    await paySalary.mutateAsync(id);
+  const handlePay = (staff: any, record: any) => {
+    setPaymentModalRecord({ staff, record });
   };
 
   const handlePrint = (record: any) => {
@@ -198,7 +182,6 @@ export function PayrollDashboardPage() {
                   <PremiumTableCell>
                     <div className="text-right md:text-left">
                       <div className="font-semibold text-primary">{user.fullName}</div>
-                      <div className="text-xs text-text-muted font-data">{user.id}</div>
                     </div>
                   </PremiumTableCell>
                   <PremiumTableCell className="capitalize text-text-muted">
@@ -250,8 +233,7 @@ export function PayrollDashboardPage() {
                         <Button 
                           size="sm" 
                           variant="primary"
-                          onClick={() => handlePay(record.id)}
-                          isLoading={paySalary.isPending && paySalary.variables === record.id}
+                          onClick={() => handlePay(user, record)}
                         >
                           <Banknote size={14} className="mr-1" /> Mark Paid
                         </Button>
@@ -290,6 +272,17 @@ export function PayrollDashboardPage() {
                           </Button>
                         </div>
                       )}
+                      
+                      {(!isGenerated || (record?.status !== 'paid' && record?.status !== 'archived')) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setAdvanceModalStaff(user)}
+                          title="Add Salary Advance"
+                        >
+                          <PlusCircle size={14} />
+                        </Button>
+                      )}
                     </div>
                   </PremiumTableCell>
                 </PremiumTableRow>
@@ -301,8 +294,21 @@ export function PayrollDashboardPage() {
     </div>
     
     {printRecord && (
-      <PayslipPrintView payroll={printRecord} settings={settings} />
+      <PayslipPrintView payroll={printRecord} staff={staffList.find(s => s.id === printRecord.staffId)} settings={settings} />
     )}
+    
+    <AddAdvanceModal 
+      isOpen={!!advanceModalStaff}
+      onClose={() => setAdvanceModalStaff(null)}
+      staff={advanceModalStaff}
+    />
+    
+    <PaymentConfirmationModal
+      isOpen={!!paymentModalRecord}
+      onClose={() => setPaymentModalRecord(null)}
+      staff={paymentModalRecord?.staff}
+      payrollRecord={paymentModalRecord?.record}
+    />
     </>
   );
 }

@@ -16,19 +16,25 @@ async function runDailyTasks() {
     const todayStr = getTodayInTimezone();
     const billingRes = await billingService.processDailyBilling(todayStr);
     console.log(`Billing: Processed ${billingRes.processed}, Errors ${billingRes.errors}`);
+    if (billingRes.success === false) {
+        throw new Error('Daily billing failed.');
+    }
 
-    console.log('2. Generating Today\'s Orders...');
+    console.log('2. Processing scheduled pauses and resumes...');
+    await automationService.processScheduledPauses();
+
+    console.log('3. Generating Today\'s Orders...');
     const orderRes = await orderService.generateDailyOrders();
     console.log(orderRes.message);
+    if (orderRes.success === false) {
+        throw new Error(`Order generation failed: ${orderRes.message}`);
+    }
 
-    console.log('3. Generating Daily Summary (Sales, Kitchen, Delivery)...');
+    console.log('4. Generating Daily Summary (Sales, Kitchen, Delivery)...');
     await automationService.generateDailySummary();
 
-    console.log('4. Checking for expiring subscriptions...');
+    console.log('5. Checking for expiring subscriptions...');
     await automationService.checkSubscriptionExpiry();
-
-    console.log('5. Processing scheduled pauses and resumes...');
-    await automationService.processScheduledPauses();
 
     console.log('6. Processing pending unskip requests...');
     await automationService.processUnskipRequests();

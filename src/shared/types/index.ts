@@ -59,7 +59,8 @@ export type {
   LeaveRequest,
   PayrollStatus,
   PayrollRecord,
-  EmployeeSalaryProfile
+  EmployeeSalaryProfile,
+  SalaryAdvance
 } from './hr.types';
 
 export type { Feedback, FeedbackCategory, FeedbackStatus } from './feedback.types';

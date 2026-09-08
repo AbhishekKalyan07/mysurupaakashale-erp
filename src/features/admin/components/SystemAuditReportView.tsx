@@ -8,9 +8,12 @@ export function SystemAuditReportView({ details }: SystemAuditReportViewProps) {
   const { isRawDump, report } = parseAuditLogDetails(details);
 
   if (!isRawDump || !report) {
+    if (!details || Object.keys(details).length === 0) {
+      return <span className="text-[10px] text-text-muted font-medium italic">No additional details provided.</span>;
+    }
     return (
       <pre className="text-[10px] text-text-muted w-full overflow-x-auto bg-background-alt p-3 rounded-lg border border-primary/10 whitespace-pre-wrap word-break shadow-inner font-medium">
-        {JSON.stringify(details || {}, null, 2)}
+        {JSON.stringify(details, null, 2)}
       </pre>
     );
   }

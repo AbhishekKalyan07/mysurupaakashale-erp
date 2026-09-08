@@ -24,6 +24,8 @@ const staffSchema = z.object({
   vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
   zoneIds: z.array(z.string()).optional(),
   shifts: z.array(z.string()).optional(),
+  basicSalary: z.coerce.number().min(0, 'Base salary must be >= 0'),
+  overtimeRate: z.coerce.number().min(0, 'Overtime rate must be >= 0'),
 }).superRefine((data, ctx) => {
   if (data.role === 'kitchen' && !data.kitchenId) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['kitchenId'], message: 'Kitchen ID is required' });
@@ -45,7 +47,15 @@ interface Props {
 export function CreateStaffModal({ onClose }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
-    defaultValues: { role: 'kitchen', vehicleType: 'bike', phone: '+91 ', zoneIds: [], shifts: ['breakfast', 'lunch', 'dinner'] }
+    defaultValues: { 
+      role: 'kitchen', 
+      vehicleType: 'bike', 
+      phone: '+91 ', 
+      zoneIds: [], 
+      shifts: ['breakfast', 'lunch', 'dinner'],
+      basicSalary: 15000,
+      overtimeRate: 100,
+    }
   });
 
   const selectedRole = watch('role');
@@ -111,6 +121,22 @@ export function CreateStaffModal({ onClose }: Props) {
                   <option key={role} value={role}>{role.replace('_', ' ')}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-4 bg-ink-50 p-4 rounded-lg border border-ink-100 mt-4">
+              <h3 className="text-sm font-bold text-ink-900 mb-2">Salary Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-ink-700">Base Salary (Monthly) ₹</label>
+                  <input type="number" step="0.01" {...register('basicSalary')} placeholder="15000" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                  {errors.basicSalary && <p className="text-xs text-danger">{errors.basicSalary.message}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-ink-700">Overtime Rate (Per Hour) ₹</label>
+                  <input type="number" step="0.01" {...register('overtimeRate')} placeholder="100" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                  {errors.overtimeRate && <p className="text-xs text-danger">{errors.overtimeRate.message}</p>}
+                </div>
+              </div>
             </div>
 
             {selectedRole === 'kitchen' && (
