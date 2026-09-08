@@ -76,7 +76,7 @@ export function useAddSalaryAdvance() {
       await auditRepository.logAction('salary_advance_added', user.uid, user.displayName || 'Admin', id, 'salaryAdvance', { amount: data.amount });
       return id;
     },
-    onSuccess: async (_, variables) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.advances });
       toast.success('Salary advance added successfully');
     },
@@ -242,7 +242,6 @@ export function usePaySalary() {
       if (!user) throw new Error('Authentication required to pay salary');
 
       const paymentDate = getTodayInTimezone();
-      let netSalaryForNotification = 0;
       let staffIdForNotification = '';
       let monthForNotification = '';
 
@@ -261,7 +260,6 @@ export function usePaySalary() {
 
         staffIdForNotification = payrollData.staffId;
         monthForNotification = payrollData.month;
-        netSalaryForNotification = payrollData.netSalary;
 
         // Verify all advances are still pending
         const advanceRefs = advancesToDeduct.map(id => doc(db, 'salaryAdvances', id));

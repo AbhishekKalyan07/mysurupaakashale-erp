@@ -6,7 +6,7 @@ import { PremiumTable, PremiumTableRow, PremiumTableCell } from '@/shared/compon
 import { HeroBanner } from '@/shared/components/ui/HeroBanner';
 import { MetricCard } from '@/shared/components/ui/MetricCard';
 import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { usePayrollByMonth, useGeneratePayroll, usePaySalary, useUpdatePayrollStatus } from '../hooks/usePayroll';
+import { usePayrollByMonth, useGeneratePayroll, useUpdatePayrollStatus } from '../hooks/usePayroll';
 import { useStaffUsers } from '@/features/admin/hooks/useAdmin';
 import { useBusinessSettings } from '@/features/admin/hooks/useSettings';
 import { salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
