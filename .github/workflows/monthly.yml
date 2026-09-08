@@ -23,7 +23,7 @@ jobs:
 
       - name: Checkout Code
         if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
