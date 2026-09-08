@@ -1,15 +1,5 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 import type { Subscription } from './types';
-
-import { getApps, initializeApp } from 'firebase-admin/app';
-
-const getDb = () => {
-  if (getApps().length === 0) {
-    initializeApp();
-  }
-  return getFirestore();
-};
 export class BillingService {
   /**
    * Process daily billing and auto-renewals.

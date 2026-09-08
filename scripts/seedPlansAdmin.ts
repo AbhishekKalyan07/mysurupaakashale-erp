@@ -10,7 +10,7 @@ const serviceAccountPath = path.resolve(__dirname, '../serviceAccountKey.json');
 if (!getApps().length) {
   try {
     initializeApp({ credential: cert(serviceAccountPath) });
-  } catch (e) {
+  } catch {
     console.log('No service account key found, initializing for local emulator only.');
     initializeApp({ projectId: 'mysuru-paakashale-erp' });
   }
