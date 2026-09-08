@@ -21,7 +21,8 @@ class SubscriptionService {
     startDate: string,
     deliveryAddressId: string,
     billingCycle: 'weekly' | 'monthly',
-    endDate: string | null
+    endDate: string | null,
+    autoRenew: boolean = true
   ): Promise<string> {
     if (!customerId || !planId || !planTier || quantity <= 0 || !startDate || !deliveryAddressId) {
       throw new Error('Invalid subscription data: Missing required fields or invalid quantity.');
@@ -47,7 +48,7 @@ class SubscriptionService {
       startDate,
       endDate,
       billingCycle,
-      autoRenew: true,
+      autoRenew,
       deliveryAddressId,
       latestPaymentId: null,
       depositAmount,

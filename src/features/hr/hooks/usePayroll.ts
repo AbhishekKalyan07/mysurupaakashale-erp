@@ -1,8 +1,8 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, serverTimestamp, runTransaction, doc } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { payrollRepository, salaryProfileRepository } from '@/shared/services/firestore/payrollRepository';
-import type { PayrollRecord, EmployeeSalaryProfile, PayrollStatus } from '@/shared/types';
-import { serverTimestamp } from 'firebase/firestore';
+import { payrollRepository, salaryProfileRepository, salaryAdvanceRepository } from '@/shared/services/firestore/payrollRepository';
+import type { PayrollRecord, EmployeeSalaryProfile, PayrollStatus, SalaryAdvance } from '@/shared/types';
+import { db } from '@/shared/lib/firebase';
 import { getAuth } from 'firebase/auth';
 import { getTodayInTimezone } from '@/shared/lib/date';
 import { auditRepository } from '@/shared/services/firestore/auditRepository';
@@ -16,6 +16,8 @@ export const queryKeys = {
     byStaff: (staffId: string) => [...queryKeys.payroll.base, 'staff', staffId] as const,
     profiles: ['salaryProfiles'] as const,
     profile: (staffId: string) => [...queryKeys.payroll.profiles, staffId] as const,
+    advances: ['salaryAdvances'] as const,
+    pendingAdvances: (staffId: string) => [...queryKeys.payroll.advances, 'pending', staffId] as const,
   },
 };
 
@@ -43,6 +45,47 @@ export function useSalaryProfile(staffId: string) {
   });
 }
 
+export function usePendingAdvances(staffId: string) {
+  return useQuery({
+    queryKey: queryKeys.payroll.pendingAdvances(staffId),
+    queryFn: () => salaryAdvanceRepository.getPendingAdvancesByStaff(staffId),
+    enabled: !!staffId,
+  });
+}
+
+export function useAddSalaryAdvance() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: Omit<SalaryAdvance, 'id' | 'status' | 'payrollId' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
+      const id = crypto.randomUUID();
+      const user = getAuth().currentUser;
+      if (!user) throw new Error('Not authenticated');
+
+      const record: SalaryAdvance = {
+        ...data,
+        id,
+        status: 'pending',
+        payrollId: null,
+        createdBy: user.uid,
+        createdAt: serverTimestamp() as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      };
+      
+      await salaryAdvanceRepository.create(record, id);
+      await auditRepository.logAction('salary_advance_added', user.uid, user.displayName || 'Admin', id, 'salaryAdvance', { amount: data.amount });
+      return id;
+    },
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.advances });
+      toast.success('Salary advance added successfully');
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to add salary advance');
+    },
+  });
+}
+
 export function useUpdateSalaryProfile() {
   const queryClient = useQueryClient();
 
@@ -62,7 +105,19 @@ export function useUpdateSalaryProfile() {
       }
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('salary_profile_updated', user.uid, user.displayName || 'Admin', data.id, 'salary_profile');
+        await auditRepository.logAction(
+          exists ? 'salary_profile_updated' : 'salary_profile_created',
+          user.uid,
+          user.displayName || 'Admin',
+          data.id,
+          'salary_profile',
+          {
+            previousBasicSalary: exists ? exists.basicSalary : null,
+            newBasicSalary: data.basicSalary,
+            previousOvertimeRate: exists ? exists.overtimeRate : null,
+            newOvertimeRate: data.overtimeRate,
+          }
+        );
       }
     },
     onSuccess: async (_, variables) => {
@@ -170,38 +225,105 @@ export function usePaySalary() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const paymentDate = getTodayInTimezone();
-      await payrollRepository.update(id, {
-        status: 'paid',
-        paymentDate,
-        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      });
+    mutationFn: async ({
+      payrollId,
+      amountPaid,
+      advanceDeduction,
+      otherAdjustments,
+      advancesToDeduct,
+    }: {
+      payrollId: string;
+      amountPaid: number;
+      advanceDeduction: number;
+      otherAdjustments: number;
+      advancesToDeduct: string[];
+    }) => {
       const user = getAuth().currentUser;
-      if (user) {
-        await auditRepository.logAction('salary_paid', user.uid, user.displayName || 'Admin', id, 'payroll');
+      if (!user) throw new Error('Authentication required to pay salary');
+
+      const paymentDate = getTodayInTimezone();
+      let netSalaryForNotification = 0;
+      let staffIdForNotification = '';
+      let monthForNotification = '';
+
+      await runTransaction(db, async (transaction) => {
+        const payrollRef = doc(db, 'payroll', payrollId);
+        const payrollDoc = await transaction.get(payrollRef);
         
-        const record = await payrollRepository.getById(id);
-        if (record) {
-          await notificationRepository.createNotification({
-            recipientId: record.staffId,
-            recipientRole: 'staff',
-            channel: 'in_app',
-            title: `Salary Paid: ${record.month}`,
-            message: `Your salary for ${record.month} (₹${record.netSalary}) has been transferred successfully.`,
-            type: 'salary_paid',
-            priority: 'high',
-            metadata: { payrollId: id, amount: String(record.netSalary) }
+        if (!payrollDoc.exists()) {
+          throw new Error('Payroll record does not exist.');
+        }
+        
+        const payrollData = payrollDoc.data() as PayrollRecord;
+        if (payrollData.status === 'paid' || payrollData.status === 'archived') {
+          throw new Error('Payroll is already marked as paid or archived.');
+        }
+
+        staffIdForNotification = payrollData.staffId;
+        monthForNotification = payrollData.month;
+        netSalaryForNotification = payrollData.netSalary;
+
+        // Verify all advances are still pending
+        const advanceRefs = advancesToDeduct.map(id => doc(db, 'salaryAdvances', id));
+        const advanceDocs = advanceRefs.length > 0 ? await Promise.all(advanceRefs.map(ref => transaction.get(ref))) : [];
+        
+        for (const adDoc of advanceDocs) {
+          if (!adDoc.exists()) {
+            throw new Error(`Advance record ${adDoc.id} not found.`);
+          }
+          if (adDoc.data().status !== 'pending') {
+            throw new Error(`Advance record ${adDoc.id} is no longer pending.`);
+          }
+        }
+
+        // Apply mutations
+        const suggestedPayable = payrollData.netSalary - advanceDeduction + otherAdjustments;
+
+        transaction.update(payrollRef, {
+          status: 'paid',
+          paymentDate,
+          advanceDeduction,
+          otherAdjustments,
+          suggestedPayable,
+          amountPaid,
+          advancesDeducted: advancesToDeduct,
+          updatedAt: serverTimestamp(),
+        });
+
+        for (const adRef of advanceRefs) {
+          transaction.update(adRef, {
+            status: 'deducted',
+            payrollId,
+            updatedAt: serverTimestamp(),
           });
         }
-      }
+      });
+
+      // Transaction successful, do side effects
+      await auditRepository.logAction('salary_paid', user.uid, user.displayName || 'Admin', payrollId, 'payroll', {
+        amountPaid,
+        advanceDeduction,
+        otherAdjustments,
+      });
+      
+      await notificationRepository.createNotification({
+        recipientId: staffIdForNotification,
+        recipientRole: 'staff',
+        channel: 'in_app',
+        title: `Salary Paid: ${monthForNotification}`,
+        message: `Your salary for ${monthForNotification} (₹${amountPaid}) has been transferred successfully.`,
+        type: 'salary_paid',
+        priority: 'high',
+        metadata: { payrollId, amount: String(amountPaid) }
+      });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });
-      toast.success('Salary marked as paid');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.advances });
+      toast.success('Salary marked as paid successfully');
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to mark salary as paid');
+      toast.error((err as Error).message || 'Failed to process salary payment');
     },
   });
 }

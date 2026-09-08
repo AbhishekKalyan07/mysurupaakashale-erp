@@ -157,6 +157,70 @@ describe('billingService.processDailyBilling - Pricing Matrix Snapshot', () => {
     expect(updatePayload.endDate).toBeDefined();
   });
 
+  it('expires subscription when autoRenew is false', async () => {
+    const mockSub = {
+      id: 'sub-no-renew',
+      customerId: 'cust3',
+      planTier: 'regular',
+      status: 'active',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      quantity: 1,
+      autoRenew: false,
+      billingCycle: 'monthly',
+    };
+
+    const mockOrders = [
+      { id: 'ord3', subscriptionId: 'sub-no-renew', status: 'delivered', date: '2026-07-15', mealType: 'dinner' },
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
+
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    
+    expect(mockTxn.update).toHaveBeenCalled();
+    const updatePayload = mockTxn.update.mock.calls[0][1] as any;
+    expect(updatePayload.status).toBe('expired');
+  });
+
+  it('auto-renews subscription when autoRenew is missing (legacy)', async () => {
+    const mockSub = {
+      id: 'sub-legacy-renew',
+      customerId: 'cust3',
+      planTier: 'regular',
+      status: 'active',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      quantity: 1,
+      // NO autoRenew field
+      billingCycle: 'monthly',
+    };
+
+    const mockOrders = [
+      { id: 'ord3', subscriptionId: 'sub-legacy-renew', status: 'delivered', date: '2026-07-15', mealType: 'dinner' },
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(mockOrders as any);
+
+    const { runTransaction } = await import('firebase/firestore');
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, '2026-08-01');
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    
+    expect(mockTxn.update).toHaveBeenCalled();
+    const updatePayload = mockTxn.update.mock.calls[0][1] as any;
+    expect(updatePayload.status).toBe('active');
+    expect(updatePayload.startDate).toBeDefined();
+    expect(updatePayload.endDate).toBeDefined();
+  });
+
   it('legacy customer - full bundle', async () => {
     const mockSub = {
       id: 'sub4',

@@ -72,6 +72,34 @@ describe('subscriptionService', () => {
         expect.any(String)
       );
     });
+
+    it('defaults autoRenew to true if not provided', async () => {
+      vi.spyOn(settingsRepository, 'getBusinessSettings').mockResolvedValue(null as any);
+      vi.spyOn(subscriptionRepository, 'create').mockResolvedValue('sub1');
+
+      await subscriptionService.createSubscription(
+        'c1', 'plan1', 'standard', 1, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null
+      );
+
+      expect(subscriptionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ autoRenew: true }),
+        expect.any(String)
+      );
+    });
+
+    it('stores autoRenew as false when explicitly provided as false', async () => {
+      vi.spyOn(settingsRepository, 'getBusinessSettings').mockResolvedValue(null as any);
+      vi.spyOn(subscriptionRepository, 'create').mockResolvedValue('sub1');
+
+      await subscriptionService.createSubscription(
+        'c1', 'plan1', 'standard', 1, 100, {} as any, [{ mealType: 'lunch', selectedOptionId: 'opt1' }], '2026-08-01', 'addr1', 'monthly', null, false
+      );
+
+      expect(subscriptionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ autoRenew: false }),
+        expect.any(String)
+      );
+    });
   });
 
   describe('approveSubscription', () => {

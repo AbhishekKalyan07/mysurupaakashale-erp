@@ -6,27 +6,10 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
 initializeApp();
 
-import { orderService, getTodayInTimezone } from './orders';
-import { billingService } from './billing';
+import { getTodayInTimezone } from './orders';
 
 
-export const generateDailyOrders = onCall({
-  enforceAppCheck: false // Configure as needed for production
-}, async (request) => {
-  if (!request.auth || request.auth.token.role !== 'admin') {
-    throw new HttpsError('permission-denied', 'Only admins can generate orders');
-  }
-  const date = request.data?.date;
-  return await orderService.generateDailyOrders(date);
-});
-
-export const processDailyBilling = onCall(async (request) => {
-  if (!request.auth || request.auth.token.role !== 'admin') {
-    throw new HttpsError('permission-denied', 'Only admins can run billing');
-  }
-  const date = request.data?.date || getTodayInTimezone();
-  return await billingService.processDailyBilling(date);
-});
+// Cloud Functions for generating orders and processing billing were removed.
 
 export const onOrderCancelled = onDocumentUpdated('orders/{orderId}', async (event) => {
   const db = getFirestore();

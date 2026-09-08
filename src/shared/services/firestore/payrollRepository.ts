@@ -1,6 +1,6 @@
 import { db } from '@/shared/lib/firebase';
 import { BaseRepository, createConverter } from './BaseRepository';
-import type { PayrollRecord, EmployeeSalaryProfile } from '@/shared/types';
+import type { PayrollRecord, EmployeeSalaryProfile, SalaryAdvance } from '@/shared/types';
 import { query, where, getDocs, orderBy } from 'firebase/firestore';
 
 class PayrollRepository extends BaseRepository<PayrollRecord> {
@@ -31,5 +31,24 @@ class SalaryProfileRepository extends BaseRepository<EmployeeSalaryProfile> {
   }
 }
 
+class SalaryAdvanceRepository extends BaseRepository<SalaryAdvance> {
+  constructor() {
+    super(db, 'salaryAdvances', createConverter<SalaryAdvance>());
+  }
+
+  async getAdvancesByStaff(staffId: string): Promise<SalaryAdvance[]> {
+    const q = query(this.collectionRef, where('staffId', '==', staffId), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  }
+
+  async getPendingAdvancesByStaff(staffId: string): Promise<SalaryAdvance[]> {
+    const q = query(this.collectionRef, where('staffId', '==', staffId), where('status', '==', 'pending'), orderBy('date', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  }
+}
+
 export const payrollRepository = new PayrollRepository();
 export const salaryProfileRepository = new SalaryProfileRepository();
+export const salaryAdvanceRepository = new SalaryAdvanceRepository();

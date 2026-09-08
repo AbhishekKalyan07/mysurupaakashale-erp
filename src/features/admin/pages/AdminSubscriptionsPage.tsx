@@ -172,6 +172,32 @@ function SubscriptionDetailDialog({ subscription, onClose }: { subscription: Sub
               <div className="font-bold text-primary text-lg font-display">₹{subscription.depositAmount.toLocaleString('en-IN')}</div>
             </div>
             
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Auto-Renew</div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-primary">
+                  {subscription.autoRenew !== false ? 'Enabled' : 'Disabled'}
+                </span>
+                <button 
+                  onClick={async () => {
+                    if (!confirm(`Are you sure you want to ${subscription.autoRenew !== false ? 'disable' : 'enable'} auto-renew for this subscription?`)) return;
+                    try {
+                      const { subscriptionRepository } = await import('@/shared/services/firestore/subscriptionRepository');
+                      await subscriptionRepository.update(subscription.id, { autoRenew: subscription.autoRenew === false ? true : false });
+                      // Will auto-refresh since this dialog is fed from the active query
+                      onClose(); 
+                    } catch (err: any) {
+                      console.error('Failed to update auto-renew', err);
+                      alert('Failed to update: ' + err.message);
+                    }
+                  }}
+                  className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary ${subscription.autoRenew !== false ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscription.autoRenew !== false ? 'translate-x-1.5' : '-translate-x-1.5'}`} />
+                </button>
+              </div>
+            </div>
+            
             {/* Stats */}
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-2">Delivery Statistics</div>

@@ -74,6 +74,7 @@ export function SubscriptionWizardPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'monthly'>('monthly');
+  const [autoRenew, setAutoRenew] = useState<boolean>(true);
 
   // Skip Sunday for default start date
   const getDefaultStartDate = () => {
@@ -257,7 +258,8 @@ export function SubscriptionWizardPage() {
         startDate,
         selectedAddressId,
         billingCycle,
-        endDate
+        endDate,
+        autoRenew
       );
 
       // Notify the customer their subscription draft is created.
@@ -751,6 +753,29 @@ export function SubscriptionWizardPage() {
                 <p className="text-[10px] text-ink-500 font-sans mb-6">
                   * {billingCycle === 'weekly' ? 'Weekly' : 'Monthly'} bills will be generated pro-rata at the end of each cycle based on the days you were subscribed. This security deposit is held on your account and refunded upon cancellation.
                 </p>
+
+                <div className="border-t border-rice-300 pt-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="pt-1">
+                      <button 
+                        onClick={() => setAutoRenew(!autoRenew)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${autoRenew ? 'bg-emerald-600' : 'bg-rice-300'}`}
+                        role="switch"
+                        aria-checked={autoRenew}
+                      >
+                        <span aria-hidden="true" className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${autoRenew ? 'translate-x-2' : '-translate-x-2'}`} />
+                      </button>
+                    </div>
+                    <div>
+                      <h3 className="font-sans font-bold text-ink-800 text-sm">Auto-Renew Subscription</h3>
+                      <p className="text-ink-500 text-[10px] font-sans mt-1">
+                        {autoRenew 
+                          ? 'Your subscription will automatically renew at the end of the current cycle.' 
+                          : 'Your subscription will end naturally after the current cycle is complete.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <Button
                   onClick={handleConfirmSubscription}

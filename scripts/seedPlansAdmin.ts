@@ -8,7 +8,12 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 const serviceAccountPath = path.resolve(__dirname, '../serviceAccountKey.json');
 
 if (!getApps().length) {
-  initializeApp({ credential: cert(serviceAccountPath) });
+  try {
+    initializeApp({ credential: cert(serviceAccountPath) });
+  } catch (e) {
+    console.log('No service account key found, initializing for local emulator only.');
+    initializeApp({ projectId: 'mysuru-paakashale-erp' });
+  }
 }
 
 const db = getFirestore();

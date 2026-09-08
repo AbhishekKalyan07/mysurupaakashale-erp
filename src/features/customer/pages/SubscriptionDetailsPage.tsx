@@ -405,6 +405,36 @@ export function SubscriptionDetailsPage() {
                 <span>Security Deposit Paid:</span>
                 <span>₹{securityDeposit}</span>
               </div>
+              
+              <div className="border-t border-rice-300 pt-3 mt-3 flex items-start gap-3">
+                <div className="pt-1">
+                  <button 
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to ${subscription.autoRenew !== false ? 'disable' : 'enable'} auto-renew?`)) return;
+                      try {
+                        await subscriptionRepository.update(subscription.id, { autoRenew: subscription.autoRenew === false ? true : false });
+                        queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.active(subscription.customerId) });
+                        toast.success(`Auto-renew ${subscription.autoRenew !== false ? 'disabled' : 'enabled'}`);
+                      } catch (err: any) {
+                        toast.error(err.message || 'Failed to update auto-renew status');
+                      }
+                    }}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${subscription.autoRenew !== false ? 'bg-emerald-600' : 'bg-rice-300'}`}
+                    role="switch"
+                    aria-checked={subscription.autoRenew !== false}
+                  >
+                    <span aria-hidden="true" className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscription.autoRenew !== false ? 'translate-x-2' : '-translate-x-2'}`} />
+                  </button>
+                </div>
+                <div>
+                  <h3 className="font-sans font-bold text-ink-800 text-sm">Auto-Renew</h3>
+                  <p className="text-ink-500 text-[10px] font-sans mt-0.5">
+                    {subscription.autoRenew !== false
+                      ? 'Your subscription will renew automatically.' 
+                      : 'Subscription will expire at cycle end.'}
+                  </p>
+                </div>
+              </div>
             </div>
           </Card>
 

@@ -1,11 +1,12 @@
-import type { PayrollRecord } from '@/shared/types';
+import type { PayrollRecord, UserProfile } from '@/shared/types';
 
 interface PayslipProps {
   payroll: PayrollRecord;
+  staff?: UserProfile;
   settings: any;
 }
 
-export function PayslipPrintView({ payroll, settings }: PayslipProps) {
+export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
   return (
     <div className="print-only fixed inset-0 bg-white z-[9999] p-8 hidden print:block text-ink-900 font-sans">
       <div className="max-w-3xl mx-auto border border-ink-200 p-8 rounded-none">
@@ -32,8 +33,8 @@ export function PayslipPrintView({ payroll, settings }: PayslipProps) {
             <p className="font-bold text-lg">{payroll.staffName}</p>
           </div>
           <div>
-            <p className="text-sm text-ink-500">Employee ID</p>
-            <p className="font-bold text-lg font-data">{payroll.staffId}</p>
+            <p className="text-sm text-ink-500">Employee Code</p>
+            <p className="font-bold text-lg font-data">{staff?.displayId || `EMP-${payroll.staffName.slice(0, 3).toUpperCase()}`}</p>
           </div>
           <div>
             <p className="text-sm text-ink-500">Total Working Days</p>
@@ -77,10 +78,31 @@ export function PayslipPrintView({ payroll, settings }: PayslipProps) {
           </tbody>
         </table>
 
-        {/* Net Salary */}
-        <div className="flex justify-between items-center bg-leaf-50 p-6 rounded-lg mb-12">
-          <div className="text-lg font-semibold text-leaf-800">Net Payable</div>
-          <div className="text-3xl font-bold font-data text-leaf-900">₹{payroll.netSalary.toLocaleString()}</div>
+        {/* Net Salary & Adjustments */}
+        <div className="bg-leaf-50 p-6 rounded-lg mb-12 space-y-3">
+          <div className="flex justify-between items-center">
+            <div className="text-sm font-semibold text-leaf-800">Calculated Salary</div>
+            <div className="text-lg font-bold font-data text-leaf-900">₹{payroll.netSalary.toLocaleString()}</div>
+          </div>
+          
+          {(payroll.advanceDeduction ?? 0) > 0 && (
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-semibold text-warning">Salary Advance Deduction</div>
+              <div className="text-lg font-bold font-data text-warning">-₹{payroll.advanceDeduction?.toLocaleString()}</div>
+            </div>
+          )}
+          
+          {(payroll.otherAdjustments ?? 0) !== 0 && (
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-semibold text-leaf-800">Other Adjustments</div>
+              <div className="text-lg font-bold font-data text-leaf-900">{(payroll.otherAdjustments ?? 0) > 0 ? '+' : '-'}₹{Math.abs(payroll.otherAdjustments ?? 0).toLocaleString()}</div>
+            </div>
+          )}
+
+          <div className="border-t border-leaf-200 pt-3 mt-3 flex justify-between items-center">
+            <div className="text-lg font-semibold text-leaf-900">Amount Paid</div>
+            <div className="text-3xl font-bold font-data text-leaf-900">₹{(payroll.amountPaid ?? payroll.netSalary).toLocaleString()}</div>
+          </div>
         </div>
 
         {/* Footer */}
