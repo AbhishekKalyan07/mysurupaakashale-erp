@@ -30,18 +30,18 @@ import {
   orderBy,
   where,
   serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '@/shared/lib/firebase';
-import type { Holiday, HolidayCreateResult } from '@/shared/types';
-import { HOLIDAY_CANCELLABLE_STATUSES } from '@/shared/types';
-import { orderRepository } from './orderRepository';
-import type { Timestamp } from 'firebase/firestore';
+} from "firebase/firestore";
+import { db } from "@/shared/lib/firebase";
+import type { Holiday, HolidayCreateResult } from "@/shared/types";
+import { HOLIDAY_CANCELLABLE_STATUSES } from "@/shared/types";
+import { orderRepository } from "./orderRepository";
+import type { Timestamp } from "firebase/firestore";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const COLLECTION = 'holidays';
+const COLLECTION = "holidays";
 
 /** Build the deterministic document ID for a given date. */
 function holidayDocId(date: string): string {
@@ -65,7 +65,7 @@ class HolidayRepository {
     const snap = await getDoc(ref);
     if (!snap.exists()) return false;
     const data = snap.data() as Holiday;
-    return data.status === 'active';
+    return data.status === "active";
   }
 
   /**
@@ -108,7 +108,7 @@ class HolidayRepository {
         date,
         name,
         ...(description ? { description } : {}),
-        status: 'active',
+        status: "active",
         createdBy,
         createdAt: now,
         updatedAt: now,
@@ -138,12 +138,12 @@ class HolidayRepository {
       throw new Error(`Holiday for ${date} not found.`);
     }
     const data = snap.data() as Holiday;
-    if (data.status === 'cancelled') {
+    if (data.status === "cancelled") {
       // Already cancelled — idempotent
       return;
     }
     await updateDoc(ref, {
-      status: 'cancelled',
+      status: "cancelled",
       cancelledAt: serverTimestamp(),
       cancelledBy,
       updatedAt: serverTimestamp(),
@@ -166,7 +166,7 @@ class HolidayRepository {
    */
   async listHolidays(): Promise<Holiday[]> {
     const col = collection(db, COLLECTION);
-    const q = query(col, orderBy('date', 'desc'));
+    const q = query(col, orderBy("date", "desc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d) => d.data() as Holiday);
   }
@@ -179,8 +179,8 @@ class HolidayRepository {
     const results = await Promise.all(
       HOLIDAY_CANCELLABLE_STATUSES.map((status) =>
         orderRepository.list(
-          where('date', '==', date),
-          where('status', '==', status),
+          where("date", "==", date),
+          where("status", "==", status),
         ),
       ),
     );

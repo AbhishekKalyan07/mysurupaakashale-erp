@@ -5,7 +5,7 @@ import type {
   Order,
   DeliveryZone,
   Timestamp,
-} from '../types';
+} from "../types";
 
 export const TimestampFactory = {
   create: (date: Date = new Date()): Timestamp => ({
@@ -13,37 +13,42 @@ export const TimestampFactory = {
     nanoseconds: 0,
     toDate: () => date,
     toMillis: () => date.getTime(),
-    toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'Timestamp' }),
-    isEqual: (other: Timestamp) => other.seconds === Math.floor(date.getTime() / 1000),
-    valueOf: () => date.getTime().toString()
+    toJSON: () => ({
+      seconds: Math.floor(date.getTime() / 1000),
+      nanoseconds: 0,
+      type: "Timestamp",
+    }),
+    isEqual: (other: Timestamp) =>
+      other.seconds === Math.floor(date.getTime() / 1000),
+    valueOf: () => date.getTime().toString(),
   }),
 };
 
 export const CustomerFactory = {
   create: (overrides?: Partial<CustomerProfile>): CustomerProfile => ({
     id: `cust-${Math.random().toString(36).substring(7)}`,
-    role: 'customer',
-    fullName: 'Test Customer',
-    email: 'test@customer.com',
-    phone: '+919999999999',
+    role: "customer",
+    fullName: "Test Customer",
+    email: "test@customer.com",
+    phone: "+919999999999",
     photoUrl: null,
     isActive: true,
     createdAt: TimestampFactory.create(),
     updatedAt: TimestampFactory.create(),
     addresses: [
       {
-        id: 'addr-1',
-        label: 'Home',
-        line1: '123 Main St',
-        city: 'Mysuru',
-        state: 'Karnataka',
-        pincode: '570001',
+        id: "addr-1",
+        label: "Home",
+        line1: "123 Main St",
+        city: "Mysuru",
+        state: "Karnataka",
+        pincode: "570001",
         lat: 12.2958,
         lng: 76.6394,
         isDefault: true,
-      }
+      },
     ],
-    defaultAddressId: 'addr-1',
+    defaultAddressId: "addr-1",
     ...overrides,
   }),
 };
@@ -51,20 +56,20 @@ export const CustomerFactory = {
 export const SubscriptionFactory = {
   create: (overrides?: Partial<Subscription>): Subscription => ({
     id: `sub-${Math.random().toString(36).substring(7)}`,
-    customerId: 'cust-1',
-    planId: 'plan-basic',
-    planTier: 'basic',
+    customerId: "cust-1",
+    planId: "plan-basic",
+    planTier: "basic",
     quantity: 1,
     pricePerDaySnapshot: 150,
-    deliveryAddressId: 'addr-1',
+    deliveryAddressId: "addr-1",
     zoneId: null,
-    mealPreferences: [{ mealType: 'lunch', selectedOptionId: 'veg-thali' }],
-    status: 'active',
-    startDate: new Date().toISOString().split('T')[0],
+    mealPreferences: [{ mealType: "lunch", selectedOptionId: "veg-thali" }],
+    status: "active",
+    startDate: new Date().toISOString().split("T")[0],
     endDate: null,
-    billingCycle: 'monthly',
+    billingCycle: "monthly",
     autoRenew: true,
-    latestPaymentId: 'pay-1',
+    latestPaymentId: "pay-1",
     pricingMatrixSnapshot: {
       breakfast: 60,
       lunch: 65,
@@ -72,7 +77,7 @@ export const SubscriptionFactory = {
       breakfast_lunch: 115,
       lunch_dinner: 115,
       breakfast_dinner: 115,
-      breakfast_lunch_dinner: 159
+      breakfast_lunch_dinner: 159,
     },
     depositAmount: 500,
     createdAt: TimestampFactory.create(),
@@ -84,22 +89,22 @@ export const SubscriptionFactory = {
 export const OrderFactory = {
   create: (overrides?: Partial<Order>): Order => ({
     id: `ord-${Math.random().toString(36).substring(7)}`,
-    source: 'subscription',
-    customerId: 'cust-1',
-    subscriptionId: 'sub-1',
-    planTier: 'basic',
-    mealType: 'lunch',
-    date: new Date().toISOString().split('T')[0],
-    itemsLabel: 'Standard Veg Lunch',
-    selectedOptionId: 'veg-thali',
+    source: "subscription",
+    customerId: "cust-1",
+    subscriptionId: "sub-1",
+    planTier: "basic",
+    mealType: "lunch",
+    date: new Date().toISOString().split("T")[0],
+    itemsLabel: "Standard Veg Lunch",
+    selectedOptionId: "veg-thali",
     price: 150,
-    currency: 'INR',
-    status: 'scheduled',
-    deliveryAddressId: 'addr-1',
+    currency: "INR",
+    status: "scheduled",
+    deliveryAddressId: "addr-1",
     zoneId: null,
-    kitchenId: 'k1',
+    kitchenId: "k1",
     deliveryPartnerId: null,
-    deliveryWindow: { start: '12:00', end: '13:00' },
+    deliveryWindow: { start: "12:00", end: "13:00" },
     paymentId: null,
     createdAt: TimestampFactory.create(),
     updatedAt: TimestampFactory.create(),
@@ -108,16 +113,18 @@ export const OrderFactory = {
 };
 
 export const DriverFactory = {
-  create: (overrides?: Partial<DeliveryPartnerProfile>): DeliveryPartnerProfile => ({
+  create: (
+    overrides?: Partial<DeliveryPartnerProfile>,
+  ): DeliveryPartnerProfile => ({
     id: `drv-${Math.random().toString(36).substring(7)}`,
-    role: 'delivery_partner',
-    fullName: 'Test Driver',
-    email: 'driver@test.com',
-    phone: '+918888888888',
+    role: "delivery_partner",
+    fullName: "Test Driver",
+    email: "driver@test.com",
+    phone: "+918888888888",
     photoUrl: null,
     isActive: true,
     zoneIds: [],
-    vehicleType: 'bike',
+    vehicleType: "bike",
     isAvailable: true,
     currentLocation: null,
     createdAt: TimestampFactory.create(),
@@ -129,11 +136,11 @@ export const DriverFactory = {
 export const ZoneFactory = {
   create: (overrides?: Partial<DeliveryZone>): DeliveryZone => ({
     id: `zone-${Math.random().toString(36).substring(7)}`,
-    name: 'North Mysuru',
-    city: 'Mysuru',
-    pincodes: ['570001'],
+    name: "North Mysuru",
+    city: "Mysuru",
+    pincodes: ["570001"],
     boundary: null,
-    kitchenId: 'kitchen-1',
+    kitchenId: "kitchen-1",
     isActive: true,
     createdAt: TimestampFactory.create(),
 

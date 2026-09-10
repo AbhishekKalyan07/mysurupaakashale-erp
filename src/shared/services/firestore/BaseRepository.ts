@@ -17,7 +17,7 @@ import {
   type Unsubscribe,
   type UpdateData,
   type WithFieldValue,
-} from 'firebase/firestore';
+} from "firebase/firestore";
 
 /**
  * Firestore document converter for the common case: `T` always carries its
@@ -30,14 +30,18 @@ import {
  * what lets `updateDoc(ref, partialData)` below type-check against `T`
  * instead of a bare, untyped `DocumentData`.
  */
-export function createConverter<T extends { id: string }>(): FirestoreDataConverter<T, T> {
-  const toFirestore = (modelObject: WithFieldValue<T> | PartialWithFieldValue<T>) => modelObject;
+export function createConverter<
+  T extends { id: string },
+>(): FirestoreDataConverter<T, T> {
+  const toFirestore = (
+    modelObject: WithFieldValue<T> | PartialWithFieldValue<T>,
+  ) => modelObject;
   return {
     // Pass-through in both the full-set and merge-set cases — cast to the
     // interface's own (overloaded) method type rather than fight TypeScript's
     // structural variance rules for a function that is genuinely identical
     // either way.
-    toFirestore: toFirestore as FirestoreDataConverter<T, T>['toFirestore'],
+    toFirestore: toFirestore as FirestoreDataConverter<T, T>["toFirestore"],
     fromFirestore(snapshot, options): T {
       const data = snapshot.data(options);
       return { ...data, id: snapshot.id } as T;
@@ -62,8 +66,14 @@ export function createConverter<T extends { id: string }>(): FirestoreDataConver
 export class BaseRepository<T extends { id: string }> {
   protected readonly collectionRef: CollectionReference<T, T>;
 
-  constructor(db: Firestore, collectionPath: string, converter: FirestoreDataConverter<T, T>) {
-    this.collectionRef = collection(db, collectionPath).withConverter(converter);
+  constructor(
+    db: Firestore,
+    collectionPath: string,
+    converter: FirestoreDataConverter<T, T>,
+  ) {
+    this.collectionRef = collection(db, collectionPath).withConverter(
+      converter,
+    );
   }
 
   async getById(id: string): Promise<T | null> {
@@ -77,12 +87,14 @@ export class BaseRepository<T extends { id: string }> {
   }
 
   async count(...constraints: QueryConstraint[]): Promise<number> {
-    const snapshot = await getCountFromServer(query(this.collectionRef, ...constraints));
+    const snapshot = await getCountFromServer(
+      query(this.collectionRef, ...constraints),
+    );
     return snapshot.data().count;
   }
 
   /** Pre-generates the document id client-side (no network round-trip) so create is a single write. */
-  async create(data: Omit<T, 'id'>, id?: string): Promise<string> {
+  async create(data: Omit<T, "id">, id?: string): Promise<string> {
     const ref = id ? doc(this.collectionRef, id) : doc(this.collectionRef);
     await setDoc(ref, { ...data, id: ref.id } as unknown as T);
     return ref.id;
@@ -107,7 +119,11 @@ export class BaseRepository<T extends { id: string }> {
     await deleteDoc(doc(this.collectionRef, id));
   }
 
-  subscribeToDoc(id: string, onNext: (data: T | null) => void, onError?: (error: Error) => void): Unsubscribe {
+  subscribeToDoc(
+    id: string,
+    onNext: (data: T | null) => void,
+    onError?: (error: Error) => void,
+  ): Unsubscribe {
     return onSnapshot(
       doc(this.collectionRef, id),
       (snapshot) => onNext(snapshot?.exists() ? snapshot.data() : null),

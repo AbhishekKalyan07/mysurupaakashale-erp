@@ -1,6 +1,6 @@
-import { LogIn, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { PremiumButton as Button } from '../ui/PremiumButton';
+import { LogIn, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PremiumButton as Button } from "../ui/PremiumButton";
 
 /**
  * Shown when a user tries to access a protected resource WITHOUT being
@@ -22,7 +22,8 @@ export function UnauthorizedPage() {
           Authentication Required
         </h1>
         <p className="text-sm text-ink-500 leading-relaxed">
-          You need to be logged in to access this page. Please log in to continue.
+          You need to be logged in to access this page. Please log in to
+          continue.
         </p>
       </div>
 
@@ -31,7 +32,7 @@ export function UnauthorizedPage() {
           <ArrowLeft size={16} />
           Go Back
         </Button>
-        <Button onClick={() => navigate('/login')} className="gap-2">
+        <Button onClick={() => navigate("/login")} className="gap-2">
           <LogIn size={16} />
           Log In
         </Button>

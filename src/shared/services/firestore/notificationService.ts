@@ -18,14 +18,14 @@
  *     the primary business action.
  */
 
-import { notificationRepository } from '@/shared/services/firestore/notificationRepository';
+import { notificationRepository } from "@/shared/services/firestore/notificationRepository";
 import type {
   CreateNotificationPayload,
   NotificationType,
   NotificationPriority,
-} from '@/shared/types';
-import { auth } from '@/shared/lib/firebase';
-import { NotificationTemplates } from './templates';
+} from "@/shared/types";
+import { auth } from "@/shared/lib/firebase";
+import { NotificationTemplates } from "./templates";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core send helper
@@ -42,16 +42,16 @@ async function send(
   const payload: CreateNotificationPayload = {
     recipientId,
     recipientRole,
-    channel: 'in_app',
+    channel: "in_app",
     type,
     title,
     message,
-    priority: options.priority ?? 'normal',
+    priority: options.priority ?? "normal",
     relatedEntityType: options.relatedEntityType ?? null,
     relatedEntityId: options.relatedEntityId ?? null,
     metadata: options.metadata ?? {},
     expiresAt: options.expiresAt ?? null,
-    createdBy: options.createdBy ?? auth.currentUser?.uid ?? 'system',
+    createdBy: options.createdBy ?? auth.currentUser?.uid ?? "system",
   };
   await notificationRepository.createNotification(payload);
 }
@@ -67,11 +67,11 @@ export async function notifySubscriptionCreated(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_created',
-    'Subscription draft created',
+    "customer",
+    "subscription_created",
+    "Subscription draft created",
     `Your ${planTier} meal plan subscription has been created. Complete your payment to activate it.`,
-    { relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+    { relatedEntityType: "subscription", relatedEntityId: subscriptionId },
   );
 }
 
@@ -83,13 +83,13 @@ export async function notifySubscriptionActivated(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_activated',
-    'Subscription activated!',
+    "customer",
+    "subscription_activated",
+    "Subscription activated!",
     `Your ${planTier} meal plan is now active from ${startDate}. Enjoy your meals!`,
     {
-      priority: 'high',
-      relatedEntityType: 'subscription',
+      priority: "high",
+      relatedEntityType: "subscription",
       relatedEntityId: subscriptionId,
     },
   );
@@ -104,13 +104,13 @@ export async function notifySubscriptionApproved(
   const tpl = NotificationTemplates.SubscriptionApproved(planTier, startDate);
   await send(
     customerId,
-    'customer',
-    'subscription_approved',
+    "customer",
+    "subscription_approved",
     tpl.title,
     tpl.message,
     {
-      priority: 'high',
-      relatedEntityType: 'subscription',
+      priority: "high",
+      relatedEntityType: "subscription",
       relatedEntityId: subscriptionId,
     },
   );
@@ -122,16 +122,17 @@ export async function notifySubscriptionRenewalReminder(
   daysLeft: number,
   endDate: string,
 ): Promise<void> {
-  const urgency: NotificationPriority = daysLeft <= 1 ? 'high' : daysLeft <= 3 ? 'normal' : 'low';
+  const urgency: NotificationPriority =
+    daysLeft <= 1 ? "high" : daysLeft <= 3 ? "normal" : "low";
   await send(
     customerId,
-    'customer',
-    'subscription_renewal_reminder',
-    `Subscription expiring ${daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`}`,
+    "customer",
+    "subscription_renewal_reminder",
+    `Subscription expiring ${daysLeft === 1 ? "tomorrow" : `in ${daysLeft} days`}`,
     `Your meal plan subscription ends on ${endDate}. Renew now to continue receiving meals without interruption.`,
     {
       priority: urgency,
-      relatedEntityType: 'subscription',
+      relatedEntityType: "subscription",
       relatedEntityId: subscriptionId,
     },
   );
@@ -143,13 +144,13 @@ export async function notifySubscriptionExpired(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_renewal_reminder',
-    'Subscription expired',
-    'Your meal plan subscription has expired. Please renew to continue receiving meals.',
+    "customer",
+    "subscription_renewal_reminder",
+    "Subscription expired",
+    "Your meal plan subscription has expired. Please renew to continue receiving meals.",
     {
-      priority: 'high',
-      relatedEntityType: 'subscription',
+      priority: "high",
+      relatedEntityType: "subscription",
       relatedEntityId: subscriptionId,
     },
   );
@@ -161,11 +162,11 @@ export async function notifySubscriptionPaused(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_paused',
-    'Subscription paused',
-    'Your meal plan subscription has been paused. Deliveries will stop until you resume it.',
-    { relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+    "customer",
+    "subscription_paused",
+    "Subscription paused",
+    "Your meal plan subscription has been paused. Deliveries will stop until you resume it.",
+    { relatedEntityType: "subscription", relatedEntityId: subscriptionId },
   );
 }
 
@@ -175,11 +176,15 @@ export async function notifySubscriptionResumed(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_resumed',
-    'Subscription resumed',
-    'Your meal plan subscription is active again. Deliveries will continue as scheduled.',
-    { priority: 'high', relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+    "customer",
+    "subscription_resumed",
+    "Subscription resumed",
+    "Your meal plan subscription is active again. Deliveries will continue as scheduled.",
+    {
+      priority: "high",
+      relatedEntityType: "subscription",
+      relatedEntityId: subscriptionId,
+    },
   );
 }
 
@@ -190,13 +195,17 @@ export async function notifySubscriptionRejected(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'subscription_cancelled',
-    'Subscription request declined',
+    "customer",
+    "subscription_cancelled",
+    "Subscription request declined",
     reason
       ? `Your subscription request couldn't be approved: ${reason}`
       : "Your subscription request couldn't be approved. Please contact support or try subscribing again.",
-    { priority: 'high', relatedEntityType: 'subscription', relatedEntityId: subscriptionId },
+    {
+      priority: "high",
+      relatedEntityType: "subscription",
+      relatedEntityId: subscriptionId,
+    },
   );
 }
 
@@ -214,22 +223,26 @@ export async function notifyPaymentSubmitted(
   // Notify customer
   await send(
     customerId,
-    'customer',
-    'payment_submitted',
-    'Payment received — under review',
+    "customer",
+    "payment_submitted",
+    "Payment received — under review",
     `Your payment of ₹${amount} has been submitted and is pending admin verification.`,
-    { relatedEntityType: 'payment', relatedEntityId: paymentId },
+    { relatedEntityType: "payment", relatedEntityId: paymentId },
   );
   // Notify all admins
   await Promise.all(
     adminIds.map((adminId) =>
       send(
         adminId,
-        'admin',
-        'payment_submitted',
-        'New payment needs verification',
+        "admin",
+        "payment_submitted",
+        "New payment needs verification",
         `${customerName} has submitted a payment of ₹${amount}. Please verify it in the Payments section.`,
-        { priority: 'high', relatedEntityType: 'payment', relatedEntityId: paymentId },
+        {
+          priority: "high",
+          relatedEntityType: "payment",
+          relatedEntityId: paymentId,
+        },
       ),
     ),
   );
@@ -243,13 +256,13 @@ export async function notifyPaymentVerified(
   const tpl = NotificationTemplates.PaymentReceived(amount);
   await send(
     customerId,
-    'customer',
-    'payment_verified',
+    "customer",
+    "payment_verified",
     tpl.title,
     tpl.message,
     {
-      priority: 'high',
-      relatedEntityType: 'payment',
+      priority: "high",
+      relatedEntityType: "payment",
       relatedEntityId: paymentId,
     },
   );
@@ -263,12 +276,12 @@ export async function notifyPaymentReminder(
   const tpl = NotificationTemplates.PaymentReminder(amount, dueDate);
   await send(
     customerId,
-    'customer',
-    'payment_reminder',
+    "customer",
+    "payment_reminder",
     tpl.title,
     tpl.message,
     {
-      priority: 'high',
+      priority: "high",
     },
   );
 }
@@ -282,13 +295,13 @@ export async function notifyInvoiceGenerated(
   const tpl = NotificationTemplates.InvoiceGenerated(amount, billingMonth);
   await send(
     customerId,
-    'customer',
-    'invoice_generated',
+    "customer",
+    "invoice_generated",
     tpl.title,
     tpl.message,
     {
-      priority: 'normal',
-      relatedEntityType: 'invoice',
+      priority: "normal",
+      relatedEntityType: "invoice",
       relatedEntityId: invoiceId,
     },
   );
@@ -302,13 +315,13 @@ export async function notifyPaymentRejected(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'payment_rejected',
-    'Payment rejected',
-    `Your payment of ₹${amount} could not be verified.${notes ? ` Reason: ${notes}` : ' Please resubmit with the correct reference number.'}`,
+    "customer",
+    "payment_rejected",
+    "Payment rejected",
+    `Your payment of ₹${amount} could not be verified.${notes ? ` Reason: ${notes}` : " Please resubmit with the correct reference number."}`,
     {
-      priority: 'high',
-      relatedEntityType: 'payment',
+      priority: "high",
+      relatedEntityType: "payment",
       relatedEntityId: paymentId,
     },
   );
@@ -327,11 +340,11 @@ export async function notifyDriverAssigned(
   const tpl = NotificationTemplates.DriverAssigned(driverName, mealType);
   await send(
     customerId,
-    'customer',
-    'driver_assigned',
+    "customer",
+    "driver_assigned",
     tpl.title,
     tpl.message,
-    { relatedEntityType: 'order', relatedEntityId: orderId },
+    { relatedEntityType: "order", relatedEntityId: orderId },
   );
 }
 
@@ -342,11 +355,11 @@ export async function notifyOrderOutForDelivery(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'out_for_delivery',
+    "customer",
+    "out_for_delivery",
     `Your ${mealType} is on the way!`,
     `Your ${mealType} meal has been picked up and is out for delivery.`,
-    { relatedEntityType: 'order', relatedEntityId: orderId },
+    { relatedEntityType: "order", relatedEntityId: orderId },
   );
 }
 
@@ -357,11 +370,11 @@ export async function notifyOrderDelivered(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'delivered',
+    "customer",
+    "delivered",
     `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} delivered ✓`,
     `Your ${mealType} meal has been delivered. Enjoy!`,
-    { relatedEntityType: 'order', relatedEntityId: orderId },
+    { relatedEntityType: "order", relatedEntityId: orderId },
   );
 }
 
@@ -372,13 +385,13 @@ export async function notifyDeliveryFailed(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'delivery_failed',
+    "customer",
+    "delivery_failed",
     `${mealType} delivery failed`,
     `We were unable to deliver your ${mealType} meal. Our team will follow up with you.`,
     {
-      priority: 'high',
-      relatedEntityType: 'order',
+      priority: "high",
+      relatedEntityType: "order",
       relatedEntityId: orderId,
     },
   );
@@ -391,11 +404,11 @@ export async function notifyOrderGeneratedCustomer(
 ): Promise<void> {
   await send(
     customerId,
-    'customer',
-    'system_alert',
+    "customer",
+    "system_alert",
     `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} order generated`,
     `Your ${mealType} order for ${date} has been generated and sent to the kitchen.`,
-    { priority: 'normal' },
+    { priority: "normal" },
   );
 }
 
@@ -408,11 +421,15 @@ export async function notifyOrderGeneratedDriver(
 ): Promise<void> {
   await send(
     driverId,
-    'delivery',
-    'system_alert',
+    "delivery",
+    "system_alert",
     `New ${mealType} delivery assigned`,
     `You have been assigned a new ${mealType} delivery for ${customerName} on ${date}.`,
-    { priority: 'normal', relatedEntityType: 'order', relatedEntityId: orderId },
+    {
+      priority: "normal",
+      relatedEntityType: "order",
+      relatedEntityId: orderId,
+    },
   );
 }
 
@@ -423,11 +440,11 @@ export async function notifyReadyForPickup(
 ): Promise<void> {
   await send(
     driverId,
-    'delivery',
-    'system_alert',
+    "delivery",
+    "system_alert",
     `${mealType} ready for pickup`,
     `A ${mealType} order is packed and ready for you to pick up from the kitchen.`,
-    { priority: 'high', relatedEntityType: 'order', relatedEntityId: orderId },
+    { priority: "high", relatedEntityType: "order", relatedEntityId: orderId },
   );
 }
 
@@ -438,11 +455,15 @@ export async function notifyAccountsDelivered(
 ): Promise<void> {
   await send(
     accountId,
-    'accounts',
-    'system_alert',
+    "accounts",
+    "system_alert",
     `${mealType} delivered`,
     `A ${mealType} order has been delivered and is ready for invoice processing.`,
-    { priority: 'normal', relatedEntityType: 'order', relatedEntityId: orderId },
+    {
+      priority: "normal",
+      relatedEntityType: "order",
+      relatedEntityId: orderId,
+    },
   );
 }
 
@@ -453,15 +474,10 @@ export async function notifyAdminAlert(
 ): Promise<void> {
   await Promise.all(
     adminIds.map((adminId) =>
-      send(
-        adminId,
-        'admin',
-        'system_alert',
-        title,
-        message,
-        { priority: 'high' }
-      )
-    )
+      send(adminId, "admin", "system_alert", title, message, {
+        priority: "high",
+      }),
+    ),
   );
 }
 
@@ -478,11 +494,11 @@ export async function notifyDailyOrdersGenerated(
     kitchenStaffIds.map((staffId) =>
       send(
         staffId,
-        'kitchen',
-        'daily_orders_generated',
+        "kitchen",
+        "daily_orders_generated",
         `Today's orders ready (${count})`,
         `${count} orders have been generated for ${date}. Head to the Production Board to begin preparation.`,
-        { priority: 'high', metadata: { date, count: String(count) } },
+        { priority: "high", metadata: { date, count: String(count) } },
       ),
     ),
   );
@@ -500,10 +516,10 @@ export async function notifyStaffAccountCreated(
   await send(
     staffId,
     role,
-    'staff_account_created',
-    'Welcome to Mysuru Paakashale!',
-    `Hi ${fullName}, your ${role.replace('_', ' ')} account has been created. Log in to get started.`,
-    { priority: 'high' },
+    "staff_account_created",
+    "Welcome to Mysuru Paakashale!",
+    `Hi ${fullName}, your ${role.replace("_", " ")} account has been created. Log in to get started.`,
+    { priority: "high" },
   );
 }
 
@@ -527,4 +543,3 @@ export async function notifyStaffAccountCreated(
  *
  * Roles notified: admin, kitchen, customer, delivery_partner
  */
-

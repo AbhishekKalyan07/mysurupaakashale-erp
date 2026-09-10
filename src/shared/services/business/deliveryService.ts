@@ -1,5 +1,5 @@
-import type { Order } from '@/shared/types';
-import { orderRepository } from '../firestore/orderRepository';
+import type { Order } from "@/shared/types";
+import { orderRepository } from "../firestore/orderRepository";
 
 export interface DeliverySummary {
   assigned: number;
@@ -35,24 +35,27 @@ export class DeliveryService {
     let returned = 0;
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
 
       // In the context of delivery operations, "assigned" means it has a deliveryPartnerId.
       if (o.deliveryPartnerId) {
         assigned++;
       }
 
-      if (o.status === 'picked_up') pickedUp++;
-      else if (o.status === 'out_for_delivery') outForDelivery++;
-      else if (o.status === 'delivered') delivered++;
-      else if (o.status === 'failed_delivery') failed++;
-      else if (o.status === 'returned_delivery') returned++;
+      if (o.status === "picked_up") pickedUp++;
+      else if (o.status === "out_for_delivery") outForDelivery++;
+      else if (o.status === "delivered") delivered++;
+      else if (o.status === "failed_delivery") failed++;
+      else if (o.status === "returned_delivery") returned++;
     }
 
     const remaining = assigned - delivered - failed - returned;
-    
+
     // Completion percentage based only on terminal states relative to total assigned.
-    const completionPercentage = assigned === 0 ? 0 : Math.round(((delivered + failed + returned) / assigned) * 100);
+    const completionPercentage =
+      assigned === 0
+        ? 0
+        : Math.round(((delivered + failed + returned) / assigned) * 100);
 
     return {
       assigned,
@@ -72,14 +75,18 @@ export class DeliveryService {
   getAreaDeliveryGroups(
     orders: Order[],
     partnerMap: Map<string, string>,
-    zoneMap: Map<string, string>
+    zoneMap: Map<string, string>,
   ): DeliveryPartnerGroup[] {
     const partnerGroups = new Map<string, Map<string, Order[]>>();
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
-      const partnerName = o.deliveryPartnerId ? (partnerMap.get(o.deliveryPartnerId) || o.deliveryPartnerId) : 'Unassigned Partner';
-      const areaName = o.zoneId ? (zoneMap.get(o.zoneId) || o.zoneId) : 'Unassigned Area';
+      if (o.status === "cancelled" || o.status === "skipped") continue;
+      const partnerName = o.deliveryPartnerId
+        ? partnerMap.get(o.deliveryPartnerId) || o.deliveryPartnerId
+        : "Unassigned Partner";
+      const areaName = o.zoneId
+        ? zoneMap.get(o.zoneId) || o.zoneId
+        : "Unassigned Area";
 
       if (!partnerGroups.has(partnerName)) {
         partnerGroups.set(partnerName, new Map<string, Order[]>());
@@ -94,33 +101,38 @@ export class DeliveryService {
 
     // Convert to sorted arrays
     const result: DeliveryPartnerGroup[] = [];
-    
+
     const sortedPartners = Array.from(partnerGroups.keys()).sort();
-    
+
     for (const partnerName of sortedPartners) {
       const areaMap = partnerGroups.get(partnerName)!;
       const sortedAreas = Array.from(areaMap.keys()).sort();
-      
-      const areas: DeliveryAreaGroup[] = sortedAreas.map(areaName => {
+
+      const areas: DeliveryAreaGroup[] = sortedAreas.map((areaName) => {
         const sortedOrders = areaMap.get(areaName)!.sort((a, b) => {
           // Sort by routeSequence if available, then by time window start
           if (a.routeSequence !== b.routeSequence) {
             return (a.routeSequence || 999) - (b.routeSequence || 999);
           }
-          return (a.deliveryWindow?.start || '').localeCompare(b.deliveryWindow?.start || '');
+          return (a.deliveryWindow?.start || "").localeCompare(
+            b.deliveryWindow?.start || "",
+          );
         });
 
         // Route Optimization Simulation (assigns ETAs sequentially)
         let currentTime = new Date();
         const mealType = sortedOrders[0]?.mealType;
-        if (mealType === 'breakfast') currentTime.setHours(8, 0, 0, 0);
-        else if (mealType === 'lunch') currentTime.setHours(13, 0, 0, 0);
-        else if (mealType === 'dinner') currentTime.setHours(19, 0, 0, 0);
+        if (mealType === "breakfast") currentTime.setHours(8, 0, 0, 0);
+        else if (mealType === "lunch") currentTime.setHours(13, 0, 0, 0);
+        else if (mealType === "dinner") currentTime.setHours(19, 0, 0, 0);
 
         sortedOrders.forEach((order, index) => {
           // Assign 15 mins per stop
           const stopTime = new Date(currentTime.getTime() + index * 15 * 60000);
-          order.estimatedETA = stopTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          order.estimatedETA = stopTime.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
         });
 
         return { areaName, orders: sortedOrders };
@@ -134,29 +146,50 @@ export class DeliveryService {
   /**
    * Assigns or reassigns a driver to an order.
    */
-  async assignDriver(orderId: string, driverId: string, adminId: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+  async assignDriver(
+    orderId: string,
+    driverId: string,
+    adminId: string,
+  ): Promise<void> {
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (['picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
-      throw new Error(`Cannot reassign driver: order is already ${order.status}.`);
+    if (["picked_up", "out_for_delivery", "delivered"].includes(order.status)) {
+      throw new Error(
+        `Cannot reassign driver: order is already ${order.status}.`,
+      );
     }
     if (order.deliveryPartnerId === driverId) return; // Idempotency
-    
+
     await orderRepository.update(orderId, { deliveryPartnerId: driverId });
-    const { auditRepository } = await import('../firestore/auditRepository');
-    const { userRepository } = await import('../firestore/userRepository');
-    const { notifyDriverAssigned } = await import('../firestore/notificationService');
-    
-    await auditRepository.logAction('driver_assigned', adminId, 'Admin', orderId, 'order', { oldDriverId: order.deliveryPartnerId, newDriverId: driverId });
+    const { auditRepository } = await import("../firestore/auditRepository");
+    const { userRepository } = await import("../firestore/userRepository");
+    const { notifyDriverAssigned } =
+      await import("../firestore/notificationService");
+
+    await auditRepository.logAction(
+      "driver_assigned",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldDriverId: order.deliveryPartnerId, newDriverId: driverId },
+    );
 
     try {
       const driver = await userRepository.getById(driverId);
-      const driverName = driver?.fullName || 'A delivery partner';
-      await notifyDriverAssigned(order.customerId, order.id, driverName, order.mealType);
+      const driverName = driver?.fullName || "A delivery partner";
+      await notifyDriverAssigned(
+        order.customerId,
+        order.id,
+        driverName,
+        order.mealType,
+      );
     } catch (err) {
-      console.warn('[DeliveryService] Failed to notify driver assigned:', err);
+      console.warn("[DeliveryService] Failed to notify driver assigned:", err);
     }
   }
 
@@ -164,75 +197,103 @@ export class DeliveryService {
    * Driver marks an order as picked up.
    */
   async markPickedUp(orderId: string, driverId: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'picked_up') return; // Idempotency
-    if (order.deliveryPartnerId !== driverId) throw new Error('Cannot update order assigned to another driver.');
-    if (order.status !== 'ready_for_pickup') throw new Error(`Cannot transition from ${order.status} to picked_up.`);
-    
-    await orderRepository.update(orderId, { status: 'picked_up' });
+    if (order.status === "picked_up") return; // Idempotency
+    if (order.deliveryPartnerId !== driverId)
+      throw new Error("Cannot update order assigned to another driver.");
+    if (order.status !== "ready_for_pickup")
+      throw new Error(`Cannot transition from ${order.status} to picked_up.`);
+
+    await orderRepository.update(orderId, { status: "picked_up" });
   }
 
   /**
    * Driver starts route.
    */
   async startDelivery(orderId: string, driverId: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'out_for_delivery') return;
-    if (order.deliveryPartnerId !== driverId) throw new Error('Cannot update order assigned to another driver.');
-    if (order.status !== 'picked_up') throw new Error(`Cannot transition from ${order.status} to out_for_delivery.`);
-    
-    await orderRepository.update(orderId, { status: 'out_for_delivery' });
+    if (order.status === "out_for_delivery") return;
+    if (order.deliveryPartnerId !== driverId)
+      throw new Error("Cannot update order assigned to another driver.");
+    if (order.status !== "picked_up")
+      throw new Error(
+        `Cannot transition from ${order.status} to out_for_delivery.`,
+      );
+
+    await orderRepository.update(orderId, { status: "out_for_delivery" });
   }
 
   /**
    * Driver marks as delivered.
    */
   async markDelivered(orderId: string, driverId: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'delivered') return;
-    if (order.deliveryPartnerId !== driverId) throw new Error('Cannot update order assigned to another driver.');
-    if (order.status !== 'out_for_delivery') throw new Error(`Cannot transition from ${order.status} to delivered.`);
-    
-    await orderRepository.update(orderId, { status: 'delivered' });
+    if (order.status === "delivered") return;
+    if (order.deliveryPartnerId !== driverId)
+      throw new Error("Cannot update order assigned to another driver.");
+    if (order.status !== "out_for_delivery")
+      throw new Error(`Cannot transition from ${order.status} to delivered.`);
+
+    await orderRepository.update(orderId, { status: "delivered" });
   }
 
   /**
    * Driver or admin marks as failed.
    */
-  async markFailed(orderId: string, driverId: string, reason: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+  async markFailed(
+    orderId: string,
+    driverId: string,
+    reason: string,
+  ): Promise<void> {
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'failed_delivery') return;
-    if (order.deliveryPartnerId !== driverId) throw new Error('Cannot update order assigned to another driver.');
-    if (order.status !== 'out_for_delivery') throw new Error(`Cannot transition from ${order.status} to failed_delivery.`);
-    
-    await orderRepository.update(orderId, { status: 'failed_delivery', failureReason: reason } as any);
+    if (order.status === "failed_delivery") return;
+    if (order.deliveryPartnerId !== driverId)
+      throw new Error("Cannot update order assigned to another driver.");
+    if (order.status !== "out_for_delivery")
+      throw new Error(
+        `Cannot transition from ${order.status} to failed_delivery.`,
+      );
+
+    await orderRepository.update(orderId, {
+      status: "failed_delivery",
+      failureReason: reason,
+    } as any);
   }
 
   /**
    * Driver or admin marks as returned.
    */
   async markReturned(orderId: string, driverId: string): Promise<void> {
-    if (!orderId || !driverId) throw new Error('Order ID and Driver ID are required.');
+    if (!orderId || !driverId)
+      throw new Error("Order ID and Driver ID are required.");
 
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'returned_delivery') return;
-    if (order.deliveryPartnerId !== driverId) throw new Error('Cannot update order assigned to another driver.');
-    if (order.status !== 'failed_delivery') throw new Error(`Cannot transition from ${order.status} to returned_delivery.`);
-    
-    await orderRepository.update(orderId, { status: 'returned_delivery' });
+    if (order.status === "returned_delivery") return;
+    if (order.deliveryPartnerId !== driverId)
+      throw new Error("Cannot update order assigned to another driver.");
+    if (order.status !== "failed_delivery")
+      throw new Error(
+        `Cannot transition from ${order.status} to returned_delivery.`,
+      );
+
+    await orderRepository.update(orderId, { status: "returned_delivery" });
   }
 }
 

@@ -1,7 +1,7 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from "firebase/firestore";
 
 export interface BusinessSettings {
-  id: 'business'; // Singleton document
+  id: "business"; // Singleton document
   companyProfile: {
     name: string;
     tagline: string;
@@ -39,8 +39,8 @@ export interface BusinessSettings {
     /** Cancellation deadline for each meal type (HH:mm, 24h, IST) */
     cancellationCutoffTimes: {
       breakfast: string; // e.g. '05:00' – must cancel before 5 AM
-      lunch: string;     // e.g. '10:30' – must cancel before 10:30 AM
-      dinner: string;    // e.g. '16:00' – must cancel before 4 PM
+      lunch: string; // e.g. '10:30' – must cancel before 10:30 AM
+      dinner: string; // e.g. '16:00' – must cancel before 4 PM
     };
     businessHolidays: string[]; // YYYY-MM-DD
   };

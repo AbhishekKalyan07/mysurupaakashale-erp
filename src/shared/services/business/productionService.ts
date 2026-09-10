@@ -1,7 +1,7 @@
-import type { Order, MealType } from '@/shared/types';
+import type { Order, MealType } from "@/shared/types";
 
-import { orderRepository } from '../firestore/orderRepository';
-import { auditRepository } from '../firestore/auditRepository';
+import { orderRepository } from "../firestore/orderRepository";
+import { auditRepository } from "../firestore/auditRepository";
 
 export interface ProductionProgress {
   total: number;
@@ -77,11 +77,11 @@ export class ProductionService {
     let dinner = 0;
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
       const qty = o.mealQuantity || 1;
-      if (o.mealType === 'breakfast') breakfast += qty;
-      else if (o.mealType === 'lunch') lunch += qty;
-      else if (o.mealType === 'dinner') dinner += qty;
+      if (o.mealType === "breakfast") breakfast += qty;
+      else if (o.mealType === "lunch") lunch += qty;
+      else if (o.mealType === "dinner") dinner += qty;
     }
 
     return { breakfast, lunch, dinner, total: breakfast + lunch + dinner };
@@ -96,13 +96,13 @@ export class ProductionService {
     let oneTime = 0;
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
       const qty = o.mealQuantity || 1;
-      if (o.source === 'one_time') {
+      if (o.source === "one_time") {
         oneTime += qty;
-      } else if (o.planTier === 'basic') {
+      } else if (o.planTier === "basic") {
         basic += qty;
-      } else if (o.planTier === 'regular') {
+      } else if (o.planTier === "regular") {
         regular += qty;
       }
     }
@@ -113,14 +113,17 @@ export class ProductionService {
   /**
    * Breaks down EXACT item counts per meal type (e.g. 40 Idli, 25 Dose)
    */
-  static getMealBreakdown(orders: Order[], mealType: MealType): MealBreakdownItem[] {
+  static getMealBreakdown(
+    orders: Order[],
+    mealType: MealType,
+  ): MealBreakdownItem[] {
     const counts = new Map<string, number>();
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
       if (o.mealType !== mealType) continue;
 
-      const label = o.itemsLabel || 'Unknown Item';
+      const label = o.itemsLabel || "Unknown Item";
       const qty = o.mealQuantity || 1;
       counts.set(label, (counts.get(label) || 0) + qty);
     }
@@ -145,21 +148,26 @@ export class ProductionService {
 
     for (const o of orders) {
       const qty = o.mealQuantity || 1;
-      if (o.status === 'cancelled') {
+      if (o.status === "cancelled") {
         cancelled += qty;
-      } else if (o.status !== 'skipped') {
+      } else if (o.status !== "skipped") {
         total += qty;
-        if (o.status === 'scheduled') scheduled += qty;
-        if (o.status === 'packing') packing += qty;
-        if (o.status === 'packed') packed += qty;
-        if (o.status === 'ready_for_pickup') ready += qty;
-        if (['ready_for_pickup', 'out_for_delivery', 'delivered'].includes(o.status)) {
+        if (o.status === "scheduled") scheduled += qty;
+        if (o.status === "packing") packing += qty;
+        if (o.status === "packed") packed += qty;
+        if (o.status === "ready_for_pickup") ready += qty;
+        if (
+          ["ready_for_pickup", "out_for_delivery", "delivered"].includes(
+            o.status,
+          )
+        ) {
           completed += qty;
         }
       }
     }
 
-    const completionPercentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+    const completionPercentage =
+      total === 0 ? 0 : Math.round((completed / total) * 100);
 
     return {
       total,
@@ -178,15 +186,17 @@ export class ProductionService {
   static getAreaPacking(
     orders: Order[],
     zoneMap: Map<string, string>,
-    customerMap: Map<string, string>
+    customerMap: Map<string, string>,
   ): AreaPackingGroup[] {
     const areaMap = new Map<string, AreaPackingGroup>();
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
 
       const areaId = o.zoneId;
-      const areaName = areaId ? (zoneMap.get(areaId) || areaId) : 'Unassigned Area';
+      const areaName = areaId
+        ? zoneMap.get(areaId) || areaId
+        : "Unassigned Area";
 
       if (!areaMap.has(areaName)) {
         areaMap.set(areaName, {
@@ -205,39 +215,49 @@ export class ProductionService {
 
       const qty = o.mealQuantity || 1;
 
-      if (o.mealType === 'breakfast') group.breakfast += qty;
-      else if (o.mealType === 'lunch') group.lunch += qty;
-      else if (o.mealType === 'dinner') group.dinner += qty;
+      if (o.mealType === "breakfast") group.breakfast += qty;
+      else if (o.mealType === "lunch") group.lunch += qty;
+      else if (o.mealType === "dinner") group.dinner += qty;
 
-      if (o.source === 'one_time') group.oneTime += qty;
-      else if (o.planTier === 'basic') group.basic += qty;
-      else if (o.planTier === 'regular') group.regular += qty;
+      if (o.source === "one_time") group.oneTime += qty;
+      else if (o.planTier === "basic") group.basic += qty;
+      else if (o.planTier === "regular") group.regular += qty;
 
-      const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
+      const customerName =
+        o.customerName || customerMap.get(o.customerId) || o.customerId;
       group.orders.push({
         id: o.id,
-        displayId: o.displayId || (orderId => orderId.split('_')[0] === 'ord' ? orderId.split('_').slice(1,2).join('') : orderId.slice(0, 8))(o.id),
+        displayId:
+          o.displayId ||
+          ((orderId) =>
+            orderId.split("_")[0] === "ord"
+              ? orderId.split("_").slice(1, 2).join("")
+              : orderId.slice(0, 8))(o.id),
         customerName,
         mealType: o.mealType,
         mealName: o.mealName || o.itemsLabel || o.mealType,
         quantity: o.mealQuantity || 1,
         specialInstructions: o.specialInstructions,
-        packingNotes: o.packingNotes
+        packingNotes: o.packingNotes,
       });
     }
 
     // Sort groups by areaName, and sort orders within groups by mealType then customerName
     return Array.from(areaMap.values())
       .sort((a, b) => a.areaName.localeCompare(b.areaName))
-      .map(group => ({
+      .map((group) => ({
         ...group,
         orders: group.orders.sort((a, b) => {
-          const mealOrder: Record<string, number> = { breakfast: 1, lunch: 2, dinner: 3 };
+          const mealOrder: Record<string, number> = {
+            breakfast: 1,
+            lunch: 2,
+            dinner: 3,
+          };
           const aMeal = mealOrder[a.mealType] || 99;
           const bMeal = mealOrder[b.mealType] || 99;
           if (aMeal !== bMeal) return aMeal - bMeal;
           return a.customerName.localeCompare(b.customerName);
-        })
+        }),
       }));
   }
 
@@ -248,29 +268,38 @@ export class ProductionService {
     orders: Order[],
     zoneMap: Map<string, string>,
     partnerMap: Map<string, string>,
-    customerMap: Map<string, string>
+    customerMap: Map<string, string>,
   ): PrintPackingRow[] {
     const rows: PrintPackingRow[] = [];
 
     for (const o of orders) {
-      if (o.status === 'cancelled' || o.status === 'skipped') continue;
+      if (o.status === "cancelled" || o.status === "skipped") continue;
 
       const areaId = o.zoneId;
-      const areaName = areaId ? (zoneMap.get(areaId) || areaId) : 'Unassigned Area';
+      const areaName = areaId
+        ? zoneMap.get(areaId) || areaId
+        : "Unassigned Area";
 
       const partnerId = o.deliveryPartnerId;
-      const deliveryPartner = partnerId ? (partnerMap.get(partnerId) || partnerId) : 'Unassigned';
+      const deliveryPartner = partnerId
+        ? partnerMap.get(partnerId) || partnerId
+        : "Unassigned";
 
-      const customerName = o.customerName || customerMap.get(o.customerId) || o.customerId;
+      const customerName =
+        o.customerName || customerMap.get(o.customerId) || o.customerId;
 
-      let plan = 'One-Time';
-      if (o.source === 'subscription' && o.planTier) {
+      let plan = "One-Time";
+      if (o.source === "subscription" && o.planTier) {
         plan = o.planTier.charAt(0).toUpperCase() + o.planTier.slice(1);
       }
 
       const meal = o.itemsLabel || o.mealType;
 
-      const displayId = o.displayId || (o.id.split('_')[0] === 'ord' ? o.id.split('_').slice(1,2).join('') : o.id.slice(0, 8));
+      const displayId =
+        o.displayId ||
+        (o.id.split("_")[0] === "ord"
+          ? o.id.split("_").slice(1, 2).join("")
+          : o.id.slice(0, 8));
 
       rows.push({
         orderId: o.id,
@@ -283,7 +312,7 @@ export class ProductionService {
         plan,
         deliveryPartner,
         specialInstructions: o.specialInstructions,
-        packingNotes: o.packingNotes
+        packingNotes: o.packingNotes,
       });
     }
 
@@ -298,87 +327,135 @@ export class ProductionService {
    * Advances an order to 'preparing'.
    */
   static async startPreparing(orderId: string, adminId: string): Promise<void> {
-    if (!orderId) throw new Error('Order ID is required.');
-    const { orderRepository } = await import('../firestore/orderRepository');
+    if (!orderId) throw new Error("Order ID is required.");
+    const { orderRepository } = await import("../firestore/orderRepository");
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'preparing') return; // Idempotency
-    if (order.status !== 'scheduled' && order.status !== 'reopened') {
+    if (order.status === "preparing") return; // Idempotency
+    if (order.status !== "scheduled" && order.status !== "reopened") {
       throw new Error(`Cannot transition from ${order.status} to preparing.`);
     }
 
-    await orderRepository.update(orderId, { status: 'preparing' });
+    await orderRepository.update(orderId, { status: "preparing" });
 
-    await auditRepository.logAction('production_preparing', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'preparing' });
+    await auditRepository.logAction(
+      "production_preparing",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldStatus: order.status, newStatus: "preparing" },
+    );
   }
 
   /**
    * Advances an order to 'ready_for_pickup'.
    */
   static async markReady(orderId: string, adminId: string): Promise<void> {
-    if (!orderId) throw new Error('Order ID is required.');
+    if (!orderId) throw new Error("Order ID is required.");
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'ready_for_pickup') return; // Idempotency
-    if (order.status !== 'preparing') {
-      throw new Error(`Cannot transition from ${order.status} to ready_for_pickup.`);
+    if (order.status === "ready_for_pickup") return; // Idempotency
+    if (order.status !== "preparing") {
+      throw new Error(
+        `Cannot transition from ${order.status} to ready_for_pickup.`,
+      );
     }
 
-    await orderRepository.update(orderId, { status: 'ready_for_pickup' });
+    await orderRepository.update(orderId, { status: "ready_for_pickup" });
 
-    await auditRepository.logAction('production_ready', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'ready_for_pickup' });
+    await auditRepository.logAction(
+      "production_ready",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldStatus: order.status, newStatus: "ready_for_pickup" },
+    );
   }
 
   /**
    * Locks production for an order.
    */
   static async lockProduction(orderId: string, adminId: string): Promise<void> {
-    if (!orderId) throw new Error('Order ID is required.');
+    if (!orderId) throw new Error("Order ID is required.");
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'locked') return; // Idempotency
-    if (order.status !== 'ready_for_pickup') {
+    if (order.status === "locked") return; // Idempotency
+    if (order.status !== "ready_for_pickup") {
       throw new Error(`Cannot transition from ${order.status} to locked.`);
     }
 
-    await orderRepository.update(orderId, { status: 'locked' });
+    await orderRepository.update(orderId, { status: "locked" });
 
-    await auditRepository.logAction('production_locked', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'locked' });
+    await auditRepository.logAction(
+      "production_locked",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldStatus: order.status, newStatus: "locked" },
+    );
   }
 
   /**
    * Closes production for an order (Day end).
    */
-  static async closeProduction(orderId: string, adminId: string): Promise<void> {
-    if (!orderId) throw new Error('Order ID is required.');
+  static async closeProduction(
+    orderId: string,
+    adminId: string,
+  ): Promise<void> {
+    if (!orderId) throw new Error("Order ID is required.");
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'closed') return; // Idempotency
-    if (order.status !== 'locked') {
+    if (order.status === "closed") return; // Idempotency
+    if (order.status !== "locked") {
       throw new Error(`Cannot transition from ${order.status} to closed.`);
     }
 
-    await orderRepository.update(orderId, { status: 'closed' });
+    await orderRepository.update(orderId, { status: "closed" });
 
-    await auditRepository.logAction('production_closed', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'closed' });
+    await auditRepository.logAction(
+      "production_closed",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldStatus: order.status, newStatus: "closed" },
+    );
   }
 
   /**
    * Reopens a closed order.
    */
-  static async reopenProduction(orderId: string, adminId: string): Promise<void> {
-    if (!orderId) throw new Error('Order ID is required.');
-    const { orderRepository } = await import('../firestore/orderRepository');
+  static async reopenProduction(
+    orderId: string,
+    adminId: string,
+  ): Promise<void> {
+    if (!orderId) throw new Error("Order ID is required.");
+    const { orderRepository } = await import("../firestore/orderRepository");
     const order = await orderRepository.getById(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (order.status === 'reopened') return; // Idempotency
-    if (order.status !== 'closed' && order.status !== 'locked') {
+    if (order.status === "reopened") return; // Idempotency
+    if (order.status !== "closed" && order.status !== "locked") {
       throw new Error(`Cannot transition from ${order.status} to reopened.`);
     }
 
-    await orderRepository.update(orderId, { status: 'reopened' });
+    await orderRepository.update(orderId, { status: "reopened" });
 
-    const { auditRepository } = await import('../firestore/auditRepository');
-    await auditRepository.logAction('production_reopened', adminId, 'Admin', orderId, 'order', { oldStatus: order.status, newStatus: 'reopened' });
+    const { auditRepository } = await import("../firestore/auditRepository");
+    await auditRepository.logAction(
+      "production_reopened",
+      adminId,
+      "admin",
+      "Admin",
+      orderId,
+      "order",
+      { oldStatus: order.status, newStatus: "reopened" },
+    );
   }
 }

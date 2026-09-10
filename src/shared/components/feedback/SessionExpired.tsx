@@ -1,6 +1,6 @@
-import { Clock, LogIn } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { PremiumButton as Button } from '../ui/PremiumButton';
+import { Clock, LogIn } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { PremiumButton as Button } from "../ui/PremiumButton";
 
 export interface SessionExpiredProps {
   onLoginAgain?: () => void;
@@ -9,7 +9,7 @@ export interface SessionExpiredProps {
 /**
  * Shown as a full-page or modal-style overlay when Firebase Auth session
  * has expired. On acknowledgement, redirect to `/login` (or call onLoginAgain).
- * 
+ *
  * Wire this up in your auth listener where you detect token expiry.
  */
 export function SessionExpired({ onLoginAgain }: SessionExpiredProps) {
@@ -20,7 +20,7 @@ export function SessionExpired({ onLoginAgain }: SessionExpiredProps) {
     if (onLoginAgain) {
       onLoginAgain();
     } else {
-      navigate('/login', { state: { from: location } });
+      navigate("/login", { state: { from: location } });
     }
   };
 
@@ -39,11 +39,18 @@ export function SessionExpired({ onLoginAgain }: SessionExpiredProps) {
         </div>
 
         <div className="space-y-1.5">
-          <h2 id="session-expired-title" className="font-display text-xl font-bold text-ink-900">
+          <h2
+            id="session-expired-title"
+            className="font-display text-xl font-bold text-ink-900"
+          >
             Session Expired
           </h2>
-          <p id="session-expired-desc" className="text-sm text-ink-500 leading-relaxed">
-            Your session has timed out for security. Please log in again to continue where you left off.
+          <p
+            id="session-expired-desc"
+            className="text-sm text-ink-500 leading-relaxed"
+          >
+            Your session has timed out for security. Please log in again to
+            continue where you left off.
           </p>
         </div>
 

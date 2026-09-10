@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -10,25 +10,28 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   type UserCredential,
-} from 'firebase/auth';
-import { serverTimestamp } from 'firebase/firestore';
-import { queryClient } from '@/shared/lib/queryClient';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import type { UserProfile } from '@/shared/types';
-import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
-import { db, auth } from '@/shared/lib/firebase';
-
+} from "firebase/auth";
+import { serverTimestamp } from "firebase/firestore";
+import { queryClient } from "@/shared/lib/queryClient";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import type { UserProfile } from "@/shared/types";
+import { doc, updateDoc, arrayRemove } from "firebase/firestore";
+import { db, auth } from "@/shared/lib/firebase";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  'auth/invalid-email': "That email address doesn't look right.",
-  'auth/user-disabled': 'This account has been disabled. Contact support if that seems wrong.',
-  'auth/user-not-found': 'Incorrect email or password.',
-  'auth/wrong-password': 'Incorrect email or password.',
-  'auth/invalid-credential': 'Incorrect email or password.',
-  'auth/email-already-in-use': 'An account with this email already exists — try signing in instead.',
-  'auth/weak-password': 'Password should be at least 6 characters.',
-  'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
-  'auth/network-request-failed': 'Network error — check your connection and try again.',
+  "auth/invalid-email": "That email address doesn't look right.",
+  "auth/user-disabled":
+    "This account has been disabled. Contact support if that seems wrong.",
+  "auth/user-not-found": "Incorrect email or password.",
+  "auth/wrong-password": "Incorrect email or password.",
+  "auth/invalid-credential": "Incorrect email or password.",
+  "auth/email-already-in-use":
+    "An account with this email already exists — try signing in instead.",
+  "auth/weak-password": "Password should be at least 6 characters.",
+  "auth/too-many-requests":
+    "Too many attempts. Please wait a moment and try again.",
+  "auth/network-request-failed":
+    "Network error — check your connection and try again.",
 };
 
 /** Turns a raw Firebase Auth error into copy that's safe and useful to show a user. */
@@ -36,25 +39,35 @@ export function mapAuthError(error: unknown): string {
   const code = (error as { code?: string } | undefined)?.code;
   const msg = (error as { message?: string } | undefined)?.message;
 
-  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-    return 'Sign-in cancelled.';
+  if (
+    code === "auth/popup-closed-by-user" ||
+    code === "auth/cancelled-popup-request"
+  ) {
+    return "Sign-in cancelled.";
   }
 
-  return (code && ERROR_MESSAGES[code]) || msg || 'Something went wrong. Please try again.';
+  return (
+    (code && ERROR_MESSAGES[code]) ||
+    msg ||
+    "Something went wrong. Please try again."
+  );
 }
 
-export async function signIn(email: string, password: string): Promise<UserCredential> {
+export async function signIn(
+  email: string,
+  password: string,
+): Promise<UserCredential> {
   return signInWithEmailAndPassword(auth, email, password);
 }
 export async function signInWithGoogle(): Promise<UserCredential | void> {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters?.({ prompt: 'select_account' });
-  
+  provider.setCustomParameters?.({ prompt: "select_account" });
+
   // If running as an installed PWA or on mobile, signInWithPopup often fails
   // or hangs. We use signInWithRedirect instead.
-  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+  const isPWA = window.matchMedia("(display-mode: standalone)").matches;
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  
+
   if (isPWA || isMobile) {
     await signInWithRedirect(auth, provider);
     // The page will navigate away, so this promise never really resolves here.
@@ -67,27 +80,33 @@ export async function signInWithGoogle(): Promise<UserCredential | void> {
 }
 
 /** Processes a completed Google Sign In (from either popup or redirect). */
-async function finishGoogleLogin(user: import('firebase/auth').User) {
+async function finishGoogleLogin(user: import("firebase/auth").User) {
   const profile = await userRepository.getById(user.uid);
 
   if (!profile) {
-    const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
-    await userRepository.create({
-      displayId,
-      role: 'customer',
-      fullName: user.displayName || 'Google User',
-      email: user.email || '',
-      phone: '', // Collect during onboarding
-      photoUrl: user.photoURL || null,
-      isActive: true,
-      addresses: [],
-      defaultAddressId: null,
-      createdAt: serverTimestamp() as unknown as Timestamp,
-      updatedAt: serverTimestamp() as unknown as Timestamp,
-      emailVerified: user.emailVerified,
-      googleConnected: true,
-      passwordCreated: false,
-    } as Omit<UserProfile, 'id'>, user.uid);
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      user.displayName || "Google User",
+    );
+    await userRepository.create(
+      {
+        displayId,
+        role: "customer",
+        fullName: user.displayName || "Google User",
+        email: user.email || "",
+        phone: "", // Collect during onboarding
+        photoUrl: user.photoURL || null,
+        isActive: true,
+        addresses: [],
+        defaultAddressId: null,
+        createdAt: serverTimestamp() as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+        emailVerified: user.emailVerified,
+        googleConnected: true,
+        passwordCreated: false,
+      } as Omit<UserProfile, "id">,
+      user.uid,
+    );
   } else if (!profile.googleConnected) {
     await userRepository.update(user.uid, {
       googleConnected: true,
@@ -107,7 +126,6 @@ export async function handleGoogleRedirectResult(): Promise<void> {
   }
 }
 
-
 /**
  * Customer self-signup. The Firestore `users/{uid}` profile (role:
  * 'customer') is already created server-side by the time this resolves —
@@ -123,22 +141,29 @@ export async function signUpCustomer(
   fullName: string,
   phone: string,
 ): Promise<UserCredential> {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  const credential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
 
   try {
-    const { doc } = await import('firebase/firestore');
-    const { db } = await import('@/shared/lib/firebase');
+    const { doc } = await import("firebase/firestore");
+    const { db } = await import("@/shared/lib/firebase");
 
-    const phoneDocRef = doc(db, 'userPhones', phone);
-    const displayId = await userRepository.generateNextDisplayId('customer', fullName);
-    const userDocRef = doc(db, 'users', credential.user.uid);
+    const phoneDocRef = doc(db, "userPhones", phone);
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      fullName,
+    );
+    const userDocRef = doc(db, "users", credential.user.uid);
 
-    const { writeBatch } = await import('firebase/firestore');
+    const { writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
     batch.set(phoneDocRef, { uid: credential.user.uid });
     batch.set(userDocRef, {
       displayId,
-      role: 'customer',
+      role: "customer",
       fullName,
       email,
       phone,
@@ -151,55 +176,67 @@ export async function signUpCustomer(
       emailVerified: credential.user.emailVerified,
       googleConnected: false,
       passwordCreated: true,
-      id: credential.user.uid
+      id: credential.user.uid,
     });
 
     try {
       await batch.commit();
     } catch (e: any) {
-      if (e.code === 'permission-denied') {
-        throw new Error('An account with this mobile number already exists — try signing in instead.');
+      if (e.code === "permission-denied") {
+        throw new Error(
+          "An account with this mobile number already exists — try signing in instead.",
+        );
       }
       throw e;
     }
 
     await updateProfile(credential.user, { displayName: fullName });
   } catch (error) {
-    console.error('Failed to initialize customer profile:', error);
+    console.error("Failed to initialize customer profile:", error);
     try {
       await credential.user.delete();
     } catch (cleanupError) {
-      console.error('Failed to clean up auth user after failed initialization:', cleanupError);
-      console.error(`ORPHANED_AUTH_ACCOUNT: UID ${credential.user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`);
+      console.error(
+        "Failed to clean up auth user after failed initialization:",
+        cleanupError,
+      );
+      console.error(
+        `ORPHANED_AUTH_ACCOUNT: UID ${credential.user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`,
+      );
       await firebaseSignOut(auth);
     }
     throw error;
   }
-  
+
   return credential;
 }
 
 export async function signOutUser(): Promise<void> {
   try {
     const currentUser = auth.currentUser;
-    const currentToken = localStorage.getItem('current_fcm_token');
-    
+    const currentToken = localStorage.getItem("current_fcm_token");
+
     if (currentUser && currentToken) {
       try {
-        const userRef = doc(db, 'users', currentUser.uid);
+        const userRef = doc(db, "users", currentUser.uid);
         await updateDoc(userRef, {
-          fcmTokens: arrayRemove(currentToken)
+          fcmTokens: arrayRemove(currentToken),
         });
       } catch (err) {
-        console.warn('Failed to remove FCM token on signout:', err);
+        console.warn("Failed to remove FCM token on signout:", err);
       }
     }
-    
-    localStorage.removeItem('last_active_uid');
+
+    localStorage.removeItem("last_active_uid");
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('auth_cache_') || key.startsWith('pwa_') || key === 'current_fcm_token')) {
+      if (
+        key &&
+        (key.startsWith("auth_cache_") ||
+          key.startsWith("pwa_") ||
+          key === "current_fcm_token")
+      ) {
         keysToRemove.push(key);
       }
     }
@@ -216,38 +253,46 @@ export async function resetPassword(email: string): Promise<void> {
 }
 
 export async function authenticateWithGoogleForSignup() {
-  const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+  const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters?.({ prompt: 'select_account' });
+  provider.setCustomParameters?.({ prompt: "select_account" });
   const credential = await signInWithPopup(auth, provider);
   const profile = await userRepository.getById(credential.user.uid);
   return { user: credential.user, exists: !!profile };
 }
 
-export async function signUpWithGoogle(user: any, phone: string, password: string): Promise<void> {
+export async function signUpWithGoogle(
+  user: any,
+  phone: string,
+  password: string,
+): Promise<void> {
   try {
-    const { doc } = await import('firebase/firestore');
-    const { EmailAuthProvider, linkWithCredential } = await import('firebase/auth');
-    const { db } = await import('@/shared/lib/firebase');
+    const { doc } = await import("firebase/firestore");
+    const { EmailAuthProvider, linkWithCredential } =
+      await import("firebase/auth");
+    const { db } = await import("@/shared/lib/firebase");
 
-    const phoneDocRef = doc(db, 'userPhones', phone);
+    const phoneDocRef = doc(db, "userPhones", phone);
 
     if (!user.email) {
-      throw new Error('Google account is missing an email address.');
+      throw new Error("Google account is missing an email address.");
     }
     const emailCred = EmailAuthProvider.credential(user.email, password);
     await linkWithCredential(user, emailCred);
 
-    const displayId = await userRepository.generateNextDisplayId('customer', user.displayName || 'Google User');
-    const userDocRef = doc(db, 'users', user.uid);
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      user.displayName || "Google User",
+    );
+    const userDocRef = doc(db, "users", user.uid);
 
-    const { writeBatch } = await import('firebase/firestore');
+    const { writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
     batch.set(phoneDocRef, { uid: user.uid });
     batch.set(userDocRef, {
       displayId,
-      role: 'customer',
-      fullName: user.displayName || 'Google User',
+      role: "customer",
+      fullName: user.displayName || "Google User",
       email: user.email,
       phone: phone,
       photoUrl: user.photoURL || null,
@@ -259,24 +304,27 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
       emailVerified: user.emailVerified,
       googleConnected: true,
       passwordCreated: true,
-      id: user.uid
+      id: user.uid,
     });
 
     try {
       await batch.commit();
     } catch (e: any) {
-      if (e.code === 'permission-denied') {
-        throw new Error('An account with this mobile number already exists.');
+      if (e.code === "permission-denied") {
+        throw new Error("An account with this mobile number already exists.");
       }
       throw e;
     }
   } catch (error) {
-    console.error('Failed to initialize Google customer profile:', error);
-    const { signOut: firebaseSignOut } = await import('firebase/auth');
+    console.error("Failed to initialize Google customer profile:", error);
+    const { signOut: firebaseSignOut } = await import("firebase/auth");
     try {
       await user.delete();
     } catch (cleanupError) {
-      console.error(`ORPHANED_AUTH_ACCOUNT: UID ${user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`, cleanupError);
+      console.error(
+        `ORPHANED_AUTH_ACCOUNT: UID ${user.uid} was created but profile initialization failed and account deletion failed. Manual server-side reconciliation required.`,
+        cleanupError,
+      );
       await firebaseSignOut(auth);
     }
     throw error;
@@ -284,7 +332,7 @@ export async function signUpWithGoogle(user: any, phone: string, password: strin
 }
 
 export async function cancelGoogleSignup(user: any): Promise<void> {
-  const { signOut: firebaseSignOut } = await import('firebase/auth');
+  const { signOut: firebaseSignOut } = await import("firebase/auth");
   try {
     await user.delete();
   } catch {

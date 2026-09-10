@@ -1,8 +1,8 @@
-import emailjs from '@emailjs/browser';
+import emailjs from "@emailjs/browser";
 
-const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID ?? '';
-const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID ?? '';
-const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY ?? '';
+const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID ?? "";
+const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID ?? "";
+const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY ?? "";
 
 export interface InvoiceEmailPayload {
   toEmail: string;
@@ -30,9 +30,13 @@ export interface InvoiceEmailPayload {
  *       VITE_EMAILJS_TEMPLATE_ID=template_xxxxx
  *       VITE_EMAILJS_PUBLIC_KEY=xxxxxxxxxxxxxx
  */
-export async function sendInvoiceEmail(payload: InvoiceEmailPayload): Promise<void> {
+export async function sendInvoiceEmail(
+  payload: InvoiceEmailPayload,
+): Promise<void> {
   if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-    console.warn('[sendInvoiceEmail] EmailJS not configured — skipping email send.');
+    console.warn(
+      "[sendInvoiceEmail] EmailJS not configured — skipping email send.",
+    );
     return;
   }
 
@@ -44,7 +48,7 @@ export async function sendInvoiceEmail(payload: InvoiceEmailPayload): Promise<vo
       to_email: payload.toEmail,
       plan_name: payload.planName,
       billing_month: payload.billingMonth,
-      total_amount: `₹${payload.totalAmount.toLocaleString('en-IN')}`,
+      total_amount: `₹${payload.totalAmount.toLocaleString("en-IN")}`,
       invoice_number: payload.invoiceNumber,
       payment_method: payload.paymentMethod,
     },

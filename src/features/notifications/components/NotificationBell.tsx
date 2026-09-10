@@ -1,17 +1,33 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useNotifications, useMarkNotificationRead, useUnreadNotificationCount, useMarkAllNotificationsRead } from '@/features/notifications/hooks/useNotifications';
-import type { Notification } from '@/features/notifications/types/notification.types';
-import { parseFirestoreDate } from '@/shared/utils/dateUtils';
-import { Bell, CheckCheck, X, CreditCard, Truck, ShoppingBag, Info } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useUnreadNotificationCount,
+  useMarkAllNotificationsRead,
+} from "@/features/notifications/hooks/useNotifications";
+import type { Notification } from "@/features/notifications/types/notification.types";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
+import {
+  Bell,
+  CheckCheck,
+  X,
+  CreditCard,
+  Truck,
+  ShoppingBag,
+  Info,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 
 function NotificationTypeIcon({ type }: { type: string }) {
-  const cls = 'shrink-0';
-  if (type.includes('payment')) return <CreditCard size={13} className={`text-amber-600 ${cls}`} />;
-  if (type.includes('subscription')) return <ShoppingBag size={13} className={`text-blue-600 ${cls}`} />;
-  if (type.includes('delivery') || type === 'delivered') return <Truck size={13} className={`text-emerald-600 ${cls}`} />;
+  const cls = "shrink-0";
+  if (type.includes("payment"))
+    return <CreditCard size={13} className={`text-amber-600 ${cls}`} />;
+  if (type.includes("subscription"))
+    return <ShoppingBag size={13} className={`text-blue-600 ${cls}`} />;
+  if (type.includes("delivery") || type === "delivered")
+    return <Truck size={13} className={`text-emerald-600 ${cls}`} />;
   return <Info size={13} className={`text-ink-500 ${cls}`} />;
 }
 
@@ -22,27 +38,35 @@ function DropdownItem({
   notification: Notification;
   onRead: () => void;
 }) {
-  const isUnread = notification.inAppStatus === 'unread';
+  const isUnread = notification.inAppStatus === "unread";
   const parsedDate = parseFirestoreDate(notification.createdAt);
-  const timeAgo = parsedDate ? formatDistanceToNow(parsedDate, { addSuffix: true }) : '';
+  const timeAgo = parsedDate
+    ? formatDistanceToNow(parsedDate, { addSuffix: true })
+    : "";
 
   return (
     <div
       className={`flex gap-2.5 px-4 py-3 hover:bg-primary/5 cursor-pointer transition-colors border-b border-primary/5 last:border-0 ${
-        isUnread ? 'bg-primary/5' : ''
+        isUnread ? "bg-primary/5" : ""
       }`}
       onClick={isUnread ? onRead : undefined}
     >
-      {isUnread && <div className="w-1.5 h-1.5 rounded-full bg-info mt-1.5 shrink-0" />}
+      {isUnread && (
+        <div className="w-1.5 h-1.5 rounded-full bg-info mt-1.5 shrink-0" />
+      )}
       <NotificationTypeIcon type={notification.type} />
       <div className="flex-1 min-w-0">
-        <div className={`text-xs leading-tight ${isUnread ? 'font-bold text-primary' : 'font-medium text-text-muted'}`}>
+        <div
+          className={`text-xs leading-tight ${isUnread ? "font-bold text-primary" : "font-medium text-text-muted"}`}
+        >
           {notification.title}
         </div>
         <div className="text-text-muted text-[11px] mt-0.5 leading-relaxed">
           {notification.message}
         </div>
-        <div className="text-primary/40 font-bold text-[10px] mt-1 tracking-wider uppercase">{timeAgo}</div>
+        <div className="text-primary/40 font-bold text-[10px] mt-1 tracking-wider uppercase">
+          {timeAgo}
+        </div>
       </div>
     </div>
   );
@@ -70,8 +94,8 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
         setIsOpen(false);
       }
     }
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   const recentNotifications = (notifications ?? []).slice(0, 8);
@@ -83,7 +107,7 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
         id="notification-bell"
         onClick={() => setIsOpen((p) => !p)}
         className="relative p-2 text-text-muted hover:text-primary transition-colors rounded-full hover:bg-background"
-        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -99,8 +123,11 @@ export function NotificationBell({ centerRoute }: NotificationBellProps) {
         <div className="absolute right-0 top-full mt-2 w-80 bg-card rounded-xl shadow-xl border border-primary/10 z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-primary/10 bg-primary/5">
-            <h3 className="font-bold text-primary text-sm font-sans">Notifications</h3>
-            <button onClick={() => setIsOpen(false)}
+            <h3 className="font-bold text-primary text-sm font-sans">
+              Notifications
+            </h3>
+            <button
+              onClick={() => setIsOpen(false)}
               className="text-text-muted hover:text-primary transition-colors p-0.5"
             >
               <X size={14} />

@@ -1,7 +1,10 @@
-import { Timestamp } from 'firebase/firestore';
-import { db } from '@/shared/lib/firebase';
-import type { Subscription, SubscriptionStatus } from '@/shared/types/subscription.types';
-import { BaseRepository, createConverter } from './BaseRepository';
+import { Timestamp } from "firebase/firestore";
+import { db } from "@/shared/lib/firebase";
+import type {
+  Subscription,
+  SubscriptionStatus,
+} from "@/shared/types/subscription.types";
+import { BaseRepository, createConverter } from "./BaseRepository";
 import {
   where,
   orderBy,
@@ -19,8 +22,7 @@ import {
   type QueryConstraint,
   type QueryDocumentSnapshot,
   type Unsubscribe,
-} from 'firebase/firestore';
-
+} from "firebase/firestore";
 
 export interface SubscriptionFilter {
   status?: SubscriptionStatus;
@@ -28,49 +30,67 @@ export interface SubscriptionFilter {
 
 class SubscriptionRepository extends BaseRepository<Subscription> {
   constructor() {
-    super(db, 'subscriptions', createConverter<Subscription>());
+    super(db, "subscriptions", createConverter<Subscription>());
   }
 
   async getByCustomerId(customerId: string): Promise<Subscription[]> {
-    return this.list(where('customerId', '==', customerId));
+    return this.list(where("customerId", "==", customerId));
   }
 
-  async getActiveSubscriptionByCustomerId(customerId: string): Promise<Subscription | null> {
+  async getActiveSubscriptionByCustomerId(
+    customerId: string,
+  ): Promise<Subscription | null> {
     const subs = await this.list(
-      where('customerId', '==', customerId),
-      where('status', 'in', ['active', 'pending_payment', 'paused'])
+      where("customerId", "==", customerId),
+      where("status", "in", ["active", "pending_payment", "paused"]),
     );
     // Return active or paused if it exists, otherwise pending_payment, or just the first one found
-    const activeOrPaused = subs.find(s => s.status === 'active' || s.status === 'paused');
+    const activeOrPaused = subs.find(
+      (s) => s.status === "active" || s.status === "paused",
+    );
     if (activeOrPaused) return activeOrPaused;
     return subs.length > 0 ? subs[0] : null;
   }
 
   /** Validates whether the current time allows modifying skips for the given date and meals */
-  validateSkipWindow(date: string, mealTypes: ('breakfast' | 'lunch' | 'dinner')[]) {
+  validateSkipWindow(
+    date: string,
+    mealTypes: ("breakfast" | "lunch" | "dinner")[],
+  ) {
     const now = new Date();
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
-    
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+    }).format(now);
+
     if (date < today) {
       throw new Error("Cannot modify skips for past dates.");
     }
-    
+
     if (date === today) {
-      const parts = new Intl.DateTimeFormat('en-US', { 
-        timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' 
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "numeric",
+        hourCycle: "h23",
       }).formatToParts(now);
-      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-      const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+      const hour = parseInt(
+        parts.find((p) => p.type === "hour")?.value || "0",
+        10,
+      );
+      const minute = parseInt(
+        parts.find((p) => p.type === "minute")?.value || "0",
+        10,
+      );
       const currentTimeMinutes = hour * 60 + minute;
 
       for (const meal of mealTypes) {
-        if (meal === 'breakfast' && currentTimeMinutes >= 5 * 60) {
+        if (meal === "breakfast" && currentTimeMinutes >= 5 * 60) {
           throw new Error("Cancellation window has closed for breakfast.");
         }
-        if (meal === 'lunch' && currentTimeMinutes >= 10 * 60 + 30) {
+        if (meal === "lunch" && currentTimeMinutes >= 10 * 60 + 30) {
           throw new Error("Cancellation window has closed for lunch.");
         }
-        if (meal === 'dinner' && currentTimeMinutes >= 16 * 60) {
+        if (meal === "dinner" && currentTimeMinutes >= 16 * 60) {
           throw new Error("Cancellation window has closed for dinner.");
         }
       }
@@ -78,28 +98,30 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   }
 
   async addSkip(
-    subscriptionId: string, 
-    date: string, 
-    mealTypes: ('breakfast' | 'lunch' | 'dinner')[], 
+    subscriptionId: string,
+    date: string,
+    mealTypes: ("breakfast" | "lunch" | "dinner")[],
     reason: string,
-    uid: string
+    uid: string,
   ) {
     this.validateSkipWindow(date, mealTypes);
 
     // Create the skip subcollection document
-    const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
+    const skipRef = doc(db, "subscriptions", subscriptionId, "skips", date);
     const existingSkip = await getDoc(skipRef);
-    
+
     if (existingSkip.exists()) {
       // Merge with existing skip (e.g. breakfast already cancelled, now cancelling dinner)
       const existingMealTypes = existingSkip.data().mealTypes || [];
-      const mergedMealTypes = [...new Set([...existingMealTypes, ...mealTypes])];
+      const mergedMealTypes = [
+        ...new Set([...existingMealTypes, ...mealTypes]),
+      ];
       await setDoc(skipRef, {
         date,
         mealTypes: mergedMealTypes,
         reason,
         createdAt: serverTimestamp() as unknown as Timestamp,
-        createdBy: uid
+        createdBy: uid,
       });
     } else {
       await setDoc(skipRef, {
@@ -107,7 +129,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         mealTypes,
         reason,
         createdAt: serverTimestamp() as unknown as Timestamp,
-        createdBy: uid
+        createdBy: uid,
       });
     }
   }
@@ -115,13 +137,13 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   async removeSkip(
     subscriptionId: string,
     date: string,
-    mealTypesToRemove: ('breakfast' | 'lunch' | 'dinner')[],
-    uid: string
+    mealTypesToRemove: ("breakfast" | "lunch" | "dinner")[],
+    uid: string,
   ) {
     this.validateSkipWindow(date, mealTypesToRemove);
 
-    const { deleteDoc } = await import('firebase/firestore');
-    const skipRef = doc(db, 'subscriptions', subscriptionId, 'skips', date);
+    const { deleteDoc } = await import("firebase/firestore");
+    const skipRef = doc(db, "subscriptions", subscriptionId, "skips", date);
     const existingSkip = await getDoc(skipRef);
 
     if (!existingSkip.exists()) {
@@ -129,7 +151,9 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     }
 
     const currentMealTypes = existingSkip.data().mealTypes || [];
-    const newMealTypes = currentMealTypes.filter((m: any) => !mealTypesToRemove.includes(m));
+    const newMealTypes = currentMealTypes.filter(
+      (m: any) => !mealTypesToRemove.includes(m),
+    );
 
     if (newMealTypes.length === 0) {
       await deleteDoc(skipRef);
@@ -138,15 +162,15 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         ...existingSkip.data(),
         mealTypes: newMealTypes,
         updatedAt: serverTimestamp() as unknown as Timestamp,
-        updatedBy: uid
+        updatedBy: uid,
       });
     }
   }
 
   async getSkips(subscriptionId: string): Promise<any[]> {
-    const skipsRef = collection(db, 'subscriptions', subscriptionId, 'skips');
-    const snapshot = await getDocs(query(skipsRef, orderBy('date', 'desc')));
-    return snapshot.docs.map(d => d.data());
+    const skipsRef = collection(db, "subscriptions", subscriptionId, "skips");
+    const snapshot = await getDocs(query(skipsRef, orderBy("date", "desc")));
+    return snapshot.docs.map((d) => d.data());
   }
 
   /**
@@ -162,14 +186,17 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     filter: SubscriptionFilter,
     pageSize: number = 20,
     lastDocSnap?: QueryDocumentSnapshot<Subscription>,
-  ): Promise<{ subscriptions: Subscription[]; lastDoc: QueryDocumentSnapshot<Subscription> | null }> {
+  ): Promise<{
+    subscriptions: Subscription[];
+    lastDoc: QueryDocumentSnapshot<Subscription> | null;
+  }> {
     const constraints: QueryConstraint[] = [];
 
     if (filter.status) {
-      constraints.push(where('status', '==', filter.status));
+      constraints.push(where("status", "==", filter.status));
     }
 
-    constraints.push(orderBy('createdAt', 'desc'));
+    constraints.push(orderBy("createdAt", "desc"));
     constraints.push(limit(pageSize));
 
     if (lastDocSnap) {
@@ -177,26 +204,32 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     }
 
     const converter = createConverter<Subscription>();
-    const colRef = collection(db, 'subscriptions').withConverter(converter);
+    const colRef = collection(db, "subscriptions").withConverter(converter);
     const snapshot = await getDocs(query(colRef, ...constraints));
 
     const subscriptions = snapshot.docs.map((d) => d.data());
     return {
       subscriptions,
-      lastDoc: snapshot.docs.length === pageSize
-        ? (snapshot.docs[snapshot.docs.length - 1] as QueryDocumentSnapshot<Subscription>)
-        : null,
+      lastDoc:
+        snapshot.docs.length === pageSize
+          ? (snapshot.docs[
+              snapshot.docs.length - 1
+            ] as QueryDocumentSnapshot<Subscription>)
+          : null,
     };
   }
 
   /** All subscriptions, newest first. For small admin exports — prefer getSubscriptionsPaginated for the table UI. */
   async getAllSubscriptions(): Promise<Subscription[]> {
-    return this.list(orderBy('createdAt', 'desc'));
+    return this.list(orderBy("createdAt", "desc"));
   }
 
   /** Admin-only status transition (create/reject/pause/resume). Firestore rules still gate this to isAdmin(). */
-  async updateStatus(subscriptionId: string, status: SubscriptionStatus): Promise<void> {
-    await updateDoc(doc(db, 'subscriptions', subscriptionId), {
+  async updateStatus(
+    subscriptionId: string,
+    status: SubscriptionStatus,
+  ): Promise<void> {
+    await updateDoc(doc(db, "subscriptions", subscriptionId), {
       status,
       updatedAt: serverTimestamp() as unknown as Timestamp,
     });
@@ -213,11 +246,11 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     onError?: (err: Error) => void,
   ): Unsubscribe {
     const converter = createConverter<Subscription>();
-    const colRef = collection(db, 'subscriptions').withConverter(converter);
+    const colRef = collection(db, "subscriptions").withConverter(converter);
     const q = query(
       colRef,
-      where('customerId', '==', customerId),
-      where('status', 'in', ['active', 'pending_payment', 'paused']),
+      where("customerId", "==", customerId),
+      where("status", "in", ["active", "pending_payment", "paused"]),
     );
 
     return onSnapshot(
@@ -226,7 +259,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
         const subs = snap.docs.map((d) => d.data());
         // Prefer active/paused over pending_payment (same priority as getActiveSubscriptionByCustomerId)
         const best =
-          subs.find((s) => s.status === 'active' || s.status === 'paused') ??
+          subs.find((s) => s.status === "active" || s.status === "paused") ??
           (subs.length > 0 ? subs[0] : null);
         onNext(best);
       },

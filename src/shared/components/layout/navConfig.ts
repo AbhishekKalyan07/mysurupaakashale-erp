@@ -1,5 +1,22 @@
-import { LayoutDashboard, Compass, ReceiptText, CreditCard, ChefHat, Truck, TrendingUp, Users, Package, Settings, BookOpen, Activity, UserCheck, Map, CalendarX, type LucideIcon } from 'lucide-react';
-import { ROLES, type Role } from '@/shared/constants/roles';
+import {
+  LayoutDashboard,
+  Compass,
+  ReceiptText,
+  CreditCard,
+  ChefHat,
+  Truck,
+  TrendingUp,
+  Users,
+  Package,
+  Settings,
+  BookOpen,
+  Activity,
+  UserCheck,
+  Map,
+  CalendarX,
+  type LucideIcon,
+} from "lucide-react";
+import { ROLES, type Role } from "@/shared/constants/roles";
 
 export interface NavItem {
   label: string;
@@ -15,93 +32,110 @@ export interface NavGroup {
 export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
   [ROLES.ADMIN]: [
     {
-      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+      items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboard }],
     },
     {
-      groupLabel: 'CRM',
+      groupLabel: "CRM",
       items: [
-        { label: 'Customers', to: '/admin/customers', icon: Users },
-        { label: 'Subscriptions', to: '/admin/subscriptions', icon: Compass },
+        { label: "Customers", to: "/admin/customers", icon: Users },
+        { label: "Subscriptions", to: "/admin/subscriptions", icon: Compass },
       ],
     },
     {
-      groupLabel: 'Operations',
+      groupLabel: "Operations",
       items: [
-        { label: 'Orders', to: '/admin/orders', icon: Package },
-        { label: 'Kitchen', to: '/admin/kitchen', icon: ChefHat },
-        { label: 'Delivery', to: '/admin/delivery', icon: Truck },
-        { label: 'Holidays', to: '/admin/holidays', icon: CalendarX },
+        { label: "Orders", to: "/admin/orders", icon: Package },
+        { label: "Kitchen", to: "/admin/kitchen", icon: ChefHat },
+        { label: "Delivery", to: "/admin/delivery", icon: Truck },
+        { label: "Holidays", to: "/admin/holidays", icon: CalendarX },
       ],
     },
     {
-      groupLabel: 'Finance & HR',
+      groupLabel: "Finance & HR",
       items: [
-        { label: 'Accounts', to: '/admin/accounts', icon: ReceiptText },
-        { label: 'Payroll', to: '/admin/payroll', icon: CreditCard },
-        { label: 'Staff', to: '/admin/staff', icon: Users },
+        { label: "Accounts", to: "/admin/accounts", icon: ReceiptText },
+        { label: "Payroll", to: "/admin/payroll", icon: CreditCard },
+        { label: "Advances", to: "/admin/salary-advances", icon: CreditCard },
+        { label: "Staff", to: "/admin/staff", icon: Users },
       ],
     },
     {
-      groupLabel: 'System',
+      groupLabel: "System",
       items: [
-        { label: 'Analytics', to: '/admin/analytics', icon: TrendingUp },
-        { label: 'Zones', to: '/admin/zones', icon: Map },
-        { label: 'Settings', to: '/admin/settings', icon: Settings },
+        { label: "Analytics", to: "/admin/analytics", icon: TrendingUp },
+        { label: "Zones", to: "/admin/zones", icon: Map },
+        { label: "Settings", to: "/admin/settings", icon: Settings },
       ],
     },
   ],
   [ROLES.CUSTOMER]: [
     {
-      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+      items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboard }],
     },
     {
-      groupLabel: 'Meal Plans',
+      groupLabel: "Meal Plans",
       items: [
-        { label: 'Browse Plans', to: '/customer/plans', icon: Compass },
-        { label: 'My Subscription', to: '/customer/subscription', icon: ReceiptText },
-        { label: 'Order History', to: '/customer/orders', icon: Package },
+        { label: "Browse Plans", to: "/customer/plans", icon: Compass },
+        {
+          label: "My Subscription",
+          to: "/customer/subscription",
+          icon: ReceiptText,
+        },
+        { label: "Order History", to: "/customer/orders", icon: Package },
       ],
     },
     {
-      groupLabel: 'Account',
+      groupLabel: "Account",
       items: [
-        { label: 'My Profile', to: '/customer/profile', icon: UserCheck },
-        { label: 'Billing & Payments', to: '/customer/payments', icon: CreditCard },
-        { label: 'Notifications', to: '/customer/notifications', icon: Activity },
+        { label: "My Profile", to: "/customer/profile", icon: UserCheck },
+        {
+          label: "Billing & Payments",
+          to: "/customer/payments",
+          icon: CreditCard,
+        },
+        {
+          label: "Notifications",
+          to: "/customer/notifications",
+          icon: Activity,
+        },
       ],
-    }
+    },
   ],
   [ROLES.KITCHEN]: [
     {
-      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+      items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboard }],
     },
     {
-      groupLabel: 'Kitchen',
+      groupLabel: "Kitchen",
       items: [
-        { label: 'Production Board', to: '/kitchen/production', icon: ChefHat },
-        { label: 'Daily Menus', to: '/kitchen/menus', icon: BookOpen },
+        { label: "Production Board", to: "/kitchen/production", icon: ChefHat },
+        { label: "Daily Menus", to: "/kitchen/menus", icon: BookOpen },
       ],
     },
   ],
   [ROLES.DELIVERY_PARTNER]: [
     {
       items: [
-        { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-        { label: 'My Route', to: '/delivery', icon: Truck }
+        { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+        { label: "My Route", to: "/delivery", icon: Truck },
       ],
-    }
+    },
   ],
   [ROLES.ACCOUNTS]: [
     {
-      items: [{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard }],
+      items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboard }],
     },
     {
-      groupLabel: 'Finance',
+      groupLabel: "Finance",
       items: [
-        { label: 'Business Analytics', to: '/accounts/analytics', icon: TrendingUp },
-        { label: 'Payroll', to: '/admin/payroll', icon: ReceiptText },
+        {
+          label: "Business Analytics",
+          to: "/accounts/analytics",
+          icon: TrendingUp,
+        },
+        { label: "Payroll", to: "/admin/payroll", icon: ReceiptText },
+        { label: "Advances", to: "/admin/salary-advances", icon: CreditCard },
       ],
-    }
+    },
   ],
 };
-

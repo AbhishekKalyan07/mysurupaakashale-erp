@@ -1,29 +1,33 @@
-import { useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { paymentRepository } from '@/shared/services/firestore/paymentRepository';
-import { paymentService } from '@/shared/services/business/paymentService';
-import type { ManualPayment, ManualPaymentStatus, SubmitPaymentInput } from '@/shared/types';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { toast } from 'react-hot-toast';
-import { getAuth } from 'firebase/auth';
-import type { QueryDocumentSnapshot } from 'firebase/firestore';
-import { auditRepository } from '@/shared/services/firestore/auditRepository';
+import { paymentRepository } from "@/shared/services/firestore/paymentRepository";
+import { paymentService } from "@/shared/services/business/paymentService";
+import type {
+  ManualPayment,
+  ManualPaymentStatus,
+  SubmitPaymentInput,
+} from "@/shared/types";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { toast } from "react-hot-toast";
+import { getAuth } from "firebase/auth";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import {
   notifyPaymentVerified,
   notifySubscriptionActivated,
   notifyPaymentRejected,
-} from '@/shared/services/firestore/notificationService';
+} from "@/shared/services/firestore/notificationService";
 
 // ── Customer: my payment history ───────────────────────────────────────────────
 export function useMyPayments() {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
-  
-  const queryKey = useMemo(() => 
-    queryKeys.payments.byCustomer(firebaseUser?.uid ?? ''), 
-    [firebaseUser?.uid]
+
+  const queryKey = useMemo(
+    () => queryKeys.payments.byCustomer(firebaseUser?.uid ?? ""),
+    [firebaseUser?.uid],
   );
 
   useEffect(() => {
@@ -33,7 +37,7 @@ export function useMyPayments() {
       (payments) => {
         queryClient.setQueryData(queryKey, payments);
       },
-      (error) => console.error('[useMyPayments] onSnapshot error:', error)
+      (error) => console.error("[useMyPayments] onSnapshot error:", error),
     );
     return unsubscribe;
   }, [firebaseUser, queryClient, queryKey]);
@@ -54,34 +58,43 @@ export function useSubmitPayment() {
   return useMutation({
     mutationFn: async (input: SubmitPaymentInput) => {
       const paymentId = await paymentService.submitPayment(
-        input, 
+        input,
         firebaseUser!.uid,
-        firebaseUser!.displayName || 'Customer'
+        firebaseUser!.displayName || "Customer",
       );
       return { paymentId };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.payments.byCustomer(firebaseUser?.uid ?? ''),
+        queryKey: queryKeys.payments.byCustomer(firebaseUser?.uid ?? ""),
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.all,
       });
-      toast.success('Payment details submitted. Awaiting admin verification.');
+      toast.success("Payment details submitted. Awaiting admin verification.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to submit payment. Please try again.');
+      toast.error(
+        (err as Error).message || "Failed to submit payment. Please try again.",
+      );
     },
   });
 }
 
 // ── Admin: paginated payments list by status ───────────────────────────────────
-export function useAdminPayments(status: ManualPaymentStatus | 'all', lastDocSnap?: QueryDocumentSnapshot<ManualPayment>) {
+export function useAdminPayments(
+  status: ManualPaymentStatus | "all",
+  lastDocSnap?: QueryDocumentSnapshot<ManualPayment>,
+) {
   return useQuery({
-    queryKey: queryKeys.payments.adminList(status, lastDocSnap?.id ?? 'page-0'),
-    queryFn: async (): Promise<{ payments: ManualPayment[]; lastDoc: QueryDocumentSnapshot<ManualPayment> | null }> => {
-      const filter = status === 'all' ? {} : { status };
-      const { payments, lastDoc } = await paymentRepository.getPaymentsPaginated(filter, 20, lastDocSnap);
+    queryKey: queryKeys.payments.adminList(status, lastDocSnap?.id ?? "page-0"),
+    queryFn: async (): Promise<{
+      payments: ManualPayment[];
+      lastDoc: QueryDocumentSnapshot<ManualPayment> | null;
+    }> => {
+      const filter = status === "all" ? {} : { status };
+      const { payments, lastDoc } =
+        await paymentRepository.getPaymentsPaginated(filter, 20, lastDocSnap);
       return { payments, lastDoc };
     },
     staleTime: 15_000,
@@ -92,7 +105,7 @@ export function useAdminPayments(status: ManualPaymentStatus | 'all', lastDocSna
 // ── Admin: single payment detail ───────────────────────────────────────────────
 export function usePaymentDetail(paymentId: string | null) {
   return useQuery({
-    queryKey: queryKeys.payments.detail(paymentId ?? ''),
+    queryKey: queryKeys.payments.detail(paymentId ?? ""),
     queryFn: () => paymentRepository.getById(paymentId!),
     enabled: !!paymentId,
     staleTime: 30_000,
@@ -104,8 +117,8 @@ export function useApprovePayment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { 
-      paymentId: string; 
+    mutationFn: async (input: {
+      paymentId: string;
       notes?: string;
       meta?: {
         customerEmail: string;
@@ -119,27 +132,45 @@ export function useApprovePayment() {
     }) => {
       // Phase 5 & 6: Client-side payment approval and subscription activation
       const capturedPayment = await paymentService.approvePayment(
-        input.paymentId, 
-        getAuth().currentUser?.uid ?? 'admin', 
+        input.paymentId,
+        getAuth().currentUser?.uid ?? "admin",
         input.notes,
-        input.meta
+        input.meta,
       );
-      
+
       const currentUser = getAuth().currentUser;
       if (currentUser) {
-        await auditRepository.logAction('payment_approved', currentUser.uid, currentUser.displayName || 'Admin', input.paymentId, 'payment', { notes: input.notes });
+        await auditRepository.logAction(
+          "payment_approved",
+          currentUser.uid,
+          "admin",
+          currentUser.displayName || "Admin",
+          input.paymentId,
+          "payment",
+          { notes: input.notes },
+        );
       }
 
       // Notify customer — fire-and-forget so a notification failure never reverts the approval.
       // `payment` captured above inside the transaction closure is safe to reference here.
-      notifyPaymentVerified(capturedPayment.customerId, input.paymentId, capturedPayment.amount)
-        .catch((err) => console.error('[useApprovePayment] verified notification failed:', err));
+      notifyPaymentVerified(
+        capturedPayment.customerId,
+        input.paymentId,
+        capturedPayment.amount,
+      ).catch((err) =>
+        console.error("[useApprovePayment] verified notification failed:", err),
+      );
       notifySubscriptionActivated(
         capturedPayment.customerId,
         capturedPayment.subscriptionId,
-        input.meta?.planTier || 'meal',
-        new Date().toISOString().split('T')[0],
-      ).catch((err) => console.error('[useApprovePayment] activated notification failed:', err));
+        input.meta?.planTier || "meal",
+        new Date().toISOString().split("T")[0],
+      ).catch((err) =>
+        console.error(
+          "[useApprovePayment] activated notification failed:",
+          err,
+        ),
+      );
 
       return { success: true };
     },
@@ -147,10 +178,10 @@ export function useApprovePayment() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
-      toast.success('Payment approved. Subscription activated.');
+      toast.success("Payment approved. Subscription activated.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to approve payment.');
+      toast.error((err as Error).message || "Failed to approve payment.");
     },
   });
 }
@@ -163,13 +194,21 @@ export function useRejectPayment() {
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
       const capturedPayment = await paymentService.rejectPayment(
         input.paymentId,
-        getAuth().currentUser?.uid ?? 'admin',
-        input.notes
+        getAuth().currentUser?.uid ?? "admin",
+        input.notes,
       );
-      
+
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('payment_rejected', user.uid, user.displayName || 'Admin', input.paymentId, 'payment', { notes: input.notes });
+        await auditRepository.logAction(
+          "payment_rejected",
+          user.uid,
+          "admin",
+          user.displayName || "Admin",
+          input.paymentId,
+          "payment",
+          { notes: input.notes },
+        );
       }
 
       // Notify the customer — fire-and-forget.
@@ -178,16 +217,18 @@ export function useRejectPayment() {
         input.paymentId,
         capturedPayment.amount,
         input.notes ?? null,
-      ).catch((err) => console.error('[useRejectPayment] rejected notification failed:', err));
+      ).catch((err) =>
+        console.error("[useRejectPayment] rejected notification failed:", err),
+      );
 
       return { success: true };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
-      toast.success('Payment rejected. Customer has been notified.');
+      toast.success("Payment rejected. Customer has been notified.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to reject payment.');
+      toast.error((err as Error).message || "Failed to reject payment.");
     },
   });
 }

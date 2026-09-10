@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarX,
   CalendarCheck,
@@ -11,19 +11,19 @@ import {
   Eye,
   Trash2,
   Info,
-} from 'lucide-react';
-import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
-import { MetricCard } from '@/shared/components/ui/MetricCard';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { holidayRepository } from '@/shared/services/firestore/holidayRepository';
-import { getTodayInTimezone } from '@/shared/lib/date';
-import type { Holiday } from '@/shared/types';
-import toast from 'react-hot-toast';
-import { cn } from '@/shared/lib/cn';
-import { auth } from '@/shared/lib/firebase';
+} from "lucide-react";
+import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
+import { MetricCard } from "@/shared/components/ui/MetricCard";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { holidayRepository } from "@/shared/services/firestore/holidayRepository";
+import { getTodayInTimezone } from "@/shared/lib/date";
+import type { Holiday } from "@/shared/types";
+import toast from "react-hot-toast";
+import { cn } from "@/shared/lib/cn";
+import { auth } from "@/shared/lib/firebase";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -31,12 +31,12 @@ import { auth } from '@/shared/lib/firebase';
 
 function formatDate(dateStr: string): string {
   try {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString("en-IN", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   } catch {
     return dateStr;
@@ -58,8 +58,8 @@ function isFutureOrToday(dateStr: string): boolean {
 // Status Badge
 // ─────────────────────────────────────────────────────────────────────────────
 
-function HolidayStatusBadge({ status }: { status: Holiday['status'] }) {
-  return status === 'active' ? (
+function HolidayStatusBadge({ status }: { status: Holiday["status"] }) {
+  return status === "active" ? (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
       <CheckCircle2 className="w-3 h-3" />
       Active
@@ -102,35 +102,53 @@ function HolidayTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border/60">
-            <th className="text-left py-3 px-4 text-text-muted font-medium">Date</th>
-            <th className="text-left py-3 px-4 text-text-muted font-medium">Name</th>
-            <th className="text-left py-3 px-4 text-text-muted font-medium hidden md:table-cell">Description</th>
-            <th className="text-left py-3 px-4 text-text-muted font-medium">Status</th>
-            <th className="text-left py-3 px-4 text-text-muted font-medium hidden lg:table-cell">Declared By</th>
-            <th className="text-right py-3 px-4 text-text-muted font-medium">Actions</th>
+            <th className="text-left py-3 px-4 text-text-muted font-medium">
+              Date
+            </th>
+            <th className="text-left py-3 px-4 text-text-muted font-medium">
+              Name
+            </th>
+            <th className="text-left py-3 px-4 text-text-muted font-medium hidden md:table-cell">
+              Description
+            </th>
+            <th className="text-left py-3 px-4 text-text-muted font-medium">
+              Status
+            </th>
+            <th className="text-left py-3 px-4 text-text-muted font-medium hidden lg:table-cell">
+              Declared By
+            </th>
+            <th className="text-right py-3 px-4 text-text-muted font-medium">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
           {holidays.map((h) => {
             const isFuture = h.date >= today;
-            const isActiveAndFuture = h.status === 'active' && isFuture;
+            const isActiveAndFuture = h.status === "active" && isFuture;
             const cancelling = isCancelling === h.date;
 
             return (
               <tr
                 key={h.id}
                 className={cn(
-                  'border-b border-border/30 transition-colors hover:bg-surface-1/50',
-                  h.status === 'cancelled' && 'opacity-60',
+                  "border-b border-border/30 transition-colors hover:bg-surface-1/50",
+                  h.status === "cancelled" && "opacity-60",
                 )}
               >
                 <td className="py-3 px-4">
-                  <div className="font-medium text-text">{formatDate(h.date)}</div>
-                  <div className="text-xs text-text-muted font-mono">{h.date}</div>
+                  <div className="font-medium text-text">
+                    {formatDate(h.date)}
+                  </div>
+                  <div className="text-xs text-text-muted font-mono">
+                    {h.date}
+                  </div>
                 </td>
                 <td className="py-3 px-4 font-medium text-text">{h.name}</td>
                 <td className="py-3 px-4 text-text-muted hidden md:table-cell">
-                  {h.description || <span className="text-xs italic opacity-50">—</span>}
+                  {h.description || (
+                    <span className="text-xs italic opacity-50">—</span>
+                  )}
                 </td>
                 <td className="py-3 px-4">
                   <HolidayStatusBadge status={h.status} />
@@ -175,10 +193,10 @@ export function AdminHolidayPage() {
   const today = getTodayInTimezone();
 
   // Form state
-  const [date, setDate] = useState('');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [step, setStep] = useState<'form' | 'preview' | 'confirming'>('form');
+  const [date, setDate] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [step, setStep] = useState<"form" | "preview" | "confirming">("form");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [cancellingDate, setCancellingDate] = useState<string | null>(null);
@@ -191,24 +209,26 @@ export function AdminHolidayPage() {
     error,
     refetch,
   } = useQuery<Holiday[]>({
-    queryKey: ['admin', 'holidays'],
+    queryKey: ["admin", "holidays"],
     queryFn: () => holidayRepository.listHolidays(),
     staleTime: 60_000,
   });
 
   // ── Derived metrics ────────────────────────────────────────────────────────
-  const activeCount = holidays.filter((h) => h.status === 'active').length;
+  const activeCount = holidays.filter((h) => h.status === "active").length;
   const upcomingActive = holidays.filter(
-    (h) => h.status === 'active' && h.date >= today,
+    (h) => h.status === "active" && h.date >= today,
   ).length;
 
   // ── Validation ────────────────────────────────────────────────────────────
   const dateError = (() => {
     if (!date) return null;
-    if (!isValidISODate(date)) return 'Date must be in YYYY-MM-DD format.';
-    if (!isFutureOrToday(date)) return 'Cannot declare a holiday for a past date.';
+    if (!isValidISODate(date)) return "Date must be in YYYY-MM-DD format.";
+    if (!isFutureOrToday(date))
+      return "Cannot declare a holiday for a past date.";
     const existing = holidays.find((h) => h.date === date);
-    if (existing?.status === 'active') return `An active holiday already exists for ${date}.`;
+    if (existing?.status === "active")
+      return `An active holiday already exists for ${date}.`;
     return null;
   })();
 
@@ -221,9 +241,11 @@ export function AdminHolidayPage() {
     try {
       const count = await holidayRepository.previewAffectedOrders(date);
       setPreviewCount(count);
-      setStep('preview');
+      setStep("preview");
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to preview affected orders. Please try again.');
+      toast.error(
+        err?.message || "Failed to preview affected orders. Please try again.",
+      );
     } finally {
       setPreviewLoading(false);
     }
@@ -232,7 +254,7 @@ export function AdminHolidayPage() {
   // ── Declare holiday mutation ───────────────────────────────────────────────
   const declareMutation = useMutation({
     mutationFn: async () => {
-      const createdBy = auth.currentUser?.uid ?? 'unknown';
+      const createdBy = auth.currentUser?.uid ?? "unknown";
       return holidayRepository.createOrGetHoliday({
         date,
         name: name.trim(),
@@ -245,17 +267,19 @@ export function AdminHolidayPage() {
         `Holiday declared for ${holiday.date}. Eligible orders are being cancelled in the background.`,
         { duration: 5000 },
       );
-      queryClient.invalidateQueries({ queryKey: ['admin', 'holidays'] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "holidays"] });
       // Reset form
-      setDate('');
-      setName('');
-      setDescription('');
-      setStep('form');
+      setDate("");
+      setName("");
+      setDescription("");
+      setStep("form");
       setPreviewCount(null);
     },
     onError: (err: any) => {
-      toast.error(err?.message ?? 'Failed to declare holiday. Please try again.');
-      setStep('form');
+      toast.error(
+        err?.message ?? "Failed to declare holiday. Please try again.",
+      );
+      setStep("form");
     },
   });
 
@@ -263,14 +287,19 @@ export function AdminHolidayPage() {
   const cancelHolidayMutation = useMutation({
     mutationFn: async (holidayDate: string) => {
       setCancellingDate(holidayDate);
-      await holidayRepository.cancelHoliday(holidayDate, auth.currentUser?.uid ?? 'unknown');
+      await holidayRepository.cancelHoliday(
+        holidayDate,
+        auth.currentUser?.uid ?? "unknown",
+      );
     },
     onSuccess: () => {
-      toast.success('Holiday has been cancelled. No orders will be automatically restored.');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'holidays'] });
+      toast.success(
+        "Holiday has been cancelled. No orders will be automatically restored.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin", "holidays"] });
     },
     onError: (err: any) => {
-      toast.error(err?.message ?? 'Failed to cancel holiday.');
+      toast.error(err?.message ?? "Failed to cancel holiday.");
     },
     onSettled: () => {
       setCancellingDate(null);
@@ -293,17 +322,17 @@ export function AdminHolidayPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <MetricCard
             title="Total Holidays"
-            value={isLoading ? '…' : String(holidays.length)}
+            value={isLoading ? "…" : String(holidays.length)}
             icon={<CalendarX className="w-5 h-5" />}
           />
           <MetricCard
             title="Active Holidays"
-            value={isLoading ? '…' : String(activeCount)}
+            value={isLoading ? "…" : String(activeCount)}
             icon={<CheckCircle2 className="w-5 h-5" />}
           />
           <MetricCard
             title="Upcoming Active"
-            value={isLoading ? '…' : String(upcomingActive)}
+            value={isLoading ? "…" : String(upcomingActive)}
             icon={<CalendarCheck className="w-5 h-5" />}
           />
         </div>
@@ -315,8 +344,13 @@ export function AdminHolidayPage() {
               <Plus className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-text">Declare a Holiday</h2>
-              <p className="text-sm text-text-muted">No orders will be generated and all eligible existing orders will be cancelled.</p>
+              <h2 className="text-lg font-semibold text-text">
+                Declare a Holiday
+              </h2>
+              <p className="text-sm text-text-muted">
+                No orders will be generated and all eligible existing orders
+                will be cancelled.
+              </p>
             </div>
           </div>
 
@@ -324,16 +358,21 @@ export function AdminHolidayPage() {
           <div className="flex gap-3 p-3 rounded-xl bg-info-subtle border border-info/20 mb-6">
             <Info className="w-4 h-4 text-info mt-0.5 shrink-0" />
             <p className="text-sm text-info">
-              <strong>Important:</strong> Declaring a holiday will cancel all eligible (scheduled, preparing, packing)
-              orders for that date and notify all users. Previously cancelled orders will <strong>not</strong> be
-              restored if the holiday is later withdrawn.
+              <strong>Important:</strong> Declaring a holiday will cancel all
+              eligible (scheduled, preparing, packing) orders for that date and
+              notify all users. Previously cancelled orders will{" "}
+              <strong>not</strong> be restored if the holiday is later
+              withdrawn.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {/* Date picker */}
             <div>
-              <label htmlFor="holiday-date" className="block text-sm font-medium text-text mb-1.5">
+              <label
+                htmlFor="holiday-date"
+                className="block text-sm font-medium text-text mb-1.5"
+              >
                 Holiday Date <span className="text-danger">*</span>
               </label>
               <Input
@@ -343,11 +382,13 @@ export function AdminHolidayPage() {
                 min={today}
                 onChange={(e) => {
                   setDate(e.target.value);
-                  setStep('form');
+                  setStep("form");
                   setPreviewCount(null);
                 }}
                 disabled={declareMutation.isPending}
-                className={cn(dateError && 'border-danger focus:ring-danger/30')}
+                className={cn(
+                  dateError && "border-danger focus:ring-danger/30",
+                )}
               />
               {dateError && (
                 <p className="mt-1 text-xs text-danger flex items-center gap-1">
@@ -359,7 +400,10 @@ export function AdminHolidayPage() {
 
             {/* Holiday name */}
             <div>
-              <label htmlFor="holiday-name" className="block text-sm font-medium text-text mb-1.5">
+              <label
+                htmlFor="holiday-name"
+                className="block text-sm font-medium text-text mb-1.5"
+              >
                 Holiday Name <span className="text-danger">*</span>
               </label>
               <Input
@@ -369,7 +413,7 @@ export function AdminHolidayPage() {
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
-                  setStep('form');
+                  setStep("form");
                   setPreviewCount(null);
                 }}
                 disabled={declareMutation.isPending}
@@ -380,8 +424,12 @@ export function AdminHolidayPage() {
 
           {/* Description */}
           <div className="mb-6">
-            <label htmlFor="holiday-description" className="block text-sm font-medium text-text mb-1.5">
-              Description <span className="text-text-muted text-xs">(optional)</span>
+            <label
+              htmlFor="holiday-description"
+              className="block text-sm font-medium text-text mb-1.5"
+            >
+              Description{" "}
+              <span className="text-text-muted text-xs">(optional)</span>
             </label>
             <textarea
               id="holiday-description"
@@ -396,29 +444,46 @@ export function AdminHolidayPage() {
           </div>
 
           {/* Preview Panel */}
-          {step === 'preview' && previewCount !== null && (
+          {step === "preview" && previewCount !== null && (
             <div
               id="holiday-preview-panel"
               className={cn(
-                'mb-6 p-4 rounded-xl border-2 transition-all',
+                "mb-6 p-4 rounded-xl border-2 transition-all",
                 previewCount > 0
-                  ? 'bg-amber-50 border-amber-300'
-                  : 'bg-emerald-50 border-emerald-300',
+                  ? "bg-amber-50 border-amber-300"
+                  : "bg-emerald-50 border-emerald-300",
               )}
             >
               <div className="flex items-start gap-3">
-                <Eye className={cn('w-5 h-5 mt-0.5', previewCount > 0 ? 'text-amber-600' : 'text-emerald-600')} />
+                <Eye
+                  className={cn(
+                    "w-5 h-5 mt-0.5",
+                    previewCount > 0 ? "text-amber-600" : "text-emerald-600",
+                  )}
+                />
                 <div>
-                  <p className={cn('font-semibold', previewCount > 0 ? 'text-amber-800' : 'text-emerald-800')}>
-                    Preview: {previewCount} existing order{previewCount !== 1 ? 's' : ''} will be cancelled
+                  <p
+                    className={cn(
+                      "font-semibold",
+                      previewCount > 0 ? "text-amber-800" : "text-emerald-800",
+                    )}
+                  >
+                    Preview: {previewCount} existing order
+                    {previewCount !== 1 ? "s" : ""} will be cancelled
                   </p>
-                  <p className={cn('text-sm mt-0.5', previewCount > 0 ? 'text-amber-700' : 'text-emerald-700')}>
+                  <p
+                    className={cn(
+                      "text-sm mt-0.5",
+                      previewCount > 0 ? "text-amber-700" : "text-emerald-700",
+                    )}
+                  >
                     {previewCount > 0
                       ? `These orders have status: scheduled, preparing, or packing. They will be cancelled with reason 'holiday'.`
                       : `No eligible orders exist for ${date}. Declaring the holiday will only block future order generation.`}
                   </p>
                   <p className="text-xs mt-1 text-text-muted italic">
-                    Note: The final count is recalculated at confirmation time. This is informational only.
+                    Note: The final count is recalculated at confirmation time.
+                    This is informational only.
                   </p>
                 </div>
               </div>
@@ -427,7 +492,7 @@ export function AdminHolidayPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3">
-            {step === 'form' && (
+            {step === "form" && (
               <Button
                 id="preview-holiday-btn"
                 variant="tonal"
@@ -444,7 +509,7 @@ export function AdminHolidayPage() {
               </Button>
             )}
 
-            {step === 'preview' && (
+            {step === "preview" && (
               <>
                 <Button
                   id="confirm-declare-holiday-btn"
@@ -462,7 +527,10 @@ export function AdminHolidayPage() {
                 <Button
                   id="back-to-form-btn"
                   variant="ghost"
-                  onClick={() => { setStep('form'); setPreviewCount(null); }}
+                  onClick={() => {
+                    setStep("form");
+                    setPreviewCount(null);
+                  }}
                   disabled={declareMutation.isPending}
                 >
                   Back
@@ -479,8 +547,12 @@ export function AdminHolidayPage() {
               <CalendarCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-text">Holiday Calendar</h2>
-              <p className="text-sm text-text-muted">All declared holidays — upcoming and past.</p>
+              <h2 className="text-lg font-semibold text-text">
+                Holiday Calendar
+              </h2>
+              <p className="text-sm text-text-muted">
+                All declared holidays — upcoming and past.
+              </p>
             </div>
           </div>
 

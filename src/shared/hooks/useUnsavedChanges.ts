@@ -1,5 +1,5 @@
-import { useEffect, useCallback } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useEffect, useCallback } from "react";
+import { useBlocker } from "react-router-dom";
 
 /**
  * Warns the user before navigating away from a page with unsaved changes.
@@ -26,15 +26,15 @@ export function useUnsavedChanges(isDirty: boolean) {
       if (isDirty) {
         e.preventDefault();
         // Legacy support
-        e.returnValue = '';
+        e.returnValue = "";
       }
     },
     [isDirty],
   );
 
   useEffect(() => {
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [handleBeforeUnload]);
 
   // React Router in-app navigation guard

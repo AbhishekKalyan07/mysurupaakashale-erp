@@ -1,5 +1,5 @@
-import { Search } from 'lucide-react';
-import { PremiumButton as Button } from '../ui/PremiumButton';
+import { Search } from "lucide-react";
+import { PremiumButton as Button } from "../ui/PremiumButton";
 
 export interface NoSearchResultsProps {
   query?: string;
@@ -29,7 +29,7 @@ export function NoSearchResults({
           {description ??
             (query
               ? `We couldn't find anything matching "${query}". Try a different search term.`
-              : 'Your search returned no results. Try different keywords or filters.')}
+              : "Your search returned no results. Try different keywords or filters.")}
         </p>
       </div>
       {onClear && (

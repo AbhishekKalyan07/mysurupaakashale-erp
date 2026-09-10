@@ -1,5 +1,5 @@
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth } from '@/shared/lib/firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth } from "@/shared/lib/firebase";
 
 /**
  * Uploads a payment screenshot to Firebase Storage.
@@ -8,9 +8,10 @@ import { auth } from '@/shared/lib/firebase';
  */
 export async function uploadPaymentScreenshot(file: File): Promise<string> {
   const user = auth.currentUser;
-  if (!user) throw new Error('Must be signed in to upload a payment screenshot.');
+  if (!user)
+    throw new Error("Must be signed in to upload a payment screenshot.");
 
-  const ext = file.name.split('.').pop() ?? 'jpg';
+  const ext = file.name.split(".").pop() ?? "jpg";
   const filename = `${crypto.randomUUID()}.${ext}`;
   const path = `payment-screenshots/${user.uid}/${filename}`;
 

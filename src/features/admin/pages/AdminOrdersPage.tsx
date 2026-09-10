@@ -1,18 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Package, Loader2, Search, SlidersHorizontal, X } from 'lucide-react';
-import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
-import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { OrderCard } from '@/shared/components/ui/OrderCard';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
-import type { Order, OrderStatus, MealType } from '@/shared/types';
-import toast from 'react-hot-toast';
-import { useCustomerNameMap, useCustomerNameMap as usePartnerNameMap } from '@/features/admin/hooks/useAdmin';
-import { cn } from '@/shared/lib/cn';
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Package, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
+import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { OrderCard } from "@/shared/components/ui/OrderCard";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { orderRepository } from "@/shared/services/firestore/orderRepository";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { getTodayIST } from "@/features/kitchen/hooks/useKitchenDashboard";
+import type { Order, OrderStatus, MealType } from "@/shared/types";
+import toast from "react-hot-toast";
+import {
+  useCustomerNameMap,
+  useCustomerNameMap as usePartnerNameMap,
+} from "@/features/admin/hooks/useAdmin";
+import { cn } from "@/shared/lib/cn";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer detail fetcher (for OrderCard customer prop)
@@ -20,11 +23,11 @@ import { cn } from '@/shared/lib/cn';
 
 function useCustomerMap(customerIds: string[]) {
   return useQuery({
-    queryKey: ['customers-map', customerIds.join(',')],
+    queryKey: ["customers-map", customerIds.join(",")],
     queryFn: async () => {
-      const { where } = await import('firebase/firestore');
-      const users = await userRepository.list(where('role', '==', 'customer'));
-      return new Map(users.map(u => [u.id, u]));
+      const { where } = await import("firebase/firestore");
+      const users = await userRepository.list(where("role", "==", "customer"));
+      return new Map(users.map((u) => [u.id, u]));
     },
     staleTime: 5 * 60 * 1000,
     enabled: customerIds.length > 0,
@@ -36,32 +39,77 @@ function useCustomerMap(customerIds: string[]) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_KPI_CHIPS: Array<{
-  key: OrderStatus | 'all' | 'unassigned';
+  key: OrderStatus | "all" | "unassigned";
   label: string;
   color: string;
   activeColor: string;
 }> = [
-  { key: 'all',              label: 'All',           color: 'bg-surface-2 text-text-muted border-border',                        activeColor: 'bg-primary text-white border-primary' },
-  { key: 'unassigned',       label: 'Unassigned',    color: 'bg-danger-subtle text-danger border-danger/30',                     activeColor: 'bg-danger text-white border-danger' },
-  { key: 'scheduled',        label: 'Scheduled',     color: 'bg-[#F3EBF7] text-[#6A1B9A] border-[#CE93D8]',                     activeColor: 'bg-[#6A1B9A] text-white border-[#6A1B9A]' },
-  { key: 'preparing',        label: 'Preparing',     color: 'bg-info-subtle text-info border-info/30',                           activeColor: 'bg-info text-white border-info' },
-  { key: 'ready_for_pickup', label: 'Ready',         color: 'bg-pastel-lavender text-secondary border-secondary/30',             activeColor: 'bg-secondary text-white border-secondary' },
-  { key: 'out_for_delivery', label: 'Out for Delivery', color: 'bg-pastel-orange text-[#E65100] border-[#FFCC80]',              activeColor: 'bg-[#E65100] text-white border-[#E65100]' },
-  { key: 'delivered',        label: 'Delivered',     color: 'bg-success-subtle text-success border-success/30',                  activeColor: 'bg-success text-white border-success' },
-  { key: 'failed_delivery',  label: 'Failed',        color: 'bg-danger-subtle text-danger border-danger/30',                    activeColor: 'bg-danger text-white border-danger' },
-  { key: 'cancelled',        label: 'Cancelled',     color: 'bg-surface-3 text-text-muted border-border',                       activeColor: 'bg-text-muted text-white border-text-muted' },
+  {
+    key: "all",
+    label: "All",
+    color: "bg-surface-2 text-text-muted border-border",
+    activeColor: "bg-primary text-white border-primary",
+  },
+  {
+    key: "unassigned",
+    label: "Unassigned",
+    color: "bg-danger-subtle text-danger border-danger/30",
+    activeColor: "bg-danger text-white border-danger",
+  },
+  {
+    key: "scheduled",
+    label: "Scheduled",
+    color: "bg-[#F3EBF7] text-[#6A1B9A] border-[#CE93D8]",
+    activeColor: "bg-[#6A1B9A] text-white border-[#6A1B9A]",
+  },
+  {
+    key: "preparing",
+    label: "Preparing",
+    color: "bg-info-subtle text-info border-info/30",
+    activeColor: "bg-info text-white border-info",
+  },
+  {
+    key: "ready_for_pickup",
+    label: "Ready",
+    color: "bg-pastel-lavender text-secondary border-secondary/30",
+    activeColor: "bg-secondary text-white border-secondary",
+  },
+  {
+    key: "out_for_delivery",
+    label: "Out for Delivery",
+    color: "bg-pastel-orange text-[#E65100] border-[#FFCC80]",
+    activeColor: "bg-[#E65100] text-white border-[#E65100]",
+  },
+  {
+    key: "delivered",
+    label: "Delivered",
+    color: "bg-success-subtle text-success border-success/30",
+    activeColor: "bg-success text-white border-success",
+  },
+  {
+    key: "failed_delivery",
+    label: "Failed",
+    color: "bg-danger-subtle text-danger border-danger/30",
+    activeColor: "bg-danger text-white border-danger",
+  },
+  {
+    key: "cancelled",
+    label: "Cancelled",
+    color: "bg-surface-3 text-text-muted border-border",
+    activeColor: "bg-text-muted text-white border-text-muted",
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getDefaultMealType(): MealType | 'all' {
+function getDefaultMealType(): MealType | "all" {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 11) return 'breakfast';
-  if (hour >= 11 && hour < 16) return 'lunch';
-  if (hour >= 16 && hour < 23) return 'dinner';
-  return 'all';
+  if (hour >= 5 && hour < 11) return "breakfast";
+  if (hour >= 11 && hour < 16) return "lunch";
+  if (hour >= 16 && hour < 23) return "dinner";
+  return "all";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,54 +119,90 @@ function getDefaultMealType(): MealType | 'all' {
 export function AdminOrdersPage() {
   const queryClient = useQueryClient();
   const today = getTodayIST();
-  
+
   const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all' | 'unassigned'>('all');
-  const [mealTypeFilter, setMealTypeFilter] = useState<MealType | 'all'>(getDefaultMealType());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<
+    OrderStatus | "all" | "unassigned"
+  >("all");
+  const [mealTypeFilter, setMealTypeFilter] = useState<MealType | "all">(
+    getDefaultMealType(),
+  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const queryKey = useMemo(() => ['admin', 'orders', selectedDate], [selectedDate]);
+  const queryKey = useMemo(
+    () => ["admin", "orders", selectedDate],
+    [selectedDate],
+  );
 
   useEffect(() => {
     if (!selectedDate) return;
     const unsubscribe = orderRepository.subscribeToDayOrders(
       selectedDate,
       undefined,
-      (ordersData: Order[]) => queryClient.setQueryData(queryKey, ordersData)
+      (ordersData: Order[]) => queryClient.setQueryData(queryKey, ordersData),
     );
     return () => unsubscribe();
   }, [selectedDate, queryClient, queryKey]);
 
-  const { data: orders = [], isLoading, error } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey,
     queryFn: () => orderRepository.getByDate(selectedDate),
     staleTime: 0,
   });
 
-  const allCustomerIds = useMemo(() => [...new Set(orders.map(o => o.customerId))], [orders]);
-  const allPartnerIds = useMemo(() => [...new Set(orders.map(o => o.deliveryPartnerId).filter(Boolean) as string[])], [orders]);
-  
+  const allCustomerIds = useMemo(
+    () => [...new Set(orders.map((o) => o.customerId))],
+    [orders],
+  );
+  const allPartnerIds = useMemo(
+    () => [
+      ...new Set(
+        orders.map((o) => o.deliveryPartnerId).filter(Boolean) as string[],
+      ),
+    ],
+    [orders],
+  );
+
   const nameMap = useCustomerNameMap(allCustomerIds);
   const { data: customerMap = new Map() } = useCustomerMap(allCustomerIds);
   const partnerNameMap = usePartnerNameMap(allPartnerIds);
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string, newStatus: OrderStatus }) => {
-      await orderRepository.updateWorkflow(orderId, newStatus, 'Admin override');
+    mutationFn: async ({
+      orderId,
+      newStatus,
+    }: {
+      orderId: string;
+      newStatus: OrderStatus;
+    }) => {
+      await orderRepository.updateWorkflow(
+        orderId,
+        newStatus,
+        "Admin override",
+      );
     },
     onSuccess: () => {
-      toast.success('Status updated');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', selectedDate] });
+      toast.success("Status updated");
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "orders", selectedDate],
+      });
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update status');
-    }
+      toast.error((err as Error).message || "Failed to update status");
+    },
   });
 
   // Compute per-status counts for KPI chips
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: orders.length, unassigned: 0 };
+    const counts: Record<string, number> = {
+      all: orders.length,
+      unassigned: 0,
+    };
     for (const o of orders) {
       counts[o.status] = (counts[o.status] || 0) + 1;
       if (!o.deliveryPartnerId) {
@@ -129,40 +213,70 @@ export function AdminOrdersPage() {
   }, [orders]);
 
   if (error) {
-    return <ErrorState title="Failed to load orders" onRetry={() => queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })} />;
+    return (
+      <ErrorState
+        title="Failed to load orders"
+        onRetry={() =>
+          queryClient.invalidateQueries({ queryKey: ["admin", "orders"] })
+        }
+      />
+    );
   }
 
-  const mealSortOrder: Record<string, number> = { breakfast: 1, lunch: 2, dinner: 3 };
+  const mealSortOrder: Record<string, number> = {
+    breakfast: 1,
+    lunch: 2,
+    dinner: 3,
+  };
 
   const filteredOrders = orders
-    .filter(o => {
-      if (statusFilter === 'unassigned' && o.deliveryPartnerId) return false;
-      if (statusFilter !== 'all' && statusFilter !== 'unassigned' && o.status !== statusFilter) return false;
-      if (mealTypeFilter !== 'all' && o.mealType !== mealTypeFilter) return false;
+    .filter((o) => {
+      if (statusFilter === "unassigned" && o.deliveryPartnerId) return false;
+      if (
+        statusFilter !== "all" &&
+        statusFilter !== "unassigned" &&
+        o.status !== statusFilter
+      )
+        return false;
+      if (mealTypeFilter !== "all" && o.mealType !== mealTypeFilter)
+        return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const cName = (nameMap.get(o.customerId) || '').toLowerCase();
+        const cName = (nameMap.get(o.customerId) || "").toLowerCase();
         const customer = customerMap.get(o.customerId);
-        const displayId = (customer?.displayId || '').toLowerCase();
-        const oDisplayId = (o.displayId || '').toLowerCase();
-        if (!cName.includes(q) && !displayId.includes(q) && !oDisplayId.includes(q) && !o.id.includes(q)) return false;
+        const displayId = (customer?.displayId || "").toLowerCase();
+        const oDisplayId = (o.displayId || "").toLowerCase();
+        if (
+          !cName.includes(q) &&
+          !displayId.includes(q) &&
+          !oDisplayId.includes(q) &&
+          !o.id.includes(q)
+        )
+          return false;
       }
       return true;
     })
     .sort((a, b) => {
       if (a.mealType !== b.mealType) {
-        return (mealSortOrder[a.mealType] || 99) - (mealSortOrder[b.mealType] || 99);
+        return (
+          (mealSortOrder[a.mealType] || 99) - (mealSortOrder[b.mealType] || 99)
+        );
       }
-      return (a.deliveryWindow?.start || '').localeCompare(b.deliveryWindow?.start || '');
+      return (a.deliveryWindow?.start || "").localeCompare(
+        b.deliveryWindow?.start || "",
+      );
     });
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: OrderStatus,
+  ) => {
     await updateStatusMutation.mutateAsync({ orderId, newStatus });
   };
 
   return (
     <div className="space-y-5">
-      <PageHeader 
+      <PageHeader
         userName="Orders"
         subtitle={`${selectedDate} · ${orders.length} total`}
         actions={
@@ -178,7 +292,10 @@ export function AdminOrdersPage() {
       {/* Search + Filter toggle row */}
       <div className="flex gap-2">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          />
           <input
             type="text"
             placeholder="Search customer, MP-A001, ORD-..."
@@ -187,7 +304,8 @@ export function AdminOrdersPage() {
             className="w-full h-11 pl-10 pr-4 rounded-[14px] border border-border bg-card text-sm text-text placeholder:text-text-faint focus:border-secondary/60 focus:outline-none focus:ring-2 focus:ring-secondary/20 shadow-xs"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')}
+            <button
+              onClick={() => setSearchQuery("")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
             >
               <X size={14} />
@@ -195,7 +313,7 @@ export function AdminOrdersPage() {
           )}
         </div>
         <Button
-          variant={showFilters ? 'tonal' : 'secondary'}
+          variant={showFilters ? "tonal" : "secondary"}
           size="md"
           onClick={() => setShowFilters(!showFilters)}
         >
@@ -207,54 +325,64 @@ export function AdminOrdersPage() {
       {/* Expanded filters */}
       <div
         className={cn(
-          'grid transition-all duration-300 ease-in-out',
-          showFilters ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          "grid transition-all duration-300 ease-in-out",
+          showFilters
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
         )}
       >
         <div className="overflow-hidden">
           <div className="bg-card rounded-[20px] border border-border p-4 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">Meal Type</label>
-                <div className="flex flex-wrap gap-2">
-                  {(['all', 'breakfast', 'lunch', 'dinner'] as const).map(m => (
-                    <button key={m}
-                      onClick={() => setMealTypeFilter(m)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
-                        mealTypeFilter === m
-                          ? 'bg-primary text-white border-primary'
-                          : 'bg-surface-2 text-text-muted border-border hover:border-secondary/40'
-                      )}
-                    >
-                      {m === 'all' ? 'All Meals' : m.charAt(0).toUpperCase() + m.slice(1)}
-                    </button>
-                  ))}
-                </div>
+            <div>
+              <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">
+                Meal Type
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(["all", "breakfast", "lunch", "dinner"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMealTypeFilter(m)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
+                      mealTypeFilter === m
+                        ? "bg-primary text-white border-primary"
+                        : "bg-surface-2 text-text-muted border-border hover:border-secondary/40",
+                    )}
+                  >
+                    {m === "all"
+                      ? "All Meals"
+                      : m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
               </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Status KPI Filter Chips — horizontally scrollable */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-        {STATUS_KPI_CHIPS.map(chip => {
+        {STATUS_KPI_CHIPS.map((chip) => {
           const count = statusCounts[chip.key] || 0;
           const isActive = statusFilter === chip.key;
           return (
-            <button key={chip.key}
-              onClick={() => setStatusFilter(chip.key as OrderStatus | 'all')}
+            <button
+              key={chip.key}
+              onClick={() => setStatusFilter(chip.key as OrderStatus | "all")}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all shrink-0',
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold whitespace-nowrap transition-all shrink-0",
                 isActive ? chip.activeColor : chip.color,
-                'hover:shadow-xs'
+                "hover:shadow-xs",
               )}
             >
               {chip.label}
               {count > 0 && (
-                <span className={cn(
-                  'px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-                  isActive ? 'bg-white/25' : 'bg-black/10'
-                )}>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                    isActive ? "bg-white/25" : "bg-black/10",
+                  )}
+                >
                   {count}
                 </span>
               )}
@@ -271,38 +399,61 @@ export function AdminOrdersPage() {
       ) : filteredOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-surface-2 py-16 text-center">
           <Package className="mb-3 h-10 w-10 text-text-faint" />
-          <h3 className="text-base font-display font-bold text-text">No Orders Found</h3>
+          <h3 className="text-base font-display font-bold text-text">
+            No Orders Found
+          </h3>
           <p className="mt-1 text-sm text-text-muted max-w-xs">
             No orders match the selected filters.
           </p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredOrders.map((order) => {
-              const customer = customerMap.get(order.customerId);
-              const addr = customer?.addresses?.find((a: any) => a.id === customer?.defaultAddressId) || customer?.addresses?.[0];
-              const addressText = addr ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') : undefined;
-              const planName = order.planTier ? order.planTier.charAt(0).toUpperCase() + order.planTier.slice(1) : null;
+          {filteredOrders.map((order) => {
+            const customer = customerMap.get(order.customerId);
+            const addr =
+              customer?.addresses?.find(
+                (a: any) => a.id === customer?.defaultAddressId,
+              ) || customer?.addresses?.[0];
+            const addressText = addr
+              ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(", ")
+              : undefined;
+            const planName = order.planTier
+              ? order.planTier.charAt(0).toUpperCase() + order.planTier.slice(1)
+              : null;
 
-              return (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  variant="admin"
-                  customer={customer ? {
-                    fullName: customer.fullName,
-                    displayId: customer.displayId,
-                    phone: customer.phone,
-                    photoUrl: customer.photoUrl,
-                    address: addressText,
-                  } : { fullName: nameMap.get(order.customerId) || order.customerId }}
-                  planName={planName}
-                  partnerName={order.deliveryPartnerId ? partnerNameMap.get(order.deliveryPartnerId) : null}
-                  onStatusChange={handleStatusChange}
-                  isAdvancing={updateStatusMutation.isPending && updateStatusMutation.variables?.orderId === order.id}
-                />
-              );
-            })}
+            return (
+              <OrderCard
+                key={order.id}
+                order={order}
+                variant="admin"
+                customer={
+                  customer
+                    ? {
+                        fullName: customer.fullName,
+                        displayId: customer.displayId,
+                        phone: customer.phone,
+                        photoUrl: customer.photoUrl,
+                        address: addressText,
+                      }
+                    : {
+                        fullName:
+                          nameMap.get(order.customerId) || order.customerId,
+                      }
+                }
+                planName={planName}
+                partnerName={
+                  order.deliveryPartnerId
+                    ? partnerNameMap.get(order.deliveryPartnerId)
+                    : null
+                }
+                onStatusChange={handleStatusChange}
+                isAdvancing={
+                  updateStatusMutation.isPending &&
+                  updateStatusMutation.variables?.orderId === order.id
+                }
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
-import type { Timestamp } from './common.types';
-import type { MealType } from './mealPlan.types';
+import type { Timestamp } from "./common.types";
+import type { MealType } from "./mealPlan.types";
 /** A saved delivery address. Customers can have several; one is marked default. */
 export interface Address {
   id: string;
@@ -15,7 +15,7 @@ export interface Address {
   isDefault: boolean;
 }
 
-export type VehicleType = 'bike' | 'bicycle' | 'on_foot' | 'other';
+export type VehicleType = "bike" | "bicycle" | "on_foot" | "other";
 
 interface BaseUserProfile {
   /** Same value as the Firebase Auth uid and the `users/{id}` document key — named `id` for consistency with every other entity in the system. */
@@ -35,7 +35,7 @@ interface BaseUserProfile {
 }
 
 export interface CustomerProfile extends BaseUserProfile {
-  role: 'customer';
+  role: "customer";
   addresses: Address[];
   defaultAddressId: string | null;
   /** Permanently assigned delivery partner. Copied to every generated order. */
@@ -47,12 +47,12 @@ export interface CustomerProfile extends BaseUserProfile {
 }
 
 export interface KitchenStaffProfile extends BaseUserProfile {
-  role: 'kitchen';
+  role: "kitchen";
   kitchenId: string;
 }
 
 export interface DeliveryPartnerProfile extends BaseUserProfile {
-  role: 'delivery_partner';
+  role: "delivery_partner";
   zoneIds: string[];
   shifts?: MealType[];
   vehicleType: VehicleType;
@@ -61,11 +61,11 @@ export interface DeliveryPartnerProfile extends BaseUserProfile {
 }
 
 export interface AccountsStaffProfile extends BaseUserProfile {
-  role: 'accounts';
+  role: "accounts";
 }
 
 export interface AdminProfile extends BaseUserProfile {
-  role: 'admin';
+  role: "admin";
 }
 
 /**

@@ -1,18 +1,37 @@
-import { useState, useMemo } from 'react';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumTable, PremiumTableRow, PremiumTableCell } from '@/shared/components/ui/PremiumTable';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { HeroBanner } from '@/shared/components/ui/HeroBanner';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { useAccountsDashboard, useGenerateDailyReport, useGenerateMonthlyReport } from '@/features/accounts/hooks/useAccounts';
-import { FileText, IndianRupee, ShoppingBag, Receipt, CheckCircle2, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { formatCurrency } from '@/shared/utils/currency';
-import { getTodayInTimezone } from '@/shared/lib/date';
-import { toast } from 'react-hot-toast';
+import { useState, useMemo } from "react";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import {
+  PremiumTable,
+  PremiumTableRow,
+  PremiumTableCell,
+} from "@/shared/components/ui/PremiumTable";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import { HeroBanner } from "@/shared/components/ui/HeroBanner";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import {
+  useAccountsDashboard,
+  useGenerateDailyReport,
+  useGenerateMonthlyReport,
+} from "@/features/accounts/hooks/useAccounts";
+import {
+  FileText,
+  IndianRupee,
+  ShoppingBag,
+  Receipt,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { formatCurrency } from "@/shared/utils/currency";
+import { getTodayInTimezone } from "@/shared/lib/date";
+import { toast } from "react-hot-toast";
 
 export function AccountsDashboardPage() {
-  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month'>('today');
+  const [dateRange, setDateRange] = useState<"today" | "week" | "month">(
+    "today",
+  );
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
 
   // Compute start/end anchored to IST (Asia/Kolkata, UTC+05:30) so the
@@ -23,44 +42,50 @@ export function AccountsDashboardPage() {
     const endStr = todayIST;
     let startStr = todayIST;
 
-    if (dateRange === 'week') {
+    if (dateRange === "week") {
       // 7 days ago in IST
       const sevenDaysAgo = new Date(`${todayIST}T00:00:00+05:30`);
       sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
-      startStr = getTodayInTimezone('Asia/Kolkata', sevenDaysAgo);
-    } else if (dateRange === 'month') {
+      startStr = getTodayInTimezone("Asia/Kolkata", sevenDaysAgo);
+    } else if (dateRange === "month") {
       // 30 days ago in IST
       const thirtyDaysAgo = new Date(`${todayIST}T00:00:00+05:30`);
       thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
-      startStr = getTodayInTimezone('Asia/Kolkata', thirtyDaysAgo);
+      startStr = getTodayInTimezone("Asia/Kolkata", thirtyDaysAgo);
     }
 
     // Construct explicit IST boundaries for Timestamp range queries
     const start = new Date(`${startStr}T00:00:00+05:30`);
-    const end   = new Date(`${endStr}T23:59:59.999+05:30`);
+    const end = new Date(`${endStr}T23:59:59.999+05:30`);
     return { startStr, endStr, start, end };
   }, [dateRange]);
 
-  const { payments, invoices, orders, isLoading, isError } = useAccountsDashboard(start, end, startStr, endStr);
+  const { payments, invoices, orders, isLoading, isError } =
+    useAccountsDashboard(start, end, startStr, endStr);
 
   const dailyReportMutation = useGenerateDailyReport();
   const monthlyReportMutation = useGenerateMonthlyReport();
 
   if (isLoading) return <LoadingScreen />;
-  if (isError) return <div className="p-8 text-danger">Failed to load accounts data.</div>;
+  if (isError)
+    return <div className="p-8 text-danger">Failed to load accounts data.</div>;
 
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const outstandingInvoices = invoices.filter(inv => inv.status === 'issued' || inv.status === 'overdue').length;
+  const outstandingInvoices = invoices.filter(
+    (inv) => inv.status === "issued" || inv.status === "overdue",
+  ).length;
 
-  const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
-  const failedOrders = orders.filter(o => o.status === 'failed_delivery').length;
-  const cancelledOrders = orders.filter(o => o.status === 'cancelled').length;
+  const deliveredOrders = orders.filter((o) => o.status === "delivered").length;
+  const failedOrders = orders.filter(
+    (o) => o.status === "failed_delivery",
+  ).length;
+  const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
 
   const triggerDownload = (csvContent: string, filename: string) => {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -69,10 +94,10 @@ export function AccountsDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleGenerateReport = async (type: 'daily' | 'monthly') => {
+  const handleGenerateReport = async (type: "daily" | "monthly") => {
     setGeneratingReport(type);
     try {
-      if (type === 'daily') {
+      if (type === "daily") {
         const todayStr = getTodayInTimezone();
         const csvString = await dailyReportMutation.mutateAsync(todayStr);
         triggerDownload(csvString, `daily_report_${todayStr}.csv`);
@@ -85,7 +110,7 @@ export function AccountsDashboardPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Failed to generate report.');
+      toast.error("Failed to generate report.");
     } finally {
       setGeneratingReport(null);
     }
@@ -93,27 +118,37 @@ export function AccountsDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <HeroBanner 
+      <HeroBanner
         userName="Accounts Team"
         subtitle="Financial overview and operational reporting."
         actions={
           <>
-            <Button variant="secondary" onClick={() => handleGenerateReport('daily')} isLoading={generatingReport === 'daily'}>
-              <FileText size={16} className="mr-2"/> Daily Report
+            <Button
+              variant="secondary"
+              onClick={() => handleGenerateReport("daily")}
+              isLoading={generatingReport === "daily"}
+            >
+              <FileText size={16} className="mr-2" /> Daily Report
             </Button>
-            <Button onClick={() => handleGenerateReport('monthly')} isLoading={generatingReport === 'monthly'}>
-              <FileText size={16} className="mr-2"/> Monthly Report
+            <Button
+              onClick={() => handleGenerateReport("monthly")}
+              isLoading={generatingReport === "monthly"}
+            >
+              <FileText size={16} className="mr-2" /> Monthly Report
             </Button>
           </>
         }
       />
 
       <div className="flex gap-2 p-1 bg-white border border-gold/20 rounded-lg w-fit shadow-sm">
-        {(['today', 'week', 'month'] as const).map(range => (
-          <button key={range}
+        {(["today", "week", "month"] as const).map((range) => (
+          <button
+            key={range}
             onClick={() => setDateRange(range)}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
-              dateRange === range ? 'bg-primary shadow-sm text-white' : 'text-text-muted hover:text-primary hover:bg-background'
+              dateRange === range
+                ? "bg-primary shadow-sm text-white"
+                : "text-text-muted hover:text-primary hover:bg-background"
             }`}
           >
             {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -129,7 +164,9 @@ export function AccountsDashboardPage() {
           <div className="text-3xl font-display font-bold text-primary mt-1">
             {formatCurrency(totalRevenue)}
           </div>
-          <div className="text-xs text-text-muted/80 mt-1">From {payments.length} successful payments</div>
+          <div className="text-xs text-text-muted/80 mt-1">
+            From {payments.length} successful payments
+          </div>
         </Card>
 
         <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-amber-500">
@@ -139,12 +176,15 @@ export function AccountsDashboardPage() {
           <div className="text-3xl font-display font-bold text-primary mt-1">
             {formatCurrency(totalInvoiced)}
           </div>
-          <div className="text-xs text-text-muted/80 mt-1">{invoices.length} invoices generated</div>
+          <div className="text-xs text-text-muted/80 mt-1">
+            {invoices.length} invoices generated
+          </div>
         </Card>
 
         <Card className="p-6 flex flex-col gap-2 border-l-4 border-l-warning">
           <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
-            <AlertCircle size={18} className="text-warning" /> Outstanding Invoices
+            <AlertCircle size={18} className="text-warning" /> Outstanding
+            Invoices
           </div>
           <div className="text-3xl font-display font-bold text-primary mt-1">
             {outstandingInvoices}
@@ -159,60 +199,88 @@ export function AccountsDashboardPage() {
           <div className="text-3xl font-display font-bold text-primary mt-1">
             {orders.length}
           </div>
-          <div className="text-xs text-text-muted/80 mt-1">In selected period</div>
+          <div className="text-xs text-text-muted/80 mt-1">
+            In selected period
+          </div>
         </Card>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
         <section className="space-y-4">
-          <h2 className="text-xl font-display font-semibold text-primary">Operational Summary</h2>
+          <h2 className="text-xl font-display font-semibold text-primary">
+            Operational Summary
+          </h2>
           <Card className="p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="text-success" size={20}/>
-                  <span className="font-medium text-primary">Delivered Successfully</span>
+                  <CheckCircle2 className="text-success" size={20} />
+                  <span className="font-medium text-primary">
+                    Delivered Successfully
+                  </span>
                 </div>
-                <span className="text-xl font-bold font-display text-primary">{deliveredOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">
+                  {deliveredOrders}
+                </span>
               </div>
               <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
-                  <XCircle className="text-danger" size={20}/>
-                  <span className="font-medium text-primary">Failed Deliveries</span>
+                  <XCircle className="text-danger" size={20} />
+                  <span className="font-medium text-primary">
+                    Failed Deliveries
+                  </span>
                 </div>
-                <span className="text-xl font-bold font-display text-primary">{failedOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">
+                  {failedOrders}
+                </span>
               </div>
               <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-gold/10">
                 <div className="flex items-center gap-3">
-                  <RefreshCw className="text-text-muted" size={20}/>
-                  <span className="font-medium text-primary">Cancelled / Skipped</span>
+                  <RefreshCw className="text-text-muted" size={20} />
+                  <span className="font-medium text-primary">
+                    Cancelled / Skipped
+                  </span>
                 </div>
-                <span className="text-xl font-bold font-display text-primary">{cancelledOrders}</span>
+                <span className="text-xl font-bold font-display text-primary">
+                  {cancelledOrders}
+                </span>
               </div>
             </div>
           </Card>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-display font-semibold text-primary">Recent Invoices</h2>
-          <PremiumTable 
-            columns={['Invoice #', 'Date', 'Amount', 'Status']} 
+          <h2 className="text-xl font-display font-semibold text-primary">
+            Recent Invoices
+          </h2>
+          <PremiumTable
+            columns={["Invoice #", "Date", "Amount", "Status"]}
             isEmpty={invoices.length === 0}
             emptyState="No invoices in this period"
           >
-            {invoices.slice(0, 5).map(inv => (
+            {invoices.slice(0, 5).map((inv) => (
               <PremiumTableRow key={inv.id}>
-                <PremiumTableCell className="font-medium">{inv.invoiceNumber}</PremiumTableCell>
-                <PremiumTableCell className="text-text-muted">
-                  {inv.createdAt?.toDate ? inv.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                <PremiumTableCell className="font-medium">
+                  {inv.invoiceNumber}
                 </PremiumTableCell>
-                <PremiumTableCell className="font-semibold">{formatCurrency(inv.totalAmount)}</PremiumTableCell>
+                <PremiumTableCell className="text-text-muted">
+                  {inv.createdAt?.toDate
+                    ? inv.createdAt.toDate().toLocaleDateString()
+                    : "N/A"}
+                </PremiumTableCell>
+                <PremiumTableCell className="font-semibold">
+                  {formatCurrency(inv.totalAmount)}
+                </PremiumTableCell>
                 <PremiumTableCell>
-                  <Badge variant={
-                    inv.status === 'paid' ? 'success' :
-                    inv.status === 'issued' ? 'warning' :
-                    'default'
-                  }>
+                  <Badge
+                    variant={
+                      inv.status === "paid"
+                        ? "success"
+                        : inv.status === "issued"
+                          ? "warning"
+                          : "default"
+                    }
+                  >
                     {inv.status}
                   </Badge>
                 </PremiumTableCell>

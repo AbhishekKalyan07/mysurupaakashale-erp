@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { deliveryZoneRepository } from '@/shared/services/firestore/deliveryZoneRepository';
-import { where } from 'firebase/firestore';
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { deliveryZoneRepository } from "@/shared/services/firestore/deliveryZoneRepository";
+import { where } from "firebase/firestore";
 /**
  * A shared reference-data hook for fetching and mapping Zones, Partners, and Customers.
  * Highly reusable across Kitchen and Delivery modules to resolve IDs to display names.
@@ -10,7 +10,7 @@ import { where } from 'firebase/firestore';
 export function useReferenceData(customerIds: string[] = []) {
   // 1. Fetch Zones
   const zonesQuery = useQuery({
-    queryKey: ['reference', 'zones'],
+    queryKey: ["reference", "zones"],
     queryFn: () => deliveryZoneRepository.list(),
     staleTime: 10 * 60_000, // 10 minutes
   });
@@ -27,8 +27,12 @@ export function useReferenceData(customerIds: string[] = []) {
 
   // 2. Fetch Delivery Partners
   const partnersQuery = useQuery({
-    queryKey: ['reference', 'delivery_partners'],
-    queryFn: () => userRepository.list(where('role', '==', 'delivery_partner'), where('isActive', '==', true)),
+    queryKey: ["reference", "delivery_partners"],
+    queryFn: () =>
+      userRepository.list(
+        where("role", "==", "delivery_partner"),
+        where("isActive", "==", true),
+      ),
     staleTime: 10 * 60_000,
   });
 
@@ -44,18 +48,20 @@ export function useReferenceData(customerIds: string[] = []) {
 
   // 3. Fetch Customers (batch)
   const uniqueCustomerIds = useMemo(() => {
-    return customerIds.length > 0 ? [...new Set(customerIds)].filter(Boolean).sort() : [];
+    return customerIds.length > 0
+      ? [...new Set(customerIds)].filter(Boolean).sort()
+      : [];
   }, [customerIds]);
 
   const customerQueries = useQuery({
-    queryKey: ['reference', 'customerProfiles', ...uniqueCustomerIds],
+    queryKey: ["reference", "customerProfiles", ...uniqueCustomerIds],
     queryFn: async () => {
       if (uniqueCustomerIds.length === 0) return {};
-      
+
       const map: Record<string, string> = {};
       const chunkSize = 30;
       const chunks: string[][] = [];
-      
+
       for (let i = 0; i < uniqueCustomerIds.length; i += chunkSize) {
         chunks.push(uniqueCustomerIds.slice(i, i + chunkSize));
       }
@@ -63,15 +69,20 @@ export function useReferenceData(customerIds: string[] = []) {
       await Promise.all(
         chunks.map(async (chunk) => {
           try {
-            const profiles = await userRepository.list(where('id', 'in', chunk));
+            const profiles = await userRepository.list(
+              where("id", "in", chunk),
+            );
             for (const profile of profiles) {
               map[profile.id] = profile.fullName || profile.id;
             }
           } catch (err) {
-            console.error('[useReferenceData] Failed to fetch customer profiles chunk', err);
+            console.error(
+              "[useReferenceData] Failed to fetch customer profiles chunk",
+              err,
+            );
             throw err;
           }
-        })
+        }),
       );
 
       // Fallback for missing/deleted profiles

@@ -12,11 +12,11 @@
  * three (see the "Keeping roles in sync" note in README.md).
  */
 export const ROLES = {
-  ADMIN: 'admin',
-  CUSTOMER: 'customer',
-  KITCHEN: 'kitchen',
-  DELIVERY_PARTNER: 'delivery_partner',
-  ACCOUNTS: 'accounts',
+  ADMIN: "admin",
+  CUSTOMER: "customer",
+  KITCHEN: "kitchen",
+  DELIVERY_PARTNER: "delivery_partner",
+  ACCOUNTS: "accounts",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -33,23 +33,23 @@ export const STAFF_ROLES: Role[] = [
 
 /** Human-readable labels for UI display. */
 export const ROLE_LABELS: Record<Role, string> = {
-  [ROLES.ADMIN]: 'Admin',
-  [ROLES.CUSTOMER]: 'Customer',
-  [ROLES.KITCHEN]: 'Kitchen',
-  [ROLES.DELIVERY_PARTNER]: 'Delivery Partner',
-  [ROLES.ACCOUNTS]: 'Accounts',
+  [ROLES.ADMIN]: "Admin",
+  [ROLES.CUSTOMER]: "Customer",
+  [ROLES.KITCHEN]: "Kitchen",
+  [ROLES.DELIVERY_PARTNER]: "Delivery Partner",
+  [ROLES.ACCOUNTS]: "Accounts",
 };
 
 /** Where each role lands immediately after signing in. */
 export const ROLE_HOME_ROUTE: Record<Role, string> = {
-  [ROLES.ADMIN]: '/dashboard',
-  [ROLES.CUSTOMER]: '/dashboard',
-  [ROLES.KITCHEN]: '/dashboard',
-  [ROLES.DELIVERY_PARTNER]: '/dashboard',
-  [ROLES.ACCOUNTS]: '/dashboard',
+  [ROLES.ADMIN]: "/dashboard",
+  [ROLES.CUSTOMER]: "/dashboard",
+  [ROLES.KITCHEN]: "/dashboard",
+  [ROLES.DELIVERY_PARTNER]: "/dashboard",
+  [ROLES.ACCOUNTS]: "/dashboard",
 };
 
 /** Type guard used when reading an unknown value out of a Firebase ID token. */
 export function isRole(value: unknown): value is Role {
-  return typeof value === 'string' && (ALL_ROLES as string[]).includes(value);
+  return typeof value === "string" && (ALL_ROLES as string[]).includes(value);
 }

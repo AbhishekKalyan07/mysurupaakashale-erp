@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import type { OrderWorkflowHistory, OrderStatus } from '@/shared/types';
+import { useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { orderRepository } from "@/shared/services/firestore/orderRepository";
+import type { OrderWorkflowHistory, OrderStatus } from "@/shared/types";
 
 export function useWorkflowHistory(orderId: string) {
   const [history, setHistory] = useState<OrderWorkflowHistory[]>([]);
@@ -25,7 +25,7 @@ export function useWorkflowHistory(orderId: string) {
       (err) => {
         setError(err);
         setIsLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -36,7 +36,15 @@ export function useWorkflowHistory(orderId: string) {
 
 export function useOrderWorkflow() {
   return useMutation({
-    mutationFn: async ({ orderId, newStatus, notes }: { orderId: string; newStatus: OrderStatus; notes?: string }) => {
+    mutationFn: async ({
+      orderId,
+      newStatus,
+      notes,
+    }: {
+      orderId: string;
+      newStatus: OrderStatus;
+      notes?: string;
+    }) => {
       await orderRepository.updateWorkflow(orderId, newStatus, notes);
     },
   });

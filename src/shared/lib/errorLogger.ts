@@ -1,4 +1,4 @@
-import type { ErrorInfo } from 'react';
+import type { ErrorInfo } from "react";
 
 export interface ErrorLogContext {
   componentStack?: string;
@@ -15,7 +15,7 @@ export interface ErrorLogContext {
  * fully-functional console logger until that decision is made.
  */
 export function logError(error: Error, context?: ErrorLogContext): void {
-  console.error('[error]', error, context ?? '');
+  console.error("[error]", error, context ?? "");
 }
 
 /** Adapts a React ErrorInfo (from componentDidCatch) into the shape logError expects. */

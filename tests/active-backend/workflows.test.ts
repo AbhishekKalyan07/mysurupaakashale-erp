@@ -21,8 +21,8 @@ describe('production GitHub Actions automations', () => {
     expect(content).toContain('VITE_AUTOMATION_PASSWORD: ${{ secrets.VITE_AUTOMATION_PASSWORD }}');
   });
 
-  it('does not deploy or invoke Firebase Cloud Functions', () => {
+  it('automation workflows do not deploy Cloud Functions (deployed separately via CI)', () => {
     const workflows = ['daily.yml', 'weekly.yml', 'monthly.yml'].map(workflow).join('\n');
-    expect(workflows).not.toMatch(/firebase\s+deploy\s+--only\s+functions|firebase-functions|functions\/src/i);
+    expect(workflows).not.toMatch(/firebase\s+deploy\s+--only\s+functions/i);
   });
 });

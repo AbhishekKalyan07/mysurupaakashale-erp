@@ -1,7 +1,7 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { ROLE_HOME_ROUTE, type Role } from '@/shared/constants/roles';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { useAuth } from '../hooks/useAuth';
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { ROLE_HOME_ROUTE, type Role } from "@/shared/constants/roles";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { useAuth } from "../hooks/useAuth";
 
 export interface ProtectedRouteProps {
   /** Roles allowed into this route's subtree. Omit to just require "signed in, any role". */
@@ -24,11 +24,11 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const { status, role } = useAuth();
   const location = useLocation();
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return <LoadingScreen />;
   }
 
-  if (status === 'unauthenticated' || !role) {
+  if (status === "unauthenticated" || !role) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

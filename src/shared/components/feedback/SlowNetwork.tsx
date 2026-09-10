@@ -1,7 +1,7 @@
-import { Wifi, X, RefreshCcw } from 'lucide-react';
-import { LeafSpinner } from '../ui/LeafSpinner';
-import type { NetworkState } from '@/shared/hooks/useSlowNetwork';
-import { useState, useEffect } from 'react';
+import { Wifi, X, RefreshCcw } from "lucide-react";
+import { LeafSpinner } from "../ui/LeafSpinner";
+import type { NetworkState } from "@/shared/hooks/useSlowNetwork";
+import { useState, useEffect } from "react";
 
 export interface SlowNetworkProps {
   state: NetworkState;
@@ -18,12 +18,12 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
 
   // Auto-reset dismissal if state becomes fast again
   useEffect(() => {
-    if (state === 'fast') setIsDismissed(false);
+    if (state === "fast") setIsDismissed(false);
   }, [state]);
 
-  if (state === 'fast' || isDismissed) return null;
+  if (state === "fast" || isDismissed) return null;
 
-  const isStalled = state === 'stalled';
+  const isStalled = state === "stalled";
 
   return (
     <div
@@ -36,23 +36,25 @@ export function SlowNetwork({ state, onRetry }: SlowNetworkProps) {
         <Wifi size={14} className="text-warning shrink-0" />
         <span className="truncate">
           <strong className="font-semibold">
-            {isStalled ? 'Still loading...' : 'Slow connection detected.'}
-          </strong>{' '}
-          {isStalled 
-            ? 'This is taking longer than expected.' 
-            : 'Loading your data — this may take a moment.'}
+            {isStalled ? "Still loading..." : "Slow connection detected."}
+          </strong>{" "}
+          {isStalled
+            ? "This is taking longer than expected."
+            : "Loading your data — this may take a moment."}
         </span>
       </div>
-      
+
       {isStalled && (
         <div className="flex items-center gap-3 shrink-0">
-          <button onClick={() => setIsDismissed(true)}
+          <button
+            onClick={() => setIsDismissed(true)}
             className="text-ink-500 hover:text-ink-700 font-medium transition-colors"
           >
             Wait
           </button>
           {onRetry && (
-            <button onClick={onRetry}
+            <button
+              onClick={onRetry}
               className="flex items-center gap-1.5 text-warning-700 hover:text-warning-800 font-medium transition-colors"
             >
               <RefreshCcw size={14} />

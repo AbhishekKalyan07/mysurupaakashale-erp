@@ -1,4 +1,4 @@
-import type { ID, ISODateString, Timestamp } from './common.types';
+import type { ID, ISODateString, Timestamp } from "./common.types";
 
 /**
  * Firestore: `holidays/{holidayId}`
@@ -44,7 +44,7 @@ export interface Holiday {
    * 'cancelled' → holiday was withdrawn; order generation remains blocked
    *               (previously cancelled orders are NOT automatically restored).
    */
-  status: 'active' | 'cancelled';
+  status: "active" | "cancelled";
 
   /**
    * UID of the admin who declared the holiday.

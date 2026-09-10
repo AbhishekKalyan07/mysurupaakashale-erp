@@ -1,26 +1,45 @@
-import { Timestamp } from 'firebase/firestore';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { firebaseApp, db, auth } from '@/shared/lib/firebase';
-import { where, serverTimestamp, doc, getDoc, setDoc, deleteDoc, type QueryDocumentSnapshot } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, updateProfile, initializeAuth, inMemoryPersistence, connectAuthEmulator } from 'firebase/auth';
-import { parseFirestoreDate } from '@/shared/utils/dateUtils';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { auditRepository } from '@/shared/services/firestore/auditRepository';
-import toast from 'react-hot-toast';
-import type { UserProfile, CustomerProfile } from '@/shared/types';
-import type { Role } from '@/shared/constants/roles';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { notifyStaffAccountCreated } from '@/shared/services/firestore/notificationService';
+import { Timestamp } from "firebase/firestore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { firebaseApp, db, auth } from "@/shared/lib/firebase";
+import {
+  where,
+  serverTimestamp,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  type QueryDocumentSnapshot,
+} from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  initializeAuth,
+  inMemoryPersistence,
+  connectAuthEmulator,
+} from "firebase/auth";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
+import { initializeApp, deleteApp } from "firebase/app";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
+import toast from "react-hot-toast";
+import type { UserProfile, CustomerProfile } from "@/shared/types";
+import type { Role } from "@/shared/constants/roles";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import { notifyStaffAccountCreated } from "@/shared/services/firestore/notificationService";
 
 export function useStaffUsers() {
   return useQuery({
-    queryKey: [...queryKeys.users.all, 'staff'],
+    queryKey: [...queryKeys.users.all, "staff"],
     queryFn: async () => {
       const users = await userRepository.list(
-        where('role', 'in', ['admin', 'kitchen', 'delivery_partner', 'accounts'])
+        where("role", "in", [
+          "admin",
+          "kitchen",
+          "delivery_partner",
+          "accounts",
+        ]),
       );
-      
+
       // Sort in memory to avoid requiring a composite index on the users collection
       return users.sort((a, b) => {
         const dateA = parseFirestoreDate(a.createdAt)?.getTime() || 0;
@@ -31,11 +50,23 @@ export function useStaffUsers() {
   });
 }
 
-export function useAdminCustomers(lastDocSnap?: QueryDocumentSnapshot<UserProfile>) {
+export function useAdminCustomers(
+  lastDocSnap?: QueryDocumentSnapshot<UserProfile>,
+) {
   return useQuery({
-    queryKey: [...queryKeys.users.all, 'customers-paginated', lastDocSnap?.id ?? 'page-0'],
-    queryFn: async (): Promise<{ rows: CustomerProfile[]; lastDoc: QueryDocumentSnapshot<UserProfile> | null }> => {
-      const { customers, lastDoc } = await userRepository.getCustomersPaginated(20, lastDocSnap);
+    queryKey: [
+      ...queryKeys.users.all,
+      "customers-paginated",
+      lastDocSnap?.id ?? "page-0",
+    ],
+    queryFn: async (): Promise<{
+      rows: CustomerProfile[];
+      lastDoc: QueryDocumentSnapshot<UserProfile> | null;
+    }> => {
+      const { customers, lastDoc } = await userRepository.getCustomersPaginated(
+        20,
+        lastDocSnap,
+      );
       return { rows: customers as CustomerProfile[], lastDoc };
     },
     staleTime: 15_000,
@@ -45,7 +76,7 @@ export function useAdminCustomers(lastDocSnap?: QueryDocumentSnapshot<UserProfil
 
 export function useCreateStaffUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: {
       email: string;
@@ -67,20 +98,26 @@ export function useCreateStaffUser() {
         persistence: inMemoryPersistence,
       });
 
-      if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
-        connectAuthEmulator(tempAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
+        connectAuthEmulator(tempAuth, "http://127.0.0.1:9099", {
+          disableWarnings: true,
+        });
       }
-      
+
       try {
-        const phoneDocRef = doc(db, 'userPhones', data.phone);
+        const phoneDocRef = doc(db, "userPhones", data.phone);
         const existingPhone = await getDoc(phoneDocRef);
         if (existingPhone.exists()) {
-          throw new Error('Phone number is already registered.');
+          throw new Error("Phone number is already registered.");
         }
 
-        const credential = await createUserWithEmailAndPassword(tempAuth, data.email, data.password);
+        const credential = await createUserWithEmailAndPassword(
+          tempAuth,
+          data.email,
+          data.password,
+        );
         await updateProfile(credential.user, { displayName: data.fullName });
-        
+
         const displayId = await userRepository.generateNextDisplayId(data.role);
 
         const profileData: any = {
@@ -91,22 +128,27 @@ export function useCreateStaffUser() {
           phone: data.phone,
           photoUrl: null,
           isActive: true,
-          createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          createdAt:
+            serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          updatedAt:
+            serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         };
 
-        if (data.role === 'kitchen') {
+        if (data.role === "kitchen") {
           profileData.kitchenId = data.kitchenId;
-        } else if (data.role === 'delivery_partner') {
+        } else if (data.role === "delivery_partner") {
           profileData.zoneIds = data.zoneIds || [];
-          profileData.vehicleType = data.vehicleType || 'bike';
-          profileData.shifts = data.shifts || ['breakfast', 'lunch', 'dinner'];
+          profileData.vehicleType = data.vehicleType || "bike";
+          profileData.shifts = data.shifts || ["breakfast", "lunch", "dinner"];
           profileData.isAvailable = true;
           profileData.currentLocation = null;
         }
 
-        await userRepository.create(profileData as UserProfile, credential.user.uid);
-        
+        await userRepository.create(
+          profileData as UserProfile,
+          credential.user.uid,
+        );
+
         await setDoc(phoneDocRef, { uid: credential.user.uid });
 
         // Phase 4: Create Salary Profile
@@ -114,32 +156,43 @@ export function useCreateStaffUser() {
           basicSalary: data.basicSalary,
           overtimeRate: data.overtimeRate,
           isActive: true,
-          updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          updatedAt:
+            serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
         };
-        const { salaryProfileRepository } = await import('@/shared/services/firestore/payrollRepository');
-        await salaryProfileRepository.create(salaryData as any, credential.user.uid);
-        
+        const { salaryProfileRepository } =
+          await import("@/shared/services/firestore/payrollRepository");
+        await salaryProfileRepository.create(
+          salaryData as any,
+          credential.user.uid,
+        );
+
         const currentUser = auth.currentUser;
         if (currentUser) {
           await auditRepository.logAction(
-            'staff_created',
+            "staff_created",
             currentUser.uid,
-            currentUser.displayName || 'Admin',
+            "admin",
+            currentUser.displayName || "Admin",
             credential.user.uid,
-            'user',
-            { role: data.role, email: data.email }
+            "user",
+            { role: data.role, email: data.email },
           );
           await auditRepository.logAction(
-            'salary_profile_created',
+            "salary_profile_created",
             currentUser.uid,
-            currentUser.displayName || 'Admin',
+            "admin",
+            currentUser.displayName || "Admin",
             credential.user.uid,
-            'salary_profile',
-            { basicSalary: data.basicSalary, overtimeRate: data.overtimeRate }
+            "salary_profile",
+            { basicSalary: data.basicSalary, overtimeRate: data.overtimeRate },
           );
         }
-        
-        return { uid: credential.user.uid, fullName: data.fullName, role: data.role };
+
+        return {
+          uid: credential.user.uid,
+          fullName: data.fullName,
+          role: data.role,
+        };
       } finally {
         await tempAuth.signOut();
         await deleteApp(tempApp);
@@ -147,13 +200,15 @@ export function useCreateStaffUser() {
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toast.success('Staff user created successfully');
+      toast.success("Staff user created successfully");
       // Notify the new staff member — fire-and-forget.
-      notifyStaffAccountCreated(result.uid, result.role, result.fullName)
-        .catch((err) => console.error('[useCreateStaffUser] staff notification failed:', err));
+      notifyStaffAccountCreated(result.uid, result.role, result.fullName).catch(
+        (err) =>
+          console.error("[useCreateStaffUser] staff notification failed:", err),
+      );
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to create staff user');
+      toast.error((err as Error).message || "Failed to create staff user");
     },
   });
 }
@@ -161,45 +216,64 @@ export function useCreateStaffUser() {
 export function useToggleStaffStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ uid, isActive }: { uid: string; isActive: boolean }) => {
-      await userRepository.update(uid, { isActive, updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp } as Partial<UserProfile>);
+    mutationFn: async ({
+      uid,
+      isActive,
+    }: {
+      uid: string;
+      isActive: boolean;
+    }) => {
+      await userRepository.update(uid, {
+        isActive,
+        updatedAt:
+          serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      } as Partial<UserProfile>);
       const currentUser = auth.currentUser;
       if (currentUser) {
         await auditRepository.logAction(
-          isActive ? 'staff_activated' : 'staff_deactivated',
+          isActive ? "staff_activated" : "staff_deactivated",
           currentUser.uid,
-          currentUser.displayName || 'Admin',
+          "admin",
+          currentUser.displayName || "Admin",
           uid,
-          'user'
+          "user",
         );
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toast.success('Staff status updated');
+      toast.success("Staff status updated");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update staff status');
+      toast.error((err as Error).message || "Failed to update staff status");
     },
   });
 }
 
 export function useUpdateStaffUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ uid, data }: { uid: string; data: Partial<UserProfile> }) => {
+    mutationFn: async ({
+      uid,
+      data,
+    }: {
+      uid: string;
+      data: Partial<UserProfile>;
+    }) => {
       if (data.phone) {
         const currentUserProfile = await userRepository.getById(uid);
         if (currentUserProfile && currentUserProfile.phone !== data.phone) {
-          const newPhoneDocRef = doc(db, 'userPhones', data.phone);
+          const newPhoneDocRef = doc(db, "userPhones", data.phone);
           const existingPhone = await getDoc(newPhoneDocRef);
           if (existingPhone.exists() && existingPhone.data()?.uid !== uid) {
-            throw new Error('Phone number is already registered to another user.');
+            throw new Error(
+              "Phone number is already registered to another user.",
+            );
           }
-          
+
           if (currentUserProfile.phone) {
-            await deleteDoc(doc(db, 'userPhones', currentUserProfile.phone));
+            await deleteDoc(doc(db, "userPhones", currentUserProfile.phone));
           }
           await setDoc(newPhoneDocRef, { uid });
         }
@@ -207,37 +281,41 @@ export function useUpdateStaffUser() {
 
       await userRepository.update(uid, {
         ...data,
-        updatedAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt:
+          serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       } as Partial<UserProfile>);
       const currentUser = auth.currentUser;
       if (currentUser) {
         await auditRepository.logAction(
-          'staff_updated',
+          "staff_updated",
           currentUser.uid,
-          currentUser.displayName || 'Admin',
+          "admin",
+          currentUser.displayName || "Admin",
           uid,
-          'user',
-          { updatedKeys: Object.keys(data) }
+          "user",
+          { updatedKeys: Object.keys(data) },
         );
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toast.success('Staff user updated successfully');
+      toast.success("Staff user updated successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update staff user');
+      toast.error((err as Error).message || "Failed to update staff user");
     },
   });
 }
 
 export function useCustomerNameMap(customerIds: string[]) {
   const uniqueIds = Array.from(new Set(customerIds)).filter(Boolean);
-  
+
   const { data } = useQuery({
-    queryKey: ['customers', 'nameMap', uniqueIds.sort().join(',')],
+    queryKey: ["customers", "nameMap", uniqueIds.sort().join(",")],
     queryFn: async () => {
-      const results = await Promise.all(uniqueIds.map(id => userRepository.getById(id)));
+      const results = await Promise.all(
+        uniqueIds.map((id) => userRepository.getById(id)),
+      );
       const map = new Map<string, string>();
       results.forEach((user, idx) => {
         if (user) {
@@ -255,7 +333,7 @@ export function useCustomerNameMap(customerIds: string[]) {
 
 export function useAssignDeliveryPartner() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({
       customerId,
@@ -265,29 +343,32 @@ export function useAssignDeliveryPartner() {
       partnerId: string;
     }) => {
       const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error('Not authenticated');
-      
-      const { customerService } = await import('@/shared/services/business/customerService');
+      if (!currentUser) throw new Error("Not authenticated");
+
+      const { customerService } =
+        await import("@/shared/services/business/customerService");
       await customerService.assignDeliveryPartner(
         customerId,
         partnerId,
         currentUser.uid,
-        currentUser.displayName || 'Admin'
+        currentUser.displayName || "Admin",
       );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toast.success('Delivery partner assigned successfully');
+      toast.success("Delivery partner assigned successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to assign delivery partner');
+      toast.error(
+        (err as Error).message || "Failed to assign delivery partner",
+      );
     },
   });
 }
 
 export function useAssignCustomerZone() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({
       customerId,
@@ -297,22 +378,23 @@ export function useAssignCustomerZone() {
       zoneId: string;
     }) => {
       const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error('Not authenticated');
-      
-      const { customerService } = await import('@/shared/services/business/customerService');
+      if (!currentUser) throw new Error("Not authenticated");
+
+      const { customerService } =
+        await import("@/shared/services/business/customerService");
       await customerService.assignCustomerZone(
         customerId,
         zoneId,
         currentUser.uid,
-        currentUser.displayName || 'Admin'
+        currentUser.displayName || "Admin",
       );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      toast.success('Zone assigned successfully');
+      toast.success("Zone assigned successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to assign zone');
+      toast.error((err as Error).message || "Failed to assign zone");
     },
   });
 }

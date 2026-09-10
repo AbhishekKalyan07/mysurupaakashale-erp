@@ -1,8 +1,8 @@
-import { ShieldOff } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { PremiumButton as Button } from '../ui/PremiumButton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_HOME_ROUTE, type Role } from '@/shared/constants/roles';
+import { ShieldOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PremiumButton as Button } from "../ui/PremiumButton";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLE_HOME_ROUTE, type Role } from "@/shared/constants/roles";
 
 export interface PermissionDeniedProps {
   title?: string;
@@ -14,19 +14,19 @@ export interface PermissionDeniedProps {
 /**
  * Full-page permission denied state — shown when a user is authenticated but
  * does not have the correct role to view a given resource.
- * 
+ *
  * Different from UnauthorizedPage (not logged in at all).
  */
 export function PermissionDenied({
-  title = 'Access Restricted',
+  title = "Access Restricted",
   description = "You don't have permission to view this page. If you believe this is a mistake, please contact your administrator.",
   currentRole,
   requiredRole,
 }: PermissionDeniedProps) {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const homeTo = role ? ROLE_HOME_ROUTE[role] : '/login';
-  
+  const homeTo = role ? ROLE_HOME_ROUTE[role] : "/login";
+
   const displayCurrentRole = currentRole || role;
 
   return (
@@ -42,7 +42,9 @@ export function PermissionDenied({
       </div>
 
       <div className="space-y-2 max-w-sm">
-        <h1 className="font-display text-2xl font-bold text-ink-900">{title}</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-900">
+          {title}
+        </h1>
         <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
       </div>
 
@@ -50,8 +52,12 @@ export function PermissionDenied({
         <div className="flex gap-4 items-center bg-rice-50 border border-rice-200 rounded-lg p-3 text-sm">
           {displayCurrentRole && (
             <div className="flex flex-col text-left">
-              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">Your Role</span>
-              <span className="text-ink-900 font-medium capitalize">{displayCurrentRole}</span>
+              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">
+                Your Role
+              </span>
+              <span className="text-ink-900 font-medium capitalize">
+                {displayCurrentRole}
+              </span>
             </div>
           )}
           {displayCurrentRole && requiredRole && (
@@ -59,8 +65,12 @@ export function PermissionDenied({
           )}
           {requiredRole && (
             <div className="flex flex-col text-left">
-              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">Required Role</span>
-              <span className="text-ink-900 font-medium capitalize">{requiredRole}</span>
+              <span className="text-ink-500 text-xs uppercase tracking-wider font-semibold">
+                Required Role
+              </span>
+              <span className="text-ink-900 font-medium capitalize">
+                {requiredRole}
+              </span>
             </div>
           )}
         </div>

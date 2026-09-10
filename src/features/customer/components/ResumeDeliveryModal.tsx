@@ -1,24 +1,27 @@
-import { useState } from 'react';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { subscriptionService } from '@/shared/services/business/subscriptionService';
-import { orderService } from '@/shared/services/business/orderService';
-import { db } from '@/shared/lib/firebase';
-import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { toast } from 'react-hot-toast';
-import type { Subscription, MealType } from '@/shared/types';
-import { getTodayInTimezone } from '@/shared/lib/date';
-import { XCircle } from 'lucide-react';
+import { useState } from "react";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { subscriptionService } from "@/shared/services/business/subscriptionService";
+import { orderService } from "@/shared/services/business/orderService";
+import { db } from "@/shared/lib/firebase";
+import { doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import { toast } from "react-hot-toast";
+import type { Subscription, MealType } from "@/shared/types";
+import { getTodayInTimezone } from "@/shared/lib/date";
+import { XCircle } from "lucide-react";
 
 interface ResumeDeliveryModalProps {
   subscription: Subscription;
   onClose: () => void;
 }
 
-export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryModalProps) {
-  const [resumeDate, setResumeDate] = useState<'today' | 'tomorrow'>('today');
+export function ResumeDeliveryModal({
+  subscription,
+  onClose,
+}: ResumeDeliveryModalProps) {
+  const [resumeDate, setResumeDate] = useState<"today" | "tomorrow">("today");
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
@@ -38,53 +41,68 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
   if (currentHour >= 19) {
     canResumeToday = false;
   } else if (currentHour >= 12.5) {
-    skippedMealsToday = ['breakfast', 'lunch'];
-    resumedMealsToday = ['dinner'];
+    skippedMealsToday = ["breakfast", "lunch"];
+    resumedMealsToday = ["dinner"];
   } else if (currentHour >= 9) {
-    skippedMealsToday = ['breakfast'];
-    resumedMealsToday = ['lunch', 'dinner'];
+    skippedMealsToday = ["breakfast"];
+    resumedMealsToday = ["lunch", "dinner"];
   } else {
     skippedMealsToday = [];
-    resumedMealsToday = ['breakfast', 'lunch', 'dinner'];
+    resumedMealsToday = ["breakfast", "lunch", "dinner"];
   }
 
   // Filter based on subscription preferences
-  skippedMealsToday = skippedMealsToday.filter(meal => 
-    subscription.mealPreferences.some(pref => pref.mealType === meal)
+  skippedMealsToday = skippedMealsToday.filter((meal) =>
+    subscription.mealPreferences.some((pref) => pref.mealType === meal),
   );
-  resumedMealsToday = resumedMealsToday.filter(meal => 
-    subscription.mealPreferences.some(pref => pref.mealType === meal)
+  resumedMealsToday = resumedMealsToday.filter((meal) =>
+    subscription.mealPreferences.some((pref) => pref.mealType === meal),
   );
 
   const handleResume = async () => {
     setLoading(true);
     try {
-      if (resumeDate === 'today' && canResumeToday) {
+      if (resumeDate === "today" && canResumeToday) {
         // Create skip record for missed meals today
         if (skippedMealsToday.length > 0) {
-          const skipRef = doc(db, 'subscriptions', subscription.id, 'skips', today);
+          const skipRef = doc(
+            db,
+            "subscriptions",
+            subscription.id,
+            "skips",
+            today,
+          );
           await setDoc(skipRef, {
             date: today,
             mealTypes: skippedMealsToday,
-            reason: 'Resumed late in the day',
+            reason: "Resumed late in the day",
             createdAt: serverTimestamp() as unknown as Timestamp,
             createdBy: subscription.customerId,
           });
         }
-        
+
         // Generate remaining orders for today
         if (resumedMealsToday.length > 0) {
-          await orderService.generateOrdersForSubscription(subscription, today, resumedMealsToday);
+          await orderService.generateOrdersForSubscription(
+            subscription,
+            today,
+            resumedMealsToday,
+          );
         }
 
         // Resume subscription immediately
         await subscriptionService.resumeSubscription(subscription);
-        toast.success('Subscription resumed for today!');
+        toast.success("Subscription resumed for today!");
       } else {
         // Schedule resume for tomorrow by setting pause end date to today
         // (pauseEndDate is inclusive, so it resumes tomorrow)
-        await subscriptionService.pauseSubscription(subscription, true, subscription.pauseStartDate || today, today);
-        toast.success('Subscription scheduled to resume tomorrow!');
+        await subscriptionService.pauseSubscription(
+          subscription,
+          true,
+          subscription.pauseStartDate || today,
+          today,
+        );
+        toast.success("Subscription scheduled to resume tomorrow!");
       }
 
       queryClient.invalidateQueries({
@@ -92,8 +110,8 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
       });
       onClose();
     } catch (err) {
-      console.error('Failed to resume delivery:', err);
-      toast.error('Failed to resume delivery.');
+      console.error("Failed to resume delivery:", err);
+      toast.error("Failed to resume delivery.");
     } finally {
       setLoading(false);
     }
@@ -102,33 +120,49 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
       <Card className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-ink-500 hover:text-ink-600">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-ink-500 hover:text-ink-600"
+        >
           <XCircle size={20} />
         </button>
-        <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">Resume Subscription</h2>
+        <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">
+          Resume Subscription
+        </h2>
         <p className="text-sm font-sans text-ink-600 mb-6">
           When would you like your meal deliveries to restart?
         </p>
 
         <div className="space-y-4 mb-6">
           {canResumeToday && (
-            <label className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
-              resumeDate === 'today' ? 'border-emerald-600 bg-emerald-50/20' : 'border-rice-300'
-            }`}>
+            <label
+              className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                resumeDate === "today"
+                  ? "border-emerald-600 bg-emerald-50/20"
+                  : "border-rice-300"
+              }`}
+            >
               <div className="flex items-start gap-3">
-                <input 
-                  type="radio" 
-                  name="resumeDate" 
-                  checked={resumeDate === 'today'}
-                  onChange={() => setResumeDate('today')}
+                <input
+                  type="radio"
+                  name="resumeDate"
+                  checked={resumeDate === "today"}
+                  onChange={() => setResumeDate("today")}
                   className="mt-1 accent-emerald-600"
                 />
                 <div>
-                  <h4 className="font-sans font-bold text-ink-900 text-sm">Resume Today</h4>
+                  <h4 className="font-sans font-bold text-ink-900 text-sm">
+                    Resume Today
+                  </h4>
                   {resumedMealsToday.length > 0 ? (
                     <p className="text-ink-500 text-xs mt-1">
-                      You will receive: <span className="font-bold text-emerald-700 capitalize">{resumedMealsToday.join(' & ')}</span> today.
-                      {skippedMealsToday.length > 0 && ` (Missed ${skippedMealsToday.join(' & ')})`}
+                      You will receive:{" "}
+                      <span className="font-bold text-emerald-700 capitalize">
+                        {resumedMealsToday.join(" & ")}
+                      </span>{" "}
+                      today.
+                      {skippedMealsToday.length > 0 &&
+                        ` (Missed ${skippedMealsToday.join(" & ")})`}
                     </p>
                   ) : (
                     <p className="text-rose-600 text-xs mt-1">
@@ -146,22 +180,29 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
             </div>
           )}
 
-          <label className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
-            resumeDate === 'tomorrow' || !canResumeToday ? 'border-emerald-600 bg-emerald-50/20' : 'border-rice-300'
-          }`}>
+          <label
+            className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              resumeDate === "tomorrow" || !canResumeToday
+                ? "border-emerald-600 bg-emerald-50/20"
+                : "border-rice-300"
+            }`}
+          >
             <div className="flex items-start gap-3">
-              <input 
-                type="radio" 
-                name="resumeDate" 
-                checked={resumeDate === 'tomorrow' || !canResumeToday}
-                onChange={() => setResumeDate('tomorrow')}
+              <input
+                type="radio"
+                name="resumeDate"
+                checked={resumeDate === "tomorrow" || !canResumeToday}
+                onChange={() => setResumeDate("tomorrow")}
                 disabled={!canResumeToday}
                 className="mt-1 accent-emerald-600"
               />
               <div>
-                <h4 className="font-sans font-bold text-ink-900 text-sm">Resume Tomorrow</h4>
+                <h4 className="font-sans font-bold text-ink-900 text-sm">
+                  Resume Tomorrow
+                </h4>
                 <p className="text-ink-500 text-xs mt-1">
-                  Deliveries will restart automatically starting tomorrow morning.
+                  Deliveries will restart automatically starting tomorrow
+                  morning.
                 </p>
               </div>
             </div>
@@ -169,12 +210,22 @@ export function ResumeDeliveryModal({ subscription, onClose }: ResumeDeliveryMod
         </div>
 
         <div className="flex gap-3">
-          <Button variant="secondary" className="flex-1 font-sans" onClick={onClose}>Cancel</Button>
-          <Button 
-            className="flex-1 font-sans" 
-            onClick={handleResume} 
+          <Button
+            variant="secondary"
+            className="flex-1 font-sans"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="flex-1 font-sans"
+            onClick={handleResume}
             isLoading={loading}
-            disabled={resumeDate === 'today' && resumedMealsToday.length === 0 && canResumeToday}
+            disabled={
+              resumeDate === "today" &&
+              resumedMealsToday.length === 0 &&
+              canResumeToday
+            }
           >
             Confirm Resume
           </Button>

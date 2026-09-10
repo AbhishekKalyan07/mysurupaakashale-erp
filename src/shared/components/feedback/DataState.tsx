@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { ErrorState } from './ErrorState';
-import { EmptyState } from './EmptyState';
+import type { ReactNode } from "react";
+import { ErrorState } from "./ErrorState";
+import { EmptyState } from "./EmptyState";
 import {
   TableSkeleton,
   DashboardCardsSkeleton,
@@ -9,16 +9,10 @@ import {
   ChartSkeleton,
   ListSkeleton,
   PageSkeleton,
-} from './SkeletonLoader';
+} from "./SkeletonLoader";
 
 export type SkeletonType =
-  | 'table'
-  | 'dashboard-cards'
-  | 'card'
-  | 'form'
-  | 'chart'
-  | 'list'
-  | 'page';
+  "table" | "dashboard-cards" | "card" | "form" | "chart" | "list" | "page";
 
 export interface DataStateProps<T> {
   /** If true, renders the chosen skeleton */
@@ -31,7 +25,7 @@ export interface DataStateProps<T> {
   skeletonType?: SkeletonType;
   /** Called if the user clicks "Try again" on an error */
   onRetry?: () => void;
-  
+
   // -- Empty state props --
   /** Title shown when data is empty */
   emptyTitle?: string;
@@ -45,7 +39,7 @@ export interface DataStateProps<T> {
   emptyAction?: ReactNode;
   /** Secondary action when empty */
   emptySecondaryAction?: ReactNode;
-  
+
   /** Custom emptiness check (defaults to checking if arrays are length 0, or objects are null) */
   isEmpty?: (data: T) => boolean;
 
@@ -55,19 +49,19 @@ export interface DataStateProps<T> {
 
 function renderSkeleton(type: SkeletonType) {
   switch (type) {
-    case 'table':
+    case "table":
       return <TableSkeleton rows={5} />;
-    case 'dashboard-cards':
+    case "dashboard-cards":
       return <DashboardCardsSkeleton count={4} />;
-    case 'form':
+    case "form":
       return <FormSkeleton />;
-    case 'chart':
+    case "chart":
       return <ChartSkeleton />;
-    case 'list':
+    case "list":
       return <ListSkeleton />;
-    case 'page':
+    case "page":
       return <PageSkeleton />;
-    case 'card':
+    case "card":
     default:
       return <CardSkeleton />;
   }
@@ -88,9 +82,9 @@ export function DataState<T>({
   isLoading,
   error,
   data,
-  skeletonType = 'card',
+  skeletonType = "card",
   onRetry,
-  emptyTitle = 'No data found',
+  emptyTitle = "No data found",
   emptyDescription,
   emptyIcon,
   emptyIllustration,
@@ -103,7 +97,10 @@ export function DataState<T>({
     return (
       <ErrorState
         title="Failed to load data"
-        description={(error as Error).message || 'An unexpected error occurred while fetching data.'}
+        description={
+          (error as Error).message ||
+          "An unexpected error occurred while fetching data."
+        }
         onRetry={onRetry}
       />
     );

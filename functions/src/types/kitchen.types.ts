@@ -1,5 +1,5 @@
-import type { Address } from './user.types';
-import type { ID, Timestamp } from './common.types';
+import type { Address } from "./user.types";
+import type { ID, Timestamp } from "./common.types";
 
 /**
  * Firestore: `kitchens/{kitchenId}`.

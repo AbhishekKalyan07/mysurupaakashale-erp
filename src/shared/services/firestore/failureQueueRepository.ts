@@ -1,6 +1,6 @@
-import { db } from '@/shared/lib/firebase';
-import { BaseRepository, createConverter } from './BaseRepository';
-import { serverTimestamp, type Timestamp } from 'firebase/firestore';
+import { db } from "@/shared/lib/firebase";
+import { BaseRepository, createConverter } from "./BaseRepository";
+import { serverTimestamp, type Timestamp } from "firebase/firestore";
 
 export interface FailureQueueRecord {
   id: string;
@@ -12,7 +12,7 @@ export interface FailureQueueRecord {
   attempts: number;
   reason: string;
   stackTrace?: string;
-  status: 'pending' | 'resolved' | 'ignored';
+  status: "pending" | "resolved" | "ignored";
   createdAt: Timestamp;
   lastRetryAt?: Timestamp;
   resolvedAt?: Timestamp;
@@ -22,7 +22,7 @@ export interface FailureQueueRecord {
 
 class FailureQueueRepository extends BaseRepository<FailureQueueRecord> {
   constructor() {
-    super(db, 'failureQueue', createConverter<FailureQueueRecord>());
+    super(db, "failureQueue", createConverter<FailureQueueRecord>());
   }
 
   async logFailure(
@@ -31,7 +31,7 @@ class FailureQueueRepository extends BaseRepository<FailureQueueRecord> {
     mealType: string,
     date: string,
     reason: string,
-    stackTrace?: string
+    stackTrace?: string,
   ): Promise<string> {
     const id = await this.create({
       customerId,
@@ -42,10 +42,10 @@ class FailureQueueRepository extends BaseRepository<FailureQueueRecord> {
       ...(stackTrace !== undefined && { stackTrace }),
       attempts: 1,
       retryCount: 0,
-      status: 'pending',
+      status: "pending",
       createdAt: serverTimestamp() as Timestamp,
     });
-    
+
     return id;
   }
 }

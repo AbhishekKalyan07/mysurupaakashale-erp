@@ -1,4 +1,4 @@
-import type { PayrollRecord, UserProfile } from '@/shared/types';
+import type { PayrollRecord, UserProfile } from "@/shared/types";
 
 interface PayslipProps {
   payroll: PayrollRecord;
@@ -14,15 +14,21 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
         <div className="flex justify-between items-start border-b border-ink-200 pb-6 mb-6">
           <div>
             <h1 className="text-3xl font-display font-bold text-leaf-700 uppercase tracking-wide">
-              {settings?.companyProfile?.name || 'Mysuru Paakashale'}
+              {settings?.companyProfile?.name || "Mysuru Paakashale"}
             </h1>
             <p className="text-sm mt-1">{settings?.companyProfile?.tagline}</p>
             <p className="text-sm">{settings?.companyProfile?.address}</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold uppercase tracking-wider text-ink-500">Payslip</h2>
-            <p className="text-sm mt-1"><strong>Month:</strong> {payroll.month}</p>
-            <p className="text-sm"><strong>Date:</strong> {new Date().toLocaleDateString('en-IN')}</p>
+            <h2 className="text-xl font-bold uppercase tracking-wider text-ink-500">
+              Payslip
+            </h2>
+            <p className="text-sm mt-1">
+              <strong>Month:</strong> {payroll.month}
+            </p>
+            <p className="text-sm">
+              <strong>Date:</strong> {new Date().toLocaleDateString("en-IN")}
+            </p>
           </div>
         </div>
 
@@ -34,7 +40,10 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
           </div>
           <div>
             <p className="text-sm text-ink-500">Employee Code</p>
-            <p className="font-bold text-lg font-data">{staff?.displayId || `EMP-${payroll.staffName.slice(0, 3).toUpperCase()}`}</p>
+            <p className="font-bold text-lg font-data">
+              {staff?.displayId ||
+                `EMP-${payroll.staffName.slice(0, 3).toUpperCase()}`}
+            </p>
           </div>
           <div>
             <p className="text-sm text-ink-500">Total Working Days</p>
@@ -50,30 +59,50 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
         <table className="w-full text-left border-collapse mb-8">
           <thead>
             <tr className="bg-rice-50 text-ink-700">
-              <th className="p-3 border-b border-ink-200 font-semibold">Earnings</th>
-              <th className="p-3 border-b border-ink-200 font-semibold text-right">Amount (₹)</th>
-              <th className="p-3 border-b border-ink-200 font-semibold">Deductions</th>
-              <th className="p-3 border-b border-ink-200 font-semibold text-right">Amount (₹)</th>
+              <th className="p-3 border-b border-ink-200 font-semibold">
+                Earnings
+              </th>
+              <th className="p-3 border-b border-ink-200 font-semibold text-right">
+                Amount (₹)
+              </th>
+              <th className="p-3 border-b border-ink-200 font-semibold">
+                Deductions
+              </th>
+              <th className="p-3 border-b border-ink-200 font-semibold text-right">
+                Amount (₹)
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td className="p-3 border-b border-ink-100">Basic Salary</td>
-              <td className="p-3 border-b border-ink-100 text-right font-data">{payroll.basicSalary.toLocaleString()}</td>
-              <td className="p-3 border-b border-ink-100">{payroll.deductionReason || 'Other Deductions'}</td>
-              <td className="p-3 border-b border-ink-100 text-right font-data">{payroll.deductions.toLocaleString()}</td>
+              <td className="p-3 border-b border-ink-100 text-right font-data">
+                {payroll.basicSalary.toLocaleString()}
+              </td>
+              <td className="p-3 border-b border-ink-100">
+                {payroll.deductionReason || "Other Deductions"}
+              </td>
+              <td className="p-3 border-b border-ink-100 text-right font-data">
+                {payroll.deductions.toLocaleString()}
+              </td>
             </tr>
             <tr>
               <td className="p-3 border-b border-ink-100">Overtime / Bonus</td>
-              <td className="p-3 border-b border-ink-100 text-right font-data">{payroll.bonus.toLocaleString()}</td>
+              <td className="p-3 border-b border-ink-100 text-right font-data">
+                {payroll.bonus.toLocaleString()}
+              </td>
               <td className="p-3 border-b border-ink-100"></td>
               <td className="p-3 border-b border-ink-100 text-right font-data"></td>
             </tr>
             <tr className="bg-rice-25 font-bold">
               <td className="p-3 border-b border-ink-200">Total Gross</td>
-              <td className="p-3 border-b border-ink-200 text-right font-data">{payroll.grossSalary.toLocaleString()}</td>
+              <td className="p-3 border-b border-ink-200 text-right font-data">
+                {payroll.grossSalary.toLocaleString()}
+              </td>
               <td className="p-3 border-b border-ink-200">Total Deductions</td>
-              <td className="p-3 border-b border-ink-200 text-right font-data">{payroll.deductions.toLocaleString()}</td>
+              <td className="p-3 border-b border-ink-200 text-right font-data">
+                {payroll.deductions.toLocaleString()}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -81,27 +110,44 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
         {/* Net Salary & Adjustments */}
         <div className="bg-leaf-50 p-6 rounded-lg mb-12 space-y-3">
           <div className="flex justify-between items-center">
-            <div className="text-sm font-semibold text-leaf-800">Calculated Salary</div>
-            <div className="text-lg font-bold font-data text-leaf-900">₹{payroll.netSalary.toLocaleString()}</div>
+            <div className="text-sm font-semibold text-leaf-800">
+              Calculated Salary
+            </div>
+            <div className="text-lg font-bold font-data text-leaf-900">
+              ₹{payroll.netSalary.toLocaleString()}
+            </div>
           </div>
-          
+
           {(payroll.advanceDeduction ?? 0) > 0 && (
             <div className="flex justify-between items-center">
-              <div className="text-sm font-semibold text-warning">Salary Advance Deduction</div>
-              <div className="text-lg font-bold font-data text-warning">-₹{payroll.advanceDeduction?.toLocaleString()}</div>
+              <div className="text-sm font-semibold text-warning">
+                Salary Advance Deduction
+              </div>
+              <div className="text-lg font-bold font-data text-warning">
+                -₹{payroll.advanceDeduction?.toLocaleString()}
+              </div>
             </div>
           )}
-          
+
           {(payroll.otherAdjustments ?? 0) !== 0 && (
             <div className="flex justify-between items-center">
-              <div className="text-sm font-semibold text-leaf-800">Other Adjustments</div>
-              <div className="text-lg font-bold font-data text-leaf-900">{(payroll.otherAdjustments ?? 0) > 0 ? '+' : '-'}₹{Math.abs(payroll.otherAdjustments ?? 0).toLocaleString()}</div>
+              <div className="text-sm font-semibold text-leaf-800">
+                Other Adjustments
+              </div>
+              <div className="text-lg font-bold font-data text-leaf-900">
+                {(payroll.otherAdjustments ?? 0) > 0 ? "+" : "-"}₹
+                {Math.abs(payroll.otherAdjustments ?? 0).toLocaleString()}
+              </div>
             </div>
           )}
 
           <div className="border-t border-leaf-200 pt-3 mt-3 flex justify-between items-center">
-            <div className="text-lg font-semibold text-leaf-900">Amount Paid</div>
-            <div className="text-3xl font-bold font-data text-leaf-900">₹{(payroll.amountPaid ?? payroll.netSalary).toLocaleString()}</div>
+            <div className="text-lg font-semibold text-leaf-900">
+              Amount Paid
+            </div>
+            <div className="text-3xl font-bold font-data text-leaf-900">
+              ₹{(payroll.amountPaid ?? payroll.netSalary).toLocaleString()}
+            </div>
           </div>
         </div>
 
@@ -117,7 +163,8 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
           </div>
         </div>
         <p className="text-center text-xs text-ink-500 mt-8">
-          This is a computer-generated document. Status: {payroll.status.toUpperCase()}
+          This is a computer-generated document. Status:{" "}
+          {payroll.status.toUpperCase()}
         </p>
       </div>
     </div>

@@ -1,9 +1,29 @@
-import { Timestamp } from 'firebase/firestore';
-import { db } from '@/shared/lib/firebase';
-import { auth } from '@/shared/lib/firebase';
-import type { Order, OrderStatus, MealType, OrderWorkflowHistory } from '@/shared/types';
-import { BaseRepository, createConverter } from './BaseRepository';
-import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransaction, serverTimestamp, type Unsubscribe, limit, startAfter, QueryDocumentSnapshot, QueryConstraint } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
+import { db } from "@/shared/lib/firebase";
+import { auth } from "@/shared/lib/firebase";
+import type {
+  Order,
+  OrderStatus,
+  MealType,
+  OrderWorkflowHistory,
+} from "@/shared/types";
+import { BaseRepository, createConverter } from "./BaseRepository";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  onSnapshot,
+  doc,
+  runTransaction,
+  serverTimestamp,
+  type Unsubscribe,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  QueryConstraint,
+} from "firebase/firestore";
 /**
  * Client-side repository for the `orders` collection.
  *
@@ -14,7 +34,7 @@ import { collection, query, where, orderBy, getDocs, onSnapshot, doc, runTransac
  */
 class OrderRepository extends BaseRepository<Order> {
   constructor() {
-    super(db, 'orders', createConverter<Order>());
+    super(db, "orders", createConverter<Order>());
   }
 
   /**
@@ -22,11 +42,11 @@ class OrderRepository extends BaseRepository<Order> {
    * Used by the Kitchen Dashboard and Production Board.
    */
   async getByDate(date: string, kitchenId?: string | null): Promise<Order[]> {
-    const constraints: QueryConstraint[] = [where('date', '==', date)];
-    if (kitchenId && kitchenId !== 'all') {
-      constraints.push(where('kitchenId', '==', kitchenId));
+    const constraints: QueryConstraint[] = [where("date", "==", date)];
+    if (kitchenId && kitchenId !== "all") {
+      constraints.push(where("kitchenId", "==", kitchenId));
     }
-    constraints.push(orderBy('mealType', 'asc'));
+    constraints.push(orderBy("mealType", "asc"));
     return this.list(...constraints);
   }
 
@@ -34,11 +54,14 @@ class OrderRepository extends BaseRepository<Order> {
    * Orders for a date filtered by one or more statuses.
    * Used by status-specific panels on the Kitchen Dashboard.
    */
-  async getByDateAndStatus(date: string, status: OrderStatus): Promise<Order[]> {
+  async getByDateAndStatus(
+    date: string,
+    status: OrderStatus,
+  ): Promise<Order[]> {
     return this.list(
-      where('date', '==', date),
-      where('status', '==', status),
-      orderBy('mealType', 'asc')
+      where("date", "==", date),
+      where("status", "==", status),
+      orderBy("mealType", "asc"),
     );
   }
 
@@ -51,11 +74,11 @@ class OrderRepository extends BaseRepository<Order> {
     date: string,
     kitchenId: string | null | undefined,
     onNext: (orders: Order[]) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ) {
-    const constraints: QueryConstraint[] = [where('date', '==', date)];
-    if (kitchenId && kitchenId !== 'all') {
-      constraints.push(where('kitchenId', '==', kitchenId));
+    const constraints: QueryConstraint[] = [where("date", "==", date)];
+    if (kitchenId && kitchenId !== "all") {
+      constraints.push(where("kitchenId", "==", kitchenId));
     }
     return this.subscribeToList(onNext, onError, ...constraints);
   }
@@ -65,13 +88,20 @@ class OrderRepository extends BaseRepository<Order> {
    * Used by useBreakfastOrders / useLunchOrders / useDinnerOrders for
    * targeted one-time fetches when the live subscription hasn't hydrated yet.
    */
-  async getByDateAndMealType(date: string, mealType: MealType, kitchenId?: string | null): Promise<Order[]> {
+  async getByDateAndMealType(
+    date: string,
+    mealType: MealType,
+    kitchenId?: string | null,
+  ): Promise<Order[]> {
     // NOTE: routeSequence orderBy removed — the field is optional and not
     // currently set during order generation, which caused the composite
     // index requirements to fail. Orders are sorted in memory by the dashboard.
-    const constraints: QueryConstraint[] = [where('date', '==', date), where('mealType', '==', mealType)];
+    const constraints: QueryConstraint[] = [
+      where("date", "==", date),
+      where("mealType", "==", mealType),
+    ];
     if (kitchenId) {
-      constraints.push(where('kitchenId', '==', kitchenId));
+      constraints.push(where("kitchenId", "==", kitchenId));
     }
     return this.list(...constraints);
   }
@@ -82,9 +112,9 @@ class OrderRepository extends BaseRepository<Order> {
    */
   async getCustomerOrders(customerId: string): Promise<Order[]> {
     return this.list(
-      where('customerId', '==', customerId),
-      orderBy('date', 'desc'),
-      limit(100)
+      where("customerId", "==", customerId),
+      orderBy("date", "desc"),
+      limit(100),
     );
   }
 
@@ -94,12 +124,15 @@ class OrderRepository extends BaseRepository<Order> {
   async getCustomerOrdersPaginated(
     customerId: string,
     pageSize: number = 20,
-    lastDocSnap?: QueryDocumentSnapshot<Order>
-  ): Promise<{ orders: Order[]; lastDoc: QueryDocumentSnapshot<Order> | null }> {
+    lastDocSnap?: QueryDocumentSnapshot<Order>,
+  ): Promise<{
+    orders: Order[];
+    lastDoc: QueryDocumentSnapshot<Order> | null;
+  }> {
     const constraints: QueryConstraint[] = [
-      where('customerId', '==', customerId),
-      orderBy('date', 'desc'),
-      limit(pageSize)
+      where("customerId", "==", customerId),
+      orderBy("date", "desc"),
+      limit(pageSize),
     ];
 
     if (lastDocSnap) {
@@ -107,13 +140,16 @@ class OrderRepository extends BaseRepository<Order> {
     }
 
     const converter = createConverter<Order>();
-    const colRef = collection(db, 'orders').withConverter(converter);
+    const colRef = collection(db, "orders").withConverter(converter);
     const snapshot = await getDocs(query(colRef, ...constraints));
 
-    const orders = snapshot.docs.map(d => d.data());
+    const orders = snapshot.docs.map((d) => d.data());
     return {
       orders,
-      lastDoc: snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1] : null,
+      lastDoc:
+        snapshot.docs.length === pageSize
+          ? snapshot.docs[snapshot.docs.length - 1]
+          : null,
     };
   }
 
@@ -123,51 +159,58 @@ class OrderRepository extends BaseRepository<Order> {
   subscribeToCustomerOrders(
     customerId: string,
     onNext: (orders: Order[]) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ) {
     return this.subscribeToList(
       onNext,
       onError,
-      where('customerId', '==', customerId)
+      where("customerId", "==", customerId),
     );
   }
 
   /**
    * Retrieves all orders for a specific customer on a specific date.
    */
-  async getCustomerOrdersByDate(customerId: string, date: string): Promise<Order[]> {
+  async getCustomerOrdersByDate(
+    customerId: string,
+    date: string,
+  ): Promise<Order[]> {
     return this.list(
-      where('customerId', '==', customerId),
-      where('date', '==', date)
+      where("customerId", "==", customerId),
+      where("date", "==", date),
     );
   }
 
   /**
    * Retrieves all orders for a specific customer within a date range.
    */
-  async getCustomerOrdersInRange(customerId: string, startDate: string, endDate: string): Promise<Order[]> {
+  async getCustomerOrdersInRange(
+    customerId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<Order[]> {
     return this.list(
-      where('customerId', '==', customerId),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'asc')
+      where("customerId", "==", customerId),
+      where("date", ">=", startDate),
+      where("date", "<=", endDate),
+      orderBy("date", "asc"),
     );
   }
 
   /**
    * Batch create multiple orders. Used by the daily order generation script.
    */
-  async batchCreate(orders: Omit<Order, 'id'>[]): Promise<void> {
-    const { writeBatch } = await import('firebase/firestore');
+  async batchCreate(orders: Omit<Order, "id">[]): Promise<void> {
+    const { writeBatch } = await import("firebase/firestore");
     const batch = writeBatch(db);
-    
+
     for (const orderData of orders) {
       const orderId = crypto.randomUUID();
       const displayId = `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       const ref = doc(this.collectionRef, orderId);
       batch.set(ref, { ...orderData, id: orderId, displayId } as Order);
     }
-    
+
     await batch.commit();
   }
 
@@ -181,13 +224,13 @@ class OrderRepository extends BaseRepository<Order> {
     date: string,
     mealType: MealType,
     onNext: (orders: Order[]) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ) {
     return this.subscribeToList(
       onNext,
       onError,
-      where('date', '==', date),
-      where('mealType', '==', mealType)
+      where("date", "==", date),
+      where("mealType", "==", mealType),
     );
   }
 
@@ -195,12 +238,12 @@ class OrderRepository extends BaseRepository<Order> {
    * Retrieves the workflow history for a specific order.
    */
   async getWorkflowHistory(orderId: string): Promise<OrderWorkflowHistory[]> {
-    const historyRef = collection(db, 'orders', orderId, 'workflowHistory');
-    const q = query(historyRef, orderBy('changedAt', 'desc'));
+    const historyRef = collection(db, "orders", orderId, "workflowHistory");
+    const q = query(historyRef, orderBy("changedAt", "desc"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({
+    return snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
-      ...docSnap.data()
+      ...docSnap.data(),
     })) as OrderWorkflowHistory[];
   }
 
@@ -210,59 +253,77 @@ class OrderRepository extends BaseRepository<Order> {
   subscribeWorkflowHistory(
     orderId: string,
     onNext: (history: OrderWorkflowHistory[]) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ): Unsubscribe {
-    const historyRef = collection(db, 'orders', orderId, 'workflowHistory');
-    const q = query(historyRef, orderBy('changedAt', 'desc'));
+    const historyRef = collection(db, "orders", orderId, "workflowHistory");
+    const q = query(historyRef, orderBy("changedAt", "desc"));
     return onSnapshot(
       q,
       (snapshot) => {
-        const history = snapshot.docs.map(docSnap => ({
+        const history = snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
-          ...docSnap.data()
+          ...docSnap.data(),
         })) as OrderWorkflowHistory[];
         onNext(history);
       },
-      onError
+      onError,
     );
   }
 
   /**
    * Advances the workflow status of an order via Cloud Function.
    */
-  async updateWorkflow(orderId: string, newStatus: string, notes?: string): Promise<void> {
+  async updateWorkflow(
+    orderId: string,
+    newStatus: string,
+    notes?: string,
+  ): Promise<void> {
     // Phase 7: Client-side workflow update with history tracking
     await runTransaction(db, async (t) => {
-      const orderRef = doc(db, 'orders', orderId);
+      const orderRef = doc(db, "orders", orderId);
       const snap = await t.get(orderRef);
-      if (!snap.exists()) throw new Error('Order not found');
-      
+      if (!snap.exists()) throw new Error("Order not found");
+
       const oldData = snap.data() as Order;
-      
+
       const payload: Partial<Order> = {
         status: newStatus as OrderStatus,
-        updatedAt: serverTimestamp() as unknown as Timestamp
+        updatedAt: serverTimestamp() as unknown as Timestamp,
       };
 
-      const kitchenStatuses = ['scheduled', 'packing', 'packed', 'ready_for_pickup'];
-      const deliveryStatuses = ['picked_up', 'out_for_delivery', 'delivered', 'failed_delivery', 'returned_delivery'];
+      const kitchenStatuses = [
+        "scheduled",
+        "packing",
+        "packed",
+        "ready_for_pickup",
+      ];
+      const deliveryStatuses = [
+        "picked_up",
+        "out_for_delivery",
+        "delivered",
+        "failed_delivery",
+        "returned_delivery",
+      ];
 
       if (kitchenStatuses.includes(newStatus)) {
-        payload.kitchenStatus = newStatus as import('@/shared/types/order.types').KitchenStatus;
+        payload.kitchenStatus =
+          newStatus as import("@/shared/types/order.types").KitchenStatus;
       } else if (deliveryStatuses.includes(newStatus)) {
-        payload.kitchenStatus = 'ready_for_pickup';
+        payload.kitchenStatus = "ready_for_pickup";
       }
 
-      if (newStatus === 'out_for_delivery' && !oldData.outForDeliveryAt) {
+      if (newStatus === "out_for_delivery" && !oldData.outForDeliveryAt) {
         payload.outForDeliveryAt = serverTimestamp() as unknown as Timestamp;
       }
-      if (newStatus === 'delivered' && !oldData.deliveredAt) {
+      if (newStatus === "delivered" && !oldData.deliveredAt) {
         payload.deliveredAt = serverTimestamp() as unknown as Timestamp;
       }
 
       t.update(orderRef, payload);
-      
-      const historyRef = doc(collection(db, 'orders', orderId, 'workflowHistory'));
+
+      const historyRef = doc(
+        collection(db, "orders", orderId, "workflowHistory"),
+      );
       t.set(historyRef, {
         fromStatus: oldData.status,
         toStatus: newStatus,
@@ -270,7 +331,7 @@ class OrderRepository extends BaseRepository<Order> {
         changedAt: serverTimestamp(),
         // Bug #5 fix: record the real authenticated UID instead of the
         // hardcoded 'user' placeholder that was committed to production.
-        changedBy: auth.currentUser?.uid ?? 'unknown',
+        changedBy: auth.currentUser?.uid ?? "unknown",
       });
     });
   }

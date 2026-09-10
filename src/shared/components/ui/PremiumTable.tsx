@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { cn } from '@/shared/lib/cn';
+import { type ReactNode } from "react";
+import { cn } from "@/shared/lib/cn";
 
 interface PremiumTableProps {
   columns: string[];
@@ -21,8 +21,8 @@ export function PremiumTable({
   return (
     <div
       className={cn(
-        'w-full bg-white rounded-3xl border border-gold/20 shadow-sm overflow-hidden',
-        className
+        "w-full bg-white rounded-3xl border border-gold/20 shadow-sm overflow-hidden",
+        className,
       )}
     >
       <div className="overflow-x-auto">
@@ -81,9 +81,9 @@ export function PremiumTableRow({
   return (
     <tr
       className={cn(
-        'transition-colors hover:bg-background/50',
-        onClick && 'cursor-pointer',
-        className
+        "transition-colors hover:bg-background/50",
+        onClick && "cursor-pointer",
+        className,
       )}
       onClick={onClick}
     >
@@ -100,8 +100,6 @@ export function PremiumTableCell({
   className?: string;
 }) {
   return (
-    <td className={cn('px-6 py-4 text-sm text-text', className)}>
-      {children}
-    </td>
+    <td className={cn("px-6 py-4 text-sm text-text", className)}>{children}</td>
   );
 }

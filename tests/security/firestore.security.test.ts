@@ -286,6 +286,19 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertSucceeds(updateDoc(doc(db, 'users', KITCHEN_UID), { role: 'kitchen' }));
     });
+
+    it('DENY: Deactivated staff cannot reactivate themselves (isActive)', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'users', KITCHEN_UID), { isActive: false });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'users', KITCHEN_UID), { isActive: true }));
+    });
+
+    it('DENY: Kitchen staff cannot change their own kitchenId', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'users', KITCHEN_UID), { kitchenId: 'kitchen-2' }));
+    });
   });
 
   // =========================================================================
@@ -577,6 +590,18 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         action: 'subscription_paused',
         entityType: 'subscription',
         entityId: 'sub-a',
+        timestamp: new Date(),
+      }));
+    });
+
+    it('DENY: Customer cannot spoof performedByRole', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(addDoc(collection(db, 'auditLogs'), {
+        performedBy: CUSTOMER_A_UID,
+        performedByRole: 'admin',
+        action: 'some_action',
+        entityType: 'user',
+        entityId: CUSTOMER_B_UID,
         timestamp: new Date(),
       }));
     });
@@ -883,6 +908,89 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         message: 'Order cancelled',
         createdBy: CUSTOMER_A_UID
       }));
+    });
+  });
+
+  // =========================================================================
+  // 17. HR & FINANCIAL RULES (Advances, Payroll)
+  // =========================================================================
+  describe('17. HR & Financial Rules', () => {
+    it('DENY: Admin cannot create salary advance with negative amount', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'salaryAdvances', 'adv-neg'), {
+        staffId: KITCHEN_UID, amount: -100, status: 'pending'
+      }));
+    });
+
+    it('DENY: Admin cannot create salary advance with excessively large amount', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'salaryAdvances', 'adv-huge'), {
+        staffId: KITCHEN_UID, amount: 2000000, status: 'pending'
+      }));
+    });
+
+    it('DENY: Admin cannot create payroll with negative salary', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payroll', 'pr-neg'), {
+        staffId: KITCHEN_UID, basicSalary: -5000, grossSalary: 0, netSalary: 0, status: 'draft'
+      }));
+    });
+
+    it('ALLOW: Admin can create valid payroll', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payroll', 'pr-valid'), {
+        staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'draft'
+      }));
+    });
+
+    it('ALLOW: Admin can move draft payroll to review', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'payroll', 'pr-draft'), {
+          staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'draft'
+        });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'payroll', 'pr-draft'), { status: 'review' }));
+    });
+
+    it('DENY: Admin cannot pay a review payroll directly', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'payroll', 'pr-review'), {
+          staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'review'
+        });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'payroll', 'pr-review'), { status: 'paid' }));
+    });
+
+    it('ALLOW: Admin can move review payroll to approved', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'payroll', 'pr-review2'), {
+          staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'review'
+        });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'payroll', 'pr-review2'), { status: 'approved' }));
+    });
+
+    it('ALLOW: Admin can pay an approved payroll', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'payroll', 'pr-approved'), {
+          staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'approved'
+        });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'payroll', 'pr-approved'), { status: 'paid' }));
+    });
+
+    it('DENY: Admin cannot revert a paid payroll to draft', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'payroll', 'pr-paid'), {
+          staffId: KITCHEN_UID, basicSalary: 15000, grossSalary: 15000, netSalary: 14000, status: 'paid'
+        });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'payroll', 'pr-paid'), { status: 'draft' }));
     });
   });
 });

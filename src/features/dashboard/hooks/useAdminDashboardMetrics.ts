@@ -1,10 +1,17 @@
-import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { where, collection, query, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
-import { db } from '@/shared/lib/firebase';
+import { useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  where,
+  collection,
+  query,
+  onSnapshot,
+  Timestamp,
+  orderBy,
+} from "firebase/firestore";
+import { db } from "@/shared/lib/firebase";
 
-import type { Order } from '@/shared/types';
-import { getTodayInTimezone } from '@/shared/lib/date';
+import type { Order } from "@/shared/types";
+import { getTodayInTimezone } from "@/shared/lib/date";
 
 export interface AdminMetrics {
   totalCustomers: number;
@@ -45,138 +52,251 @@ export interface AdminMetrics {
     avgOrdersPerDriver: number;
     utilizationPercent: number;
   };
-  systemStatus: 'healthy' | 'degraded' | 'down';
-  firestoreStatus: 'connected' | 'offline';
-  generationRuns: import('@/shared/types').OrderGenerationRun[];
+  systemStatus: "healthy" | "degraded" | "down";
+  firestoreStatus: "connected" | "offline";
+  generationRuns: import("@/shared/types").OrderGenerationRun[];
 }
 
 export function useAdminDashboardMetrics() {
   const queryClient = useQueryClient();
   const today = getTodayInTimezone();
 
-  const queryKey = useMemo(() => ['admin', 'dashboard', 'metrics', today], [today]);
+  const queryKey = useMemo(
+    () => ["admin", "dashboard", "metrics", today],
+    [today],
+  );
 
   useEffect(() => {
     const updateMetrics = (partial: Partial<AdminMetrics>) => {
       queryClient.setQueryData<AdminMetrics>(queryKey, (old) => {
-        if (!old) return {
-          totalCustomers: 0,
-          activeDrivers: 0,
-          activeSubscriptions: 0,
-          todayOrders: { total: 0, scheduled: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0, avgDeliveryTimeMins: 0 },
-          revenueToday: 0,
-          failedPayments: 0,
-          openComplaints: 0,
-          kitchenSLA: 100,
-          deliverySLA: 100,
-          kitchenSLAStats: { preparingCount: 0, packingCount: 0, packedCount: 0, readyCount: 0, avgPrepTimeMins: 0, avgPackTimeMins: 0 },
-          driverStats: { active: 0, busy: 0, available: 0, assignedOrders: 0, deliveredOrders: 0, pendingOrders: 0, avgOrdersPerDriver: 0, utilizationPercent: 0 },
-          systemStatus: 'healthy',
-          firestoreStatus: 'connected',
-          generationRuns: [],
-          ...partial
-        };
+        if (!old)
+          return {
+            totalCustomers: 0,
+            activeDrivers: 0,
+            activeSubscriptions: 0,
+            todayOrders: {
+              total: 0,
+              scheduled: 0,
+              preparing: 0,
+              ready: 0,
+              outForDelivery: 0,
+              delivered: 0,
+              cancelled: 0,
+              unassigned: 0,
+              failedDeliveries: 0,
+              avgDeliveryTimeMins: 0,
+            },
+            revenueToday: 0,
+            failedPayments: 0,
+            openComplaints: 0,
+            kitchenSLA: 100,
+            deliverySLA: 100,
+            kitchenSLAStats: {
+              preparingCount: 0,
+              packingCount: 0,
+              packedCount: 0,
+              readyCount: 0,
+              avgPrepTimeMins: 0,
+              avgPackTimeMins: 0,
+            },
+            driverStats: {
+              active: 0,
+              busy: 0,
+              available: 0,
+              assignedOrders: 0,
+              deliveredOrders: 0,
+              pendingOrders: 0,
+              avgOrdersPerDriver: 0,
+              utilizationPercent: 0,
+            },
+            systemStatus: "healthy",
+            firestoreStatus: "connected",
+            generationRuns: [],
+            ...partial,
+          };
         return { ...old, ...partial };
       });
     };
 
     const unsubUsers = onSnapshot(
-      query(collection(db, 'users'), where('role', 'in', ['customer', 'delivery_partner'])),
+      query(
+        collection(db, "users"),
+        where("role", "in", ["customer", "delivery_partner"]),
+      ),
       (snap) => {
         let customers = 0;
         let drivers = 0;
-        snap.forEach(doc => {
-          if (doc.data().role === 'customer') customers++;
-          if (doc.data().role === 'delivery_partner') drivers++;
+        snap.forEach((doc) => {
+          if (doc.data().role === "customer") customers++;
+          if (doc.data().role === "delivery_partner") drivers++;
         });
         updateMetrics({ totalCustomers: customers, activeDrivers: drivers });
       },
-      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
+      (_error) =>
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" }),
     );
 
     const unsubSubs = onSnapshot(
-      query(collection(db, 'subscriptions'), where('status', '==', 'active')),
+      query(collection(db, "subscriptions"), where("status", "==", "active")),
       (snap) => updateMetrics({ activeSubscriptions: snap.size }),
-      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
+      (_error) =>
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" }),
     );
 
     const unsubOrders = onSnapshot(
-      query(collection(db, 'orders'), where('date', '==', today)),
+      query(collection(db, "orders"), where("date", "==", today)),
       (snap) => {
-          let scheduled = 0, preparing = 0, packing = 0, packed = 0, ready = 0, outForDelivery = 0;
-          let delivered = 0, cancelled = 0, unassigned = 0, failedDeliveries = 0;
-          let revenue = 0;
+        let scheduled = 0,
+          preparing = 0,
+          packing = 0,
+          packed = 0,
+          ready = 0,
+          outForDelivery = 0;
+        let delivered = 0,
+          cancelled = 0,
+          unassigned = 0,
+          failedDeliveries = 0;
+        let revenue = 0;
 
-          let preparingCount = 0, packingCount = 0, packedCount = 0, readyCount = 0;
-          let totalPrepMins = 0, prepSamples = 0;
-          let totalPackMins = 0, packSamples = 0;
-          let totalDeliveryMins = 0, deliverySamples = 0;
+        let preparingCount = 0,
+          packingCount = 0,
+          packedCount = 0,
+          readyCount = 0;
+        let totalPrepMins = 0,
+          prepSamples = 0;
+        let totalPackMins = 0,
+          packSamples = 0;
+        let totalDeliveryMins = 0,
+          deliverySamples = 0;
 
-          snap.forEach(doc => {
-            const data = doc.data() as Order;
-            if (data.status === 'scheduled') scheduled++;
-            if (data.status === 'preparing') preparing++;
-            if (data.status === 'packing') packing++;
-            if (data.status === 'packed') packed++;
-            if (data.status === 'ready_for_pickup') ready++;
-            if (data.status === 'out_for_delivery') outForDelivery++;
-            if (data.status === 'delivered') delivered++;
-            if (data.status === 'cancelled') cancelled++;
-            if (data.status === 'failed_delivery') failedDeliveries++;
-          
-          if (data.kitchenStatus === 'scheduled') preparingCount++;
-          if (data.kitchenStatus === 'packing') packingCount++;
-          if (data.kitchenStatus === 'packed') packedCount++;
-          if (data.kitchenStatus === 'ready_for_pickup') readyCount++;
+        snap.forEach((doc) => {
+          const data = doc.data() as Order;
+          if (data.status === "scheduled") scheduled++;
+          if (data.status === "preparing") preparing++;
+          if (data.status === "packing") packing++;
+          if (data.status === "packed") packed++;
+          if (data.status === "ready_for_pickup") ready++;
+          if (data.status === "out_for_delivery") outForDelivery++;
+          if (data.status === "delivered") delivered++;
+          if (data.status === "cancelled") cancelled++;
+          if (data.status === "failed_delivery") failedDeliveries++;
+
+          if (data.kitchenStatus === "scheduled") preparingCount++;
+          if (data.kitchenStatus === "packing") packingCount++;
+          if (data.kitchenStatus === "packed") packedCount++;
+          if (data.kitchenStatus === "ready_for_pickup") readyCount++;
 
           if (data.packingAt && data.preparingAt) {
-            const prepTime = (data.packingAt.toMillis() - data.preparingAt.toMillis()) / 60000;
-            if (prepTime > 0 && prepTime < 300) { totalPrepMins += prepTime; prepSamples++; }
-          }
-          if (data.readyAt && data.packingAt) {
-            const packTime = (data.readyAt.toMillis() - data.packingAt.toMillis()) / 60000;
-            if (packTime > 0 && packTime < 300) { totalPackMins += packTime; packSamples++; }
-          }
-          
-          if (data.outForDeliveryAt && (data.deliveredAt || data.updatedAt) && data.status === 'delivered') {
-            const endMillis = data.deliveredAt ? data.deliveredAt.toMillis() : data.updatedAt?.toMillis();
-            if (endMillis) {
-              const delTime = (endMillis - data.outForDeliveryAt.toMillis()) / 60000;
-              if (delTime > 0 && delTime < 600) { totalDeliveryMins += delTime; deliverySamples++; }
+            const prepTime =
+              (data.packingAt.toMillis() - data.preparingAt.toMillis()) / 60000;
+            if (prepTime > 0 && prepTime < 300) {
+              totalPrepMins += prepTime;
+              prepSamples++;
             }
           }
-          
-          if (!data.deliveryPartnerId && data.status !== 'cancelled' && data.status !== 'delivered' && data.status !== 'failed_delivery' && data.status !== 'skipped') {
+          if (data.readyAt && data.packingAt) {
+            const packTime =
+              (data.readyAt.toMillis() - data.packingAt.toMillis()) / 60000;
+            if (packTime > 0 && packTime < 300) {
+              totalPackMins += packTime;
+              packSamples++;
+            }
+          }
+
+          if (
+            data.outForDeliveryAt &&
+            (data.deliveredAt || data.updatedAt) &&
+            data.status === "delivered"
+          ) {
+            const endMillis = data.deliveredAt
+              ? data.deliveredAt.toMillis()
+              : data.updatedAt?.toMillis();
+            if (endMillis) {
+              const delTime =
+                (endMillis - data.outForDeliveryAt.toMillis()) / 60000;
+              if (delTime > 0 && delTime < 600) {
+                totalDeliveryMins += delTime;
+                deliverySamples++;
+              }
+            }
+          }
+
+          if (
+            !data.deliveryPartnerId &&
+            data.status !== "cancelled" &&
+            data.status !== "delivered" &&
+            data.status !== "failed_delivery" &&
+            data.status !== "skipped"
+          ) {
             unassigned++;
           }
 
-          if (data.status === 'delivered') {
-             revenue += data.price || 0;
+          if (data.status === "delivered") {
+            revenue += data.price || 0;
           }
         });
-        
-        const totalKitchenExpected = scheduled + preparing + packing + packed + ready + outForDelivery + delivered;
-        const kitchenSLA = totalKitchenExpected === 0 ? 100 : Math.round(((ready + outForDelivery + delivered) / totalKitchenExpected) * 100);
-        
-        const totalDeliveryExpected = outForDelivery + delivered + failedDeliveries;
-        const deliverySLA = totalDeliveryExpected === 0 ? 100 : Math.round((delivered / totalDeliveryExpected) * 100);
 
-        const avgPrepTimeMins = prepSamples > 0 ? Math.round(totalPrepMins / prepSamples) : 0;
-        const avgPackTimeMins = packSamples > 0 ? Math.round(totalPackMins / packSamples) : 0;
-        const avgDeliveryTimeMins = deliverySamples > 0 ? Math.round(totalDeliveryMins / deliverySamples) : 0;
+        const totalKitchenExpected =
+          scheduled +
+          preparing +
+          packing +
+          packed +
+          ready +
+          outForDelivery +
+          delivered;
+        const kitchenSLA =
+          totalKitchenExpected === 0
+            ? 100
+            : Math.round(
+                ((ready + outForDelivery + delivered) / totalKitchenExpected) *
+                  100,
+              );
+
+        const totalDeliveryExpected =
+          outForDelivery + delivered + failedDeliveries;
+        const deliverySLA =
+          totalDeliveryExpected === 0
+            ? 100
+            : Math.round((delivered / totalDeliveryExpected) * 100);
+
+        const avgPrepTimeMins =
+          prepSamples > 0 ? Math.round(totalPrepMins / prepSamples) : 0;
+        const avgPackTimeMins =
+          packSamples > 0 ? Math.round(totalPackMins / packSamples) : 0;
+        const avgDeliveryTimeMins =
+          deliverySamples > 0
+            ? Math.round(totalDeliveryMins / deliverySamples)
+            : 0;
 
         // Calculate Driver Stats
-        const driverAssignments = new Map<string, { pending: number; delivered: number; total: number }>();
-        
-        snap.forEach(doc => {
+        const driverAssignments = new Map<
+          string,
+          { pending: number; delivered: number; total: number }
+        >();
+
+        snap.forEach((doc) => {
           const data = doc.data() as Order;
-          if (data.deliveryPartnerId && !['cancelled', 'skipped'].includes(data.status)) {
-            const current = driverAssignments.get(data.deliveryPartnerId) || { pending: 0, delivered: 0, total: 0 };
+          if (
+            data.deliveryPartnerId &&
+            !["cancelled", "skipped"].includes(data.status)
+          ) {
+            const current = driverAssignments.get(data.deliveryPartnerId) || {
+              pending: 0,
+              delivered: 0,
+              total: 0,
+            };
             current.total++;
-            if (['ready_for_pickup', 'out_for_delivery', 'scheduled', 'preparing'].includes(data.status)) {
+            if (
+              [
+                "ready_for_pickup",
+                "out_for_delivery",
+                "scheduled",
+                "preparing",
+              ].includes(data.status)
+            ) {
               current.pending++;
             }
-            if (data.status === 'delivered') {
+            if (data.status === "delivered") {
               current.delivered++;
             }
             driverAssignments.set(data.deliveryPartnerId, current);
@@ -185,25 +305,58 @@ export function useAdminDashboardMetrics() {
 
         // The overall active drivers are captured in unsubUsers, so we will merge this with previous state
         // For the sake of this scope, busy drivers are those with pending > 0
-        const busyDrivers = Array.from(driverAssignments.values()).filter(d => d.pending > 0).length;
-        const assignedOrders = Array.from(driverAssignments.values()).reduce((sum, d) => sum + d.total, 0);
-        const deliveredOrders = Array.from(driverAssignments.values()).reduce((sum, d) => sum + d.delivered, 0);
-        const pendingOrders = Array.from(driverAssignments.values()).reduce((sum, d) => sum + d.pending, 0);
+        const busyDrivers = Array.from(driverAssignments.values()).filter(
+          (d) => d.pending > 0,
+        ).length;
+        const assignedOrders = Array.from(driverAssignments.values()).reduce(
+          (sum, d) => sum + d.total,
+          0,
+        );
+        const deliveredOrders = Array.from(driverAssignments.values()).reduce(
+          (sum, d) => sum + d.delivered,
+          0,
+        );
+        const pendingOrders = Array.from(driverAssignments.values()).reduce(
+          (sum, d) => sum + d.pending,
+          0,
+        );
 
         queryClient.setQueryData<AdminMetrics>(queryKey, (old) => {
           const totalActiveDrivers = old?.activeDrivers || 0;
           const available = Math.max(0, totalActiveDrivers - busyDrivers);
-          const avgOrdersPerDriver = totalActiveDrivers > 0 ? Math.round((assignedOrders / totalActiveDrivers) * 10) / 10 : 0;
-          const utilizationPercent = totalActiveDrivers > 0 ? Math.round((busyDrivers / totalActiveDrivers) * 100) : 0;
+          const avgOrdersPerDriver =
+            totalActiveDrivers > 0
+              ? Math.round((assignedOrders / totalActiveDrivers) * 10) / 10
+              : 0;
+          const utilizationPercent =
+            totalActiveDrivers > 0
+              ? Math.round((busyDrivers / totalActiveDrivers) * 100)
+              : 0;
 
           return {
             ...old!,
-            todayOrders: { total: snap.size, scheduled, preparing, ready, outForDelivery, delivered, cancelled, unassigned, failedDeliveries, avgDeliveryTimeMins },
+            todayOrders: {
+              total: snap.size,
+              scheduled,
+              preparing,
+              ready,
+              outForDelivery,
+              delivered,
+              cancelled,
+              unassigned,
+              failedDeliveries,
+              avgDeliveryTimeMins,
+            },
             revenueToday: revenue,
             kitchenSLA,
             deliverySLA,
             kitchenSLAStats: {
-              preparingCount, packingCount, packedCount, readyCount, avgPrepTimeMins, avgPackTimeMins
+              preparingCount,
+              packingCount,
+              packedCount,
+              readyCount,
+              avgPrepTimeMins,
+              avgPackTimeMins,
             },
             driverStats: {
               active: totalActiveDrivers,
@@ -213,57 +366,67 @@ export function useAdminDashboardMetrics() {
               deliveredOrders,
               pendingOrders,
               avgOrdersPerDriver,
-              utilizationPercent
-            }
+              utilizationPercent,
+            },
           };
         });
       },
       (_error) => {
         // If offline or permission denied
-        updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' });
-      }
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" });
+      },
     );
 
     const unsubFeedback = onSnapshot(
-      query(collection(db, 'feedback'), where('status', 'in', ['new', 'investigating'])),
+      query(
+        collection(db, "feedback"),
+        where("status", "in", ["new", "investigating"]),
+      ),
       (snap) => updateMetrics({ openComplaints: snap.size }),
-      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
+      (_error) =>
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" }),
     );
 
     // Calculate IST boundaries for 'today'
-    const year = parseInt(today.split('-')[0]);
-    const month = parseInt(today.split('-')[1]);
-    const day = parseInt(today.split('-')[2]);
-    const paddedMonth = month.toString().padStart(2, '0');
-    const paddedDay = day.toString().padStart(2, '0');
-    
+    const year = parseInt(today.split("-")[0]);
+    const month = parseInt(today.split("-")[1]);
+    const day = parseInt(today.split("-")[2]);
+    const paddedMonth = month.toString().padStart(2, "0");
+    const paddedDay = day.toString().padStart(2, "0");
+
     // Create Date objects representing start and end of 'today' in IST
-    const startOfTodayIST = new Date(`${year}-${paddedMonth}-${paddedDay}T00:00:00+05:30`);
-    const endOfTodayIST = new Date(`${year}-${paddedMonth}-${paddedDay}T23:59:59.999+05:30`);
-
-
+    const startOfTodayIST = new Date(
+      `${year}-${paddedMonth}-${paddedDay}T00:00:00+05:30`,
+    );
+    const endOfTodayIST = new Date(
+      `${year}-${paddedMonth}-${paddedDay}T23:59:59.999+05:30`,
+    );
 
     const unsubPayments = onSnapshot(
       query(
-        collection(db, 'payments'), 
-        where('status', '==', 'failed'),
-        where('createdAt', '>=', Timestamp.fromDate(startOfTodayIST)),
-        where('createdAt', '<=', Timestamp.fromDate(endOfTodayIST)),
-        orderBy('createdAt', 'desc')
+        collection(db, "payments"),
+        where("status", "==", "failed"),
+        where("createdAt", ">=", Timestamp.fromDate(startOfTodayIST)),
+        where("createdAt", "<=", Timestamp.fromDate(endOfTodayIST)),
+        orderBy("createdAt", "desc"),
       ),
       (snap) => {
         updateMetrics({ failedPayments: snap.size });
       },
-      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
+      (_error) =>
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" }),
     );
 
     const unsubRuns = onSnapshot(
-      query(collection(db, 'orderGenerationRuns'), where('date', '==', today)),
+      query(collection(db, "orderGenerationRuns"), where("date", "==", today)),
       (snap) => {
-        const runs = snap.docs.map(doc => doc.data() as import('@/shared/types').OrderGenerationRun);
+        const runs = snap.docs.map(
+          (doc) => doc.data() as import("@/shared/types").OrderGenerationRun,
+        );
         updateMetrics({ generationRuns: runs });
       },
-      (_error) => updateMetrics({ firestoreStatus: 'offline', systemStatus: 'degraded' })
+      (_error) =>
+        updateMetrics({ firestoreStatus: "offline", systemStatus: "degraded" }),
     );
 
     return () => {
@@ -282,16 +445,43 @@ export function useAdminDashboardMetrics() {
       totalCustomers: 0,
       activeDrivers: 0,
       activeSubscriptions: 0,
-      todayOrders: { total: 0, scheduled: 0, preparing: 0, ready: 0, outForDelivery: 0, delivered: 0, cancelled: 0, unassigned: 0, failedDeliveries: 0, avgDeliveryTimeMins: 0 },
+      todayOrders: {
+        total: 0,
+        scheduled: 0,
+        preparing: 0,
+        ready: 0,
+        outForDelivery: 0,
+        delivered: 0,
+        cancelled: 0,
+        unassigned: 0,
+        failedDeliveries: 0,
+        avgDeliveryTimeMins: 0,
+      },
       revenueToday: 0,
       failedPayments: 0,
       openComplaints: 0,
       kitchenSLA: 100,
       deliverySLA: 100,
-      kitchenSLAStats: { preparingCount: 0, packingCount: 0, packedCount: 0, readyCount: 0, avgPrepTimeMins: 0, avgPackTimeMins: 0 },
-      driverStats: { active: 0, busy: 0, available: 0, assignedOrders: 0, deliveredOrders: 0, pendingOrders: 0, avgOrdersPerDriver: 0, utilizationPercent: 0 },
-      systemStatus: 'healthy',
-      firestoreStatus: 'connected',
+      kitchenSLAStats: {
+        preparingCount: 0,
+        packingCount: 0,
+        packedCount: 0,
+        readyCount: 0,
+        avgPrepTimeMins: 0,
+        avgPackTimeMins: 0,
+      },
+      driverStats: {
+        active: 0,
+        busy: 0,
+        available: 0,
+        assignedOrders: 0,
+        deliveredOrders: 0,
+        pendingOrders: 0,
+        avgOrdersPerDriver: 0,
+        utilizationPercent: 0,
+      },
+      systemStatus: "healthy",
+      firestoreStatus: "connected",
       generationRuns: [],
     }),
     staleTime: Infinity,

@@ -1,23 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAdminDashboardMetrics } from '../useAdminDashboardMetrics';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useAdminDashboardMetrics } from "../useAdminDashboardMetrics";
 
-vi.mock('react', () => ({
+vi.mock("react", () => ({
   useEffect: vi.fn((cb) => {
     const cleanup = cb();
-    if (typeof cleanup === 'function') cleanup();
+    if (typeof cleanup === "function") cleanup();
   }),
   useMemo: vi.fn((cb) => cb()),
 }));
 
-vi.mock('@tanstack/react-query', () => {
+vi.mock("@tanstack/react-query", () => {
   let queryData: any = {};
   return {
     useQueryClient: vi.fn(() => ({
       setQueryData: vi.fn((_key, updateFn) => {
-        if (typeof updateFn === 'function') {
-           queryData = updateFn(queryData);
+        if (typeof updateFn === "function") {
+          queryData = updateFn(queryData);
         } else {
-           queryData = updateFn;
+          queryData = updateFn;
         }
       }),
     })),
@@ -27,11 +27,11 @@ vi.mock('@tanstack/react-query', () => {
         options.queryFn();
       }
       return { data: queryData, isLoading: false };
-    })
+    }),
   };
 });
 
-vi.mock('firebase/firestore', () => {
+vi.mock("firebase/firestore", () => {
   return {
     collection: vi.fn(),
     where: vi.fn(),
@@ -43,44 +43,42 @@ vi.mock('firebase/firestore', () => {
         size: 1,
         forEach: (fn: any) => {
           fn({
-            data: () => ({ role: 'customer' })
+            data: () => ({ role: "customer" }),
           });
           fn({
             data: () => ({
-              status: 'delivered',
-              kitchenStatus: 'ready_for_pickup',
+              status: "delivered",
+              kitchenStatus: "ready_for_pickup",
               price: 150,
               outForDeliveryAt: { toMillis: () => 1000 },
               deliveredAt: { toMillis: () => 61000 }, // 1 min diff
-            })
+            }),
           });
         },
-        docs: [
-          { data: () => ({ id: 'genRun1' }) }
-        ]
+        docs: [{ data: () => ({ id: "genRun1" }) }],
       });
       return vi.fn();
     }),
     Timestamp: {
-      fromDate: vi.fn(() => 'MOCK_TIMESTAMP'),
-    }
+      fromDate: vi.fn(() => "MOCK_TIMESTAMP"),
+    },
   };
 });
 
-vi.mock('@/shared/lib/firebase', () => ({
-  db: {}
+vi.mock("@/shared/lib/firebase", () => ({
+  db: {},
 }));
 
-vi.mock('@/shared/lib/date', () => ({
-  getTodayInTimezone: vi.fn(() => '2026-09-04')
+vi.mock("@/shared/lib/date", () => ({
+  getTodayInTimezone: vi.fn(() => "2026-09-04"),
 }));
 
-describe('useAdminDashboardMetrics', () => {
+describe("useAdminDashboardMetrics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('runs without throwing and computes basic metrics', () => {
+  it("runs without throwing and computes basic metrics", () => {
     const res = useAdminDashboardMetrics();
     expect(res).toBeDefined();
     // In our mocked setup, we expect the metrics to be updated directly

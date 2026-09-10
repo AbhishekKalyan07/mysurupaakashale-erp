@@ -7,10 +7,10 @@
  * ₹1 when the stored value was ₹100.
  */
 export function formatCurrency(rupees: number): string {
-  if (!rupees || isNaN(rupees)) return '₹0';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  if (!rupees || isNaN(rupees)) return "₹0";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(rupees);

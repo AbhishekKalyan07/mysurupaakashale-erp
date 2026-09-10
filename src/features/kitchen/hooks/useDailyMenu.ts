@@ -1,12 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { dailyMenuRepository } from '@/shared/services/firestore/dailyMenuRepository';
-import type { DailyMenu } from '@/shared/types';
-import { Timestamp } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { auditRepository } from '@/shared/services/firestore/auditRepository';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import toast from 'react-hot-toast';
+import { dailyMenuRepository } from "@/shared/services/firestore/dailyMenuRepository";
+import type { DailyMenu } from "@/shared/types";
+import { Timestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import toast from "react-hot-toast";
 
 export function useDailyMenus() {
   return useQuery({
@@ -18,7 +18,7 @@ export function useDailyMenus() {
 export function useDailyMenu(id: string | null) {
   return useQuery({
     queryKey: id ? queryKeys.kitchen.dailyMenuDetail(id) : [],
-    queryFn: () => id ? dailyMenuRepository.getById(id) : null,
+    queryFn: () => (id ? dailyMenuRepository.getById(id) : null),
     enabled: !!id,
   });
 }
@@ -34,28 +34,45 @@ export function useCreateDailyMenu() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (menuData: Omit<DailyMenu, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'publishedBy'>) => {
+    mutationFn: async (
+      menuData: Omit<
+        DailyMenu,
+        "id" | "createdAt" | "updatedAt" | "publishedAt" | "publishedBy"
+      >,
+    ) => {
       const id = crypto.randomUUID();
-      await dailyMenuRepository.create({
-        ...menuData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        publishedAt: null,
-        publishedBy: null,
-      }, id);
-      
+      await dailyMenuRepository.create(
+        {
+          ...menuData,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          publishedAt: null,
+          publishedBy: null,
+        },
+        id,
+      );
+
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('menu_created', user.uid, user.displayName || 'Admin', id, 'menu');
+        await auditRepository.logAction(
+          "menu_created",
+          user.uid,
+          "kitchen",
+          user.displayName || "Admin",
+          id,
+          "menu",
+        );
       }
       return id;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
-      toast.success('Menu created successfully');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuList,
+      });
+      toast.success("Menu created successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to create menu');
+      toast.error((err as Error).message || "Failed to create menu");
     },
   });
 }
@@ -64,25 +81,43 @@ export function useUpdateDailyMenu() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<DailyMenu> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<DailyMenu>;
+    }) => {
       await dailyMenuRepository.update(id, {
         ...data,
         updatedAt: Timestamp.now(),
       });
-      
+
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('menu_edited', user.uid, user.displayName || 'Admin', id, 'menu', { updatedKeys: Object.keys(data) });
+        await auditRepository.logAction(
+          "menu_edited",
+          user.uid,
+          "kitchen",
+          user.displayName || "Admin",
+          id,
+          "menu",
+          { updatedKeys: Object.keys(data) },
+        );
       }
       return id;
     },
     onSuccess: async (id) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(id) });
-      toast.success('Menu updated successfully');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuList,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuDetail(id),
+      });
+      toast.success("Menu updated successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update menu');
+      toast.error((err as Error).message || "Failed to update menu");
     },
   });
 }
@@ -95,15 +130,24 @@ export function useDeleteDailyMenu() {
       await dailyMenuRepository.delete(id);
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('menu_deleted', user.uid, user.displayName || 'Admin', id, 'menu');
+        await auditRepository.logAction(
+          "menu_deleted",
+          user.uid,
+          "kitchen",
+          user.displayName || "Admin",
+          id,
+          "menu",
+        );
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
-      toast.success('Menu deleted successfully');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuList,
+      });
+      toast.success("Menu deleted successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to delete menu');
+      toast.error((err as Error).message || "Failed to delete menu");
     },
   });
 }
@@ -115,28 +159,39 @@ export function usePublishDailyMenu() {
     mutationFn: async (menuId: string) => {
       // Phase 1: Client-side publish
       await dailyMenuRepository.update(menuId, {
-        status: 'published',
+        status: "published",
         publishedAt: Timestamp.now(),
-        publishedBy: 'admin',
+        publishedBy: "admin",
         updatedAt: Timestamp.now(),
       });
-      
+
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('menu_published', user.uid, user.displayName || 'Admin', menuId, 'menu');
+        await auditRepository.logAction(
+          "menu_published",
+          user.uid,
+          "kitchen",
+          user.displayName || "Admin",
+          menuId,
+          "menu",
+        );
       }
       return menuId;
     },
     onSuccess: async (menuId) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(menuId) });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuList,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuDetail(menuId),
+      });
       // We don't have the exact date here easily, but since dailyMenuList is invalidated,
       // it covers most views. To be safe, we could invalidate all dailyMenu queries.
-      queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
-      toast.success('Menu published successfully');
+      queryClient.invalidateQueries({ queryKey: ["kitchen", "dailyMenu"] });
+      toast.success("Menu published successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to publish menu');
+      toast.error((err as Error).message || "Failed to publish menu");
     },
   });
 }
@@ -148,24 +203,35 @@ export function useArchiveDailyMenu() {
     mutationFn: async (menuId: string) => {
       // Phase 1: Client-side archive
       await dailyMenuRepository.update(menuId, {
-        status: 'archived',
+        status: "archived",
         updatedAt: Timestamp.now(),
       });
-      
+
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('menu_archived', user.uid, user.displayName || 'Admin', menuId, 'menu');
+        await auditRepository.logAction(
+          "menu_archived",
+          user.uid,
+          "kitchen",
+          user.displayName || "Admin",
+          menuId,
+          "menu",
+        );
       }
       return menuId;
     },
     onSuccess: async (menuId) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuList });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.dailyMenuDetail(menuId) });
-      queryClient.invalidateQueries({ queryKey: ['kitchen', 'dailyMenu'] });
-      toast.success('Menu archived successfully');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuList,
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.kitchen.dailyMenuDetail(menuId),
+      });
+      queryClient.invalidateQueries({ queryKey: ["kitchen", "dailyMenu"] });
+      toast.success("Menu archived successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to archive menu');
+      toast.error((err as Error).message || "Failed to archive menu");
     },
   });
 }

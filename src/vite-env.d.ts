@@ -20,5 +20,5 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare module 'exceljs';
-declare module '@hookform/resolvers/zod';
+declare module "exceljs";
+declare module "@hookform/resolvers/zod";

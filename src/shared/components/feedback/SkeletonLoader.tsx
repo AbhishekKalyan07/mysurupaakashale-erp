@@ -1,15 +1,29 @@
-import { cn } from '@/shared/lib/cn';
+import { cn } from "@/shared/lib/cn";
 
 // ── Primitive: a single shimmer bar ───────────────────────────────────────────
-function Shimmer({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return <div className={cn('skeleton-shimmer rounded-md', className)} style={style} />;
+function Shimmer({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={cn("skeleton-shimmer rounded-md", className)}
+      style={style}
+    />
+  );
 }
 
 // ── Card Skeleton ─────────────────────────────────────────────────────────────
 export function CardSkeleton({ className }: { className?: string }) {
   return (
     <div
-      className={cn('rounded-xl border border-rice-200 bg-rice-25 p-5 shadow-card', className)}
+      className={cn(
+        "rounded-xl border border-rice-200 bg-rice-25 p-5 shadow-card",
+        className,
+      )}
       role="status"
       aria-label="Loading card"
     >
@@ -24,7 +38,10 @@ export function CardSkeleton({ className }: { className?: string }) {
 // ── Dashboard Cards Row Skeleton ──────────────────────────────────────────────
 export function DashboardCardsSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading dashboard">
+    <div
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      aria-label="Loading dashboard"
+    >
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -43,7 +60,13 @@ export function DashboardCardsSkeleton({ count = 4 }: { count?: number }) {
 }
 
 // ── Table Skeleton ────────────────────────────────────────────────────────────
-export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
+export function TableSkeleton({
+  rows = 6,
+  cols = 5,
+}: {
+  rows?: number;
+  cols?: number;
+}) {
   return (
     <div
       className="rounded-xl border border-rice-200 bg-rice-25 shadow-card overflow-hidden"
@@ -53,7 +76,7 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
       {/* Header */}
       <div className="bg-rice-50 border-b border-rice-200 px-4 py-3 flex gap-4">
         {Array.from({ length: cols }).map((_, i) => (
-          <Shimmer key={i} className={cn('h-3', i === 0 ? 'w-32' : 'flex-1')} />
+          <Shimmer key={i} className={cn("h-3", i === 0 ? "w-32" : "flex-1")} />
         ))}
       </div>
       {/* Rows */}
@@ -66,8 +89,8 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
             <Shimmer
               key={ci}
               className={cn(
-                'h-3.5',
-                ci === 0 ? 'w-36' : ci === cols - 1 ? 'w-16 ml-auto' : 'flex-1',
+                "h-3.5",
+                ci === 0 ? "w-36" : ci === cols - 1 ? "w-16 ml-auto" : "flex-1",
               )}
             />
           ))}
@@ -84,11 +107,7 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
 // ── Form Skeleton ─────────────────────────────────────────────────────────────
 export function FormSkeleton({ fields = 4 }: { fields?: number }) {
   return (
-    <div
-      className="space-y-5 max-w-lg"
-      role="status"
-      aria-label="Loading form"
-    >
+    <div className="space-y-5 max-w-lg" role="status" aria-label="Loading form">
       {Array.from({ length: fields }).map((_, i) => (
         <div key={i} className="flex flex-col gap-2">
           <Shimmer className="h-3 w-24" />
@@ -105,7 +124,7 @@ export function ChartSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-rice-200 bg-rice-25 p-5 shadow-card',
+        "rounded-xl border border-rice-200 bg-rice-25 p-5 shadow-card",
         className,
       )}
       role="status"
@@ -157,7 +176,11 @@ export function ListSkeleton({ items = 5 }: { items?: number }) {
 // ── Page/Section Skeleton (full-page loading) ─────────────────────────────────
 export function PageSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse" role="status" aria-label="Loading page">
+    <div
+      className="space-y-6 animate-pulse"
+      role="status"
+      aria-label="Loading page"
+    >
       {/* Header */}
       <div className="space-y-2">
         <Shimmer className="h-3 w-32" />

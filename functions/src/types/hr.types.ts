@@ -1,6 +1,6 @@
-import type { Timestamp } from 'firebase-admin/firestore';
+import type { Timestamp } from "firebase-admin/firestore";
 
-export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'leave';
+export type AttendanceStatus = "present" | "absent" | "half_day" | "leave";
 
 export interface AttendanceRecord {
   id: string;
@@ -16,8 +16,8 @@ export interface AttendanceRecord {
   updatedAt: Timestamp;
 }
 
-export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
-export type LeaveType = 'sick' | 'casual' | 'unpaid' | 'other';
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type LeaveType = "sick" | "casual" | "unpaid" | "other";
 
 export interface LeaveRequest {
   id: string;
@@ -33,7 +33,8 @@ export interface LeaveRequest {
   updatedAt: Timestamp;
 }
 
-export type PayrollStatus = 'draft' | 'review' | 'approved' | 'paid' | 'archived';
+export type PayrollStatus =
+  "draft" | "review" | "approved" | "paid" | "archived";
 
 export interface PayrollRecord {
   id: string;

@@ -1,38 +1,51 @@
-import { useRouteError, isRouteErrorResponse } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
-import { PremiumCard as Card } from '../ui/PremiumCard';
-import { PremiumButton as Button } from '../ui/PremiumButton';
-import { logger } from '@/shared/utils/logger';
+import { useRouteError, isRouteErrorResponse } from "react-router-dom";
+import { ShieldAlert } from "lucide-react";
+import { PremiumCard as Card } from "../ui/PremiumCard";
+import { PremiumButton as Button } from "../ui/PremiumButton";
+import { logger } from "@/shared/utils/logger";
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
-  logger.error(error as Error, { boundary: 'RouteErrorBoundary' });
+  logger.error(error as Error, { boundary: "RouteErrorBoundary" });
 
-  let title = 'Something went wrong';
-  let message = 'An unexpected error occurred while loading this page.';
+  let title = "Something went wrong";
+  let message = "An unexpected error occurred while loading this page.";
 
   if (isRouteErrorResponse(error)) {
     title = `${error.status} ${error.statusText}`;
-    message = error.data?.message || 'The page you requested could not be found or loaded.';
+    message =
+      error.data?.message ||
+      "The page you requested could not be found or loaded.";
   } else if (error instanceof Error) {
     message = (error as Error).message;
-    
+
     // Automatically reload on chunk load errors (Vite dynamic import failures)
-    const isChunkLoadError = message?.includes('Failed to fetch dynamically imported module') ||
-                             message?.includes('Importing a module script failed');
-                             
+    const isChunkLoadError =
+      message?.includes("Failed to fetch dynamically imported module") ||
+      message?.includes("Importing a module script failed");
+
     if (isChunkLoadError) {
-      const reloadKey = 'app-reloaded-from-chunk-error';
+      const reloadKey = "app-reloaded-from-chunk-error";
       let hasReloaded = false;
       try {
-        hasReloaded = sessionStorage.getItem(reloadKey) === 'true';
-      } catch { /* ignore */ }
-      
+        hasReloaded = sessionStorage.getItem(reloadKey) === "true";
+      } catch {
+        /* ignore */
+      }
+
       if (!hasReloaded) {
-        try { sessionStorage.setItem(reloadKey, 'true'); } catch { /* ignore */ }
+        try {
+          sessionStorage.setItem(reloadKey, "true");
+        } catch {
+          /* ignore */
+        }
         window.location.reload();
       } else {
-        try { sessionStorage.removeItem(reloadKey); } catch { /* ignore */ }
+        try {
+          sessionStorage.removeItem(reloadKey);
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -51,9 +64,7 @@ export function RouteErrorBoundary() {
           <Button variant="secondary" onClick={() => window.location.reload()}>
             Reload Page
           </Button>
-          <Button onClick={() => window.location.href = '/'}>
-            Go Home
-          </Button>
+          <Button onClick={() => (window.location.href = "/")}>Go Home</Button>
         </div>
       </Card>
     </div>

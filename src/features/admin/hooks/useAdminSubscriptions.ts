@@ -1,22 +1,27 @@
-import { useInfiniteQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { getAuth } from 'firebase/auth';
-import toast from 'react-hot-toast';
-import type { QueryDocumentSnapshot } from 'firebase/firestore';
-import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
-import { subscriptionService } from '@/shared/services/business/subscriptionService';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
-import { auditRepository } from '@/shared/services/firestore/auditRepository';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
+import toast from "react-hot-toast";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
+import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
+import { subscriptionService } from "@/shared/services/business/subscriptionService";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { mealPlanRepository } from "@/shared/services/firestore/mealPlanRepository";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import {
   notifySubscriptionActivated,
   notifySubscriptionRejected,
   notifySubscriptionPaused,
   notifySubscriptionResumed,
-} from '@/shared/services/firestore/notificationService';
-import type { Subscription, SubscriptionStatus } from '@/shared/types';
-import { queryKeys } from '@/shared/lib/queryKeys';
+} from "@/shared/services/firestore/notificationService";
+import type { Subscription, SubscriptionStatus } from "@/shared/types";
+import { queryKeys } from "@/shared/lib/queryKeys";
 
-export type AdminStatusFilter = SubscriptionStatus | 'all';
+export type AdminStatusFilter = SubscriptionStatus | "all";
 
 /** A subscription row enriched with the display fields the admin table needs — Subscription itself only stores customerId/planId. */
 export interface SubscriptionRow extends Subscription {
@@ -41,13 +46,19 @@ async function attachDisplayFields(
 ): Promise<SubscriptionRow[]> {
   const customerIds = [...new Set(subscriptions.map((s) => s.customerId))];
   const planIds = [...new Set(subscriptions.map((s) => s.planId))];
-  const deliveryPartnerIds = [...new Set(subscriptions.map((s) => s.deliveryPartnerId).filter((id): id is string => !!id))];
+  const deliveryPartnerIds = [
+    ...new Set(
+      subscriptions
+        .map((s) => s.deliveryPartnerId)
+        .filter((id): id is string => !!id),
+    ),
+  ];
 
   const [customers, plans, deliveryPartners] = await Promise.all([
     Promise.all(
       customerIds.map((id) =>
         queryClient.fetchQuery({
-          queryKey: ['user', id],
+          queryKey: ["user", id],
           queryFn: () => userRepository.getById(id),
           staleTime: 5 * 60_000,
         }),
@@ -56,7 +67,7 @@ async function attachDisplayFields(
     Promise.all(
       planIds.map((id) =>
         queryClient.fetchQuery({
-          queryKey: ['plan', id],
+          queryKey: ["plan", id],
           queryFn: () => mealPlanRepository.getById(id),
           staleTime: 5 * 60_000,
         }),
@@ -65,7 +76,7 @@ async function attachDisplayFields(
     Promise.all(
       deliveryPartnerIds.map((id) =>
         queryClient.fetchQuery({
-          queryKey: ['user', id],
+          queryKey: ["user", id],
           queryFn: () => userRepository.getById(id),
           staleTime: 5 * 60_000,
         }),
@@ -75,7 +86,9 @@ async function attachDisplayFields(
 
   const customerById = new Map(customerIds.map((id, i) => [id, customers[i]]));
   const planById = new Map(planIds.map((id, i) => [id, plans[i]]));
-  const dpById = new Map(deliveryPartnerIds.map((id, i) => [id, deliveryPartners[i]]));
+  const dpById = new Map(
+    deliveryPartnerIds.map((id, i) => [id, deliveryPartners[i]]),
+  );
 
   return subscriptions
     .filter((sub) => {
@@ -85,32 +98,42 @@ async function attachDisplayFields(
     .map((sub) => {
       const customer = customerById.get(sub.customerId)!;
       const plan = planById.get(sub.planId);
-      
+
       let formattedAddress = null;
-      if (customer.role === 'customer') {
-        const addrList = customer.role === 'customer' ? customer.addresses : [];
-        const defaultId = customer.role === 'customer' ? customer.defaultAddressId : null;
-        const addr = addrList.find((a: any) => a.id === defaultId) || addrList[0];
+      if (customer.role === "customer") {
+        const addrList = customer.role === "customer" ? customer.addresses : [];
+        const defaultId =
+          customer.role === "customer" ? customer.defaultAddressId : null;
+        const addr =
+          addrList.find((a: any) => a.id === defaultId) || addrList[0];
         if (addr) {
-          formattedAddress = [addr.line1, addr.line2, addr.city].filter(Boolean).join(', ') + (addr.pincode ? ` - ${addr.pincode}` : '');
+          formattedAddress =
+            [addr.line1, addr.line2, addr.city].filter(Boolean).join(", ") +
+            (addr.pincode ? ` - ${addr.pincode}` : "");
         }
       }
 
-      let preferencesText = '';
+      let preferencesText = "";
       if (plan && sub.mealPreferences) {
-        const prefs = sub.mealPreferences.map(pref => {
-          const slot = plan.mealSlots.find((s: any) => s.mealType === pref.mealType);
-          let option = slot?.options?.find((o: any) => o.id === pref.selectedOptionId);
+        const prefs = sub.mealPreferences.map((pref) => {
+          const slot = plan.mealSlots.find(
+            (s: any) => s.mealType === pref.mealType,
+          );
+          let option = slot?.options?.find(
+            (o: any) => o.id === pref.selectedOptionId,
+          );
           if (!option && slot && slot.options && slot.options.length > 0) {
             option = slot.options[0];
           }
           if (option) return option.label;
           return pref.mealType;
         });
-        preferencesText = prefs.join(' • ');
+        preferencesText = prefs.join(" • ");
       }
 
-      const dp = sub.deliveryPartnerId ? dpById.get(sub.deliveryPartnerId) : null;
+      const dp = sub.deliveryPartnerId
+        ? dpById.get(sub.deliveryPartnerId)
+        : null;
 
       return {
         ...sub,
@@ -131,27 +154,40 @@ export function useAdminSubscriptions(status: AdminStatusFilter) {
 
   return useInfiniteQuery({
     queryKey: queryKeys.subscriptions.adminList(status),
-    queryFn: async ({ pageParam }: { pageParam: QueryDocumentSnapshot<Subscription> | undefined }) => {
-      const filter = status === 'all' ? {} : { status };
-      const { subscriptions, lastDoc } = await subscriptionRepository.getSubscriptionsPaginated(
-        filter,
-        20,
-        pageParam,
-      );
+    queryFn: async ({
+      pageParam,
+    }: {
+      pageParam: QueryDocumentSnapshot<Subscription> | undefined;
+    }) => {
+      const filter = status === "all" ? {} : { status };
+      const { subscriptions, lastDoc } =
+        await subscriptionRepository.getSubscriptionsPaginated(
+          filter,
+          20,
+          pageParam,
+        );
       const rows = await attachDisplayFields(subscriptions, queryClient);
       return { rows, lastDoc };
     },
-    initialPageParam: undefined as QueryDocumentSnapshot<Subscription> | undefined,
+    initialPageParam: undefined as
+      QueryDocumentSnapshot<Subscription> | undefined,
     getNextPageParam: (lastPage) => lastPage.lastDoc ?? undefined,
     staleTime: 0,
   });
 }
 
-function invalidateSubscriptionLists(queryClient: ReturnType<typeof useQueryClient>, subscription: Subscription) {
-  queryClient.invalidateQueries({ queryKey: ['subscriptions', 'admin'] });
+function invalidateSubscriptionLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  subscription: Subscription,
+) {
+  queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
   queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.detail(subscription.id) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.active(subscription.customerId) });
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.subscriptions.detail(subscription.id),
+  });
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.subscriptions.active(subscription.customerId),
+  });
   queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
 }
 
@@ -166,26 +202,33 @@ export function useApproveSubscription() {
       const admin = getAuth().currentUser;
       if (admin) {
         await auditRepository.logAction(
-          'subscription_approved',
+          "subscription_approved",
           admin.uid,
-          admin.displayName || 'Admin',
+          "admin",
+          admin.displayName || "Admin",
           subscription.id,
-          'subscription',
+          "subscription",
           { previousStatus: subscription.status },
         );
       }
 
-      notifySubscriptionActivated(subscription.customerId, subscription.id, subscription.planTier, subscription.startDate)
-        .catch((err) => console.error('[useApproveSubscription] notification failed:', err));
+      notifySubscriptionActivated(
+        subscription.customerId,
+        subscription.id,
+        subscription.planTier,
+        subscription.startDate,
+      ).catch((err) =>
+        console.error("[useApproveSubscription] notification failed:", err),
+      );
 
       return subscription;
     },
     onSuccess: (subscription) => {
       invalidateSubscriptionLists(queryClient, subscription);
-      toast.success('Subscription approved and activated.');
+      toast.success("Subscription approved and activated.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to approve subscription.');
+      toast.error((err as Error).message || "Failed to approve subscription.");
     },
   });
 }
@@ -195,32 +238,44 @@ export function useRejectSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ subscription, reason }: { subscription: Subscription; reason?: string }) => {
+    mutationFn: async ({
+      subscription,
+      reason,
+    }: {
+      subscription: Subscription;
+      reason?: string;
+    }) => {
       await subscriptionService.rejectSubscription(subscription);
 
       const admin = getAuth().currentUser;
       if (admin) {
         await auditRepository.logAction(
-          'subscription_rejected',
+          "subscription_rejected",
           admin.uid,
-          admin.displayName || 'Admin',
+          "admin",
+          admin.displayName || "Admin",
           subscription.id,
-          'subscription',
+          "subscription",
           { reason: reason ?? null },
         );
       }
 
-      notifySubscriptionRejected(subscription.customerId, subscription.id, reason)
-        .catch((err) => console.error('[useRejectSubscription] notification failed:', err));
+      notifySubscriptionRejected(
+        subscription.customerId,
+        subscription.id,
+        reason,
+      ).catch((err) =>
+        console.error("[useRejectSubscription] notification failed:", err),
+      );
 
       return subscription;
     },
     onSuccess: (subscription) => {
       invalidateSubscriptionLists(queryClient, subscription);
-      toast.success('Subscription rejected. Customer has been notified.');
+      toast.success("Subscription rejected. Customer has been notified.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to reject subscription.');
+      toast.error((err as Error).message || "Failed to reject subscription.");
     },
   });
 }
@@ -230,35 +285,49 @@ export function usePauseSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      subscription, 
-      shouldPauseNow = true, 
-      pauseStartDate, 
-      pauseEndDate 
-    }: { 
-      subscription: Subscription; 
-      shouldPauseNow?: boolean; 
-      pauseStartDate?: string | null; 
-      pauseEndDate?: string | null; 
+    mutationFn: async ({
+      subscription,
+      shouldPauseNow = true,
+      pauseStartDate,
+      pauseEndDate,
+    }: {
+      subscription: Subscription;
+      shouldPauseNow?: boolean;
+      pauseStartDate?: string | null;
+      pauseEndDate?: string | null;
     }) => {
-      await subscriptionService.pauseSubscription(subscription, shouldPauseNow, pauseStartDate, pauseEndDate);
+      await subscriptionService.pauseSubscription(
+        subscription,
+        shouldPauseNow,
+        pauseStartDate,
+        pauseEndDate,
+      );
 
       const admin = getAuth().currentUser;
       if (admin) {
-        await auditRepository.logAction('subscription_paused', admin.uid, admin.displayName || 'Admin', subscription.id, 'subscription');
+        await auditRepository.logAction(
+          "subscription_paused",
+          admin.uid,
+          "admin",
+          admin.displayName || "Admin",
+          subscription.id,
+          "subscription",
+        );
       }
 
-      notifySubscriptionPaused(subscription.customerId, subscription.id)
-        .catch((err) => console.error('[usePauseSubscription] notification failed:', err));
+      notifySubscriptionPaused(subscription.customerId, subscription.id).catch(
+        (err) =>
+          console.error("[usePauseSubscription] notification failed:", err),
+      );
 
       return subscription;
     },
     onSuccess: (subscription) => {
       invalidateSubscriptionLists(queryClient, subscription);
-      toast.success('Subscription paused.');
+      toast.success("Subscription paused.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to pause subscription.');
+      toast.error((err as Error).message || "Failed to pause subscription.");
     },
   });
 }
@@ -273,24 +342,35 @@ export function useResumeSubscription() {
 
       const admin = getAuth().currentUser;
       if (admin) {
-        await auditRepository.logAction('subscription_resumed', admin.uid, admin.displayName || 'Admin', subscription.id, 'subscription');
+        await auditRepository.logAction(
+          "subscription_resumed",
+          admin.uid,
+          "admin",
+          admin.displayName || "Admin",
+          subscription.id,
+          "subscription",
+        );
       }
 
       // @ts-ignore - function not imported or doesn't exist in original code
-      if (typeof notifySubscriptionResumed !== 'undefined') {
+      if (typeof notifySubscriptionResumed !== "undefined") {
         // @ts-ignore
-        notifySubscriptionResumed(subscription.customerId, subscription.id)
-          .catch((err: any) => console.error('[useResumeSubscription] notification failed:', err));
+        notifySubscriptionResumed(
+          subscription.customerId,
+          subscription.id,
+        ).catch((err: any) =>
+          console.error("[useResumeSubscription] notification failed:", err),
+        );
       }
 
       return subscription;
     },
     onSuccess: (subscription) => {
       invalidateSubscriptionLists(queryClient, subscription);
-      toast.success('Subscription resumed.');
+      toast.success("Subscription resumed.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to resume subscription.');
+      toast.error((err as Error).message || "Failed to resume subscription.");
     },
   });
 }
@@ -300,18 +380,26 @@ export function useUpdateDeliveryPartner() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ subscriptionId, deliveryPartnerId }: { subscriptionId: string; deliveryPartnerId: string | null }) => {
+    mutationFn: async ({
+      subscriptionId,
+      deliveryPartnerId,
+    }: {
+      subscriptionId: string;
+      deliveryPartnerId: string | null;
+    }) => {
       // Validate the delivery partner before saving
       if (deliveryPartnerId) {
         const partner = await userRepository.getById(deliveryPartnerId);
         if (!partner) {
-          throw new Error('Delivery partner not found.');
+          throw new Error("Delivery partner not found.");
         }
-        if (partner.role !== 'delivery_partner') {
-          throw new Error('Selected user is not a delivery partner.');
+        if (partner.role !== "delivery_partner") {
+          throw new Error("Selected user is not a delivery partner.");
         }
         if (!partner.isActive) {
-          throw new Error('This delivery partner is inactive. Please select an active partner.');
+          throw new Error(
+            "This delivery partner is inactive. Please select an active partner.",
+          );
         }
       }
 
@@ -322,25 +410,28 @@ export function useUpdateDeliveryPartner() {
       const admin = getAuth().currentUser;
       if (admin) {
         await auditRepository.logAction(
-          'subscription_delivery_partner_updated',
+          "subscription_delivery_partner_updated",
           admin.uid,
-          admin.displayName || 'Admin',
+          "admin",
+          admin.displayName || "Admin",
           subscriptionId,
-          'subscription',
+          "subscription",
           { deliveryPartnerId },
         );
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', 'admin'] });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
       // Invalidate all customer-specific subscription caches so SubscriptionDetailsPage
       // also gets the updated delivery partner even when using real-time onSnapshot.
-      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-      toast.success('Delivery partner updated.');
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      toast.success("Delivery partner updated.");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update delivery partner.');
+      toast.error(
+        (err as Error).message || "Failed to update delivery partner.",
+      );
     },
   });
 }

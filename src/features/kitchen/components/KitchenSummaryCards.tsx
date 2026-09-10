@@ -1,6 +1,6 @@
-import type { ProductionProgress } from '@/shared/services/business/productionService';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { ChefHat, Loader2, CheckCircle2, Inbox, Percent } from 'lucide-react';
+import type { ProductionProgress } from "@/shared/services/business/productionService";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { ChefHat, Loader2, CheckCircle2, Inbox, Percent } from "lucide-react";
 
 interface Props {
   progress: ProductionProgress;
@@ -9,7 +9,6 @@ interface Props {
 export function KitchenSummaryCards({ progress }: Props) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-      
       {/* 1. Today's Orders */}
       <Card className="p-4 flex flex-col justify-between gap-2 border-l-4 border-l-turmeric-500">
         <div className="flex items-center gap-1.5 text-ink-500 font-sans text-xs uppercase tracking-wider font-bold">
@@ -75,9 +74,6 @@ export function KitchenSummaryCards({ progress }: Props) {
           {progress.cancelled}
         </div>
       </Card>
-
-
-      
     </div>
   );
 }

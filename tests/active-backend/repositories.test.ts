@@ -87,7 +87,7 @@ describe('repositories.ts', () => {
     });
 
     it('auditRepository.logAction', async () => {
-      await repositories.auditRepository.logAction('cancel', 'e1', 'order', 'u1', 'admin', { detail: 'ok' });
+      await repositories.auditRepository.logAction('cancel', 'u1', 'admin', 'Admin User', 'e1', 'order', { detail: 'ok' });
       
       const snaps = await getFirestore().collection('auditLogs').where('action', '==', 'cancel').where('entityId', '==', 'e1').get();
       expect(snaps.empty).toBe(false);

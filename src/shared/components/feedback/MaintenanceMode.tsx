@@ -1,4 +1,4 @@
-import { Wrench } from 'lucide-react';
+import { Wrench } from "lucide-react";
 
 export interface MaintenanceModeProps {
   title?: string;
@@ -9,11 +9,11 @@ export interface MaintenanceModeProps {
 /**
  * Full-page maintenance screen. Render this at the top level (e.g., in App.tsx)
  * when a `maintenance` flag is active in your business settings.
- * 
+ *
  * DO NOT use the existing routing — render directly before the router.
  */
 export function MaintenanceMode({
-  title = 'System Under Maintenance',
+  title = "System Under Maintenance",
   description = "We're making improvements to serve you better. Normal service will resume shortly.",
   estimatedTime,
 }: MaintenanceModeProps) {
@@ -21,8 +21,12 @@ export function MaintenanceMode({
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-rice-50 px-6 text-center">
       {/* Logo area */}
       <div className="space-y-1">
-        <p className="font-display text-2xl font-bold text-leaf-700">Mysuru Paakashale</p>
-        <p className="text-xs text-ink-500 uppercase tracking-widest font-sans">ERP</p>
+        <p className="font-display text-2xl font-bold text-leaf-700">
+          Mysuru Paakashale
+        </p>
+        <p className="text-xs text-ink-500 uppercase tracking-widest font-sans">
+          ERP
+        </p>
       </div>
 
       {/* Illustration */}
@@ -34,7 +38,9 @@ export function MaintenanceMode({
       </div>
 
       <div className="space-y-3 max-w-md">
-        <h1 className="font-display text-3xl font-bold text-ink-900">{title}</h1>
+        <h1 className="font-display text-3xl font-bold text-ink-900">
+          {title}
+        </h1>
         <p className="text-base text-ink-500 leading-relaxed">{description}</p>
         {estimatedTime && (
           <p className="text-sm font-medium text-turmeric-700 bg-turmeric-50 border border-turmeric-200 rounded-lg px-4 py-2 inline-block">
@@ -55,8 +61,11 @@ export function MaintenanceMode({
       </div>
 
       <p className="text-xs text-ink-500">
-        If you have questions, contact us at{' '}
-        <a href="mailto:support@mysurupaakashale.in" className="text-leaf-600 underline hover:text-leaf-700">
+        If you have questions, contact us at{" "}
+        <a
+          href="mailto:support@mysurupaakashale.in"
+          className="text-leaf-600 underline hover:text-leaf-700"
+        >
           support@mysurupaakashale.in
         </a>
       </p>

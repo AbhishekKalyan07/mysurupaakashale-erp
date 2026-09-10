@@ -1,21 +1,34 @@
-import { db } from '@/shared/lib/firebase';
-import type { Invoice, ManualPayment, Order } from '@/shared/types';
-import { collection, query, where, getDocs, orderBy, Timestamp, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from "@/shared/lib/firebase";
+import type { Invoice, ManualPayment, Order } from "@/shared/types";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  Timestamp,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 
 export class AccountsRepository {
   /**
    * Get all captured payments within a date range.
    */
-  async getPaymentsInRange(startDate: Date, endDate: Date): Promise<ManualPayment[]> {
+  async getPaymentsInRange(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<ManualPayment[]> {
     const q = query(
-      collection(db, 'payments'),
-      where('status', '==', 'verified'),
-      where('createdAt', '>=', Timestamp.fromDate(startDate)),
-      where('createdAt', '<=', Timestamp.fromDate(endDate)),
-      orderBy('createdAt', 'desc')
+      collection(db, "payments"),
+      where("status", "==", "verified"),
+      where("createdAt", ">=", Timestamp.fromDate(startDate)),
+      where("createdAt", "<=", Timestamp.fromDate(endDate)),
+      orderBy("createdAt", "desc"),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(doc => doc.data() as ManualPayment);
+    return snap.docs.map((doc) => doc.data() as ManualPayment);
   }
 
   /**
@@ -23,27 +36,30 @@ export class AccountsRepository {
    */
   async getInvoicesInRange(startDate: Date, endDate: Date): Promise<Invoice[]> {
     const q = query(
-      collection(db, 'invoices'),
-      where('createdAt', '>=', Timestamp.fromDate(startDate)),
-      where('createdAt', '<=', Timestamp.fromDate(endDate)),
-      orderBy('createdAt', 'desc')
+      collection(db, "invoices"),
+      where("createdAt", ">=", Timestamp.fromDate(startDate)),
+      where("createdAt", "<=", Timestamp.fromDate(endDate)),
+      orderBy("createdAt", "desc"),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(doc => doc.data() as Invoice);
+    return snap.docs.map((doc) => doc.data() as Invoice);
   }
 
   /**
    * Get all orders within a specific business date range (by date string).
    */
-  async getOrdersInDateRange(startDateStr: string, endDateStr: string): Promise<Order[]> {
+  async getOrdersInDateRange(
+    startDateStr: string,
+    endDateStr: string,
+  ): Promise<Order[]> {
     const q = query(
-      collection(db, 'orders'),
-      where('date', '>=', startDateStr),
-      where('date', '<=', endDateStr),
-      orderBy('date', 'desc')
+      collection(db, "orders"),
+      where("date", ">=", startDateStr),
+      where("date", "<=", endDateStr),
+      orderBy("date", "desc"),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(doc => doc.data() as Order);
+    return snap.docs.map((doc) => doc.data() as Order);
   }
 
   /**
@@ -53,25 +69,25 @@ export class AccountsRepository {
   async generateDailyReport(date: string): Promise<string> {
     const orders = await this.getOrdersInDateRange(date, date);
     let csvContent = "ID,Customer ID,Date,Tier,Meal Type,Status\n";
-    orders.forEach(order => {
+    orders.forEach((order) => {
       // Escape values properly for CSV
       const escapeCsv = (val: any) => {
-        if (val == null) return '';
+        if (val == null) return "";
         const str = String(val);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
           return `"${str.replace(/"/g, '""')}"`;
         }
         return str;
       };
-      
+
       const row = [
-        escapeCsv(order.id), 
-        escapeCsv(order.customerId), 
-        escapeCsv(order.date), 
-        escapeCsv(order.planTier), 
-        escapeCsv(order.mealType), 
-        escapeCsv(order.status)
-      ].join(',');
+        escapeCsv(order.id),
+        escapeCsv(order.customerId),
+        escapeCsv(order.date),
+        escapeCsv(order.planTier),
+        escapeCsv(order.mealType),
+        escapeCsv(order.status),
+      ].join(",");
       csvContent += row + "\n";
     });
     return csvContent;
@@ -83,41 +99,44 @@ export class AccountsRepository {
    * Ensures timezone boundaries strictly follow IST (Asia/Kolkata).
    */
   async generateMonthlyReport(monthStr: string): Promise<string> {
-    const year = parseInt(monthStr.split('-')[0]);
-    const month = parseInt(monthStr.split('-')[1]);
-    const paddedMonth = month.toString().padStart(2, '0');
-    
+    const year = parseInt(monthStr.split("-")[0]);
+    const month = parseInt(monthStr.split("-")[1]);
+    const paddedMonth = month.toString().padStart(2, "0");
+
     // Calculate last day of the month
     const lastDay = new Date(year, month, 0).getDate();
-    const paddedLastDay = lastDay.toString().padStart(2, '0');
+    const paddedLastDay = lastDay.toString().padStart(2, "0");
 
     // Create boundaries explicitly in Asia/Kolkata timezone (UTC+05:30)
     const startDate = new Date(`${year}-${paddedMonth}-01T00:00:00+05:30`);
-    const endDate = new Date(`${year}-${paddedMonth}-${paddedLastDay}T23:59:59.999+05:30`);
-    
+    const endDate = new Date(
+      `${year}-${paddedMonth}-${paddedLastDay}T23:59:59.999+05:30`,
+    );
+
     const invoices = await this.getInvoicesInRange(startDate, endDate);
     let csvContent = "ID,Customer ID,Amount,Status,Issued At\n";
-    invoices.forEach(inv => {
-      const dateStr = inv.createdAt && (inv.createdAt as any).seconds 
-        ? new Date((inv.createdAt as any).seconds * 1000).toISOString() 
-        : '';
-        
+    invoices.forEach((inv) => {
+      const dateStr =
+        inv.createdAt && (inv.createdAt as any).seconds
+          ? new Date((inv.createdAt as any).seconds * 1000).toISOString()
+          : "";
+
       const escapeCsv = (val: any) => {
-        if (val == null) return '';
+        if (val == null) return "";
         const str = String(val);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
           return `"${str.replace(/"/g, '""')}"`;
         }
         return str;
       };
 
       const row = [
-        escapeCsv(inv.id), 
-        escapeCsv(inv.customerId), 
-        escapeCsv(inv.totalAmount), 
-        escapeCsv(inv.status), 
-        escapeCsv(dateStr)
-      ].join(',');
+        escapeCsv(inv.id),
+        escapeCsv(inv.customerId),
+        escapeCsv(inv.totalAmount),
+        escapeCsv(inv.status),
+        escapeCsv(dateStr),
+      ].join(",");
       csvContent += row + "\n";
     });
     return csvContent;
@@ -126,23 +145,36 @@ export class AccountsRepository {
   /**
    * Generate a manual invoice (e.g. for one-time catering or adjustments).
    */
-  async generateInvoice(payload: { customerId: string; amount: number; description: string }): Promise<void> {
+  async generateInvoice(payload: {
+    customerId: string;
+    amount: number;
+    description: string;
+  }): Promise<void> {
     const invoiceId = crypto.randomUUID();
-    await setDoc(doc(db, 'invoices', invoiceId), {
+    await setDoc(doc(db, "invoices", invoiceId), {
       id: invoiceId,
       invoiceNumber: `INV-${Date.now()}`,
       customerId: payload.customerId,
       subscriptionId: null,
-      lineItems: [{ description: payload.description, quantity: 1, unitPrice: payload.amount, amount: payload.amount }],
+      lineItems: [
+        {
+          description: payload.description,
+          quantity: 1,
+          unitPrice: payload.amount,
+          amount: payload.amount,
+        },
+      ],
       subtotal: payload.amount,
       taxRate: 0,
       taxAmount: 0,
       totalAmount: payload.amount,
-      currency: 'INR',
-      status: 'issued',
-      billingPeriodStart: new Date().toISOString().split('T')[0],
-      billingPeriodEnd: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      currency: "INR",
+      status: "issued",
+      billingPeriodStart: new Date().toISOString().split("T")[0],
+      billingPeriodEnd: new Date().toISOString().split("T")[0],
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0],
       paidAt: null,
       paymentId: null,
       createdAt: serverTimestamp(),

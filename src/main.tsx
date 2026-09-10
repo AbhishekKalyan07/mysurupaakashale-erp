@@ -11,7 +11,11 @@ window.addEventListener("vite:preloadError", (event) => {
   if (!navigator.onLine) {
     alert("You are offline and this section is not cached yet.");
   } else {
-    if (confirm("A required app component was updated. Please click OK to refresh.")) {
+    if (
+      confirm(
+        "A required app component was updated. Please click OK to refresh.",
+      )
+    ) {
       // Unregister service workers to break out of stale cache loop, then reload
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const registration of registrations) {
@@ -60,7 +64,7 @@ async function initSentryLazy() {
         /QuotaExceededError/i,
         /IndexedDbTransactionError/i,
         /Cannot read properties of undefined \(reading 'startTime'\)/i,
-        /Cannot read properties of undefined \(reading 'install'\)/i
+        /Cannot read properties of undefined \(reading 'install'\)/i,
       ],
       integrations: [
         Sentry.reactRouterV6BrowserTracingIntegration({
@@ -127,7 +131,10 @@ function queueNonCriticalInitialization() {
               // 2. Check for updates when the app comes back to the foreground
               // This is CRITICAL for mobile installed PWAs where users just background the app
               document.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "visible" && navigator.onLine) {
+                if (
+                  document.visibilityState === "visible" &&
+                  navigator.onLine
+                ) {
                   r.update().catch(() => {});
                 }
               });

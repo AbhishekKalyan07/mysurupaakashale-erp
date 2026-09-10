@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export interface EmptyStateProps {
   title: string;
@@ -14,7 +14,14 @@ export interface EmptyStateProps {
 }
 
 /** An empty screen is an invitation to act, not just an absence — always pair with a next step where one exists. */
-export function EmptyState({ title, description, action, secondaryAction, icon, illustration }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  secondaryAction,
+  icon,
+  illustration,
+}: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-rice-300 bg-rice-50/50 px-6 py-14 text-center transition-all hover:bg-rice-50">
       {illustration && <div className="mb-2">{illustration}</div>}
@@ -24,8 +31,12 @@ export function EmptyState({ title, description, action, secondaryAction, icon, 
         </div>
       )}
       <div className="space-y-1.5 max-w-sm">
-        <h3 className="font-display text-lg font-semibold text-ink-900">{title}</h3>
-        {description && <p className="text-sm text-ink-500 leading-relaxed">{description}</p>}
+        <h3 className="font-display text-lg font-semibold text-ink-900">
+          {title}
+        </h3>
+        {description && (
+          <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
+        )}
       </div>
       {(action || secondaryAction) && (
         <div className="mt-2 flex flex-col sm:flex-row items-center gap-3">
@@ -36,4 +47,3 @@ export function EmptyState({ title, description, action, secondaryAction, icon, 
     </div>
   );
 }
-

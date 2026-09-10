@@ -1,29 +1,37 @@
-import { Timestamp } from 'firebase/firestore';
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useMySubscription, useSkipDay, useHasPastOrders, useSubscriptionStats } from '@/features/customer/hooks/useMySubscription';
-import { useMealPlans } from '@/features/customer/hooks/useMealPlans';
-import { useCustomerAddresses } from '@/features/customer/hooks/useCustomerAddresses';
-import { useDeliveryPartnerProfile } from '@/features/delivery/hooks/useDeliveryPartnerProfile';
-import type { CustomerProfile } from '@/shared/types';
-import { useQueryClient } from '@tanstack/react-query';
-import type { Order } from '@/shared/types';
-import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import { getTodayIST } from '@/shared/utils/dateUtils';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumInput as Input } from '@/shared/components/ui/PremiumInput';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { HeroBanner } from '@/shared/components/ui/HeroBanner';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/shared/lib/firebase';
-import { AddressPicker, type PickedAddress } from '@/features/customer/components/AddressPicker';
+import { Timestamp } from "firebase/firestore";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import {
+  useMySubscription,
+  useSkipDay,
+  useHasPastOrders,
+  useSubscriptionStats,
+} from "@/features/customer/hooks/useMySubscription";
+import { useMealPlans } from "@/features/customer/hooks/useMealPlans";
+import { useCustomerAddresses } from "@/features/customer/hooks/useCustomerAddresses";
+import { useDeliveryPartnerProfile } from "@/features/delivery/hooks/useDeliveryPartnerProfile";
+import type { CustomerProfile } from "@/shared/types";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Order } from "@/shared/types";
+import { orderRepository } from "@/shared/services/firestore/orderRepository";
+import { getTodayIST } from "@/shared/utils/dateUtils";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import { HeroBanner } from "@/shared/components/ui/HeroBanner";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/shared/lib/firebase";
+import {
+  AddressPicker,
+  type PickedAddress,
+} from "@/features/customer/components/AddressPicker";
 import {
   UtensilsCrossed,
   MapPin,
@@ -33,24 +41,29 @@ import {
   ExternalLink,
   Info,
   MessageSquareWarning,
-  Play
-} from 'lucide-react';
-import { FeedbackModal } from '@/features/customer/components/FeedbackModal';
-import { ResumeDeliveryModal } from '@/features/customer/components/ResumeDeliveryModal';
-import { PauseSubscriptionModal } from '@/features/customer/components/PauseSubscriptionModal';
-import { calculateDailyPrice } from '@/shared/utils/pricing';
-import { calculateAccruedBill } from '@/shared/utils/billing';
-import { Truck, XCircle, PauseCircle } from 'lucide-react';
-import { PauseDeliveryModal } from '@/features/customer/components/PauseDeliveryModal';
-import { CancelTodayModal } from '@/features/customer/components/CancelTodayModal';
+  Play,
+} from "lucide-react";
+import { FeedbackModal } from "@/features/customer/components/FeedbackModal";
+import { ResumeDeliveryModal } from "@/features/customer/components/ResumeDeliveryModal";
+import { PauseSubscriptionModal } from "@/features/customer/components/PauseSubscriptionModal";
+import { calculateDailyPrice } from "@/shared/utils/pricing";
+import { calculateAccruedBill } from "@/shared/utils/billing";
+import { Truck, XCircle, PauseCircle } from "lucide-react";
+import { PauseDeliveryModal } from "@/features/customer/components/PauseDeliveryModal";
+import { CancelTodayModal } from "@/features/customer/components/CancelTodayModal";
 
 const addressFormSchema = z.object({
-  label: z.string().min(1, 'Label is required (e.g., Home, Office)').max(50),
-  line1: z.string().min(5, 'Address line 1 must be at least 5 characters').max(200),
+  label: z.string().min(1, "Label is required (e.g., Home, Office)").max(50),
+  line1: z
+    .string()
+    .min(5, "Address line 1 must be at least 5 characters")
+    .max(200),
   line2: z.string().max(200).optional(),
-  city: z.string().min(1, 'City is required').max(100),
-  state: z.string().min(1, 'State is required').max(100),
-  pincode: z.string().regex(/^[1-9][0-9]{5}$/, 'Pincode must be exactly 6 digits'),
+  city: z.string().min(1, "City is required").max(100),
+  state: z.string().min(1, "State is required").max(100),
+  pincode: z
+    .string()
+    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits"),
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
@@ -58,8 +71,18 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 export function CustomerDashboardPage() {
   const navigate = useNavigate();
   const { firebaseUser, profile } = useAuth();
-  const { data: subscription, isLoading: isSubLoading, error: subError, refetch: refetchSub } = useMySubscription();
-  const { data: plans, isLoading: isPlansLoading, error: plansError, refetch: refetchPlans } = useMealPlans();
+  const {
+    data: subscription,
+    isLoading: isSubLoading,
+    error: subError,
+    refetch: refetchSub,
+  } = useMySubscription();
+  const {
+    data: plans,
+    isLoading: isPlansLoading,
+    error: plansError,
+    refetch: refetchPlans,
+  } = useMealPlans();
   const {
     addresses,
     defaultAddressId,
@@ -68,14 +91,19 @@ export function CustomerDashboardPage() {
     deleteAddress,
     isDeleting,
     setDefaultAddress,
-    isSettingDefault
+    isSettingDefault,
   } = useCustomerAddresses();
 
   const { data: hasPastOrders } = useHasPastOrders();
-  const { data: subStats } = useSubscriptionStats(subscription?.id, firebaseUser?.uid);
-  
+  const { data: subStats } = useSubscriptionStats(
+    subscription?.id,
+    firebaseUser?.uid,
+  );
+
   const customerProfile = profile as CustomerProfile | null;
-  const { data: deliveryPartner } = useDeliveryPartnerProfile(customerProfile?.deliveryPartnerId);
+  const { data: deliveryPartner } = useDeliveryPartnerProfile(
+    customerProfile?.deliveryPartnerId,
+  );
 
   const today = getTodayIST();
 
@@ -85,13 +113,13 @@ export function CustomerDashboardPage() {
     if (!firebaseUser?.uid) return;
     const unsubscribe = orderRepository.subscribeToCustomerOrders(
       firebaseUser.uid,
-      (orders) => setCustomerOrders(orders)
+      (orders) => setCustomerOrders(orders),
     );
     return () => unsubscribe();
   }, [firebaseUser?.uid]);
 
   const todayOrders = useMemo(() => {
-    return customerOrders.filter(o => o.date === today);
+    return customerOrders.filter((o) => o.date === today);
   }, [customerOrders, today]);
 
   const accruedBill = useMemo(() => {
@@ -119,21 +147,25 @@ export function CustomerDashboardPage() {
   } = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
     defaultValues: {
-      label: 'Home',
-      city: 'Mysuru',
-      state: 'Karnataka',
+      label: "Home",
+      city: "Mysuru",
+      state: "Karnataka",
     },
   });
 
   // Track geocoords picked from AddressPicker (not stored in form)
-  const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickedCoords, setPickedCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const handleAddressPicked = (picked: PickedAddress) => {
-    setValue('line1', picked.line1, { shouldValidate: true });
-    if (picked.line2) setValue('line2', picked.line2, { shouldValidate: true });
-    setValue('city', picked.city || 'Mysuru', { shouldValidate: true });
-    setValue('state', picked.state || 'Karnataka', { shouldValidate: true });
-    if (picked.pincode) setValue('pincode', picked.pincode, { shouldValidate: true });
+    setValue("line1", picked.line1, { shouldValidate: true });
+    if (picked.line2) setValue("line2", picked.line2, { shouldValidate: true });
+    setValue("city", picked.city || "Mysuru", { shouldValidate: true });
+    setValue("state", picked.state || "Karnataka", { shouldValidate: true });
+    if (picked.pincode)
+      setValue("pincode", picked.pincode, { shouldValidate: true });
     setPickedCoords({ lat: picked.lat, lng: picked.lng });
   };
 
@@ -161,7 +193,9 @@ export function CustomerDashboardPage() {
   }
 
   const selectedPlan = plans?.find((p) => p.id === subscription?.planId);
-  const activeAddress = addresses?.find((a) => a.id === subscription?.deliveryAddressId);
+  const activeAddress = addresses?.find(
+    (a) => a.id === subscription?.deliveryAddressId,
+  );
 
   const onAddressSubmit = async (data: AddressFormValues) => {
     setAddressError(null);
@@ -176,30 +210,34 @@ export function CustomerDashboardPage() {
       setPickedCoords(null);
       reset();
     } catch (err: unknown) {
-      console.error('Error adding address:', err);
-      setAddressError((err as Error).message || 'Could not add address. Please check inputs.');
+      console.error("Error adding address:", err);
+      setAddressError(
+        (err as Error).message || "Could not add address. Please check inputs.",
+      );
     }
   };
 
-  const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'default' | 'danger' | 'info' => {
+  const getStatusBadgeVariant = (
+    status: string,
+  ): "success" | "warning" | "default" | "danger" | "info" => {
     switch (status) {
-      case 'active':
-        return 'success';
-      case 'pending_payment':
-        return 'warning';
-      case 'paused':
-        return 'info';
-      case 'cancelled':
-        return 'danger';
+      case "active":
+        return "success";
+      case "pending_payment":
+        return "warning";
+      case "paused":
+        return "info";
+      case "cancelled":
+        return "danger";
       default:
-        return 'default';
+        return "default";
     }
   };
 
   return (
     <div className="space-y-8 pb-12">
       {/* Welcome & Header */}
-      <HeroBanner 
+      <HeroBanner
         userName="Customer"
         subtitle="Manage your daily meals, subscription plans, and delivery options here."
       />
@@ -212,10 +250,11 @@ export function CustomerDashboardPage() {
             {subscription && (
               <div className="absolute top-0 right-0 left-0 bg-gold h-1 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
             )}
-            
+
             <div className="p-4 md:p-5">
               <h2 className="text-lg font-display font-bold text-primary mb-3 flex items-center gap-2">
-                <UtensilsCrossed size={18} className="text-gold" /> Live Meal Subscription
+                <UtensilsCrossed size={18} className="text-gold" /> Live Meal
+                Subscription
               </h2>
 
               {subscription ? (
@@ -223,22 +262,33 @@ export function CustomerDashboardPage() {
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-background p-4 rounded-xl border border-primary/10 shadow-xs">
                     <div>
                       <h3 className="font-sans font-bold text-primary text-base flex items-center gap-2">
-                        {selectedPlan?.name || 'Loading plan details...'}
+                        {selectedPlan?.name || "Loading plan details..."}
                         <span className="text-[10px] text-primary font-bold bg-gold/20 px-2.5 py-0.5 rounded-full border border-gold/30">
-                          {subscription.quantity || 1} {subscription.quantity === 1 ? 'Person' : 'People'}
+                          {subscription.quantity || 1}{" "}
+                          {subscription.quantity === 1 ? "Person" : "People"}
                         </span>
                       </h3>
                       <p className="text-text-muted text-xs mt-1 font-medium">
-                        Post-paid monthly • ₹{calculateDailyPrice(subscription) * (subscription.quantity || 1)}/day
+                        Post-paid monthly • ₹
+                        {calculateDailyPrice(subscription) *
+                          (subscription.quantity || 1)}
+                        /day
                       </p>
                     </div>
                     <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
-                      <Badge variant={getStatusBadgeVariant(subscription.status)} className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider">
-                        {subscription.status.replace('_', ' ')}
+                      <Badge
+                        variant={getStatusBadgeVariant(subscription.status)}
+                        className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider"
+                      >
+                        {subscription.status.replace("_", " ")}
                       </Badge>
                       <div className="bg-primary/5 border border-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-sans text-right shadow-xs flex sm:flex-col items-center sm:items-end gap-1 sm:gap-0">
-                        <span className="font-bold text-text-muted text-[9px] uppercase tracking-wider">Accrued Bill:</span>
-                        <strong className="text-sm font-bold font-data text-gold-dark">₹{accruedBill || 0}</strong>
+                        <span className="font-bold text-text-muted text-[9px] uppercase tracking-wider">
+                          Accrued Bill:
+                        </span>
+                        <strong className="text-sm font-bold font-data text-gold-dark">
+                          ₹{accruedBill || 0}
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -250,26 +300,50 @@ export function CustomerDashboardPage() {
                         Delivery Schedule &amp; Stats
                       </span>
                       <div className="flex items-start gap-2.5 text-primary">
-                        <Calendar size={16} className="text-gold shrink-0 mt-0.5" />
+                        <Calendar
+                          size={16}
+                          className="text-gold shrink-0 mt-0.5"
+                        />
                         <div>
-                          <p className="font-bold text-primary text-xs">Starts: {subscription.startDate}</p>
+                          <p className="font-bold text-primary text-xs">
+                            Starts: {subscription.startDate}
+                          </p>
                           <div className="text-text-muted mt-1 font-medium text-[11px] flex gap-3">
-                            <span><strong className="text-primary">{subStats?.daysOrdered || 0}</strong> Delivered</span>
-                            <span><strong className="text-primary">{subStats?.pausedDates?.length || 0}</strong> Pauses</span>
+                            <span>
+                              <strong className="text-primary">
+                                {subStats?.daysOrdered || 0}
+                              </strong>{" "}
+                              Delivered
+                            </span>
+                            <span>
+                              <strong className="text-primary">
+                                {subStats?.pausedDates?.length || 0}
+                              </strong>{" "}
+                              Pauses
+                            </span>
                           </div>
                           {subStats && subStats.pausedDates.length > 0 && (
-                            <p className="text-[10px] text-text-muted mt-0.5 italic">Paused: {subStats.pausedDates.join(', ')}</p>
+                            <p className="text-[10px] text-text-muted mt-0.5 italic">
+                              Paused: {subStats.pausedDates.join(", ")}
+                            </p>
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start gap-2.5 text-primary mt-2 pt-2 border-t border-primary/5">
-                        <Truck size={16} className="text-gold shrink-0 mt-0.5" />
+                        <Truck
+                          size={16}
+                          className="text-gold shrink-0 mt-0.5"
+                        />
                         <div>
-                          <p className="font-bold text-primary text-xs">Delivery Partner</p>
+                          <p className="font-bold text-primary text-xs">
+                            Delivery Partner
+                          </p>
                           <div className="text-text-muted mt-0.5 font-medium text-[11px]">
                             {deliveryPartner ? (
-                              <span className="text-primary font-bold">{deliveryPartner.fullName}</span>
+                              <span className="text-primary font-bold">
+                                {deliveryPartner.fullName}
+                              </span>
                             ) : (
                               <span className="italic">Unassigned</span>
                             )}
@@ -284,15 +358,24 @@ export function CustomerDashboardPage() {
                         Drop-off Address
                       </span>
                       <div className="flex items-start gap-2.5 text-primary">
-                        <MapPin size={16} className="text-gold shrink-0 mt-0.5" />
+                        <MapPin
+                          size={16}
+                          className="text-gold shrink-0 mt-0.5"
+                        />
                         <div>
                           {activeAddress ? (
                             <>
-                              <p className="font-bold text-primary text-xs">{activeAddress.label}</p>
-                              <p className="text-text-muted mt-0.5 font-medium text-[11px] line-clamp-2">{activeAddress.line1}</p>
+                              <p className="font-bold text-primary text-xs">
+                                {activeAddress.label}
+                              </p>
+                              <p className="text-text-muted mt-0.5 font-medium text-[11px] line-clamp-2">
+                                {activeAddress.line1}
+                              </p>
                             </>
                           ) : (
-                            <p className="text-danger font-bold text-xs">Address details missing</p>
+                            <p className="text-danger font-bold text-xs">
+                              Address details missing
+                            </p>
                           )}
                         </div>
                       </div>
@@ -306,18 +389,20 @@ export function CustomerDashboardPage() {
                       onClick={() => setShowFeedbackModal(true)}
                       className="text-primary border-primary/20 hover:bg-gold/10 hover:text-gold hover:border-gold/30 font-bold text-xs"
                     >
-                      Report Issue <MessageSquareWarning size={14} className="ml-1.5" />
+                      Report Issue{" "}
+                      <MessageSquareWarning size={14} className="ml-1.5" />
                     </Button>
-                    {subscription.status === 'paused' ? (
+                    {subscription.status === "paused" ? (
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => setShowResumeModal(true)}
                         className="text-success border-success/30 hover:bg-success/10 font-bold text-xs"
                       >
-                        Resume <Play size={14} className="ml-1.5 fill-current" />
+                        Resume{" "}
+                        <Play size={14} className="ml-1.5 fill-current" />
                       </Button>
-                    ) : subscription.status === 'active' ? (
+                    ) : subscription.status === "active" ? (
                       <>
                         <Button
                           variant="secondary"
@@ -341,14 +426,15 @@ export function CustomerDashboardPage() {
                           onClick={() => setShowPauseModal(true)}
                           className="text-amber-800 border-amber-300 hover:bg-amber-50 font-bold text-xs"
                         >
-                          Pause Subscription <PauseCircle size={14} className="ml-1.5" />
+                          Pause Subscription{" "}
+                          <PauseCircle size={14} className="ml-1.5" />
                         </Button>
                       </>
                     ) : null}
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => navigate('/customer/subscription')}
+                      onClick={() => navigate("/customer/subscription")}
                       className="font-bold text-xs"
                     >
                       Manage <ExternalLink size={14} className="ml-1.5" />
@@ -357,14 +443,17 @@ export function CustomerDashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-4 px-3 flex flex-col items-center justify-center bg-background rounded-xl border border-primary/10">
-                  <h3 className="text-base font-display font-bold text-primary mb-1">Start Your Culinary Journey</h3>
+                  <h3 className="text-base font-display font-bold text-primary mb-1">
+                    Start Your Culinary Journey
+                  </h3>
                   <p className="text-text-muted font-sans text-xs mb-3 max-w-sm mx-auto leading-normal">
-                    No active meal subscription. Discover our curated plans for authentic daily meals delivered to your door.
+                    No active meal subscription. Discover our curated plans for
+                    authentic daily meals delivered to your door.
                   </p>
-                  
+
                   <div className="flex flex-row gap-2 justify-center items-center w-full max-w-xs">
                     <Button
-                      onClick={() => navigate('/customer/plans')}
+                      onClick={() => navigate("/customer/plans")}
                       size="sm"
                       className="font-sans font-bold text-xs px-4 py-2 flex-1 shadow-xs"
                     >
@@ -390,14 +479,29 @@ export function CustomerDashboardPage() {
           <Card className="p-6 md:p-8 border-primary/20 shadow-sm">
             <h3 className="text-xl font-display font-bold text-primary mb-6 flex items-center justify-between">
               <span className="flex items-center gap-3">
-                <Play size={20} className="text-gold fill-current" /> Today's Deliveries
+                <Play size={20} className="text-gold fill-current" /> Today's
+                Deliveries
               </span>
               {todayOrders && todayOrders.length > 0 && (
                 <span className="text-xs font-sans font-bold text-gold bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
-                  Total: ₹{
-                    (subscription ? calculateAccruedBill(todayOrders.filter(o => o.subscriptionId === subscription.id), subscription) : 0) +
-                    todayOrders.filter(o => o.status !== 'cancelled' && o.status !== 'skipped' && (!subscription || o.subscriptionId !== subscription.id)).reduce((sum, order) => sum + (order.price || 0), 0)
-                  }
+                  Total: ₹
+                  {(subscription
+                    ? calculateAccruedBill(
+                        todayOrders.filter(
+                          (o) => o.subscriptionId === subscription.id,
+                        ),
+                        subscription,
+                      )
+                    : 0) +
+                    todayOrders
+                      .filter(
+                        (o) =>
+                          o.status !== "cancelled" &&
+                          o.status !== "skipped" &&
+                          (!subscription ||
+                            o.subscriptionId !== subscription.id),
+                      )
+                      .reduce((sum, order) => sum + (order.price || 0), 0)}
                 </span>
               )}
             </h3>
@@ -405,85 +509,133 @@ export function CustomerDashboardPage() {
               if (!todayOrders || todayOrders.length === 0) {
                 return (
                   <div className="bg-background-alt border border-primary/10 rounded-xl p-6 text-center">
-                    <p className="text-base font-sans text-text-muted font-medium">No deliveries scheduled for today.</p>
+                    <p className="text-base font-sans text-text-muted font-medium">
+                      No deliveries scheduled for today.
+                    </p>
                   </div>
                 );
               }
-              
-              const mealOrder = ['breakfast', 'lunch', 'dinner'];
-              const grouped = todayOrders.reduce((acc, order) => {
-                const mt = order.mealType || 'other';
-                if (!acc[mt]) acc[mt] = [];
-                acc[mt].push(order);
-                return acc;
-              }, {} as Record<string, typeof todayOrders>);
-              
+
+              const mealOrder = ["breakfast", "lunch", "dinner"];
+              const grouped = todayOrders.reduce(
+                (acc, order) => {
+                  const mt = order.mealType || "other";
+                  if (!acc[mt]) acc[mt] = [];
+                  acc[mt].push(order);
+                  return acc;
+                },
+                {} as Record<string, typeof todayOrders>,
+              );
+
               return (
                 <div className="relative border-l-2 border-gold/30 ml-3 pl-6 space-y-8 py-2">
                   {mealOrder.map((mealType) => {
                     const orders = grouped[mealType];
                     if (!orders || orders.length === 0) return null;
-                    
+
                     return (
                       <div key={mealType} className="relative">
                         {/* Timeline dot */}
                         <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-gold border-4 border-background shadow-sm" />
-                        
+
                         <h4 className="font-bold text-base text-primary capitalize tracking-wide font-sans mb-3">
                           {mealType}
                         </h4>
-                        
+
                         <div className="grid gap-3">
                           {orders.map((order) => (
-                            <div key={order.id} className="p-4 rounded-xl border border-primary/10 bg-primary/5 shadow-sm space-y-3">
+                            <div
+                              key={order.id}
+                              className="p-4 rounded-xl border border-primary/10 bg-primary/5 shadow-sm space-y-3"
+                            >
                               <div className="flex justify-between items-start">
                                 <div>
                                   <p className="font-bold font-sans text-primary text-base capitalize">
                                     {order.itemsLabel || order.mealType}
                                   </p>
-                                  {order.mealQuantity && order.mealQuantity > 1 && (
-                                    <p className="text-xs text-gold-dark font-bold bg-gold/10 px-2 py-0.5 rounded border border-gold/20 inline-block mt-1">Qty: {order.mealQuantity}</p>
-                                  )}
+                                  {order.mealQuantity &&
+                                    order.mealQuantity > 1 && (
+                                      <p className="text-xs text-gold-dark font-bold bg-gold/10 px-2 py-0.5 rounded border border-gold/20 inline-block mt-1">
+                                        Qty: {order.mealQuantity}
+                                      </p>
+                                    )}
                                 </div>
-                                <Badge variant={getStatusBadgeVariant(order.status)} className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider shrink-0">
-                                  {order.status === 'delivered' ? '✔ Delivered' : order.status.replace('_', ' ')}
+                                <Badge
+                                  variant={getStatusBadgeVariant(order.status)}
+                                  className="capitalize font-sans px-3 py-1 font-bold text-[10px] tracking-wider shrink-0"
+                                >
+                                  {order.status === "delivered"
+                                    ? "✔ Delivered"
+                                    : order.status.replace("_", " ")}
                                 </Badge>
                               </div>
 
                               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                                 {order.driverName ? (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Driver</span>
-                                    <span className="text-primary font-medium">{order.driverName}</span>
-                                    {order.driverPhone && <span className="text-text-muted text-xs">{order.driverPhone}</span>}
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                      Driver
+                                    </span>
+                                    <span className="text-primary font-medium">
+                                      {order.driverName}
+                                    </span>
+                                    {order.driverPhone && (
+                                      <span className="text-text-muted text-xs">
+                                        {order.driverPhone}
+                                      </span>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Location</span>
-                                    <span className="text-text-muted font-medium">Kitchen / Processing</span>
-                                  </div>
-                                )}
-                                
-                                {order.estimatedETA && order.status !== 'delivered' && (
-                                  <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">ETA</span>
-                                    <span className="text-gold-dark font-bold">{order.estimatedETA}</span>
-                                  </div>
-                                )}
-
-                                {order.status === 'delivered' && order.updatedAt && (
-                                  <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Delivered At</span>
-                                    <span className="text-success-dark font-bold">
-                                      {new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: 'numeric', hour12: true }).format(order.updatedAt.toDate ? order.updatedAt.toDate() : new Date(order.updatedAt as any))}
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                      Location
+                                    </span>
+                                    <span className="text-text-muted font-medium">
+                                      Kitchen / Processing
                                     </span>
                                   </div>
                                 )}
 
+                                {order.estimatedETA &&
+                                  order.status !== "delivered" && (
+                                    <div className="flex flex-col">
+                                      <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                        ETA
+                                      </span>
+                                      <span className="text-gold-dark font-bold">
+                                        {order.estimatedETA}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                {order.status === "delivered" &&
+                                  order.updatedAt && (
+                                    <div className="flex flex-col">
+                                      <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                        Delivered At
+                                      </span>
+                                      <span className="text-success-dark font-bold">
+                                        {new Intl.DateTimeFormat("en-IN", {
+                                          hour: "numeric",
+                                          minute: "numeric",
+                                          hour12: true,
+                                        }).format(
+                                          order.updatedAt.toDate
+                                            ? order.updatedAt.toDate()
+                                            : new Date(order.updatedAt as any),
+                                        )}
+                                      </span>
+                                    </div>
+                                  )}
+
                                 {order.billingStatus && (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">Billing</span>
-                                    <span className="text-primary font-medium">{order.billingStatus}</span>
+                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                      Billing
+                                    </span>
+                                    <span className="text-primary font-medium">
+                                      {order.billingStatus}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -502,23 +654,38 @@ export function CustomerDashboardPage() {
           <Card className="p-6 md:p-8 border-gold/30 bg-gradient-to-br from-gold/5 to-gold/10 flex gap-4 items-start shadow-sm">
             <Info className="text-gold shrink-0 mt-1" size={24} />
             <div className="font-sans text-primary text-sm w-full min-w-0">
-              <h4 className="font-bold text-primary text-lg mb-3">Daily Delivery Times:</h4>
+              <h4 className="font-bold text-primary text-lg mb-3">
+                Daily Delivery Times:
+              </h4>
               <ul className="space-y-3 mt-2 bg-background p-4 rounded-xl border border-gold/20 shadow-sm">
                 <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 pb-3 border-b border-primary/5">
-                  <strong className="text-primary font-bold flex items-center gap-1.5">🌅 <span className="tracking-wide">Breakfast</span></strong>
-                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">07:00 AM - 09:00 AM</span>
+                  <strong className="text-primary font-bold flex items-center gap-1.5">
+                    🌅 <span className="tracking-wide">Breakfast</span>
+                  </strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
+                    07:00 AM - 09:00 AM
+                  </span>
                 </li>
                 <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 pb-3 border-b border-primary/5">
-                  <strong className="text-primary font-bold flex items-center gap-1.5">☀️ <span className="tracking-wide">Lunch</span></strong>
-                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">12:30 PM - 02:30 PM</span>
+                  <strong className="text-primary font-bold flex items-center gap-1.5">
+                    ☀️ <span className="tracking-wide">Lunch</span>
+                  </strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
+                    12:30 PM - 02:30 PM
+                  </span>
                 </li>
                 <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
-                  <strong className="text-primary font-bold flex items-center gap-1.5">🌙 <span className="tracking-wide">Dinner</span></strong>
-                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">07:00 PM - 09:00 PM</span>
+                  <strong className="text-primary font-bold flex items-center gap-1.5">
+                    🌙 <span className="tracking-wide">Dinner</span>
+                  </strong>
+                  <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
+                    07:00 PM - 09:00 PM
+                  </span>
                 </li>
               </ul>
               <p className="text-text-muted mt-4 text-xs font-medium leading-relaxed bg-primary/5 p-3 rounded-lg border border-primary/10">
-                To cancel a specific meal, please do so before the cut-off time: Breakfast (5 AM), Lunch (10:30 AM), Dinner (4 PM).
+                To cancel a specific meal, please do so before the cut-off time:
+                Breakfast (5 AM), Lunch (10:30 AM), Dinner (4 PM).
               </p>
             </div>
           </Card>
@@ -550,33 +717,40 @@ export function CustomerDashboardPage() {
 
             {showAddressForm ? (
               /* Inline Address Form */
-              <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 bg-background p-5 rounded-xl border border-primary/10 shadow-sm">
-                <h3 className="font-sans font-bold text-primary text-xs uppercase tracking-widest mb-4">New Address</h3>
+              <form
+                onSubmit={handleSubmit(onAddressSubmit)}
+                className="space-y-4 bg-background p-5 rounded-xl border border-primary/10 shadow-sm"
+              >
+                <h3 className="font-sans font-bold text-primary text-xs uppercase tracking-widest mb-4">
+                  New Address
+                </h3>
 
                 {/* ── Zomato-style location picker ── */}
                 <AddressPicker onPick={handleAddressPicked} />
 
                 <div className="pt-4 border-t border-primary/10 mt-4 space-y-4">
-                  <p className="text-[10px] text-text-muted font-sans font-bold uppercase tracking-wider">Confirm or edit the auto-filled details below</p>
+                  <p className="text-[10px] text-text-muted font-sans font-bold uppercase tracking-wider">
+                    Confirm or edit the auto-filled details below
+                  </p>
 
                   <Input
                     label="Label (e.g. Home, Office)"
                     placeholder="Home"
-                    {...register('label')}
+                    {...register("label")}
                     error={errors.label?.message}
                   />
 
                   <Input
                     label="Street / House Number"
                     placeholder="123 Main St"
-                    {...register('line1')}
+                    {...register("line1")}
                     error={errors.line1?.message}
                   />
 
                   <Input
                     label="Area / Landmark (Optional)"
                     placeholder="Opposite Park"
-                    {...register('line2')}
+                    {...register("line2")}
                     error={errors.line2?.message}
                   />
 
@@ -584,12 +758,12 @@ export function CustomerDashboardPage() {
                     <Input
                       label="Pincode"
                       placeholder="570001"
-                      {...register('pincode')}
+                      {...register("pincode")}
                       error={errors.pincode?.message}
                     />
                     <Input
                       label="City"
-                      {...register('city')}
+                      {...register("city")}
                       error={errors.city?.message}
                       disabled
                       className="bg-primary/5"
@@ -615,7 +789,7 @@ export function CustomerDashboardPage() {
                     disabled={isAdding}
                     className="font-bold text-xs px-6 py-2"
                   >
-                    {isAdding ? 'Saving...' : 'Save'}
+                    {isAdding ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </form>
@@ -635,12 +809,16 @@ export function CustomerDashboardPage() {
                       <div
                         key={addr.id}
                         className={`group p-5 rounded-2xl border font-sans text-sm flex justify-between items-start transition-all duration-300 shadow-sm ${
-                          isDefault ? 'border-gold bg-gold/5 shadow-gold/10' : 'border-primary/10 bg-white hover:border-primary/30 hover:shadow-md'
+                          isDefault
+                            ? "border-gold bg-gold/5 shadow-gold/10"
+                            : "border-primary/10 bg-white hover:border-primary/30 hover:shadow-md"
                         }`}
                       >
                         <div className="space-y-2 select-none pr-4">
                           <div className="flex items-center gap-3 mb-3">
-                            <span className="font-bold text-primary text-base font-display">{addr.label}</span>
+                            <span className="font-bold text-primary text-base font-display">
+                              {addr.label}
+                            </span>
                             {isDefault ? (
                               <span className="text-[9px] bg-gold text-white px-2.5 py-1 rounded-full font-sans font-bold uppercase tracking-wider shadow-sm">
                                 Default
@@ -656,8 +834,14 @@ export function CustomerDashboardPage() {
                               </button>
                             )}
                           </div>
-                          <p className="text-text-muted font-medium line-clamp-1">{addr.line1}</p>
-                          {addr.line2 && <p className="text-text-muted font-medium line-clamp-1">{addr.line2}</p>}
+                          <p className="text-text-muted font-medium line-clamp-1">
+                            {addr.line1}
+                          </p>
+                          {addr.line2 && (
+                            <p className="text-text-muted font-medium line-clamp-1">
+                              {addr.line2}
+                            </p>
+                          )}
                           <p className="text-primary font-bold text-xs mt-3 bg-primary/5 inline-block px-3 py-1.5 rounded-lg border border-primary/5 font-data">
                             {addr.city} • {addr.pincode}
                           </p>
@@ -686,25 +870,25 @@ export function CustomerDashboardPage() {
         />
 
         {showCancelTodayModal && subscription && (
-          <CancelTodayModal 
-            subscription={subscription} 
-            onClose={() => setShowCancelTodayModal(false)} 
+          <CancelTodayModal
+            subscription={subscription}
+            onClose={() => setShowCancelTodayModal(false)}
             skipDay={skipDay}
           />
         )}
 
         {showSkipDayModal && subscription && (
-          <PauseDeliveryModal 
-            subscription={subscription} 
-            onClose={() => setShowSkipDayModal(false)} 
+          <PauseDeliveryModal
+            subscription={subscription}
+            onClose={() => setShowSkipDayModal(false)}
             skipDay={skipDay}
           />
         )}
 
         {showPauseModal && subscription && (
-          <PauseSubscriptionModal 
-            subscription={subscription} 
-            onClose={() => setShowPauseModal(false)} 
+          <PauseSubscriptionModal
+            subscription={subscription}
+            onClose={() => setShowPauseModal(false)}
           />
         )}
 
@@ -730,7 +914,7 @@ export function CustomerDashboardPage() {
 }
 
 function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
-  const [addressId, setAddressId] = useState(addresses?.[0]?.id || '');
+  const [addressId, setAddressId] = useState(addresses?.[0]?.id || "");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const queryClient = useQueryClient();
@@ -741,44 +925,47 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
     try {
       const orderId = crypto.randomUUID();
       const plan = plans?.[0]; // Default to first plan for trial pricing
-      
-      const selectedAddress = addresses?.find((a: any) => a.id === addressId);
-      const addressString = selectedAddress ? `${selectedAddress.line1} ${selectedAddress.line2 || ''}, ${selectedAddress.city}, ${selectedAddress.pincode}`.trim() : undefined;
 
-      await setDoc(doc(db, 'orders', orderId), {
+      const selectedAddress = addresses?.find((a: any) => a.id === addressId);
+      const addressString = selectedAddress
+        ? `${selectedAddress.line1} ${selectedAddress.line2 || ""}, ${selectedAddress.city}, ${selectedAddress.pincode}`.trim()
+        : undefined;
+
+      await setDoc(doc(db, "orders", orderId), {
         id: orderId,
         displayId: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        source: 'one_time',
+        source: "one_time",
         customerId: uid,
-        customerName: profile?.fullName || 'Unknown Customer',
+        customerName: profile?.fullName || "Unknown Customer",
         customerCode: profile?.displayId,
         customerPhone: profile?.phone,
         address: addressString,
         subscriptionId: null,
         planId: plan?.id || null,
-        planTier: plan?.tier || 'basic',
-        mealType: 'lunch', // Default trial is lunch
-        date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-        itemsLabel: 'Trial Meal (Lunch)',
+        planTier: plan?.tier || "basic",
+        mealType: "lunch", // Default trial is lunch
+        date: new Date(Date.now() + 86400000).toISOString().split("T")[0], // Tomorrow
+        itemsLabel: "Trial Meal (Lunch)",
         selectedOptionId: null,
         price: plan?.pricingMatrix?.lunch || 65, // Use strict matrix price
-        currency: 'INR',
-        status: 'scheduled',
+        currency: "INR",
+        status: "scheduled",
         deliveryAddressId: addressId,
         zoneId: null,
         kitchenId: null,
         deliveryPartnerId: null,
         deliveryWindow: null,
         paymentId: null,
-        createdAt: serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-        updatedAt: serverTimestamp() as unknown as Timestamp
+        createdAt:
+          serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
       });
 
-      await queryClient.invalidateQueries({ queryKey: ['hasPastOrders', uid] });
+      await queryClient.invalidateQueries({ queryKey: ["hasPastOrders", uid] });
       setSuccess(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to book trial meal.');
+      alert("Failed to book trial meal.");
     } finally {
       setLoading(false);
     }
@@ -787,39 +974,68 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-background rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-primary/20">
-        <h2 className="text-2xl font-bold font-display text-primary mb-4">Book Trial Meal</h2>
-        
+        <h2 className="text-2xl font-bold font-display text-primary mb-4">
+          Book Trial Meal
+        </h2>
+
         {success ? (
           <div className="text-center py-6">
-            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4 text-success font-bold text-2xl border border-success/30 shadow-sm">✓</div>
-            <p className="text-lg font-sans text-primary font-bold">Trial meal booked for tomorrow!</p>
-            <p className="text-sm text-text-muted mt-2 mb-8 font-medium">Our team will contact you for payment (Cash on delivery available).</p>
-            <Button className="w-full font-bold" onClick={onClose}>Close</Button>
+            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4 text-success font-bold text-2xl border border-success/30 shadow-sm">
+              ✓
+            </div>
+            <p className="text-lg font-sans text-primary font-bold">
+              Trial meal booked for tomorrow!
+            </p>
+            <p className="text-sm text-text-muted mt-2 mb-8 font-medium">
+              Our team will contact you for payment (Cash on delivery
+              available).
+            </p>
+            <Button className="w-full font-bold" onClick={onClose}>
+              Close
+            </Button>
           </div>
         ) : (
           <>
             <p className="text-sm font-sans text-text-muted mb-6 font-medium leading-relaxed">
-              Not sure yet? Try a single lunch delivery tomorrow to experience our food quality.
+              Not sure yet? Try a single lunch delivery tomorrow to experience
+              our food quality.
             </p>
 
-            <label className="block text-xs font-bold text-primary mb-2 font-sans uppercase tracking-wider">Select Delivery Address</label>
+            <label className="block text-xs font-bold text-primary mb-2 font-sans uppercase tracking-wider">
+              Select Delivery Address
+            </label>
             {addresses?.length > 0 ? (
-              <select 
-                value={addressId} 
-                onChange={e => setAddressId(e.target.value)}
+              <select
+                value={addressId}
+                onChange={(e) => setAddressId(e.target.value)}
                 className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-8 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm"
               >
                 {addresses.map((a: any) => (
-                  <option key={a.id} value={a.id}>{a.label} - {a.line1}</option>
+                  <option key={a.id} value={a.id}>
+                    {a.label} - {a.line1}
+                  </option>
                 ))}
               </select>
             ) : (
-              <p className="text-xs text-danger mb-8 bg-danger/10 p-3 rounded-xl border border-danger/20 font-bold">Please add an address first before booking a trial.</p>
+              <p className="text-xs text-danger mb-8 bg-danger/10 p-3 rounded-xl border border-danger/20 font-bold">
+                Please add an address first before booking a trial.
+              </p>
             )}
 
             <div className="flex gap-4">
-              <Button variant="secondary" className="flex-1 font-bold" onClick={onClose}>Cancel</Button>
-              <Button className="flex-1 font-bold" onClick={handleBook} isLoading={loading} disabled={!addressId || addresses?.length === 0}>
+              <Button
+                variant="secondary"
+                className="flex-1 font-bold"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 font-bold"
+                onClick={handleBook}
+                isLoading={loading}
+                disabled={!addressId || addresses?.length === 0}
+              >
                 Confirm Booking
               </Button>
             </div>

@@ -1,7 +1,7 @@
-import { CheckCircle2 } from 'lucide-react';
-import { cn } from '@/shared/lib/cn';
-import type { ReactNode } from 'react';
-import { PremiumButton as Button } from '../ui/PremiumButton';
+import { CheckCircle2 } from "lucide-react";
+import { cn } from "@/shared/lib/cn";
+import type { ReactNode } from "react";
+import { PremiumButton as Button } from "../ui/PremiumButton";
 
 // ── Inline Success Banner ─────────────────────────────────────────────────────
 export interface SuccessStateProps {
@@ -16,11 +16,16 @@ export interface SuccessStateProps {
  * Inline success feedback — use after a form save, export, approval, etc.
  * For transient toast notifications, continue using `react-hot-toast` directly.
  */
-export function SuccessState({ title, description, action, className }: SuccessStateProps) {
+export function SuccessState({
+  title,
+  description,
+  action,
+  className,
+}: SuccessStateProps) {
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-4 rounded-xl border border-success/30 bg-success-subtle px-6 py-10 text-center',
+        "flex flex-col items-center gap-4 rounded-xl border border-success/30 bg-success-subtle px-6 py-10 text-center",
         className,
       )}
       role="status"
@@ -29,7 +34,9 @@ export function SuccessState({ title, description, action, className }: SuccessS
         <CheckCircle2 size={28} className="text-success" />
       </div>
       <div className="space-y-1.5 max-w-sm">
-        <p className="font-display text-lg font-semibold text-ink-900">{title}</p>
+        <p className="font-display text-lg font-semibold text-ink-900">
+          {title}
+        </p>
         {description && (
           <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
         )}
@@ -52,7 +59,7 @@ export interface SuccessPageProps {
 export function SuccessPage({
   title,
   description,
-  primaryLabel = 'Continue',
+  primaryLabel = "Continue",
   onPrimary,
   secondaryLabel,
   onSecondary,
@@ -65,7 +72,9 @@ export function SuccessPage({
         <span className="absolute inset-0 rounded-full border-2 border-success/30 animate-ping opacity-30" />
       </div>
       <div className="space-y-2 max-w-sm">
-        <h1 className="font-display text-2xl font-bold text-ink-900">{title}</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-900">
+          {title}
+        </h1>
         {description && (
           <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
         )}
@@ -76,9 +85,7 @@ export function SuccessPage({
             {secondaryLabel}
           </Button>
         )}
-        {onPrimary && (
-          <Button onClick={onPrimary}>{primaryLabel}</Button>
-        )}
+        {onPrimary && <Button onClick={onPrimary}>{primaryLabel}</Button>}
       </div>
     </div>
   );

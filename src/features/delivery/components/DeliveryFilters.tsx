@@ -1,5 +1,5 @@
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { Search, Filter } from 'lucide-react';
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { Search, Filter } from "lucide-react";
 
 interface Props {
   searchQuery: string;
@@ -18,7 +18,7 @@ export function DeliveryFilters({
   onStatusChange,
   partnerFilter,
   onPartnerChange,
-  partners
+  partners,
 }: Props) {
   return (
     <Card className="p-4 bg-rice-50/50 border-rice-200 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -35,7 +35,7 @@ export function DeliveryFilters({
 
       <div className="flex w-full md:w-auto gap-3 items-center">
         <Filter className="text-text-muted w-4 h-4 hidden md:block" />
-        
+
         <select
           value={partnerFilter}
           onChange={(e) => onPartnerChange(e.target.value)}
@@ -43,8 +43,10 @@ export function DeliveryFilters({
         >
           <option value="all">All Partners</option>
           <option value="unassigned">Unassigned Only</option>
-          {partners.map(p => (
-            <option key={p.id} value={p.id}>{p.fullName || p.id}</option>
+          {partners.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.fullName || p.id}
+            </option>
           ))}
         </select>
 

@@ -1,7 +1,7 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { PremiumButton as Button } from '../ui/PremiumButton';
-import { logger } from '@/shared/utils/logger';
+import { Component, type ReactNode, type ErrorInfo } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { PremiumButton as Button } from "../ui/PremiumButton";
+import { logger } from "@/shared/utils/logger";
 
 interface Props {
   children: ReactNode;
@@ -23,26 +23,42 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logger.error(error, { componentStack: errorInfo.componentStack, boundary: 'GlobalErrorBoundary' });
-    
+    logger.error(error, {
+      componentStack: errorInfo.componentStack,
+      boundary: "GlobalErrorBoundary",
+    });
+
     // Automatically reload on chunk load errors (Vite dynamic import failures)
     // We use sessionStorage to prevent infinite reload loops if the chunk is permanently gone.
-    const isChunkLoadError = (error as Error).message?.includes('Failed to fetch dynamically imported module') ||
-                             (error as Error).message?.includes('Importing a module script failed');
-                             
+    const isChunkLoadError =
+      (error as Error).message?.includes(
+        "Failed to fetch dynamically imported module",
+      ) ||
+      (error as Error).message?.includes("Importing a module script failed");
+
     if (isChunkLoadError) {
-      const reloadKey = 'app-reloaded-from-chunk-error';
+      const reloadKey = "app-reloaded-from-chunk-error";
       let hasReloaded = false;
       try {
-        hasReloaded = sessionStorage.getItem(reloadKey) === 'true';
-      } catch { /* ignore */ }
-      
+        hasReloaded = sessionStorage.getItem(reloadKey) === "true";
+      } catch {
+        /* ignore */
+      }
+
       if (!hasReloaded) {
-        try { sessionStorage.setItem(reloadKey, 'true'); } catch { /* ignore */ }
+        try {
+          sessionStorage.setItem(reloadKey, "true");
+        } catch {
+          /* ignore */
+        }
         window.location.reload();
       } else {
         // If already reloaded once and still failing, clear the flag and show error UI
-        try { sessionStorage.removeItem(reloadKey); } catch { /* ignore */ }
+        try {
+          sessionStorage.removeItem(reloadKey);
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -59,9 +75,11 @@ export class GlobalErrorBoundary extends Component<Props, State> {
             <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-chili-50 text-chili-600">
               <AlertCircle size={32} />
             </div>
-            <h2 className="mb-2 font-display text-2xl font-bold text-ink-900">Something went wrong</h2>
+            <h2 className="mb-2 font-display text-2xl font-bold text-ink-900">
+              Something went wrong
+            </h2>
             <p className="mb-6 text-sm text-ink-500">
-              We encountered an unexpected error while loading this page. 
+              We encountered an unexpected error while loading this page.
               {this.state.error && (
                 <span className="mt-2 block rounded bg-rice-100 p-2 font-mono text-xs text-ink-700">
                   {this.state.error.message}

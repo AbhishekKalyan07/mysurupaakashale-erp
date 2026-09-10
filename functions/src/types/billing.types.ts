@@ -1,6 +1,6 @@
-import type { ID, ISODateString, Timestamp } from './common.types';
+import type { ID, ISODateString, Timestamp } from "./common.types";
 
-export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'overdue' | 'void';
+export type InvoiceStatus = "draft" | "issued" | "paid" | "overdue" | "void";
 
 export interface InvoiceLineItem {
   description: string;
@@ -27,7 +27,7 @@ export interface Invoice {
   taxAmount: number;
   totalAmount: number;
   depositHeld?: number;
-  currency: 'INR';
+  currency: "INR";
   status: InvoiceStatus;
   billingPeriodStart: ISODateString;
   billingPeriodEnd: ISODateString;

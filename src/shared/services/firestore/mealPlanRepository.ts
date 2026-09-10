@@ -1,10 +1,10 @@
-import { db } from '@/shared/lib/firebase';
-import type { MealPlan } from '@/shared/types/mealPlan.types';
-import { BaseRepository, createConverter } from './BaseRepository';
+import { db } from "@/shared/lib/firebase";
+import type { MealPlan } from "@/shared/types/mealPlan.types";
+import { BaseRepository, createConverter } from "./BaseRepository";
 
 class MealPlanRepository extends BaseRepository<MealPlan> {
   constructor() {
-    super(db, 'mealPlans', createConverter<MealPlan>());
+    super(db, "mealPlans", createConverter<MealPlan>());
   }
 }
 

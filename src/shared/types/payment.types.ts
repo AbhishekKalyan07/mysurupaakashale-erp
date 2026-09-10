@@ -1,19 +1,14 @@
-import type { ID, ISODateString, Timestamp } from './common.types';
+import type { ID, ISODateString, Timestamp } from "./common.types";
 
 // ── Payment Method ─────────────────────────────────────────────────────────────
-export type PaymentMethod = 'upi' | 'cash' | 'bank_transfer';
+export type PaymentMethod = "upi" | "cash" | "bank_transfer";
 
 // ── Payment Status ─────────────────────────────────────────────────────────────
-export type ManualPaymentStatus = 'pending' | 'verified' | 'rejected';
+export type ManualPaymentStatus = "pending" | "verified" | "rejected";
 
 // ── Subscription Status (extended) ────────────────────────────────────────────
 export type SubscriptionStatus =
-  | 'draft'
-  | 'pending_payment'
-  | 'active'
-  | 'paused'
-  | 'expired'
-  | 'cancelled';
+  "draft" | "pending_payment" | "active" | "paused" | "expired" | "cancelled";
 
 /**
  * Firestore: `payments/{paymentId}`.
@@ -35,20 +30,20 @@ export interface ManualPayment {
   // ── Financials ──────────────────────────────────────────────────────────────
   /** Amount in INR (rupees, NOT paise). */
   amount: number;
-  currency: 'INR';
+  currency: "INR";
 
   // ── Payment details ─────────────────────────────────────────────────────────
   paymentMethod: PaymentMethod;
   /** UPI transaction ID, bank UTR number, or cash receipt ref. */
   referenceNumber: string | null;
   /** Purpose of the payment, separating security deposits from usage balance. Missing indicates legacy usage payment. */
-  purpose?: 'usage' | 'security_deposit';
+  purpose?: "usage" | "security_deposit";
   /** Date on which the customer made the payment (YYYY-MM-DD). */
   paymentDate: ISODateString;
 
   // ── Verification ────────────────────────────────────────────────────────────
   status: ManualPaymentStatus;
-  verifiedBy: ID | null;      // Admin uid who approved / rejected
+  verifiedBy: ID | null; // Admin uid who approved / rejected
   verificationDate: Timestamp | null;
   verificationNotes: string | null;
 
@@ -73,7 +68,7 @@ export interface SubmitPaymentInput {
   paymentMethod: PaymentMethod;
   referenceNumber: string | null;
   paymentDate: ISODateString;
-  purpose?: 'usage' | 'security_deposit';
+  purpose?: "usage" | "security_deposit";
   /** Firebase Storage URL of the payment proof screenshot (optional for cash). */
   screenshotUrl?: string | null;
   /** Billing month this advance covers, e.g. "2025-07". */
@@ -83,6 +78,6 @@ export interface SubmitPaymentInput {
 /** Payload the admin sends to approve or reject a payment. */
 export interface VerifyPaymentInput {
   paymentId: ID;
-  action: 'approve' | 'reject';
+  action: "approve" | "reject";
   notes?: string;
 }

@@ -1,13 +1,33 @@
-import { lazy, Suspense } from 'react';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLES } from '@/shared/constants/roles';
-import { Loader2 } from 'lucide-react';
+import { lazy, Suspense } from "react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLES } from "@/shared/constants/roles";
+import { Loader2 } from "lucide-react";
 
-const AdminDashboardPage = lazy(() => import('./AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
-const CustomerDashboardPage = lazy(() => import('./CustomerDashboardPage').then(m => ({ default: m.CustomerDashboardPage })));
-const KitchenDashboardPage = lazy(() => import('./KitchenDashboardPage').then(m => ({ default: m.KitchenDashboardPage })));
-const DeliveryPartnerDashboardPage = lazy(() => import('./DeliveryPartnerDashboardPage').then(m => ({ default: m.DeliveryPartnerDashboardPage })));
-const AccountsDashboardPage = lazy(() => import('./AccountsDashboardPage').then(m => ({ default: m.AccountsDashboardPage })));
+const AdminDashboardPage = lazy(() =>
+  import("./AdminDashboardPage").then((m) => ({
+    default: m.AdminDashboardPage,
+  })),
+);
+const CustomerDashboardPage = lazy(() =>
+  import("./CustomerDashboardPage").then((m) => ({
+    default: m.CustomerDashboardPage,
+  })),
+);
+const KitchenDashboardPage = lazy(() =>
+  import("./KitchenDashboardPage").then((m) => ({
+    default: m.KitchenDashboardPage,
+  })),
+);
+const DeliveryPartnerDashboardPage = lazy(() =>
+  import("./DeliveryPartnerDashboardPage").then((m) => ({
+    default: m.DeliveryPartnerDashboardPage,
+  })),
+);
+const AccountsDashboardPage = lazy(() =>
+  import("./AccountsDashboardPage").then((m) => ({
+    default: m.AccountsDashboardPage,
+  })),
+);
 
 function DashboardFallback() {
   return (
@@ -47,8 +67,6 @@ export function UnifiedDashboardPage() {
   };
 
   return (
-    <Suspense fallback={<DashboardFallback />}>
-      {renderDashboard()}
-    </Suspense>
+    <Suspense fallback={<DashboardFallback />}>{renderDashboard()}</Suspense>
   );
 }

@@ -1,6 +1,6 @@
-import type { ID, ISODateString, Timestamp } from './common.types';
-import type { MealType, PlanTier, MealPlanPricing } from './mealPlan.types';
-import type { SubscriptionStatus } from './payment.types';
+import type { ID, ISODateString, Timestamp } from "./common.types";
+import type { MealType, PlanTier, MealPlanPricing } from "./mealPlan.types";
+import type { SubscriptionStatus } from "./payment.types";
 
 // Re-export so callers can import from one place
 export type { SubscriptionStatus };
@@ -35,7 +35,7 @@ export interface Subscription {
   startDate: ISODateString;
   endDate: ISODateString | null; // explicitly calculated now
   cancellationDate?: ISODateString | null; // actual closure date if cancelled early
-  billingCycle: 'weekly' | 'monthly';
+  billingCycle: "weekly" | "monthly";
   autoRenew: boolean;
   /** Set once the admin approves a payment — links to the verified payment record. */
   latestPaymentId: ID | null;

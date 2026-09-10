@@ -1,7 +1,7 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_HOME_ROUTE } from '@/shared/constants/roles';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLE_HOME_ROUTE } from "@/shared/constants/roles";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 
 /**
  * `/` never renders content of its own — it just figures out where a
@@ -11,11 +11,11 @@ import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
 export function RootRedirect() {
   const { status, role } = useAuth();
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return <LoadingScreen />;
   }
 
-  if (status === 'unauthenticated' || !role) {
+  if (status === "unauthenticated" || !role) {
     return <Navigate to="/login" replace />;
   }
 

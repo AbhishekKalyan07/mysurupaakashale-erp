@@ -1,15 +1,22 @@
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { useAttendanceRecord, useCheckIn, useCheckOut } from '@/features/hr/hooks/useAttendance';
-import { LogIn, LogOut, CheckCircle, Clock } from 'lucide-react';
-import { getTodayInTimezone } from '@/shared/lib/date';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import {
+  useAttendanceRecord,
+  useCheckIn,
+  useCheckOut,
+} from "@/features/hr/hooks/useAttendance";
+import { LogIn, LogOut, CheckCircle, Clock } from "lucide-react";
+import { getTodayInTimezone } from "@/shared/lib/date";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export function StaffAttendanceCard() {
   const { firebaseUser: user } = useAuth();
   const date = getTodayInTimezone();
-  const { data: myRecord, isLoading } = useAttendanceRecord(user?.uid || '', date);
+  const { data: myRecord, isLoading } = useAttendanceRecord(
+    user?.uid || "",
+    date,
+  );
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
 
@@ -19,12 +26,25 @@ export function StaffAttendanceCard() {
   const isCheckedOut = !!myRecord?.checkOutTime;
 
   const handleCheckIn = async () => {
-    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    await checkIn.mutateAsync({ staffId: user.uid, staffName: user.displayName || 'Staff', date, time });
+    const time = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    await checkIn.mutateAsync({
+      staffId: user.uid,
+      staffName: user.displayName || "Staff",
+      date,
+      time,
+    });
   };
 
   const handleCheckOut = async () => {
-    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const time = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     await checkOut.mutateAsync({ staffId: user.uid, date, time });
   };
 
@@ -36,16 +56,22 @@ export function StaffAttendanceCard() {
             <Clock size={20} />
           </div>
           <div>
-            <h2 className="font-display font-semibold text-ink-900">Today's Attendance</h2>
+            <h2 className="font-display font-semibold text-ink-900">
+              Today's Attendance
+            </h2>
             <p className="text-xs text-ink-500 font-sans mt-0.5">
-              {isPresent ? (isCheckedOut ? 'Completed' : 'Checked In') : 'Not Checked In'}
+              {isPresent
+                ? isCheckedOut
+                  ? "Completed"
+                  : "Checked In"
+                : "Not Checked In"}
             </p>
           </div>
         </div>
         <div>
           {!isPresent ? (
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={handleCheckIn}
               isLoading={checkIn.isPending}
             >
@@ -56,8 +82,8 @@ export function StaffAttendanceCard() {
               <span className="text-xs font-data text-ink-600">
                 In: {myRecord.checkInTime}
               </span>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="secondary"
                 onClick={handleCheckOut}
                 isLoading={checkOut.isPending}
@@ -67,8 +93,12 @@ export function StaffAttendanceCard() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Badge variant="success">Completed ({myRecord.totalWorkingHours} hrs)</Badge>
-              <span className="text-leaf-600"><CheckCircle size={18} /></span>
+              <Badge variant="success">
+                Completed ({myRecord.totalWorkingHours} hrs)
+              </Badge>
+              <span className="text-leaf-600">
+                <CheckCircle size={18} />
+              </span>
             </div>
           )}
         </div>

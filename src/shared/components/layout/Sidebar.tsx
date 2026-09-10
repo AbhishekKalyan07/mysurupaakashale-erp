@@ -1,7 +1,7 @@
-import { NavLink } from 'react-router-dom';
-import { clsx } from 'clsx';
-import { ROLE_LABELS, type Role } from '@/shared/constants/roles';
-import { NAV_ITEMS_BY_ROLE } from './navConfig';
+import { NavLink } from "react-router-dom";
+import { clsx } from "clsx";
+import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
+import { NAV_ITEMS_BY_ROLE } from "./navConfig";
 
 interface SidebarProps {
   role: Role;
@@ -14,15 +14,27 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-30 bg-leaf-900/40 lg:hidden" onClick={onClose} aria-hidden="true" />}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-leaf-900/40 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-leaf-800 text-rice-25 shadow-nav transition-transform duration-200 lg:static lg:translate-x-0',
-          isOpen ? 'translate-x-0' : '-translate-x-full',
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-leaf-800 text-rice-25 shadow-nav transition-transform duration-200 lg:static lg:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex items-center gap-3 px-5 py-4">
-          <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" width="32" height="32" className="h-8 w-auto shrink-0" />
+          <img
+            src="/no_bg_logo.png"
+            alt="Mysuru Paakashale Logo"
+            width="32"
+            height="32"
+            className="h-8 w-auto shrink-0"
+          />
           <div className="leading-tight">
             <p className="font-display text-sm">Mysuru Paakashale</p>
             <p className="text-xs text-leaf-300">{ROLE_LABELS[role]}</p>
@@ -41,14 +53,14 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
                   <NavLink
                     key={to}
                     to={to}
-                    end={to === '/dashboard'} // only strict end for dashboard so sub-routes stay active
+                    end={to === "/dashboard"} // only strict end for dashboard so sub-routes stay active
                     onClick={onClose}
                     className={({ isActive }) =>
                       clsx(
-                        'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                        "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
-                          ? 'border-turmeric-400 bg-leaf-700 text-rice-25'
-                          : 'border-transparent text-leaf-100 hover:bg-leaf-700/60 hover:text-rice-25',
+                          ? "border-turmeric-400 bg-leaf-700 text-rice-25"
+                          : "border-transparent text-leaf-100 hover:bg-leaf-700/60 hover:text-rice-25",
                       )
                     }
                   >

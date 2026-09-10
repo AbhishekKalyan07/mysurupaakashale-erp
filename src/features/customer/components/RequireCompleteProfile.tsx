@@ -1,6 +1,6 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 
 interface RequireCompleteProfileProps {
   children: React.ReactNode;
@@ -11,25 +11,28 @@ interface RequireCompleteProfileProps {
  * It checks if the customer's profile is complete (has a phone number).
  * If not, it redirects them to the Profile page to complete onboarding.
  */
-export function RequireCompleteProfile({ children }: RequireCompleteProfileProps) {
+export function RequireCompleteProfile({
+  children,
+}: RequireCompleteProfileProps) {
   const { profile, status } = useAuth();
   const location = useLocation();
 
-  if (status === 'loading' || profile === null) {
+  if (status === "loading" || profile === null) {
     return <LoadingScreen />;
   }
 
   // Admins, Kitchen, and Delivery staff don't strictly require a phone number
   // to use their respective dashboards. Only customers need to complete onboarding.
-  if (profile.role !== 'customer') {
+  if (profile.role !== "customer") {
     return <>{children}</>;
   }
 
   // If there's no profile, or the profile is missing a phone number
   // and we are NOT already on the profile page, redirect them.
-  const isProfileComplete = profile && profile.phone && profile.phone.trim().length >= 10;
+  const isProfileComplete =
+    profile && profile.phone && profile.phone.trim().length >= 10;
 
-  if (!isProfileComplete && location.pathname !== '/customer/profile') {
+  if (!isProfileComplete && location.pathname !== "/customer/profile") {
     return <Navigate to="/customer/profile?onboarding=true" replace />;
   }
 

@@ -1,4 +1,4 @@
-import { cn } from '@/shared/lib/cn';
+import { cn } from "@/shared/lib/cn";
 
 export interface LeafSpinnerProps {
   size?: number;
@@ -13,7 +13,11 @@ export interface LeafSpinnerProps {
  * Button, leaf-600 on a plain page). Respects prefers-reduced-motion via
  * the global rule in index.css.
  */
-export function LeafSpinner({ size = 24, className, label = 'Loading' }: LeafSpinnerProps) {
+export function LeafSpinner({
+  size = 24,
+  className,
+  label = "Loading",
+}: LeafSpinnerProps) {
   return (
     <svg
       width={size}
@@ -21,9 +25,12 @@ export function LeafSpinner({ size = 24, className, label = 'Loading' }: LeafSpi
       viewBox="0 0 32 32"
       role="status"
       aria-label={label}
-      className={cn('animate-leaf-sway', className)}
+      className={cn("animate-leaf-sway", className)}
     >
-      <path d="M16 3C9 6 4 12 4 19c0 6 5 10 12 10s12-4 12-10c0-7-5-13-12-16z" fill="currentColor" />
+      <path
+        d="M16 3C9 6 4 12 4 19c0 6 5 10 12 10s12-4 12-10c0-7-5-13-12-16z"
+        fill="currentColor"
+      />
       <path
         d="M16 6.5v19"
         stroke="var(--color-turmeric-400)"

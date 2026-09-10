@@ -1,55 +1,68 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { subscriptionRepository } from '../subscriptionRepository';
-import { getDocs, setDoc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { subscriptionRepository } from "../subscriptionRepository";
+import {
+  getDocs,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  getDoc,
+} from "firebase/firestore";
 
-describe('subscriptionRepository', () => {
-  const customerId = 'cust-1';
-  const subId = 'sub-1';
+describe("subscriptionRepository", () => {
+  const customerId = "cust-1";
+  const subId = "sub-1";
 
-  describe('getByCustomerId', () => {
-    it('returns subscriptions for customer', async () => {
+  describe("getByCustomerId", () => {
+    it("returns subscriptions for customer", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: [{ data: () => ({ id: subId, customerId }) }]
+        docs: [{ data: () => ({ id: subId, customerId }) }],
       } as any);
-      
+
       const subs = await subscriptionRepository.getByCustomerId(customerId);
       expect(subs.length).toBe(1);
       expect(subs[0].id).toBe(subId);
     });
   });
 
-  describe('getActiveSubscriptionByCustomerId', () => {
-    it('returns active subscription if exists', async () => {
+  describe("getActiveSubscriptionByCustomerId", () => {
+    it("returns active subscription if exists", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
         docs: [
-          { data: () => ({ id: 'sub-2', status: 'pending_payment' }) },
-          { data: () => ({ id: 'sub-1', status: 'active' }) },
-        ]
+          { data: () => ({ id: "sub-2", status: "pending_payment" }) },
+          { data: () => ({ id: "sub-1", status: "active" }) },
+        ],
       } as any);
 
-      const sub = await subscriptionRepository.getActiveSubscriptionByCustomerId(customerId);
-      expect(sub?.status).toBe('active');
+      const sub =
+        await subscriptionRepository.getActiveSubscriptionByCustomerId(
+          customerId,
+        );
+      expect(sub?.status).toBe("active");
     });
 
-    it('returns pending_payment if no active exists', async () => {
+    it("returns pending_payment if no active exists", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: [
-          { data: () => ({ id: 'sub-2', status: 'pending_payment' }) },
-        ]
+        docs: [{ data: () => ({ id: "sub-2", status: "pending_payment" }) }],
       } as any);
 
-      const sub = await subscriptionRepository.getActiveSubscriptionByCustomerId(customerId);
-      expect(sub?.status).toBe('pending_payment');
+      const sub =
+        await subscriptionRepository.getActiveSubscriptionByCustomerId(
+          customerId,
+        );
+      expect(sub?.status).toBe("pending_payment");
     });
 
-    it('returns null if no subscriptions exist', async () => {
+    it("returns null if no subscriptions exist", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({ docs: [] } as any);
-      const sub = await subscriptionRepository.getActiveSubscriptionByCustomerId(customerId);
+      const sub =
+        await subscriptionRepository.getActiveSubscriptionByCustomerId(
+          customerId,
+        );
       expect(sub).toBeNull();
     });
   });
 
-  describe('addSkip', () => {
+  describe("addSkip", () => {
     beforeEach(() => {
       vi.useFakeTimers();
     });
@@ -58,118 +71,153 @@ describe('subscriptionRepository', () => {
       vi.useRealTimers();
     });
 
-    it('adds skip document', async () => {
-      const date = '2026-08-01';
+    it("adds skip document", async () => {
+      const date = "2026-08-01";
       // Set time to 4:00 AM (before breakfast cutoff)
       vi.setSystemTime(new Date(`${date}T04:00:00+05:30`));
-      
+
       vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false } as any);
 
-      await subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1');
+      await subscriptionRepository.addSkip(
+        subId,
+        date,
+        ["breakfast"],
+        "holiday",
+        "admin-1",
+      );
       expect(setDoc).toHaveBeenCalledTimes(1);
       expect(updateDoc).toHaveBeenCalledTimes(0);
     });
 
-    it('throws error if cancellation window has closed for breakfast', async () => {
-      const date = '2026-08-01';
+    it("throws error if cancellation window has closed for breakfast", async () => {
+      const date = "2026-08-01";
       // Set time to 5:01 AM (after breakfast cutoff)
       vi.setSystemTime(new Date(`${date}T05:01:00+05:30`));
-      
-      await expect(subscriptionRepository.addSkip(subId, date, ['breakfast'], 'holiday', 'admin-1'))
-        .rejects.toThrow('Cancellation window has closed for breakfast.');
+
+      await expect(
+        subscriptionRepository.addSkip(
+          subId,
+          date,
+          ["breakfast"],
+          "holiday",
+          "admin-1",
+        ),
+      ).rejects.toThrow("Cancellation window has closed for breakfast.");
     });
 
-    it('throws error if cancellation window has closed for lunch', async () => {
-      const date = '2026-08-01';
+    it("throws error if cancellation window has closed for lunch", async () => {
+      const date = "2026-08-01";
       // Set time to 10:31 AM (after lunch cutoff)
       vi.setSystemTime(new Date(`${date}T10:31:00+05:30`));
-      
-      await expect(subscriptionRepository.addSkip(subId, date, ['lunch'], 'holiday', 'admin-1'))
-        .rejects.toThrow('Cancellation window has closed for lunch.');
+
+      await expect(
+        subscriptionRepository.addSkip(
+          subId,
+          date,
+          ["lunch"],
+          "holiday",
+          "admin-1",
+        ),
+      ).rejects.toThrow("Cancellation window has closed for lunch.");
     });
 
-    it('throws error if cancellation window has closed for dinner', async () => {
-      const date = '2026-08-01';
+    it("throws error if cancellation window has closed for dinner", async () => {
+      const date = "2026-08-01";
       // Set time to 16:01 (after dinner cutoff)
       vi.setSystemTime(new Date(`${date}T16:01:00+05:30`));
-      
-      await expect(subscriptionRepository.addSkip(subId, date, ['dinner'], 'holiday', 'admin-1'))
-        .rejects.toThrow('Cancellation window has closed for dinner.');
+
+      await expect(
+        subscriptionRepository.addSkip(
+          subId,
+          date,
+          ["dinner"],
+          "holiday",
+          "admin-1",
+        ),
+      ).rejects.toThrow("Cancellation window has closed for dinner.");
     });
   });
 
-  describe('getSkips', () => {
-    it('returns list of skips', async () => {
+  describe("getSkips", () => {
+    it("returns list of skips", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: [
-          { data: () => ({ date: '2026-08-01', mealTypes: ['lunch'] }) }
-        ]
+        docs: [{ data: () => ({ date: "2026-08-01", mealTypes: ["lunch"] }) }],
       } as any);
-      
+
       const skips = await subscriptionRepository.getSkips(subId);
       expect(skips.length).toBe(1);
-      expect(skips[0].date).toBe('2026-08-01');
+      expect(skips[0].date).toBe("2026-08-01");
     });
   });
 
-  describe('getSubscriptionsPaginated', () => {
-    it('returns paginated subscriptions and last document', async () => {
+  describe("getSubscriptionsPaginated", () => {
+    it("returns paginated subscriptions and last document", async () => {
       const mockDocs = Array.from({ length: 20 }).map((_, i) => ({
-        data: () => ({ id: `sub-${i}` })
+        data: () => ({ id: `sub-${i}` }),
       }));
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: mockDocs
+        docs: mockDocs,
       } as any);
-      
-      const result = await subscriptionRepository.getSubscriptionsPaginated({ status: 'active' }, 20);
+
+      const result = await subscriptionRepository.getSubscriptionsPaginated(
+        { status: "active" },
+        20,
+      );
       expect(result.subscriptions.length).toBe(20);
       expect(result.lastDoc).toBeTruthy();
     });
 
-    it('returns null last document if less than page size', async () => {
+    it("returns null last document if less than page size", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: [{ data: () => ({ id: 'sub-1' }) }]
+        docs: [{ data: () => ({ id: "sub-1" }) }],
       } as any);
-      
-      const result = await subscriptionRepository.getSubscriptionsPaginated({}, 20, {} as any);
+
+      const result = await subscriptionRepository.getSubscriptionsPaginated(
+        {},
+        20,
+        {} as any,
+      );
       expect(result.subscriptions.length).toBe(1);
       expect(result.lastDoc).toBeNull();
     });
   });
 
-  describe('getAllSubscriptions', () => {
-    it('returns all subscriptions', async () => {
+  describe("getAllSubscriptions", () => {
+    it("returns all subscriptions", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
-        docs: [{ data: () => ({ id: 'sub-1' }) }]
+        docs: [{ data: () => ({ id: "sub-1" }) }],
       } as any);
       const subs = await subscriptionRepository.getAllSubscriptions();
       expect(subs.length).toBe(1);
     });
   });
 
-  describe('updateStatus', () => {
-    it('updates subscription status', async () => {
-      await subscriptionRepository.updateStatus(subId, 'paused');
+  describe("updateStatus", () => {
+    it("updates subscription status", async () => {
+      await subscriptionRepository.updateStatus(subId, "paused");
       expect(updateDoc).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ status: 'paused' })
+        expect.objectContaining({ status: "paused" }),
       );
     });
   });
 
-  describe('subscribeActiveSubscription', () => {
-    it('calls onSnapshot and returns unsubscribe function', () => {
+  describe("subscribeActiveSubscription", () => {
+    it("calls onSnapshot and returns unsubscribe function", () => {
       const mockUnsub = vi.fn();
       vi.mocked(onSnapshot).mockReturnValueOnce(mockUnsub as any);
 
       const onNext = vi.fn();
-      const unsub = subscriptionRepository.subscribeActiveSubscription(customerId, onNext);
+      const unsub = subscriptionRepository.subscribeActiveSubscription(
+        customerId,
+        onNext,
+      );
 
       expect(onSnapshot).toHaveBeenCalledTimes(1);
-      expect(typeof unsub).toBe('function');
+      expect(typeof unsub).toBe("function");
     });
 
-    it('prefers active/paused over pending_payment in snapshot callback', () => {
+    it("prefers active/paused over pending_payment in snapshot callback", () => {
       let capturedCallback: ((snap: any) => void) | undefined;
       vi.mocked(onSnapshot).mockImplementationOnce((_q, cb: any) => {
         capturedCallback = cb;
@@ -182,15 +230,17 @@ describe('subscriptionRepository', () => {
       // Simulate snapshot with mixed statuses — active should win
       capturedCallback!({
         docs: [
-          { data: () => ({ id: 'sub-p', status: 'pending_payment' }) },
-          { data: () => ({ id: 'sub-a', status: 'active' }) },
-        ]
+          { data: () => ({ id: "sub-p", status: "pending_payment" }) },
+          { data: () => ({ id: "sub-a", status: "active" }) },
+        ],
       });
 
-      expect(onNext).toHaveBeenCalledWith(expect.objectContaining({ status: 'active' }));
+      expect(onNext).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "active" }),
+      );
     });
 
-    it('returns null when snapshot is empty', () => {
+    it("returns null when snapshot is empty", () => {
       let capturedCallback: ((snap: any) => void) | undefined;
       vi.mocked(onSnapshot).mockImplementationOnce((_q, cb: any) => {
         capturedCallback = cb;
@@ -205,22 +255,27 @@ describe('subscriptionRepository', () => {
       expect(onNext).toHaveBeenCalledWith(null);
     });
 
-    it('calls onError callback on error', () => {
+    it("calls onError callback on error", () => {
       let capturedErrorCallback: ((err: any) => void) | undefined;
-      vi.mocked(onSnapshot).mockImplementationOnce((_q, _cb: any, errCb: any) => {
-        capturedErrorCallback = errCb;
-        return vi.fn() as any;
-      });
+      vi.mocked(onSnapshot).mockImplementationOnce(
+        (_q, _cb: any, errCb: any) => {
+          capturedErrorCallback = errCb;
+          return vi.fn() as any;
+        },
+      );
 
       const onNext = vi.fn();
       const onError = vi.fn();
-      subscriptionRepository.subscribeActiveSubscription(customerId, onNext, onError);
+      subscriptionRepository.subscribeActiveSubscription(
+        customerId,
+        onNext,
+        onError,
+      );
 
-      const mockError = new Error('Test error');
+      const mockError = new Error("Test error");
       capturedErrorCallback!(mockError);
 
       expect(onError).toHaveBeenCalledWith(mockError);
     });
   });
 });
-

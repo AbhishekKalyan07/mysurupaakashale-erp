@@ -1,48 +1,63 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Globe, Archive, CalendarDays } from 'lucide-react';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { useDailyMenus, useDeleteDailyMenu, usePublishDailyMenu, useArchiveDailyMenu } from '../hooks/useDailyMenu';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { DailyMenu } from '@/shared/types';
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Edit, Trash2, Globe, Archive, CalendarDays } from "lucide-react";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import { TableSkeleton } from "@/shared/components/feedback/SkeletonLoader";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { EmptyState } from "@/shared/components/feedback/EmptyState";
+import {
+  useDailyMenus,
+  useDeleteDailyMenu,
+  usePublishDailyMenu,
+  useArchiveDailyMenu,
+} from "../hooks/useDailyMenu";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import type { DailyMenu } from "@/shared/types";
 
 export function DailyMenuListPage() {
   const navigate = useNavigate();
   const { data: menus, isLoading, isError, error, refetch } = useDailyMenus();
   const { role } = useAuth();
-  
+
   const deleteMutation = useDeleteDailyMenu();
   const publishMutation = usePublishDailyMenu();
   const archiveMutation = useArchiveDailyMenu();
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading)
+    return (
+      <div className="p-8">
+        <TableSkeleton />
+      </div>
+    );
 
   if (isError) {
     return (
       <ErrorState
         title="Could not load menus"
-        description={error?.message || 'Something went wrong.'}
+        description={error?.message || "Something went wrong."}
         onRetry={refetch}
       />
     );
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this draft menu?')) return;
+    if (!confirm("Are you sure you want to delete this draft menu?")) return;
     await deleteMutation.mutateAsync(id);
   };
 
   const handlePublish = async (id: string) => {
-    if (!confirm('Publishing this menu will archive any currently published menu for the same date. Continue?')) return;
+    if (
+      !confirm(
+        "Publishing this menu will archive any currently published menu for the same date. Continue?",
+      )
+    )
+      return;
     await publishMutation.mutateAsync(id);
   };
 
   const handleArchive = async (id: string) => {
-    if (!confirm('Are you sure you want to archive this menu?')) return;
+    if (!confirm("Are you sure you want to archive this menu?")) return;
     await archiveMutation.mutateAsync(id);
   };
 
@@ -58,7 +73,10 @@ export function DailyMenuListPage() {
             Manage daily breakfast, lunch, and dinner menus.
           </p>
         </div>
-        <Button onClick={() => navigate(`/${role}/menus/new`)} className="shrink-0">
+        <Button
+          onClick={() => navigate(`/${role}/menus/new`)}
+          className="shrink-0"
+        >
           <Plus size={16} />
           Create Menu
         </Button>
@@ -76,11 +94,15 @@ export function DailyMenuListPage() {
             <MenuCard
               key={menu.id}
               menu={menu}
-              role={role ?? 'kitchen'}
+              role={role ?? "kitchen"}
               onDelete={handleDelete}
               onPublish={handlePublish}
               onArchive={handleArchive}
-              isActionLoading={deleteMutation.isPending || publishMutation.isPending || archiveMutation.isPending}
+              isActionLoading={
+                deleteMutation.isPending ||
+                publishMutation.isPending ||
+                archiveMutation.isPending
+              }
             />
           ))}
         </div>
@@ -95,7 +117,7 @@ function MenuCard({
   onDelete,
   onPublish,
   onArchive,
-  isActionLoading
+  isActionLoading,
 }: {
   menu: DailyMenu;
   role: string;
@@ -104,36 +126,50 @@ function MenuCard({
   onArchive: (id: string) => void;
   isActionLoading: boolean;
 }) {
-  const isDraft = menu.status === 'draft';
-  const isPublished = menu.status === 'published';
+  const isDraft = menu.status === "draft";
+  const isPublished = menu.status === "published";
 
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-shadow hover:shadow-card-hover">
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex items-center justify-between">
         <h3 className="font-display font-bold text-ink-900 text-lg">
-          {new Intl.DateTimeFormat('en-IN', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric'
+          {new Intl.DateTimeFormat("en-IN", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
           }).format(new Date(menu.date))}
         </h3>
-        <Badge variant={isPublished ? 'success' : isDraft ? 'warning' : 'default'}>
+        <Badge
+          variant={isPublished ? "success" : isDraft ? "warning" : "default"}
+        >
           {menu.status}
         </Badge>
       </div>
-      
+
       <div className="p-4 flex-1 space-y-3 font-sans text-sm">
         <div>
-          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">Breakfast</span>
-          <p className="text-ink-900 line-clamp-1">{menu.breakfast.name || 'Not set'}</p>
+          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">
+            Breakfast
+          </span>
+          <p className="text-ink-900 line-clamp-1">
+            {menu.breakfast.name || "Not set"}
+          </p>
         </div>
         <div>
-          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">Lunch</span>
-          <p className="text-ink-900 line-clamp-1">{menu.lunch.name || 'Not set'}</p>
+          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">
+            Lunch
+          </span>
+          <p className="text-ink-900 line-clamp-1">
+            {menu.lunch.name || "Not set"}
+          </p>
         </div>
         <div>
-          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">Dinner</span>
-          <p className="text-ink-900 line-clamp-1">{menu.dinner.name || 'Not set'}</p>
+          <span className="text-ink-500 text-xs font-semibold uppercase tracking-wider">
+            Dinner
+          </span>
+          <p className="text-ink-900 line-clamp-1">
+            {menu.dinner.name || "Not set"}
+          </p>
         </div>
       </div>
 

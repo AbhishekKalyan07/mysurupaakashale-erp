@@ -1,43 +1,80 @@
-import { useState } from 'react';
-import { parseFirestoreDate } from '@/shared/utils/dateUtils';
-import { useNotificationHistory } from '@/features/notifications/hooks/useNotifications';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import type { Notification } from '@/shared/types';
-import { History, Search, Bell, CreditCard, Truck, User, AlertCircle, Info, ShoppingBag, Settings } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
+import { useNotificationHistory } from "@/features/notifications/hooks/useNotifications";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { EmptyState } from "@/shared/components/feedback/EmptyState";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import type { Notification } from "@/shared/types";
+import {
+  History,
+  Search,
+  Bell,
+  CreditCard,
+  Truck,
+  User,
+  AlertCircle,
+  Info,
+  ShoppingBag,
+  Settings,
+} from "lucide-react";
+import { format } from "date-fns";
 
 function ChannelBadge({ channel }: { channel: string }) {
-  const tone = channel === 'email' ? 'info' : channel === 'whatsapp' ? 'success' : 'default';
-  return <Badge variant={tone} className="text-[9px] uppercase">{channel.replace('_', '-')}</Badge>;
+  const tone =
+    channel === "email"
+      ? "info"
+      : channel === "whatsapp"
+        ? "success"
+        : "default";
+  return (
+    <Badge variant={tone} className="text-[9px] uppercase">
+      {channel.replace("_", "-")}
+    </Badge>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const tone =
-    status === 'delivered' || status === 'read' ? 'success' :
-    status === 'failed' ? 'danger' :
-    status === 'pending' ? 'warning' : 'default';
-  return <Badge variant={tone} className="text-[9px] uppercase">{status}</Badge>;
+    status === "delivered" || status === "read"
+      ? "success"
+      : status === "failed"
+        ? "danger"
+        : status === "pending"
+          ? "warning"
+          : "default";
+  return (
+    <Badge variant={tone} className="text-[9px] uppercase">
+      {status}
+    </Badge>
+  );
 }
 
 function TypeIcon({ type }: { type: string }) {
-  const cls = 'shrink-0 text-ink-500';
-  if (type.includes('payment')) return <CreditCard size={14} className={cls} />;
-  if (type.includes('subscription')) return <ShoppingBag size={14} className={cls} />;
-  if (type.includes('delivery') || type.includes('out_for') || type === 'delivered') return <Truck size={14} className={cls} />;
-  if (type.includes('staff') || type.includes('role')) return <User size={14} className={cls} />;
-  if (type.includes('settings') || type.includes('backup')) return <Settings size={14} className={cls} />;
-  if (type.includes('error')) return <AlertCircle size={14} className="shrink-0 text-red-400" />;
+  const cls = "shrink-0 text-ink-500";
+  if (type.includes("payment")) return <CreditCard size={14} className={cls} />;
+  if (type.includes("subscription"))
+    return <ShoppingBag size={14} className={cls} />;
+  if (
+    type.includes("delivery") ||
+    type.includes("out_for") ||
+    type === "delivered"
+  )
+    return <Truck size={14} className={cls} />;
+  if (type.includes("staff") || type.includes("role"))
+    return <User size={14} className={cls} />;
+  if (type.includes("settings") || type.includes("backup"))
+    return <Settings size={14} className={cls} />;
+  if (type.includes("error"))
+    return <AlertCircle size={14} className="shrink-0 text-red-400" />;
   return <Info size={14} className={cls} />;
 }
 
 function NotificationRow({ n }: { n: Notification }) {
   const [expanded, setExpanded] = useState(false);
   const parsedDate = parseFirestoreDate(n.createdAt);
-  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy HH:mm') : '—';
+  const dateStr = parsedDate ? format(parsedDate, "MMM dd, yyyy HH:mm") : "—";
 
   return (
     <>
@@ -46,33 +83,47 @@ function NotificationRow({ n }: { n: Notification }) {
         onClick={() => setExpanded((p) => !p)}
       >
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Type</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Type
+          </span>
           <div className="flex items-center gap-2">
             <TypeIcon type={n.type} />
             <span className="text-xs font-mono text-ink-500">{n.type}</span>
           </div>
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Title / Recipient</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Title / Recipient
+          </span>
           <div className="text-right md:text-left">
             <div className="font-semibold text-ink-900 text-sm">{n.title}</div>
-            <div className="text-ink-500 font-mono text-xs truncate max-w-[180px]">{n.recipientId}</div>
+            <div className="text-ink-500 font-mono text-xs truncate max-w-[180px]">
+              {n.recipientId}
+            </div>
           </div>
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Channel</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Channel
+          </span>
           <ChannelBadge channel={n.channel} />
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Status</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Status
+          </span>
           <StatusBadge status={n.status} />
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-xs text-ink-500 font-sans">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Created</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Created
+          </span>
           {dateStr}
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3 text-center text-xs text-ink-500 font-data">
-          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">Retries</span>
+          <span className="md:hidden font-semibold text-ink-500 text-[10px] uppercase tracking-wider">
+            Retries
+          </span>
           {n.retryCount}
         </td>
       </tr>
@@ -81,13 +132,19 @@ function NotificationRow({ n }: { n: Notification }) {
           <td colSpan={6} className="block md:table-cell px-4 md:px-6 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
               <div>
-                <div className="text-ink-500 uppercase tracking-wider font-semibold mb-1">Message</div>
+                <div className="text-ink-500 uppercase tracking-wider font-semibold mb-1">
+                  Message
+                </div>
                 <div className="text-ink-800 leading-relaxed">{n.message}</div>
               </div>
               <div className="space-y-2">
                 <div>
-                  <span className="text-ink-500 uppercase tracking-wider font-semibold">Related Entity: </span>
-                  <span className="font-mono text-ink-700">{n.relatedEntityType ?? '—'} / {n.relatedEntityId ?? '—'}</span>
+                  <span className="text-ink-500 uppercase tracking-wider font-semibold">
+                    Related Entity:{" "}
+                  </span>
+                  <span className="font-mono text-ink-700">
+                    {n.relatedEntityType ?? "—"} / {n.relatedEntityId ?? "—"}
+                  </span>
                 </div>
                 {n.errorMessage && (
                   <div>
@@ -99,7 +156,12 @@ function NotificationRow({ n }: { n: Notification }) {
                   <div>
                     <span className="text-ink-500">Sent: </span>
                     <span className="text-ink-700 font-mono">
-                      {parseFirestoreDate(n.sentAt) ? format(parseFirestoreDate(n.sentAt) as Date, 'MMM dd, HH:mm') : '—'}
+                      {parseFirestoreDate(n.sentAt)
+                        ? format(
+                            parseFirestoreDate(n.sentAt) as Date,
+                            "MMM dd, HH:mm",
+                          )
+                        : "—"}
                     </span>
                   </div>
                 )}
@@ -113,8 +175,13 @@ function NotificationRow({ n }: { n: Notification }) {
 }
 
 export function NotificationHistoryPage() {
-  const [search, setSearch] = useState('');
-  const { data: notifications, isLoading, error, refetch } = useNotificationHistory();
+  const [search, setSearch] = useState("");
+  const {
+    data: notifications,
+    isLoading,
+    error,
+    refetch,
+  } = useNotificationHistory();
 
   if (isLoading) return <LoadingScreen />;
   if (error) {
@@ -151,7 +218,10 @@ export function NotificationHistoryPage() {
       </div>
 
       <div className="relative mb-5">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500"
+        />
         <input
           type="text"
           value={search}
@@ -189,7 +259,8 @@ export function NotificationHistoryPage() {
             </table>
           </div>
           <div className="px-4 py-3 border-t border-rice-200 bg-rice-50/50 text-xs text-ink-500 font-sans">
-            Showing {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
+            Showing {filtered.length} notification
+            {filtered.length !== 1 ? "s" : ""}
           </div>
         </Card>
       )}

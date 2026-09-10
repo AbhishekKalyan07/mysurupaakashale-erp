@@ -1,28 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, useMemo } from 'react';
-import { deliveryRepository } from '@/shared/services/firestore/deliveryRepository';
-import { orderRepository } from '@/shared/services/firestore/orderRepository';
-import type { Order } from '@/shared/types';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { getAuth } from 'firebase/auth';
-import { where } from 'firebase/firestore';
-import { auditRepository } from '@/shared/services/firestore/auditRepository';
-import toast from 'react-hot-toast';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useMemo } from "react";
+import { deliveryRepository } from "@/shared/services/firestore/deliveryRepository";
+import { orderRepository } from "@/shared/services/firestore/orderRepository";
+import type { Order } from "@/shared/types";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import { getAuth } from "firebase/auth";
+import { where } from "firebase/firestore";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
+import toast from "react-hot-toast";
 import {
   notifyOrderOutForDelivery,
   notifyOrderDelivered,
   notifyDeliveryFailed,
-} from '@/shared/services/firestore/notificationService';
+} from "@/shared/services/firestore/notificationService";
 
 export function useUnassignedOrders(date: string) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => queryKeys.delivery.unassignedOrders(date), [date]);
+  const queryKey = useMemo(
+    () => queryKeys.delivery.unassignedOrders(date),
+    [date],
+  );
 
   useEffect(() => {
     if (!date) return;
-    const unsub = deliveryRepository.subscribeUnassignedOrders(
-      date,
-      (data) => queryClient.setQueryData(queryKey, data)
+    const unsub = deliveryRepository.subscribeUnassignedOrders(date, (data) =>
+      queryClient.setQueryData(queryKey, data),
     );
     return () => unsub();
   }, [date, queryClient, queryKey]);
@@ -37,13 +39,15 @@ export function useUnassignedOrders(date: string) {
 
 export function useAssignedOrders(date: string) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => queryKeys.delivery.assignedOrders(date), [date]);
+  const queryKey = useMemo(
+    () => queryKeys.delivery.assignedOrders(date),
+    [date],
+  );
 
   useEffect(() => {
     if (!date) return;
-    const unsub = deliveryRepository.subscribeAssignedOrders(
-      date,
-      (data) => queryClient.setQueryData(queryKey, data)
+    const unsub = deliveryRepository.subscribeAssignedOrders(date, (data) =>
+      queryClient.setQueryData(queryKey, data),
     );
     return () => unsub();
   }, [date, queryClient, queryKey]);
@@ -80,7 +84,7 @@ export function usePartnerOrders(partnerId: string, date: string) {
       (err) => {
         setError(err);
         setIsLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -92,20 +96,36 @@ export function usePartnerOrders(partnerId: string, date: string) {
 export function useAssignDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderIds, partnerId }: { orderIds: string[]; partnerId: string }) => {
+    mutationFn: async ({
+      orderIds,
+      partnerId,
+    }: {
+      orderIds: string[];
+      partnerId: string;
+    }) => {
       await deliveryRepository.assignOrders(orderIds, partnerId);
       const user = getAuth().currentUser;
       if (user) {
-        await auditRepository.logAction('order_assigned', user.uid, user.displayName || 'Staff', orderIds.join(','), 'order', { partnerId });
+        await auditRepository.logAction(
+          "order_assigned",
+          user.uid,
+          "admin",
+          user.displayName || "Staff",
+          orderIds.join(","),
+          "order",
+          { partnerId },
+        );
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.delivery.base,
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base }); // because orders were updated
-      toast.success('Orders assigned successfully');
+      toast.success("Orders assigned successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to assign orders');
+      toast.error((err as Error).message || "Failed to assign orders");
     },
   });
 }
@@ -113,27 +133,36 @@ export function useAssignDelivery() {
 export function useReassignDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderId, partnerId }: { orderId: string; partnerId: string | null }) => {
+    mutationFn: async ({
+      orderId,
+      partnerId,
+    }: {
+      orderId: string;
+      partnerId: string | null;
+    }) => {
       await deliveryRepository.reassignOrder(orderId, partnerId);
       const user = getAuth().currentUser;
       if (user) {
         await auditRepository.logAction(
-          partnerId ? 'order_reassigned' : 'order_unassigned',
+          partnerId ? "order_reassigned" : "order_unassigned",
           user.uid,
-          user.displayName || 'Staff',
+          "admin",
+          user.displayName || "Staff",
           orderId,
-          'order',
-          { partnerId }
+          "order",
+          { partnerId },
         );
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.delivery.base,
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
-      toast.success('Order reassigned successfully');
+      toast.success("Order reassigned successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to reassign order');
+      toast.error((err as Error).message || "Failed to reassign order");
     },
   });
 }
@@ -141,16 +170,23 @@ export function useReassignDelivery() {
 export function useUpdateDeliveryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
+    mutationFn: async ({
+      orderId,
+      newStatus,
+    }: {
+      orderId: string;
+      newStatus: string;
+    }) => {
       await deliveryRepository.updateDeliveryStatus(orderId, newStatus);
 
       // Send customer notification — fire-and-forget (never block the status update).
       // Resolve order from cache first; fall back to a single Firestore read.
       const resolveOrder = async (): Promise<Order | null> => {
         // Try to find the order in any kitchen query cache entry
-        const cached = queryClient.getQueriesData<Order[]>({ queryKey: queryKeys.kitchen.base })
+        const cached = queryClient
+          .getQueriesData<Order[]>({ queryKey: queryKeys.kitchen.base })
           .flatMap(([, data]) => data ?? [])
-          .find(o => o.id === orderId);
+          .find((o) => o.id === orderId);
         if (cached) return cached;
         // Fall back to Firestore
         return orderRepository.getById(orderId).catch(() => null);
@@ -159,39 +195,70 @@ export function useUpdateDeliveryStatus() {
       resolveOrder()
         .then((order) => {
           if (!order) return;
-          const mealType = order.mealType ?? 'meal';
-          if (newStatus === 'out_for_delivery') {
-            return notifyOrderOutForDelivery(order.customerId, orderId, mealType);
-          } else if (newStatus === 'delivered') {
-            notifyOrderDelivered(order.customerId, orderId, mealType).catch(console.error);
-            import('@/shared/services/firestore/notificationService').then(m => {
-              // Get accounts users and notify them
-              import('@/shared/services/firestore/userRepository').then(userRepo => {
-                userRepo.userRepository.list(where('role', '==', 'accounts'))
-                  .then(accounts => {
-                    accounts.forEach(acc => m.notifyAccountsDelivered(acc.id, orderId, mealType).catch(console.error));
-                  }).catch(console.error);
-              }).catch(console.error);
-            }).catch(console.error);
-            
-            import('@/shared/services/firestore/auditRepository').then(m => {
-              m.auditRepository.logAction('order_delivered', order.deliveryPartnerId || 'system', 'Driver', orderId, 'order').catch(console.error);
-            }).catch(console.error);
-            
+          const mealType = order.mealType ?? "meal";
+          if (newStatus === "out_for_delivery") {
+            return notifyOrderOutForDelivery(
+              order.customerId,
+              orderId,
+              mealType,
+            );
+          } else if (newStatus === "delivered") {
+            notifyOrderDelivered(order.customerId, orderId, mealType).catch(
+              console.error,
+            );
+            import("@/shared/services/firestore/notificationService")
+              .then((m) => {
+                // Get accounts users and notify them
+                import("@/shared/services/firestore/userRepository")
+                  .then((userRepo) => {
+                    userRepo.userRepository
+                      .list(where("role", "==", "accounts"))
+                      .then((accounts) => {
+                        accounts.forEach((acc) =>
+                          m
+                            .notifyAccountsDelivered(acc.id, orderId, mealType)
+                            .catch(console.error),
+                        );
+                      })
+                      .catch(console.error);
+                  })
+                  .catch(console.error);
+              })
+              .catch(console.error);
+
+            import("@/shared/services/firestore/auditRepository")
+              .then((m) => {
+                m.auditRepository
+                  .logAction(
+                    "order_delivered",
+                    order.deliveryPartnerId || "system",
+                    "delivery_partner",
+                    "Driver",
+                    orderId,
+                    "order",
+                  )
+                  .catch(console.error);
+              })
+              .catch(console.error);
+
             return;
-          } else if (newStatus === 'failed_delivery') {
+          } else if (newStatus === "failed_delivery") {
             return notifyDeliveryFailed(order.customerId, orderId, mealType);
           }
         })
-        .catch((err) => console.error('[useUpdateDeliveryStatus] notification failed:', err));
+        .catch((err) =>
+          console.error("[useUpdateDeliveryStatus] notification failed:", err),
+        );
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.delivery.base,
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
-      toast.success('Status updated successfully');
+      toast.success("Status updated successfully");
     },
     onError: (err: unknown) => {
-      toast.error((err as Error).message || 'Failed to update status');
+      toast.error((err as Error).message || "Failed to update status");
     },
   });
 }

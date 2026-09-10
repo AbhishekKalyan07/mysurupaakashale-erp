@@ -1,7 +1,13 @@
-import type { Address } from './user.types';
-import type { ID, TimeWindow, Timestamp } from './common.types';
+import type { Address } from "./user.types";
+import type { ID, TimeWindow, Timestamp } from "./common.types";
 
-export type DeliveryStatus = 'unassigned' | 'assigned' | 'picked_up' | 'out_for_delivery' | 'delivered' | 'failed';
+export type DeliveryStatus =
+  | "unassigned"
+  | "assigned"
+  | "picked_up"
+  | "out_for_delivery"
+  | "delivered"
+  | "failed";
 
 /**
  * Firestore: `deliveryZones/{zoneId}`.

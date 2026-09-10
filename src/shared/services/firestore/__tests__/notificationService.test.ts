@@ -1,284 +1,448 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as notificationService from '../notificationService';
-import { notificationRepository } from '../notificationRepository';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as notificationService from "../notificationService";
+import { notificationRepository } from "../notificationRepository";
 
-vi.mock('../notificationRepository', () => ({
+vi.mock("../notificationRepository", () => ({
   notificationRepository: {
     createNotification: vi.fn(),
   },
 }));
 
-vi.mock('@/shared/lib/firebase', () => ({
+vi.mock("@/shared/lib/firebase", () => ({
   auth: {
-    currentUser: { uid: 'test-admin-uid' },
+    currentUser: { uid: "test-admin-uid" },
   },
 }));
 
-describe('notificationService', () => {
+describe("notificationService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Subscription Notifications', () => {
-    it('notifySubscriptionCreated', async () => {
-      await notificationService.notifySubscriptionCreated('cust-1', 'sub-1', 'Premium');
+  describe("Subscription Notifications", () => {
+    it("notifySubscriptionCreated", async () => {
+      await notificationService.notifySubscriptionCreated(
+        "cust-1",
+        "sub-1",
+        "Premium",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          recipientId: 'cust-1',
-          recipientRole: 'customer',
-          type: 'subscription_created',
-          relatedEntityType: 'subscription',
-          relatedEntityId: 'sub-1',
-          priority: 'normal',
-        })
+          recipientId: "cust-1",
+          recipientRole: "customer",
+          type: "subscription_created",
+          relatedEntityType: "subscription",
+          relatedEntityId: "sub-1",
+          priority: "normal",
+        }),
       );
     });
 
-    it('notifySubscriptionActivated', async () => {
-      await notificationService.notifySubscriptionActivated('cust-1', 'sub-1', 'Premium', '2026-08-01');
+    it("notifySubscriptionActivated", async () => {
+      await notificationService.notifySubscriptionActivated(
+        "cust-1",
+        "sub-1",
+        "Premium",
+        "2026-08-01",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          recipientId: 'cust-1',
-          type: 'subscription_activated',
-          priority: 'high',
-        })
+          recipientId: "cust-1",
+          type: "subscription_activated",
+          priority: "high",
+        }),
       );
     });
 
-    it('notifySubscriptionRenewalReminder - high urgency', async () => {
-      await notificationService.notifySubscriptionRenewalReminder('cust-1', 'sub-1', 1, '2026-08-02');
+    it("notifySubscriptionRenewalReminder - high urgency", async () => {
+      await notificationService.notifySubscriptionRenewalReminder(
+        "cust-1",
+        "sub-1",
+        1,
+        "2026-08-02",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'subscription_renewal_reminder',
-          priority: 'high',
-        })
+          type: "subscription_renewal_reminder",
+          priority: "high",
+        }),
       );
     });
 
-    it('notifySubscriptionRenewalReminder - normal urgency', async () => {
-      await notificationService.notifySubscriptionRenewalReminder('cust-1', 'sub-1', 3, '2026-08-05');
+    it("notifySubscriptionRenewalReminder - normal urgency", async () => {
+      await notificationService.notifySubscriptionRenewalReminder(
+        "cust-1",
+        "sub-1",
+        3,
+        "2026-08-05",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ priority: 'normal' })
+        expect.objectContaining({ priority: "normal" }),
       );
     });
 
-    it('notifySubscriptionRenewalReminder - low urgency', async () => {
-      await notificationService.notifySubscriptionRenewalReminder('cust-1', 'sub-1', 5, '2026-08-07');
+    it("notifySubscriptionRenewalReminder - low urgency", async () => {
+      await notificationService.notifySubscriptionRenewalReminder(
+        "cust-1",
+        "sub-1",
+        5,
+        "2026-08-07",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ priority: 'low' })
+        expect.objectContaining({ priority: "low" }),
       );
     });
 
-    it('notifySubscriptionExpired', async () => {
-      await notificationService.notifySubscriptionExpired('cust-1', 'sub-1');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ priority: 'high', type: 'subscription_renewal_reminder' })
-      );
-    });
-
-    it('notifySubscriptionPaused', async () => {
-      await notificationService.notifySubscriptionPaused('cust-1', 'sub-1');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'subscription_paused' })
-      );
-    });
-
-    it('notifySubscriptionResumed', async () => {
-      await notificationService.notifySubscriptionResumed('cust-1', 'sub-1');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'subscription_resumed', priority: 'high' })
-      );
-    });
-
-    it('notifySubscriptionRejected with reason', async () => {
-      await notificationService.notifySubscriptionRejected('cust-1', 'sub-1', 'Invalid area');
+    it("notifySubscriptionExpired", async () => {
+      await notificationService.notifySubscriptionExpired("cust-1", "sub-1");
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'subscription_cancelled',
-          message: expect.stringContaining('Invalid area'),
-        })
+          priority: "high",
+          type: "subscription_renewal_reminder",
+        }),
       );
     });
 
-    it('notifySubscriptionRejected without reason', async () => {
-      await notificationService.notifySubscriptionRejected('cust-1', 'sub-1');
+    it("notifySubscriptionPaused", async () => {
+      await notificationService.notifySubscriptionPaused("cust-1", "sub-1");
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "subscription_paused" }),
+      );
+    });
+
+    it("notifySubscriptionResumed", async () => {
+      await notificationService.notifySubscriptionResumed("cust-1", "sub-1");
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'subscription_cancelled',
+          type: "subscription_resumed",
+          priority: "high",
+        }),
+      );
+    });
+
+    it("notifySubscriptionRejected with reason", async () => {
+      await notificationService.notifySubscriptionRejected(
+        "cust-1",
+        "sub-1",
+        "Invalid area",
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "subscription_cancelled",
+          message: expect.stringContaining("Invalid area"),
+        }),
+      );
+    });
+
+    it("notifySubscriptionRejected without reason", async () => {
+      await notificationService.notifySubscriptionRejected("cust-1", "sub-1");
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "subscription_cancelled",
           message: expect.stringContaining("couldn't be approved"),
-        })
+        }),
       );
     });
   });
 
-  describe('Payment Notifications', () => {
-    it('notifyPaymentSubmitted notifies customer and admins', async () => {
-      await notificationService.notifyPaymentSubmitted('cust-1', 'John Doe (C123)', 'pay-1', 1500, ['admin-1', 'admin-2']);
-      expect(notificationRepository.createNotification).toHaveBeenCalledTimes(3);
+  describe("Payment Notifications", () => {
+    it("notifyPaymentSubmitted notifies customer and admins", async () => {
+      await notificationService.notifyPaymentSubmitted(
+        "cust-1",
+        "John Doe (C123)",
+        "pay-1",
+        1500,
+        ["admin-1", "admin-2"],
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledTimes(
+        3,
+      );
       // Customer notification
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientId: 'cust-1', type: 'payment_submitted' })
+        expect.objectContaining({
+          recipientId: "cust-1",
+          type: "payment_submitted",
+        }),
       );
       // Admin notifications
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientId: 'admin-1', recipientRole: 'admin', type: 'payment_submitted', priority: 'high' })
+        expect.objectContaining({
+          recipientId: "admin-1",
+          recipientRole: "admin",
+          type: "payment_submitted",
+          priority: "high",
+        }),
       );
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientId: 'admin-2', recipientRole: 'admin', type: 'payment_submitted', priority: 'high' })
-      );
-    });
-
-    it('notifyPaymentVerified', async () => {
-      await notificationService.notifyPaymentVerified('cust-1', 'pay-1', 1500);
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'payment_verified', priority: 'high' })
-      );
-    });
-
-    it('notifyPaymentReminder', async () => {
-      await notificationService.notifyPaymentReminder('cust-1', 1500, '2026-08-05');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'payment_reminder', priority: 'high' })
-      );
-    });
-
-    it('notifyInvoiceGenerated', async () => {
-      await notificationService.notifyInvoiceGenerated('cust-1', 'inv-1', 1500, 'August 2026');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'invoice_generated', priority: 'normal', relatedEntityId: 'inv-1' })
-      );
-    });
-
-    it('notifyPaymentRejected with notes', async () => {
-      await notificationService.notifyPaymentRejected('cust-1', 'pay-1', 1500, 'Blurry image');
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'payment_rejected',
-          message: expect.stringContaining('Blurry image'),
-        })
+          recipientId: "admin-2",
+          recipientRole: "admin",
+          type: "payment_submitted",
+          priority: "high",
+        }),
       );
     });
 
-    it('notifyPaymentRejected without notes', async () => {
-      await notificationService.notifyPaymentRejected('cust-1', 'pay-1', 1500, null);
+    it("notifyPaymentVerified", async () => {
+      await notificationService.notifyPaymentVerified("cust-1", "pay-1", 1500);
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "payment_verified", priority: "high" }),
+      );
+    });
+
+    it("notifyPaymentReminder", async () => {
+      await notificationService.notifyPaymentReminder(
+        "cust-1",
+        1500,
+        "2026-08-05",
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "payment_reminder", priority: "high" }),
+      );
+    });
+
+    it("notifyInvoiceGenerated", async () => {
+      await notificationService.notifyInvoiceGenerated(
+        "cust-1",
+        "inv-1",
+        1500,
+        "August 2026",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'payment_rejected',
-          message: expect.stringContaining('resubmit with the correct reference'),
-        })
+          type: "invoice_generated",
+          priority: "normal",
+          relatedEntityId: "inv-1",
+        }),
+      );
+    });
+
+    it("notifyPaymentRejected with notes", async () => {
+      await notificationService.notifyPaymentRejected(
+        "cust-1",
+        "pay-1",
+        1500,
+        "Blurry image",
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "payment_rejected",
+          message: expect.stringContaining("Blurry image"),
+        }),
+      );
+    });
+
+    it("notifyPaymentRejected without notes", async () => {
+      await notificationService.notifyPaymentRejected(
+        "cust-1",
+        "pay-1",
+        1500,
+        null,
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "payment_rejected",
+          message: expect.stringContaining(
+            "resubmit with the correct reference",
+          ),
+        }),
       );
     });
   });
 
-  describe('Delivery Notifications', () => {
-    it('notifyDriverAssigned', async () => {
-      await notificationService.notifyDriverAssigned('cust-1', 'ord-1', 'Driver A', 'lunch');
+  describe("Delivery Notifications", () => {
+    it("notifyDriverAssigned", async () => {
+      await notificationService.notifyDriverAssigned(
+        "cust-1",
+        "ord-1",
+        "Driver A",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'driver_assigned', relatedEntityId: 'ord-1' })
+        expect.objectContaining({
+          type: "driver_assigned",
+          relatedEntityId: "ord-1",
+        }),
       );
     });
 
-    it('notifyOrderOutForDelivery', async () => {
-      await notificationService.notifyOrderOutForDelivery('cust-1', 'ord-1', 'lunch');
+    it("notifyOrderOutForDelivery", async () => {
+      await notificationService.notifyOrderOutForDelivery(
+        "cust-1",
+        "ord-1",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'out_for_delivery' })
+        expect.objectContaining({ type: "out_for_delivery" }),
       );
     });
 
-    it('notifyOrderDelivered', async () => {
-      await notificationService.notifyOrderDelivered('cust-1', 'ord-1', 'lunch');
+    it("notifyOrderDelivered", async () => {
+      await notificationService.notifyOrderDelivered(
+        "cust-1",
+        "ord-1",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'delivered' })
+        expect.objectContaining({ type: "delivered" }),
       );
     });
 
-    it('notifyDeliveryFailed', async () => {
-      await notificationService.notifyDeliveryFailed('cust-1', 'ord-1', 'lunch');
+    it("notifyDeliveryFailed", async () => {
+      await notificationService.notifyDeliveryFailed(
+        "cust-1",
+        "ord-1",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'delivery_failed', priority: 'high' })
+        expect.objectContaining({ type: "delivery_failed", priority: "high" }),
       );
     });
 
-    it('notifyOrderGeneratedCustomer', async () => {
-      await notificationService.notifyOrderGeneratedCustomer('cust-1', 'lunch', '2026-08-01');
+    it("notifyOrderGeneratedCustomer", async () => {
+      await notificationService.notifyOrderGeneratedCustomer(
+        "cust-1",
+        "lunch",
+        "2026-08-01",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'customer' })
+        expect.objectContaining({
+          type: "system_alert",
+          priority: "normal",
+          recipientRole: "customer",
+        }),
       );
     });
 
-    it('notifyOrderGeneratedDriver', async () => {
-      await notificationService.notifyOrderGeneratedDriver('driver-1', 'ord-1', 'lunch', 'Cust 1', '2026-08-01');
+    it("notifyOrderGeneratedDriver", async () => {
+      await notificationService.notifyOrderGeneratedDriver(
+        "driver-1",
+        "ord-1",
+        "lunch",
+        "Cust 1",
+        "2026-08-01",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'delivery' })
+        expect.objectContaining({
+          type: "system_alert",
+          priority: "normal",
+          recipientRole: "delivery",
+        }),
       );
     });
 
-    it('notifyReadyForPickup', async () => {
-      await notificationService.notifyReadyForPickup('driver-1', 'ord-1', 'lunch');
+    it("notifyReadyForPickup", async () => {
+      await notificationService.notifyReadyForPickup(
+        "driver-1",
+        "ord-1",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'system_alert', priority: 'high', recipientRole: 'delivery' })
+        expect.objectContaining({
+          type: "system_alert",
+          priority: "high",
+          recipientRole: "delivery",
+        }),
       );
     });
 
-    it('notifyAccountsDelivered', async () => {
-      await notificationService.notifyAccountsDelivered('account-1', 'ord-1', 'lunch');
+    it("notifyAccountsDelivered", async () => {
+      await notificationService.notifyAccountsDelivered(
+        "account-1",
+        "ord-1",
+        "lunch",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'system_alert', priority: 'normal', recipientRole: 'accounts' })
+        expect.objectContaining({
+          type: "system_alert",
+          priority: "normal",
+          recipientRole: "accounts",
+        }),
       );
     });
   });
 
-  describe('Kitchen / Operations Notifications', () => {
-    it('notifyDailyOrdersGenerated notifies multiple staff', async () => {
-      await notificationService.notifyDailyOrdersGenerated(['k-1', 'k-2'], '2026-08-02', 150);
-      expect(notificationRepository.createNotification).toHaveBeenCalledTimes(2);
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recipientId: 'k-1',
-          recipientRole: 'kitchen',
-          type: 'daily_orders_generated',
-          priority: 'high',
-        })
+  describe("Kitchen / Operations Notifications", () => {
+    it("notifyDailyOrdersGenerated notifies multiple staff", async () => {
+      await notificationService.notifyDailyOrdersGenerated(
+        ["k-1", "k-2"],
+        "2026-08-02",
+        150,
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledTimes(
+        2,
       );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          recipientId: 'k-2',
-          recipientRole: 'kitchen',
-          type: 'daily_orders_generated',
-          priority: 'high',
-        })
+          recipientId: "k-1",
+          recipientRole: "kitchen",
+          type: "daily_orders_generated",
+          priority: "high",
+        }),
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "k-2",
+          recipientRole: "kitchen",
+          type: "daily_orders_generated",
+          priority: "high",
+        }),
       );
     });
   });
 
-  describe('Staff / Admin Notifications', () => {
-    it('notifyStaffAccountCreated', async () => {
-      await notificationService.notifyStaffAccountCreated('staff-1', 'kitchen', 'John Doe');
+  describe("Staff / Admin Notifications", () => {
+    it("notifyStaffAccountCreated", async () => {
+      await notificationService.notifyStaffAccountCreated(
+        "staff-1",
+        "kitchen",
+        "John Doe",
+      );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({
-          recipientId: 'staff-1',
-          recipientRole: 'kitchen',
-          type: 'staff_account_created',
-          priority: 'high',
-        })
+          recipientId: "staff-1",
+          recipientRole: "kitchen",
+          type: "staff_account_created",
+          priority: "high",
+        }),
       );
     });
 
-    it('notifyAdminAlert notifies multiple admins', async () => {
-      await notificationService.notifyAdminAlert(['admin-1', 'admin-2'], 'Alert', 'Message');
-      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientId: 'admin-1', recipientRole: 'admin', type: 'system_alert' })
+    it("notifyAdminAlert notifies multiple admins", async () => {
+      await notificationService.notifyAdminAlert(
+        ["admin-1", "admin-2"],
+        "Alert",
+        "Message",
       );
       expect(notificationRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ recipientId: 'admin-2', recipientRole: 'admin', type: 'system_alert' })
+        expect.objectContaining({
+          recipientId: "admin-1",
+          recipientRole: "admin",
+          type: "system_alert",
+        }),
+      );
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "admin-2",
+          recipientRole: "admin",
+          type: "system_alert",
+        }),
       );
     });
   });
-  
-  describe('Error handling (Fire and Forget boundary test)', () => {
-    it('surfaces repository errors (since service does not swallow them locally)', async () => {
-      vi.mocked(notificationRepository.createNotification).mockRejectedValueOnce(new Error('DB Error'));
-      await expect(notificationService.notifySubscriptionCreated('cust-1', 'sub-1', 'Premium')).rejects.toThrow('DB Error');
+
+  describe("Error handling (Fire and Forget boundary test)", () => {
+    it("surfaces repository errors (since service does not swallow them locally)", async () => {
+      vi.mocked(
+        notificationRepository.createNotification,
+      ).mockRejectedValueOnce(new Error("DB Error"));
+      await expect(
+        notificationService.notifySubscriptionCreated(
+          "cust-1",
+          "sub-1",
+          "Premium",
+        ),
+      ).rejects.toThrow("DB Error");
     });
   });
 });

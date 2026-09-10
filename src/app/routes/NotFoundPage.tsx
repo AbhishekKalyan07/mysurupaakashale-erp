@@ -1,12 +1,12 @@
-import { Link } from 'react-router-dom';
-import { Home, LayoutDashboard } from 'lucide-react';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_HOME_ROUTE } from '@/shared/constants/roles';
+import { Link } from "react-router-dom";
+import { Home, LayoutDashboard } from "lucide-react";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLE_HOME_ROUTE } from "@/shared/constants/roles";
 
 export function NotFoundPage() {
   const { role } = useAuth();
-  const dashboardTo = role ? ROLE_HOME_ROUTE[role] : '/login';
+  const dashboardTo = role ? ROLE_HOME_ROUTE[role] : "/login";
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-rice-50 px-6 text-center">
@@ -17,7 +17,9 @@ export function NotFoundPage() {
         </p>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="rounded-2xl bg-white border border-rice-200 shadow-card px-6 py-3">
-            <p className="font-display text-base font-semibold text-ink-700">Page not found</p>
+            <p className="font-display text-base font-semibold text-ink-700">
+              Page not found
+            </p>
           </div>
         </div>
       </div>
@@ -28,7 +30,8 @@ export function NotFoundPage() {
           Looks like you're lost
         </h1>
         <p className="text-sm text-ink-500 leading-relaxed">
-          The page you're looking for doesn't exist, has been moved, or you may not have access to it.
+          The page you're looking for doesn't exist, has been moved, or you may
+          not have access to it.
         </p>
       </div>
 
@@ -49,10 +52,7 @@ export function NotFoundPage() {
       </div>
 
       {/* Brand mark */}
-      <p className="text-xs text-ink-500 font-sans">
-        Mysuru Paakashale ERP
-      </p>
+      <p className="text-xs text-ink-500 font-sans">Mysuru Paakashale ERP</p>
     </div>
   );
 }
-

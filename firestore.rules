@@ -6,13 +6,14 @@ rules_version = '2';
 // Division of responsibility: these rules decide WHO can read/write WHAT —
 // authorization, plus a few high-value data checks (price integrity,
 // state-machine transitions, "which fields actually changed"). This app
-// has no Cloud Functions in its live architecture (Spark plan, client SDK
-// only — see PRODUCTION_READINESS_REPORT.md); these rules ARE the entire
-// write-path validation, not a backstop for one. Full shape/format
-// validation for anything not checked here lives in Zod schemas on the
-// client, which is necessarily advisory, not enforced — treat any
-// high-value field (price, status, amount) as something that belongs in
-// this file, checked explicitly, not just assumed from the client.
+// runs on the Blaze plan with two Cloud Functions (onOrderCancelled,
+// onHolidayDeclared) that perform privileged server-side writes via Admin
+// SDK. For all other write paths, these rules ARE the entire validation,
+// not a backstop. Full shape/format validation for anything not checked
+// here lives in Zod schemas on the client, which is necessarily advisory,
+// not enforced — treat any high-value field (price, status, amount) as
+// something that belongs in this file, checked explicitly, not just
+// assumed from the client.
 //
 // SPRINT 4 CHANGES:
 //   - payments: customers may create their own 'pending' payment claim
@@ -120,6 +121,8 @@ service cloud.firestore {
                         unchanged('role') &&
                         unchanged('id') &&
                         unchanged('deliveryPartnerId') &&
+                        unchanged('isActive') &&
+                        unchanged('kitchenId') &&
                         unchanged('assignedAt') &&
                         unchanged('assignedBy')) || isAdmin();
 
@@ -594,7 +597,8 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
                        ('performedBy' in request.resource.data) &&
                        request.resource.data.performedBy == request.auth.uid &&
-                       request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
+                       request.resource.data.performedByRole == role() &&
+                       request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
       allow update, delete: if false; // Audit logs must be immutable
     }
 
@@ -646,16 +650,40 @@ service cloud.firestore {
       allow delete: if isAdmin() || isAccounts();
     }
     match /payroll/{payrollId} {
+      function isValidPayroll() {
+        return request.resource.data.get('basicSalary', 0) is number && request.resource.data.get('basicSalary', 0) >= 0 && request.resource.data.get('basicSalary', 0) <= 10000000 &&
+               request.resource.data.get('grossSalary', 0) is number && request.resource.data.get('grossSalary', 0) >= 0 && request.resource.data.get('grossSalary', 0) <= 10000000 &&
+               request.resource.data.get('netSalary', 0) is number && request.resource.data.get('netSalary', 0) >= 0 && request.resource.data.get('netSalary', 0) <= 10000000;
+      }
+      function isValidPayrollTransition() {
+        let from = resource.data.get('status', '');
+        let to = request.resource.data.get('status', '');
+        return (from == 'draft' && to == 'review') ||
+               (from == 'review' && (to == 'approved' || to == 'rejected' || to == 'draft')) ||
+               (from == 'approved' && (to == 'paid' || to == 'rejected' || to == 'review')) ||
+               (from == 'rejected' && to == 'draft') ||
+               (from == 'paid' && to == 'archived') ||
+               (from == to);
+      }
       allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow write: if isAdmin() || isAccounts();
+      allow create: if (isAdmin() || isAccounts()) && isValidPayroll();
+      allow update: if (isAdmin() || isAccounts()) && isValidPayroll() && isValidPayrollTransition();
+      allow delete: if false;
     }
     match /salaryProfiles/{profileId} {
       allow read: if isSignedIn() && (profileId == request.auth.uid || isAdmin() || isAccounts());
       allow write: if isAdmin() || isAccounts();
     }
     match /salaryAdvances/{advanceId} {
+      function isValidAdvance() {
+        return request.resource.data.get('amount', 0) is number &&
+               request.resource.data.get('amount', 0) >= 0 &&
+               request.resource.data.get('amount', 0) <= 1000000;
+      }
       allow read: if isSignedIn() && (resource.data.staffId == request.auth.uid || isAdmin() || isAccounts());
-      allow write: if isAdmin() || isAccounts();
+      allow create: if (isAdmin() || isAccounts()) && isValidAdvance();
+      allow update: if (isAdmin() || isAccounts()) && resource.data.status == 'pending' && isValidAdvance();
+      allow delete: if false;
     }
 
 

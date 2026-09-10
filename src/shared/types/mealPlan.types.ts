@@ -1,11 +1,11 @@
-import type { ID, Timestamp } from './common.types';
+import type { ID, Timestamp } from "./common.types";
 
-export type MealType = 'breakfast' | 'lunch' | 'dinner';
+export type MealType = "breakfast" | "lunch" | "dinner";
 
-export const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner'];
+export const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner"];
 
 /** Extensible on purpose — new tiers can be added without a schema change. */
-export type PlanTier = 'basic' | 'regular' | (string & {});
+export type PlanTier = "basic" | "regular" | (string & {});
 
 /**
  * One selectable composition for a given plan + meal slot, e.g. for
@@ -49,7 +49,7 @@ export interface MealPlan {
   description: string;
   pricePerDay: number; // Legacy total bundle price (INR)
   pricingMatrix?: MealPlanPricing; // Exact combination pricing (INR)
-  currency: 'INR';
+  currency: "INR";
   mealSlots: MealSlotConfig[];
   deliveryIncluded: boolean;
   isActive: boolean;
@@ -58,7 +58,7 @@ export interface MealPlan {
   updatedAt: Timestamp;
 }
 
-export type PublishStatus = 'draft' | 'published' | 'archived';
+export type PublishStatus = "draft" | "published" | "archived";
 
 export interface MealMenu {
   name: string;
@@ -69,7 +69,7 @@ export interface MealMenu {
 
 /**
  * Firestore: `dailyMenus/{menuId}`.
- * The daily menu offering for a specific date. 
+ * The daily menu offering for a specific date.
  * Managed by Kitchen or Admin.
  */
 export interface DailyMenu {

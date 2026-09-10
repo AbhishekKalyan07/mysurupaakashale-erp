@@ -1,16 +1,24 @@
-import type { Subscription, Order, MealPlanPricing } from '@/shared/types';
+import type { Subscription, Order, MealPlanPricing } from "@/shared/types";
 
 export function calculateAccruedBill(
   orders: Order[],
-  subscription: Subscription
+  subscription: Subscription,
 ): number {
   if (!subscription) return 0;
 
   // Chargeable statuses include: preparing, packing, packed, ready_for_pickup, picked_up, out_for_delivery, delivered.
   // We exclude statuses where the meal was not produced or not successfully delivered to the point of being billable.
-  const excludedStatuses = ['scheduled', 'skipped', 'cancelled', 'failed_delivery', 'returned_delivery'];
+  const excludedStatuses = [
+    "scheduled",
+    "skipped",
+    "cancelled",
+    "failed_delivery",
+    "returned_delivery",
+  ];
   const subOrders = orders.filter(
-    o => o.subscriptionId === subscription.id && !excludedStatuses.includes(o.status)
+    (o) =>
+      o.subscriptionId === subscription.id &&
+      !excludedStatuses.includes(o.status),
   );
 
   // Group by date, and prevent duplicate charging for the same meal/date
@@ -26,17 +34,17 @@ export function calculateAccruedBill(
 
   for (const date in groupedOrders) {
     const mealTypes = Array.from(groupedOrders[date]);
-    
+
     // Sort meal types to match pricing matrix keys (breakfast -> lunch -> dinner)
     const sortedMeals = [];
-    if (mealTypes.includes('breakfast')) sortedMeals.push('breakfast');
-    if (mealTypes.includes('lunch')) sortedMeals.push('lunch');
-    if (mealTypes.includes('dinner')) sortedMeals.push('dinner');
-    
-    const key = sortedMeals.join('_') as keyof MealPlanPricing;
-    
+    if (mealTypes.includes("breakfast")) sortedMeals.push("breakfast");
+    if (mealTypes.includes("lunch")) sortedMeals.push("lunch");
+    if (mealTypes.includes("dinner")) sortedMeals.push("dinner");
+
+    const key = sortedMeals.join("_") as keyof MealPlanPricing;
+
     const matrix = subscription.pricingMatrixSnapshot;
-    
+
     let dailyCharge = 0;
     if (matrix && matrix[key] !== undefined) {
       dailyCharge = matrix[key];
@@ -51,11 +59,14 @@ export function calculateAccruedBill(
           uniqueOrders.push(order);
         }
       }
-      dailyCharge = uniqueOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+      dailyCharge = uniqueOrders.reduce(
+        (sum, order) => sum + (order.price || 0),
+        0,
+      );
     }
-    
+
     totalBill += dailyCharge * (subscription.quantity || 1);
   }
-  
+
   return totalBill;
 }

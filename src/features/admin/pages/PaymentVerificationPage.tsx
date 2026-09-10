@@ -1,19 +1,23 @@
-import { useState } from 'react';
-import { parseFirestoreDate } from '@/shared/utils/dateUtils';
-import type { QueryDocumentSnapshot } from 'firebase/firestore';
-import { useQuery } from '@tanstack/react-query';
-import { userRepository } from '@/shared/services/firestore/userRepository';
-import { subscriptionRepository } from '@/shared/services/firestore/subscriptionRepository';
-import { mealPlanRepository } from '@/shared/services/firestore/mealPlanRepository';
-import { useAdminPayments, useApprovePayment, useRejectPayment } from '@/features/customer/hooks/usePayments';
-import { TableSkeleton } from '@/shared/components/feedback/SkeletonLoader';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { HeroBanner as PageHeader } from '@/shared/components/ui/HeroBanner';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import type { ManualPayment, ManualPaymentStatus } from '@/shared/types';
+import { useState } from "react";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
+import { useQuery } from "@tanstack/react-query";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
+import { mealPlanRepository } from "@/shared/services/firestore/mealPlanRepository";
+import {
+  useAdminPayments,
+  useApprovePayment,
+  useRejectPayment,
+} from "@/features/customer/hooks/usePayments";
+import { TableSkeleton } from "@/shared/components/feedback/SkeletonLoader";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { EmptyState } from "@/shared/components/feedback/EmptyState";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import type { ManualPayment, ManualPaymentStatus } from "@/shared/types";
 import {
   Search,
   CheckCircle,
@@ -29,18 +33,21 @@ import {
   ExternalLink,
   Image as ImageIcon,
   ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
-import { format } from 'date-fns';
+  ChevronRight,
+} from "lucide-react";
+import { format } from "date-fns";
 
 function isSafeScreenshotUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   try {
     const parsed = new URL(url);
-    if (parsed.protocol !== 'https:') return false;
+    if (parsed.protocol !== "https:") return false;
     const hostname = parsed.hostname;
     // Must be a firebase storage URL
-    return hostname === 'firebasestorage.googleapis.com' || hostname.endsWith('.firebasestorage.app');
+    return (
+      hostname === "firebasestorage.googleapis.com" ||
+      hostname.endsWith(".firebasestorage.app")
+    );
   } catch {
     return false;
   }
@@ -54,8 +61,10 @@ function PaymentDetailDialog({
   payment: ManualPayment;
   onClose: () => void;
 }) {
-  const [notes, setNotes] = useState('');
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [notes, setNotes] = useState("");
+  const [confirmAction, setConfirmAction] = useState<
+    "approve" | "reject" | null
+  >(null);
   const approvePayment = useApprovePayment();
   const rejectPayment = useRejectPayment();
 
@@ -63,19 +72,19 @@ function PaymentDetailDialog({
   // These hooks are from `@tanstack/react-query` and standard for this project pattern
 
   const { data: user } = useQuery({
-    queryKey: ['user', payment.customerId],
+    queryKey: ["user", payment.customerId],
     queryFn: () => userRepository.getById(payment.customerId),
     enabled: !!payment.customerId,
   });
 
   const { data: subscription } = useQuery({
-    queryKey: ['subscription', payment.subscriptionId],
+    queryKey: ["subscription", payment.subscriptionId],
     queryFn: () => subscriptionRepository.getById(payment.subscriptionId),
     enabled: !!payment.subscriptionId,
   });
 
   const { data: plan } = useQuery({
-    queryKey: ['plan', subscription?.planId],
+    queryKey: ["plan", subscription?.planId],
     queryFn: () => mealPlanRepository.getById(subscription!.planId),
     enabled: !!subscription?.planId,
   });
@@ -85,7 +94,7 @@ function PaymentDetailDialog({
   const handleConfirm = async () => {
     if (!confirmAction) return;
     try {
-      if (confirmAction === 'approve') {
+      if (confirmAction === "approve") {
         let meta;
         if (user && subscription && plan) {
           meta = {
@@ -98,7 +107,11 @@ function PaymentDetailDialog({
             quantity: subscription.quantity || 1,
           };
         }
-        await approvePayment.mutateAsync({ paymentId: payment.id, notes, meta });
+        await approvePayment.mutateAsync({
+          paymentId: payment.id,
+          notes,
+          meta,
+        });
       } else {
         await rejectPayment.mutateAsync({ paymentId: payment.id, notes });
       }
@@ -110,7 +123,9 @@ function PaymentDetailDialog({
   };
 
   const parsedDate = parseFirestoreDate(payment.createdAt);
-  const submittedDate = parsedDate ? format(parsedDate, 'MMM dd, yyyy HH:mm') : payment.paymentDate;
+  const submittedDate = parsedDate
+    ? format(parsedDate, "MMM dd, yyyy HH:mm")
+    : payment.paymentDate;
 
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -119,10 +134,15 @@ function PaymentDetailDialog({
         <div className="p-6 border-b border-primary/10 bg-primary/5">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold text-primary font-display">Payment Details</h2>
-              <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">{payment.id}</p>
+              <h2 className="text-xl font-bold text-primary font-display">
+                Payment Details
+              </h2>
+              <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">
+                {payment.id}
+              </p>
             </div>
-            <button onClick={onClose}
+            <button
+              onClick={onClose}
               className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10"
             >
               <XCircle size={20} />
@@ -134,92 +154,126 @@ function PaymentDetailDialog({
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm font-sans">
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Customer</div>
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Customer
+              </div>
               <div className="font-bold text-primary">
-                {payment.customerName} {user?.displayId ? `(${user.displayId})` : ''}
+                {payment.customerName}{" "}
+                {user?.displayId ? `(${user.displayId})` : ""}
               </div>
               <div className="text-text-muted text-[10px] font-mono mt-1">
                 {user?.displayId ? user.displayId : payment.customerId}
               </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Amount</div>
-              <div className="font-bold text-gold-dark text-xl font-display">₹{payment.amount.toLocaleString('en-IN')}</div>
-            </div>
-            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Method</div>
-              <div className="font-bold text-primary capitalize">{payment.paymentMethod.replace('_', ' ')}</div>
-            </div>
-            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Billing Month</div>
-              <div className="font-bold text-primary">
-                {payment.billingMonth ? payment.billingMonth : 'N/A'}
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Amount
+              </div>
+              <div className="font-bold text-gold-dark text-xl font-display">
+                ₹{payment.amount.toLocaleString("en-IN")}
               </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Payment Date</div>
-              <div className="font-bold text-primary">{payment.paymentDate}</div>
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Method
+              </div>
+              <div className="font-bold text-primary capitalize">
+                {payment.paymentMethod.replace("_", " ")}
+              </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Submitted On</div>
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Billing Month
+              </div>
+              <div className="font-bold text-primary">
+                {payment.billingMonth ? payment.billingMonth : "N/A"}
+              </div>
+            </div>
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Payment Date
+              </div>
+              <div className="font-bold text-primary">
+                {payment.paymentDate}
+              </div>
+            </div>
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Submitted On
+              </div>
               <div className="font-bold text-primary">{submittedDate}</div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">Reference / Transaction ID</div>
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
+                Reference / Transaction ID
+              </div>
               <div className="font-mono font-medium text-primary text-sm break-all">
-                {payment.referenceNumber || <span className="text-text-muted/50 italic font-sans">Not provided</span>}
+                {payment.referenceNumber || (
+                  <span className="text-text-muted/50 italic font-sans">
+                    Not provided
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           {/* Screenshot */}
-          {payment.screenshotUrl && isSafeScreenshotUrl(payment.screenshotUrl) && (
-            <div className="border border-primary/10 rounded-xl overflow-hidden mt-4 shadow-sm">
-              <div className="bg-primary/5 px-4 py-3 border-b border-primary/10 flex justify-between items-center">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted flex items-center gap-1.5">
-                  <ImageIcon size={14} /> Proof of Payment
-                </span>
-                <a
-                  href={payment.screenshotUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
-                >
-                  Open Original <ExternalLink size={12} />
-                </a>
+          {payment.screenshotUrl &&
+            isSafeScreenshotUrl(payment.screenshotUrl) && (
+              <div className="border border-primary/10 rounded-xl overflow-hidden mt-4 shadow-sm">
+                <div className="bg-primary/5 px-4 py-3 border-b border-primary/10 flex justify-between items-center">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted flex items-center gap-1.5">
+                    <ImageIcon size={14} /> Proof of Payment
+                  </span>
+                  <a
+                    href={payment.screenshotUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
+                  >
+                    Open Original <ExternalLink size={12} />
+                  </a>
+                </div>
+                <div className="bg-background-alt p-2 flex justify-center">
+                  <img
+                    src={payment.screenshotUrl}
+                    alt="Payment Screenshot"
+                    className="max-h-64 object-contain rounded-lg border border-primary/10"
+                  />
+                </div>
               </div>
-              <div className="bg-background-alt p-2 flex justify-center">
-                <img
-                  src={payment.screenshotUrl}
-                  alt="Payment Screenshot"
-                  className="max-h-64 object-contain rounded-lg border border-primary/10"
-                />
+            )}
+          {payment.screenshotUrl &&
+            !isSafeScreenshotUrl(payment.screenshotUrl) && (
+              <div className="border border-red-200 bg-red-50 rounded-xl p-4 mt-4 shadow-sm text-red-700 text-sm font-sans font-medium">
+                <AlertTriangle size={16} className="inline mr-2" />
+                Attached payment proof URL is invalid or unsafe.
               </div>
-            </div>
-          )}
-          {payment.screenshotUrl && !isSafeScreenshotUrl(payment.screenshotUrl) && (
-            <div className="border border-red-200 bg-red-50 rounded-xl p-4 mt-4 shadow-sm text-red-700 text-sm font-sans font-medium">
-              <AlertTriangle size={16} className="inline mr-2" />
-              Attached payment proof URL is invalid or unsafe.
-            </div>
-          )}
+            )}
 
-          {payment.status !== 'pending' && (
-            <div className={`rounded-xl p-4 border shadow-sm ${payment.status === 'verified' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+          {payment.status !== "pending" && (
+            <div
+              className={`rounded-xl p-4 border shadow-sm ${payment.status === "verified" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+            >
               <div className="text-[10px] uppercase tracking-wider font-bold mb-2 text-text-muted">
                 Verification Outcome
               </div>
-              <Badge variant={payment.status === 'verified' ? 'success' : 'danger'} className="mb-2 uppercase font-bold tracking-wider px-3 py-1">
+              <Badge
+                variant={payment.status === "verified" ? "success" : "danger"}
+                className="mb-2 uppercase font-bold tracking-wider px-3 py-1"
+              >
                 {payment.status}
               </Badge>
               {payment.verificationNotes && (
-                <p className="text-primary font-medium text-sm font-sans mt-3 bg-white/50 p-3 rounded-lg border border-black/5">{payment.verificationNotes}</p>
+                <p className="text-primary font-medium text-sm font-sans mt-3 bg-white/50 p-3 rounded-lg border border-black/5">
+                  {payment.verificationNotes}
+                </p>
               )}
             </div>
           )}
 
           {/* Action area */}
-          {payment.status === 'pending' && (
+          {payment.status === "pending" && (
             <div className="border-t border-primary/10 pt-5 mt-2">
               {!confirmAction ? (
                 <>
@@ -237,33 +291,46 @@ function PaymentDetailDialog({
                     <Button
                       variant="secondary"
                       className="flex-1 gap-2 font-sans font-bold text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-                      onClick={() => setConfirmAction('reject')}
+                      onClick={() => setConfirmAction("reject")}
                     >
                       <XCircle size={18} /> Reject
                     </Button>
                     <Button
                       variant="primary"
                       className="flex-1 gap-2 font-sans font-bold"
-                      onClick={() => setConfirmAction('approve')}
+                      onClick={() => setConfirmAction("approve")}
                     >
                       <CheckCircle size={18} /> Approve
                     </Button>
                   </div>
                 </>
               ) : (
-                <div className={`rounded-xl p-5 shadow-sm ${confirmAction === 'approve' ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
+                <div
+                  className={`rounded-xl p-5 shadow-sm ${confirmAction === "approve" ? "bg-emerald-50 border border-emerald-200" : "bg-red-50 border border-red-200"}`}
+                >
                   <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle size={20} className={confirmAction === 'approve' ? 'text-emerald-700' : 'text-red-700'} />
-                    <span className={`font-display font-bold text-base ${confirmAction === 'approve' ? 'text-emerald-800' : 'text-red-800'}`}>
-                      {confirmAction === 'approve'
-                        ? 'Confirm Payment Approval'
-                        : 'Confirm Payment Rejection'}
+                    <AlertTriangle
+                      size={20}
+                      className={
+                        confirmAction === "approve"
+                          ? "text-emerald-700"
+                          : "text-red-700"
+                      }
+                    />
+                    <span
+                      className={`font-display font-bold text-base ${confirmAction === "approve" ? "text-emerald-800" : "text-red-800"}`}
+                    >
+                      {confirmAction === "approve"
+                        ? "Confirm Payment Approval"
+                        : "Confirm Payment Rejection"}
                     </span>
                   </div>
-                  <p className={`text-sm font-sans mb-5 font-medium ${confirmAction === 'approve' ? 'text-emerald-800' : 'text-red-800'}`}>
-                    {confirmAction === 'approve'
-                      ? 'This will verify the payment, activate the subscription, generate a PDF invoice, and email the customer.'
-                      : 'This will reject the payment. The customer\'s subscription will remain pending and they will be notified.'}
+                  <p
+                    className={`text-sm font-sans mb-5 font-medium ${confirmAction === "approve" ? "text-emerald-800" : "text-red-800"}`}
+                  >
+                    {confirmAction === "approve"
+                      ? "This will verify the payment, activate the subscription, generate a PDF invoice, and email the customer."
+                      : "This will reject the payment. The customer's subscription will remain pending and they will be notified."}
                   </p>
                   <div className="flex gap-3">
                     <Button
@@ -275,11 +342,12 @@ function PaymentDetailDialog({
                     </Button>
                     <Button
                       variant="primary"
-                      className={`flex-1 font-sans font-bold ${confirmAction === 'reject' ? '!bg-red-600 hover:!bg-red-700' : ''}`}
+                      className={`flex-1 font-sans font-bold ${confirmAction === "reject" ? "!bg-red-600 hover:!bg-red-700" : ""}`}
                       onClick={handleConfirm}
                       isLoading={isLoading}
                     >
-                      Confirm {confirmAction === 'approve' ? 'Approval' : 'Rejection'}
+                      Confirm{" "}
+                      {confirmAction === "approve" ? "Approval" : "Rejection"}
                     </Button>
                   </div>
                 </div>
@@ -292,18 +360,34 @@ function PaymentDetailDialog({
   );
 }
 
-
 // ── Payment Row (Responsive) ───────────────────────────────────────────────────
-function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: () => void }) {
+function PaymentRow({
+  payment,
+  onSelect,
+}: {
+  payment: ManualPayment;
+  onSelect: () => void;
+}) {
   const parsedDate = parseFirestoreDate(payment.createdAt);
-  const dateStr = parsedDate ? format(parsedDate, 'MMM dd, yyyy') : payment.paymentDate;
+  const dateStr = parsedDate
+    ? format(parsedDate, "MMM dd, yyyy")
+    : payment.paymentDate;
 
-  const statusTone = payment.status === 'verified' ? 'success' : payment.status === 'rejected' ? 'danger' : 'warning';
+  const statusTone =
+    payment.status === "verified"
+      ? "success"
+      : payment.status === "rejected"
+        ? "danger"
+        : "warning";
 
   const methodIcon =
-    payment.paymentMethod === 'upi' ? <Smartphone size={14} /> :
-    payment.paymentMethod === 'cash' ? <Banknote size={14} /> :
-    <Building2 size={14} />;
+    payment.paymentMethod === "upi" ? (
+      <Smartphone size={14} />
+    ) : payment.paymentMethod === "cash" ? (
+      <Banknote size={14} />
+    ) : (
+      <Building2 size={14} />
+    );
 
   return (
     <tr
@@ -311,39 +395,74 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
       onClick={onSelect}
     >
       <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4 text-sm font-sans">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Customer</span>
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Customer
+        </span>
         <div className="text-right md:text-left">
-          <div className="font-bold text-primary group-hover:text-gold transition-colors">{payment.customerName}</div>
-          <div className="text-text-muted text-[10px] font-mono truncate max-w-[140px] mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">{payment.customerId}</div>
+          <div className="font-bold text-primary group-hover:text-gold transition-colors">
+            {payment.customerName}
+          </div>
+          <div className="text-text-muted text-[10px] font-mono truncate max-w-[140px] mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
+            {payment.customerId}
+          </div>
         </div>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Amount</span>
-        <span className="font-bold text-primary font-display text-base">₹{payment.amount.toLocaleString('en-IN')}</span>
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Amount
+        </span>
+        <span className="font-bold text-primary font-display text-base">
+          ₹{payment.amount.toLocaleString("en-IN")}
+        </span>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Method</span>
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Method
+        </span>
         <div className="text-right md:text-left flex flex-col md:block items-end md:items-start">
           <div className="flex items-center justify-end md:justify-start gap-1.5 text-primary font-bold font-sans text-xs capitalize">
             {methodIcon}
-            {payment.paymentMethod.replace('_', ' ')}
+            {payment.paymentMethod.replace("_", " ")}
           </div>
           {payment.referenceNumber && (
-            <div className="text-text-muted font-medium text-[10px] font-mono truncate max-w-[130px] mt-1">{payment.referenceNumber}</div>
+            <div className="text-text-muted font-medium text-[10px] font-mono truncate max-w-[130px] mt-1">
+              {payment.referenceNumber}
+            </div>
           )}
         </div>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Submitted</span>
-        <div className="text-text-muted font-medium font-sans text-xs bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block">{dateStr}</div>
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Submitted
+        </span>
+        <div className="text-text-muted font-medium font-sans text-xs bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block">
+          {dateStr}
+        </div>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-2 md:px-6 md:py-4">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Status</span>
-        <Badge variant={statusTone} className="text-[10px] uppercase font-bold tracking-wider">{payment.status}</Badge>
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Status
+        </span>
+        <Badge
+          variant={statusTone}
+          className="text-[10px] uppercase font-bold tracking-wider"
+        >
+          {payment.status}
+        </Badge>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 pt-3 md:pt-0 md:px-6 md:py-4 text-right border-t border-primary/10 md:border-0 mt-3 md:mt-0">
-        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">Action</span>
-        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSelect(); }} className="font-sans text-xs font-bold w-full md:w-auto text-primary hover:text-gold hover:bg-gold/10">
+        <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
+          Action
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="font-sans text-xs font-bold w-full md:w-auto text-primary hover:text-gold hover:bg-gold/10"
+        >
           View
         </Button>
       </td>
@@ -352,29 +471,39 @@ function PaymentRow({ payment, onSelect }: { payment: ManualPayment; onSelect: (
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
-type StatusFilter = ManualPaymentStatus | 'all';
+type StatusFilter = ManualPaymentStatus | "all";
 
 const TABS: { label: string; value: StatusFilter; icon: React.ReactNode }[] = [
-  { label: 'All', value: 'all', icon: <Receipt size={16} /> },
-  { label: 'Pending', value: 'pending', icon: <Clock size={16} /> },
-  { label: 'Verified', value: 'verified', icon: <CheckCircle size={16} /> },
-  { label: 'Rejected', value: 'rejected', icon: <XCircle size={16} /> },
+  { label: "All", value: "all", icon: <Receipt size={16} /> },
+  { label: "Pending", value: "pending", icon: <Clock size={16} /> },
+  { label: "Verified", value: "verified", icon: <CheckCircle size={16} /> },
+  { label: "Rejected", value: "rejected", icon: <XCircle size={16} /> },
 ];
 
 export function PaymentVerificationPage() {
-  const [activeTab, setActiveTab] = useState<StatusFilter>('pending');
-  const [search, setSearch] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState<ManualPayment | null>(null);
-  const [sortField, setSortField] = useState<'createdAt' | 'amount'>('createdAt');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [activeTab, setActiveTab] = useState<StatusFilter>("pending");
+  const [search, setSearch] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState<ManualPayment | null>(
+    null,
+  );
+  const [sortField, setSortField] = useState<"createdAt" | "amount">(
+    "createdAt",
+  );
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Pagination state
-  const [pageHistory, setPageHistory] = useState<QueryDocumentSnapshot<ManualPayment>[]>([]);
+  const [pageHistory, setPageHistory] = useState<
+    QueryDocumentSnapshot<ManualPayment>[]
+  >([]);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const currentLastDoc = currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
+  const currentLastDoc =
+    currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
 
-  const { data, isLoading, error, refetch } = useAdminPayments(activeTab, currentLastDoc);
+  const { data, isLoading, error, refetch } = useAdminPayments(
+    activeTab,
+    currentLastDoc,
+  );
   const payments = data?.payments;
 
   const handleNextPage = () => {
@@ -410,30 +539,42 @@ export function PaymentVerificationPage() {
     return (
       p.customerName.toLowerCase().includes(q) ||
       p.customerId.toLowerCase().includes(q) ||
-      (p.referenceNumber ?? '').toLowerCase().includes(q) ||
+      (p.referenceNumber ?? "").toLowerCase().includes(q) ||
       p.subscriptionId.toLowerCase().includes(q)
     );
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    const mult = sortDir === 'desc' ? -1 : 1;
-    if (sortField === 'amount') return mult * (a.amount - b.amount);
+    const mult = sortDir === "desc" ? -1 : 1;
+    if (sortField === "amount") return mult * (a.amount - b.amount);
     const aTs = parseFirestoreDate(a.createdAt)?.getTime() ?? 0;
     const bTs = parseFirestoreDate(b.createdAt)?.getTime() ?? 0;
     return mult * (aTs - bTs);
   });
 
   const toggleSort = (field: typeof sortField) => {
-    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortField(field); setSortDir('desc'); }
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortField(field);
+      setSortDir("desc");
+    }
   };
 
   const SortIcon = ({ field }: { field: typeof sortField }) =>
-    sortField === field
-      ? sortDir === 'desc' ? <ChevronDown size={14} className="text-gold" /> : <ChevronUp size={14} className="text-gold" />
-      : null;
+    sortField === field ? (
+      sortDir === "desc" ? (
+        <ChevronDown size={14} className="text-gold" />
+      ) : (
+        <ChevronUp size={14} className="text-gold" />
+      )
+    ) : null;
 
-  if (isLoading) return <div className="p-8"><TableSkeleton /></div>;
+  if (isLoading)
+    return (
+      <div className="p-8">
+        <TableSkeleton />
+      </div>
+    );
   if (error) {
     return (
       <ErrorState
@@ -446,7 +587,7 @@ export function PaymentVerificationPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader 
+      <PageHeader
         userName="Payment Verification"
         subtitle="Review, approve, and reject customer payment submissions"
       />
@@ -454,12 +595,13 @@ export function PaymentVerificationPage() {
       {/* Tab bar */}
       <div className="flex gap-2 mb-4 border-b border-primary/10 pb-1 overflow-x-auto hide-scrollbar">
         {TABS.map((tab) => (
-          <button key={tab.value}
+          <button
+            key={tab.value}
             onClick={() => handleTabChange(tab.value)}
             className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold font-sans rounded-t-xl transition-all uppercase tracking-wider shrink-0 ${
               activeTab === tab.value
-                ? 'bg-background border border-b-background border-primary/10 text-gold-dark -mb-[1px] shadow-sm relative z-10'
-                : 'text-text-muted hover:text-primary hover:bg-primary/5'
+                ? "bg-background border border-b-background border-primary/10 text-gold-dark -mb-[1px] shadow-sm relative z-10"
+                : "text-text-muted hover:text-primary hover:bg-primary/5"
             }`}
           >
             {tab.icon} {tab.label}
@@ -469,7 +611,10 @@ export function PaymentVerificationPage() {
 
       {/* Search */}
       <div className="relative mb-6">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+        <Search
+          size={16}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+        />
         <input
           type="text"
           value={search}
@@ -483,68 +628,81 @@ export function PaymentVerificationPage() {
         <EmptyState
           icon={<Receipt size={48} className="text-primary/40" />}
           title="No payments found"
-          description={search ? 'No payments match your search.' : `No ${activeTab === 'all' ? '' : activeTab + ' '}payments at this time.`}
+          description={
+            search
+              ? "No payments match your search."
+              : `No ${activeTab === "all" ? "" : activeTab + " "}payments at this time.`
+          }
         />
       ) : (
-          <Card className="border-primary/20 p-0 overflow-hidden shadow-md">
-            <div className="overflow-x-auto md:overflow-visible">
-              <table className="w-full text-left text-sm block md:table font-sans">
-                <thead className="hidden md:table-header-group bg-primary/5 border-b border-primary/10 text-text-muted text-[10px] font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="px-6 py-4">Customer</th>
-                    <th
-                      className="px-6 py-4 cursor-pointer select-none hover:text-primary transition-colors"
-                      onClick={() => toggleSort('amount')}
-                    >
-                      <div className="flex items-center gap-1.5">Amount <SortIcon field="amount" /></div>
-                    </th>
-                    <th className="px-6 py-4">Method</th>
-                    <th
-                      className="px-6 py-4 cursor-pointer select-none hover:text-primary transition-colors"
-                      onClick={() => toggleSort('createdAt')}
-                    >
-                      <div className="flex items-center gap-1.5">Submitted <SortIcon field="createdAt" /></div>
-                    </th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="block md:table-row-group divide-y divide-primary/5 bg-background">
-                  {sorted.map((payment) => (
-                    <PaymentRow
-                      key={payment.id}
-                      payment={payment}
-                      onSelect={() => setSelectedPayment(payment)}
-                    />
-                  ))}
-                </tbody>
-              </table>
+        <Card className="border-primary/20 p-0 overflow-hidden shadow-md">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm block md:table font-sans">
+              <thead className="hidden md:table-header-group bg-primary/5 border-b border-primary/10 text-text-muted text-[10px] font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Customer</th>
+                  <th
+                    className="px-6 py-4 cursor-pointer select-none hover:text-primary transition-colors"
+                    onClick={() => toggleSort("amount")}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      Amount <SortIcon field="amount" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4">Method</th>
+                  <th
+                    className="px-6 py-4 cursor-pointer select-none hover:text-primary transition-colors"
+                    onClick={() => toggleSort("createdAt")}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      Submitted <SortIcon field="createdAt" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="block md:table-row-group divide-y divide-primary/5 bg-background">
+                {sorted.map((payment) => (
+                  <PaymentRow
+                    key={payment.id}
+                    payment={payment}
+                    onSelect={() => setSelectedPayment(payment)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <span>
+              Showing <strong className="text-primary">{sorted.length}</strong>{" "}
+              payment{sorted.length !== 1 ? "s" : ""} on this page
+            </span>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 0 || isLoading}
+                className="font-bold text-primary hover:text-gold hover:bg-gold/10"
+              >
+                <ChevronLeft size={16} className="mr-1" /> Prev
+              </Button>
+              <span className="text-primary font-bold font-data text-xs bg-background px-3 py-1.5 rounded-lg border border-primary/10 shadow-sm">
+                Page {currentPage + 1}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={!data?.lastDoc || isLoading}
+                className="font-bold text-primary hover:text-gold hover:bg-gold/10"
+              >
+                Next <ChevronRight size={16} className="ml-1" />
+              </Button>
             </div>
-            <div className="px-6 py-4 border-t border-primary/10 bg-primary/5 text-xs text-text-muted font-sans font-medium flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-              <span>Showing <strong className="text-primary">{sorted.length}</strong> payment{sorted.length !== 1 ? 's' : ''} on this page</span>
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handlePrevPage} 
-                  disabled={currentPage === 0 || isLoading}
-                  className="font-bold text-primary hover:text-gold hover:bg-gold/10"
-                >
-                  <ChevronLeft size={16} className="mr-1" /> Prev
-                </Button>
-                <span className="text-primary font-bold font-data text-xs bg-background px-3 py-1.5 rounded-lg border border-primary/10 shadow-sm">Page {currentPage + 1}</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handleNextPage} 
-                  disabled={!data?.lastDoc || isLoading}
-                  className="font-bold text-primary hover:text-gold hover:bg-gold/10"
-                >
-                  Next <ChevronRight size={16} className="ml-1" />
-                </Button>
-              </div>
-            </div>
-          </Card>
+          </div>
+        </Card>
       )}
 
       {selectedPayment && (

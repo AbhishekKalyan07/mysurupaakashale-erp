@@ -1,9 +1,12 @@
-import { initializeApp, getApps, type App } from 'firebase-admin/app';
-import { getFirestore as adminGetFirestore, type Firestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, type App } from "firebase-admin/app";
+import {
+  getFirestore as adminGetFirestore,
+  type Firestore,
+} from "firebase-admin/firestore";
 
 export function initTestApp(): App {
   if (getApps().length === 0) {
-    return initializeApp({ projectId: 'demo-test' });
+    return initializeApp({ projectId: "demo-test" });
   }
   return getApps()[0];
 }
@@ -18,4 +21,3 @@ export async function cleanupTestApp() {
 }
 
 export { type Firestore };
-

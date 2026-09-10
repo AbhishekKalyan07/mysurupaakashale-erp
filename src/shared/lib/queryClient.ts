@@ -1,6 +1,6 @@
-import { QueryClient, MutationCache } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
-import { extractErrorMessage } from '@/shared/utils/errorHandler';
+import { QueryClient, MutationCache } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+import { extractErrorMessage } from "@/shared/utils/errorHandler";
 
 /**
  * Defaults chosen for an all-day, tab-open ERP rather than TanStack Query's

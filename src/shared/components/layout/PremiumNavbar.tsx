@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Menu, LogOut } from 'lucide-react';
-import { PremiumButton } from '@/shared/components/ui/PremiumButton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_LABELS, type Role } from '@/shared/constants/roles';
-import { NotificationBell } from '@/features/notifications/components/NotificationBell';
+import { useState } from "react";
+import { Menu, LogOut } from "lucide-react";
+import { PremiumButton } from "@/shared/components/ui/PremiumButton";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 
 interface PremiumNavbarProps {
   onMenuClick: () => void;
@@ -14,7 +14,7 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
   const { profile, signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const initial = profile?.fullName?.trim().charAt(0).toUpperCase() || '?';
+  const initial = profile?.fullName?.trim().charAt(0).toUpperCase() || "?";
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -39,23 +39,45 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
 
         {/* Brand shown on mobile only */}
         <div className="flex items-center gap-2 lg:hidden">
-          <img src="/no_bg_logo.png" alt="Mysuru Paakashale Logo" width="28" height="28" className="h-7 w-auto shrink-0" />
+          <img
+            src="/no_bg_logo.png"
+            alt="Mysuru Paakashale Logo"
+            width="28"
+            height="28"
+            className="h-7 w-auto shrink-0"
+          />
           <div>
-            <p className="font-display text-sm font-bold text-primary leading-tight">Mysuru Paakashale</p>
-            <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold">{ROLE_LABELS[role]}</p>
+            <p className="font-display text-sm font-bold text-primary leading-tight">
+              Mysuru Paakashale
+            </p>
+            <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold">
+              {ROLE_LABELS[role]}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Right: notification bell + avatar + sign out */}
       <div className="flex items-center gap-2">
-        <NotificationBell centerRoute={role === 'customer' ? '/customer/notifications' : '/admin/notifications'} />
-        
+        <NotificationBell
+          centerRoute={
+            role === "customer"
+              ? "/customer/notifications"
+              : "/admin/notifications"
+          }
+        />
+
         {/* Profile info — hidden on mobile to save space */}
         <div className="hidden sm:flex items-center gap-2 pl-1">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-semibold text-text leading-tight">{profile?.fullName || 'Loading…'}</p>
-            {role && <p className="text-[11px] text-text-muted font-medium leading-tight">{ROLE_LABELS[role]}</p>}
+            <p className="text-sm font-semibold text-text leading-tight">
+              {profile?.fullName || "Loading…"}
+            </p>
+            {role && (
+              <p className="text-[11px] text-text-muted font-medium leading-tight">
+                {ROLE_LABELS[role]}
+              </p>
+            )}
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary font-display text-sm font-bold text-white shadow-xs border-2 border-white">
             {initial}

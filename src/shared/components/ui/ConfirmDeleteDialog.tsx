@@ -1,7 +1,7 @@
-import { AlertTriangle, Trash2, X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import { PremiumButton as Button } from './PremiumButton';
-import { cn } from '@/shared/lib/cn';
+import { AlertTriangle, Trash2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { PremiumButton as Button } from "./PremiumButton";
+import { cn } from "@/shared/lib/cn";
 
 export interface ConfirmDeleteDialogProps {
   /** Label for the entity being deleted, e.g. "customer", "order", "menu" */
@@ -37,10 +37,10 @@ export interface ConfirmDeleteDialogProps {
  * ```
  */
 export function ConfirmDeleteDialog({
-  entityLabel = 'item',
+  entityLabel = "item",
   entityName,
   description,
-  confirmLabel = 'Delete',
+  confirmLabel = "Delete",
   isDeleting = false,
   onConfirm,
   onCancel,
@@ -52,10 +52,10 @@ export function ConfirmDeleteDialog({
   useEffect(() => {
     cancelRef.current?.focus();
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === "Escape") onCancel();
     };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, [onCancel]);
 
   const defaultDescription = entityName
@@ -69,11 +69,13 @@ export function ConfirmDeleteDialog({
       aria-modal="true"
       aria-labelledby="delete-dialog-title"
       aria-describedby="delete-dialog-desc"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
     >
       <div
         className={cn(
-          'w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-rice-200 p-6',
+          "w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-rice-200 p-6",
           className,
         )}
       >
@@ -83,8 +85,14 @@ export function ConfirmDeleteDialog({
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-subtle">
               <Trash2 size={18} className="text-danger" />
             </div>
-            <h2 id="delete-dialog-title" className="font-display text-lg font-bold text-ink-900">
-              Delete {entityLabel ? entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1) : 'Item'}
+            <h2
+              id="delete-dialog-title"
+              className="font-display text-lg font-bold text-ink-900"
+            >
+              Delete{" "}
+              {entityLabel
+                ? entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)
+                : "Item"}
             </h2>
           </div>
           <button
@@ -99,7 +107,10 @@ export function ConfirmDeleteDialog({
         {/* Warning banner */}
         <div className="flex items-start gap-3 rounded-lg bg-danger-subtle border border-danger/20 px-3 py-3 mb-5">
           <AlertTriangle size={16} className="text-danger shrink-0 mt-0.5" />
-          <p id="delete-dialog-desc" className="text-sm text-ink-700 leading-relaxed">
+          <p
+            id="delete-dialog-desc"
+            className="text-sm text-ink-700 leading-relaxed"
+          >
             {description ?? defaultDescription}
           </p>
         </div>

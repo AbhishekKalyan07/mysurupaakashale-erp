@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { orderService } from '@/shared/services/business/orderService';
-import toast from 'react-hot-toast';
-import { getTodayIST } from '@/features/kitchen/hooks/useKitchenDashboard';
+import { useState } from "react";
+import { orderService } from "@/shared/services/business/orderService";
+import toast from "react-hot-toast";
+import { getTodayIST } from "@/features/kitchen/hooks/useKitchenDashboard";
 
 export function useGenerateOrders() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -17,8 +17,8 @@ export function useGenerateOrders() {
         toast.error(result.message);
       }
     } catch (err: unknown) {
-      console.error('Error generating orders:', err);
-      toast.error((err as Error).message || 'Failed to generate orders.');
+      console.error("Error generating orders:", err);
+      toast.error((err as Error).message || "Failed to generate orders.");
     } finally {
       setIsGenerating(false);
     }

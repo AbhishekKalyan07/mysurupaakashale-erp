@@ -1,7 +1,11 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from "workbox-core";
 import { createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
-import { NavigationRoute, registerRoute, setCatchHandler } from "workbox-routing";
+import {
+  NavigationRoute,
+  registerRoute,
+  setCatchHandler,
+} from "workbox-routing";
 import { StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { initializeApp } from "firebase/app";
@@ -59,7 +63,10 @@ registerRoute(
       {
         cacheWillUpdate: async ({ response }) => {
           // Do not cache SPA fallback (HTML) for static asset requests
-          if (response && response.headers.get("content-type")?.includes("text/html")) {
+          if (
+            response &&
+            response.headers.get("content-type")?.includes("text/html")
+          ) {
             return null;
           }
           return response;
@@ -144,25 +151,30 @@ if (typeof indexedDB !== "undefined") {
 }
 
 // Handle notification click to focus or open the app window
-self.addEventListener('notificationclick', (event: any) => {
+self.addEventListener("notificationclick", (event: any) => {
   event.notification.close();
 
   // Determine the URL to open (can be provided in payload.data.url)
-  const urlToOpen = event.notification.data?.url || '/';
+  const urlToOpen = event.notification.data?.url || "/";
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there is already a window/tab open with the target URL
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url === new URL(urlToOpen, self.location.origin).href && 'focus' in client) {
-          return client.focus();
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        // Check if there is already a window/tab open with the target URL
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (
+            client.url === new URL(urlToOpen, self.location.origin).href &&
+            "focus" in client
+          ) {
+            return client.focus();
+          }
         }
-      }
-      // If not, open a new window
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
-      }
-    })
+        // If not, open a new window
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(urlToOpen);
+        }
+      }),
   );
 });

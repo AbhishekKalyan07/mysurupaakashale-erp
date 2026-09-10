@@ -1,14 +1,15 @@
-import hotToast, { type ToastOptions } from 'react-hot-toast';
+import hotToast, { type ToastOptions } from "react-hot-toast";
 
 const DEFAULT_OPTIONS: ToastOptions = {
   duration: 4000,
-  position: 'top-right',
+  position: "top-right",
   style: {
-    borderRadius: '12px',
-    background: 'white',
-    color: '#0f172a', // ink-900
-    border: '1px solid #e2e8f0', // rice-200
-    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+    borderRadius: "12px",
+    background: "white",
+    color: "#0f172a", // ink-900
+    border: "1px solid #e2e8f0", // rice-200
+    boxShadow:
+      "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
   },
 };
 
@@ -21,14 +22,14 @@ export const toast = {
   success: (message: string, options?: ToastOptions) =>
     hotToast.success(message, {
       ...DEFAULT_OPTIONS,
-      iconTheme: { primary: '#10b981', secondary: '#fff' }, // success color
+      iconTheme: { primary: "#10b981", secondary: "#fff" }, // success color
       ...options,
     }),
 
   error: (message: string, options?: ToastOptions) =>
     hotToast.error(message, {
       ...DEFAULT_OPTIONS,
-      iconTheme: { primary: '#ef4444', secondary: '#fff' }, // danger color
+      iconTheme: { primary: "#ef4444", secondary: "#fff" }, // danger color
       duration: 6000, // Show errors slightly longer
       ...options,
     }),
@@ -37,7 +38,7 @@ export const toast = {
   info: (message: string, options?: ToastOptions) =>
     hotToast(message, {
       ...DEFAULT_OPTIONS,
-      icon: 'ℹ️',
+      icon: "ℹ️",
       ...options,
     }),
 
@@ -45,7 +46,7 @@ export const toast = {
   warning: (message: string, options?: ToastOptions) =>
     hotToast(message, {
       ...DEFAULT_OPTIONS,
-      icon: '⚠️',
+      icon: "⚠️",
       ...options,
     }),
 

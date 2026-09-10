@@ -1,4 +1,4 @@
-import type { EmployeeSalaryProfile, AttendanceRecord } from '@/shared/types';
+import type { EmployeeSalaryProfile, AttendanceRecord } from "@/shared/types";
 
 export interface PayrollConfig {
   standardWorkingDays: number;
@@ -10,23 +10,32 @@ export interface PayrollConfig {
 export function calculatePayroll(
   profile: EmployeeSalaryProfile | null | undefined,
   attendanceRecords: AttendanceRecord[],
-  config: PayrollConfig
+  config: PayrollConfig,
 ) {
-  // Use configured basicSalary if it exists and is >= 0, otherwise fallback to 15000.
+  // Use configured basicSalary if it exists and is >= 0, otherwise fallback to 0.
   // Same for overtimeRate.
-  const basic = profile?.basicSalary ?? 15000;
+  const basic = profile?.basicSalary ?? 0;
   const otRate = profile?.overtimeRate ?? 100;
 
-  const { standardWorkingDays, standardWorkingHours, taxPercentage, leaveDeductionMultiplier } = config;
+  const {
+    standardWorkingDays,
+    standardWorkingHours,
+    taxPercentage,
+    leaveDeductionMultiplier,
+  } = config;
 
-  const presentDays = attendanceRecords.filter(a => a.status === 'present').length;
-  const halfDays = attendanceRecords.filter(a => a.status === 'half_day').length;
-  const totalWorkingDays = presentDays + (halfDays * 0.5);
+  const presentDays = attendanceRecords.filter(
+    (a) => a.status === "present",
+  ).length;
+  const halfDays = attendanceRecords.filter(
+    (a) => a.status === "half_day",
+  ).length;
+  const totalWorkingDays = presentDays + halfDays * 0.5;
 
   let overtimeHours = 0;
-  attendanceRecords.forEach(a => {
+  attendanceRecords.forEach((a) => {
     if (a.totalWorkingHours > standardWorkingHours) {
-      overtimeHours += (a.totalWorkingHours - standardWorkingHours);
+      overtimeHours += a.totalWorkingHours - standardWorkingHours;
     }
   });
 

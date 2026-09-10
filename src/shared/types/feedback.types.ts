@@ -1,6 +1,7 @@
-import { Timestamp } from 'firebase/firestore';
-export type FeedbackCategory = 'food_quality' | 'delivery_issue' | 'packaging' | 'other';
-export type FeedbackStatus = 'new' | 'investigating' | 'resolved';
+import { Timestamp } from "firebase/firestore";
+export type FeedbackCategory =
+  "food_quality" | "delivery_issue" | "packaging" | "other";
+export type FeedbackStatus = "new" | "investigating" | "resolved";
 
 export interface Feedback {
   id: string;

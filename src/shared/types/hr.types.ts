@@ -1,6 +1,6 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 
-export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'leave';
+export type AttendanceStatus = "present" | "absent" | "half_day" | "leave";
 
 export interface AttendanceRecord {
   id: string;
@@ -16,8 +16,8 @@ export interface AttendanceRecord {
   updatedAt: Timestamp;
 }
 
-export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
-export type LeaveType = 'sick' | 'casual' | 'unpaid' | 'other';
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type LeaveType = "sick" | "casual" | "unpaid" | "other";
 
 export interface LeaveRequest {
   id: string;
@@ -33,27 +33,39 @@ export interface LeaveRequest {
   updatedAt: Timestamp;
 }
 
-export type PayrollStatus = 'draft' | 'review' | 'approved' | 'paid' | 'archived';
+export type PayrollStatus =
+  "draft" | "review" | "approved" | "paid" | "archived" | "rejected";
+
+export type SalaryAdvanceStatus = "pending" | "deducted" | "voided";
 
 export interface SalaryAdvance {
   id: string;
   staffId: string;
   amount: number;
   date: string; // YYYY-MM-DD
+  /** Canonical payroll period. Null for legacy/unassigned advances created before
+   *  this field existed. Legacy advances must NEVER be automatically deducted. */
+  payrollMonth: string | null; // YYYY-MM
   reason: string;
   notes?: string;
-  status: 'pending' | 'deducted';
+  status: SalaryAdvanceStatus;
   payrollId: string | null;
+  // Void metadata — present only when status === 'voided'
+  voidedAt?: Timestamp;
+  voidedBy?: string; // actor Firebase UID
+  voidedByName?: string; // actor display name
+  voidReason?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  createdBy: string;
+  createdBy: string; // actor Firebase UID
+  createdByName?: string; // actor display name at creation time
 }
 
 export interface PayrollRecord {
   id: string;
   staffId: string;
   staffName: string;
-  month: string; // YYYY-MM
+  month: string; // YYYY-MM — the canonical payroll period
   basicSalary: number;
   workingDays: number;
   presentDays: number;
@@ -68,10 +80,19 @@ export interface PayrollRecord {
   advanceDeduction?: number;
   otherAdjustments?: number;
   suggestedPayable?: number;
-  amountPaid?: number; // The actual amount paid by admin
+  amountPaid?: number; // The actual amount paid by admin — may differ from suggestedPayable
   advancesDeducted?: string[]; // IDs of SalaryAdvances successfully deducted in this payment
   paymentDate: string | null;
   status: PayrollStatus;
+  // Rejection / return-to-draft metadata
+  rejectionReason?: string;
+  rejectedBy?: string; // actor Firebase UID
+  rejectedByName?: string; // actor display name
+  rejectedAt?: string; // ISO date string YYYY-MM-DD
+  returnReason?: string;
+  returnedBy?: string;
+  returnedByName?: string;
+  returnedAt?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

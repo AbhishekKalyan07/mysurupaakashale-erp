@@ -1,7 +1,7 @@
-import { WifiOff, RefreshCw } from 'lucide-react';
-import { PremiumButton as Button } from '../ui/PremiumButton';
-import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus';
-import { useEffect, useState } from 'react';
+import { WifiOff, RefreshCw } from "lucide-react";
+import { PremiumButton as Button } from "../ui/PremiumButton";
+import { useOnlineStatus } from "@/shared/hooks/useOnlineStatus";
+import { useEffect, useState } from "react";
 
 /**
  * Full-page offline indicator. Renders `children` while online and
@@ -37,7 +37,7 @@ export function OfflineGuard({ children }: { children: React.ReactNode }) {
 export function OfflineState() {
   const isOnline = useOnlineStatus();
   const [offlineAt, setOfflineAt] = useState<Date | null>(null);
-  const [timeAgo, setTimeAgo] = useState<string>('');
+  const [timeAgo, setTimeAgo] = useState<string>("");
 
   // Capture the exact time we went offline
   useEffect(() => {
@@ -51,11 +51,13 @@ export function OfflineState() {
   // Update the "Last synced: X mins ago" string every minute
   useEffect(() => {
     if (!offlineAt) return;
-    
+
     const updateTimeAgo = () => {
-      const mins = Math.floor((new Date().getTime() - offlineAt.getTime()) / 60000);
-      if (mins === 0) setTimeAgo('just now');
-      else if (mins === 1) setTimeAgo('1 minute ago');
+      const mins = Math.floor(
+        (new Date().getTime() - offlineAt.getTime()) / 60000,
+      );
+      if (mins === 0) setTimeAgo("just now");
+      else if (mins === 1) setTimeAgo("1 minute ago");
       else setTimeAgo(`${mins} minutes ago`);
     };
 
@@ -82,9 +84,12 @@ export function OfflineState() {
       </div>
 
       <div className="space-y-2 max-w-sm">
-        <h1 className="font-display text-2xl font-bold text-ink-900">You're Offline</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-900">
+          You're Offline
+        </h1>
         <p className="text-sm text-ink-500 leading-relaxed">
-          It looks like you've lost your internet connection. Check your Wi-Fi or mobile data, then try again.
+          It looks like you've lost your internet connection. Check your Wi-Fi
+          or mobile data, then try again.
         </p>
       </div>
 

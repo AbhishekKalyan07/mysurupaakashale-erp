@@ -9,22 +9,22 @@ import {
   RefreshCw,
   TrendingUp,
   ClipboardList,
-} from 'lucide-react';
-import { PremiumBadge as Badge } from '@/shared/components/ui/PremiumBadge';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { HeroBanner } from '@/shared/components/ui/HeroBanner';
-import { APP_CONFIG } from '@/shared/config/appConfig';
-import { LoadingScreen } from '@/shared/components/feedback/LoadingScreen';
-import { ErrorState } from '@/shared/components/feedback/ErrorState';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
+} from "lucide-react";
+import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { HeroBanner } from "@/shared/components/ui/HeroBanner";
+import { APP_CONFIG } from "@/shared/config/appConfig";
+import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import {
   useKitchenDashboard,
   getTodayIST,
   type MealTypeSummary,
-} from '@/features/kitchen/hooks/useKitchenDashboard';
-import type { MealType } from '@/shared/types';
-import { StaffAttendanceCard } from '@/features/hr/components/StaffAttendanceCard';
+} from "@/features/kitchen/hooks/useKitchenDashboard";
+import type { MealType } from "@/shared/types";
+import { StaffAttendanceCard } from "@/features/hr/components/StaffAttendanceCard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KitchenDashboardPage
@@ -46,7 +46,7 @@ export function KitchenDashboardPage() {
         description={
           error instanceof Error
             ? (error as Error).message
-            : 'Failed to fetch today\'s orders. Check your connection and try again.'
+            : "Failed to fetch today's orders. Check your connection and try again."
         }
         onRetry={refetch}
       />
@@ -71,12 +71,14 @@ export function KitchenDashboardPage() {
   }
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
-  const { byMealType, byStatus, completedCount, byZone, totalOrders } = dashboard;
-  const progressPercent = totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
+  const { byMealType, byStatus, completedCount, byZone, totalOrders } =
+    dashboard;
+  const progressPercent =
+    totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
 
-  const scheduledCount   = byStatus.scheduled        ?? 0;
-  const packingCount     = byStatus.packing          ?? 0;
-  const readyCount       = byStatus.ready_for_pickup ?? 0;
+  const scheduledCount = byStatus.scheduled ?? 0;
+  const packingCount = byStatus.packing ?? 0;
+  const readyCount = byStatus.ready_for_pickup ?? 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -249,16 +251,23 @@ export function KitchenDashboardPage() {
               {Object.entries(byZone)
                 .sort(([, a], [, b]) => b - a)
                 .map(([zoneId, count]) => (
-                  <li key={zoneId} className="flex items-center justify-between text-sm font-sans p-2 rounded-lg hover:bg-primary/5 transition-colors">
+                  <li
+                    key={zoneId}
+                    className="flex items-center justify-between text-sm font-sans p-2 rounded-lg hover:bg-primary/5 transition-colors"
+                  >
                     <span className="text-primary flex items-center gap-2">
                       <MapPin size={14} className="text-primary/40" />
-                      {zoneId === 'unassigned' ? (
-                        <span className="font-medium text-text-muted">Unassigned</span>
+                      {zoneId === "unassigned" ? (
+                        <span className="font-medium text-text-muted">
+                          Unassigned
+                        </span>
                       ) : (
                         <span className="font-bold">{zoneId}</span>
                       )}
                     </span>
-                    <span className="font-data text-primary font-bold bg-background-alt px-2 py-1 rounded border border-primary/10">{count}</span>
+                    <span className="font-data text-primary font-bold bg-background-alt px-2 py-1 rounded border border-primary/10">
+                      {count}
+                    </span>
                   </li>
                 ))}
             </ul>
@@ -268,15 +277,15 @@ export function KitchenDashboardPage() {
 
       {/* ── Last updated ────────────────────────────────────────────────── */}
       <p className="text-center text-xs font-bold text-text-muted font-sans pb-4 uppercase tracking-wider">
-        Live data · Last refreshed{' '}
+        Live data · Last refreshed{" "}
         <time dateTime={dashboard.asOf}>
-          {new Intl.DateTimeFormat('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
+          {new Intl.DateTimeFormat("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
             timeZone: APP_CONFIG.timezone,
           }).format(new Date(dashboard.asOf))}
-        </time>{' '}
+        </time>{" "}
         IST
       </p>
     </div>
@@ -321,19 +330,31 @@ interface StatusKpiCardProps {
   colorClass: string;
 }
 
-function StatusKpiCard({ id, label, value, icon, colorClass }: StatusKpiCardProps) {
+function StatusKpiCard({
+  id,
+  label,
+  value,
+  icon,
+  colorClass,
+}: StatusKpiCardProps) {
   return (
     <Card
       id={id}
       className="p-5 flex flex-col gap-3"
       aria-label={`${label}: ${value}`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}>
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}
+      >
         {icon}
       </div>
       <div>
-        <p className="font-display text-3xl font-bold text-primary leading-tight">{value}</p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted font-sans mt-1">{label}</p>
+        <p className="font-display text-3xl font-bold text-primary leading-tight">
+          {value}
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted font-sans mt-1">
+          {label}
+        </p>
       </div>
     </Card>
   );
@@ -348,7 +369,13 @@ interface MealTypeCardProps {
   accentClass: string;
 }
 
-function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardProps) {
+function MealTypeCard({
+  id,
+  label,
+  summary,
+  icon,
+  accentClass,
+}: MealTypeCardProps) {
   return (
     <Card
       id={id}
@@ -364,10 +391,26 @@ function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardPro
       </div>
 
       <div className="space-y-1.5 text-xs font-sans">
-        <MealStatusRow label="Scheduled"      value={summary.scheduled}     variant="default" />
-        <MealStatusRow label="Packing"        value={summary.packing}       variant="warning" />
-        <MealStatusRow label="Ready"          value={summary.readyForPickup} variant="info"   />
-        <MealStatusRow label="Done"           value={summary.pickedUp}      variant="success" />
+        <MealStatusRow
+          label="Scheduled"
+          value={summary.scheduled}
+          variant="default"
+        />
+        <MealStatusRow
+          label="Packing"
+          value={summary.packing}
+          variant="warning"
+        />
+        <MealStatusRow
+          label="Ready"
+          value={summary.readyForPickup}
+          variant="info"
+        />
+        <MealStatusRow
+          label="Done"
+          value={summary.pickedUp}
+          variant="success"
+        />
       </div>
     </Card>
   );
@@ -376,14 +419,19 @@ function MealTypeCard({ id, label, summary, icon, accentClass }: MealTypeCardPro
 interface MealStatusRowProps {
   label: string;
   value: number;
-  variant: 'default' | 'warning' | 'info' | 'success';
+  variant: "default" | "warning" | "info" | "success";
 }
 
 function MealStatusRow({ label, value, variant: tone }: MealStatusRowProps) {
-  const variant = tone === 'default' ? 'default' : tone;
+  const variant = tone === "default" ? "default" : tone;
   return (
     <div className="flex items-center justify-between">
-      <Badge variant={variant} className="text-[10px] uppercase font-bold tracking-wider">{label}</Badge>
+      <Badge
+        variant={variant}
+        className="text-[10px] uppercase font-bold tracking-wider"
+      >
+        {label}
+      </Badge>
       <span className="font-data font-bold text-primary">{value}</span>
     </div>
   );
@@ -393,17 +441,22 @@ interface WorkflowRowProps {
   label: string;
   count: number;
   total: number;
-  variant: 'default' | 'warning' | 'info' | 'success';
+  variant: "default" | "warning" | "info" | "success";
 }
 
 function WorkflowRow({ label, count, total, variant: tone }: WorkflowRowProps) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  const variant = tone === 'default' ? 'default' : tone;
+  const variant = tone === "default" ? "default" : tone;
 
   return (
     <div>
       <div className="flex items-center justify-between text-sm font-sans mb-1">
-        <Badge variant={variant} className="text-[10px] uppercase font-bold tracking-wider">{label}</Badge>
+        <Badge
+          variant={variant}
+          className="text-[10px] uppercase font-bold tracking-wider"
+        >
+          {label}
+        </Badge>
         <span className="font-data font-bold text-primary text-xs bg-background-alt px-1.5 py-0.5 rounded border border-primary/5">
           {count}
           <span className="text-text-muted font-medium ml-1">/ {total}</span>
@@ -423,11 +476,11 @@ function WorkflowRow({ label, count, total, variant: tone }: WorkflowRowProps) {
 }
 
 const TONE_BAR: Record<string, string> = {
-  neutral: 'bg-primary/30',
-  default: 'bg-primary/30',
-  warning: 'bg-amber-500',
-  info:    'bg-blue-500',
-  success: 'bg-emerald-500',
+  neutral: "bg-primary/30",
+  default: "bg-primary/30",
+  warning: "bg-amber-500",
+  info: "bg-blue-500",
+  success: "bg-emerald-500",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,11 +488,11 @@ const TONE_BAR: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDisplayDate(isoDate: string): string {
-  return new Intl.DateTimeFormat('en-IN', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  return new Intl.DateTimeFormat("en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
     timeZone: APP_CONFIG.timezone,
   }).format(new Date(`${isoDate}T00:00:00+05:30`));
 }

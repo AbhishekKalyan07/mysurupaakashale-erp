@@ -1,8 +1,8 @@
-import type { User as FirebaseUser } from 'firebase/auth';
-import type { Role } from '@/shared/constants/roles';
-import type { UserProfile } from '@/shared/types';
+import type { User as FirebaseUser } from "firebase/auth";
+import type { Role } from "@/shared/constants/roles";
+import type { UserProfile } from "@/shared/types";
 
-export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 export interface AuthContextValue {
   status: AuthStatus;

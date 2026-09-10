@@ -1,5 +1,5 @@
-import { AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react';
-import { PremiumButton as Button } from '../ui/PremiumButton';
+import { AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { PremiumButton as Button } from "../ui/PremiumButton";
 
 export interface ErrorStateProps {
   title?: string;
@@ -10,7 +10,7 @@ export interface ErrorStateProps {
 
 /** Errors state plainly what happened and how to recover — never vague, never apologetic in tone. */
 export function ErrorState({
-  title = 'Something went wrong',
+  title = "Something went wrong",
   description,
   onRetry,
   onBack,
@@ -21,19 +21,33 @@ export function ErrorState({
         <AlertTriangle size={26} className="text-danger" />
       </div>
       <div className="space-y-1.5 max-w-sm">
-        <p className="font-display text-lg font-semibold text-ink-900">{title}</p>
-        {description && <p className="text-sm text-ink-500 leading-relaxed">{description}</p>}
+        <p className="font-display text-lg font-semibold text-ink-900">
+          {title}
+        </p>
+        {description && (
+          <p className="text-sm text-ink-500 leading-relaxed">{description}</p>
+        )}
       </div>
       {(onRetry || onBack) && (
         <div className="flex gap-3 flex-wrap justify-center mt-1">
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="gap-1.5"
+            >
               <ArrowLeft size={14} />
               Go back
             </Button>
           )}
           {onRetry && (
-            <Button variant="secondary" size="sm" onClick={onRetry} className="gap-1.5">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onRetry}
+              className="gap-1.5"
+            >
               <RotateCcw size={14} />
               Try again
             </Button>

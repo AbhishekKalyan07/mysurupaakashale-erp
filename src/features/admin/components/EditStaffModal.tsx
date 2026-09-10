@@ -1,27 +1,30 @@
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X } from 'lucide-react';
-import { PremiumCard as Card } from '@/shared/components/ui/PremiumCard';
-import { PremiumButton as Button } from '@/shared/components/ui/PremiumButton';
-import { useUpdateStaffUser } from '../hooks/useAdmin';
-import { useDeliveryZones } from '../hooks/useDeliveryZones';
-import { useSalaryProfile, useUpdateSalaryProfile } from '@/features/hr/hooks/usePayroll';
-import { toast } from 'react-hot-toast';
-import type { UserProfile } from '@/shared/types';
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { X } from "lucide-react";
+import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
+import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
+import { useUpdateStaffUser } from "../hooks/useAdmin";
+import { useDeliveryZones } from "../hooks/useDeliveryZones";
+import {
+  useSalaryProfile,
+  useUpdateSalaryProfile,
+} from "@/features/hr/hooks/usePayroll";
+import { toast } from "react-hot-toast";
+import type { UserProfile } from "@/shared/types";
 
 const staffSchema = z.object({
-  fullName: z.string().min(2, 'Name is required'),
-  phone: z.string().min(10, 'Phone is required (e.g. +919876543210)'),
-  email: z.string().email('Invalid email address'),
-  role: z.enum(['admin', 'kitchen', 'delivery_partner', 'support']),
+  fullName: z.string().min(2, "Name is required"),
+  phone: z.string().min(10, "Phone is required (e.g. +919876543210)"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["admin", "kitchen", "delivery_partner", "support"]),
   kitchenId: z.string().optional(),
-  vehicleType: z.enum(['bike', 'bicycle', 'on_foot', 'other']).optional(),
+  vehicleType: z.enum(["bike", "bicycle", "on_foot", "other"]).optional(),
   zoneIds: z.array(z.string()).optional(),
   shifts: z.array(z.string()).optional(),
-  basicSalary: z.coerce.number().min(0, 'Base salary must be >= 0'),
-  overtimeRate: z.coerce.number().min(0, 'Overtime rate must be >= 0'),
+  basicSalary: z.coerce.number().min(0, "Base salary must be >= 0"),
+  overtimeRate: z.coerce.number().min(0, "Overtime rate must be >= 0"),
 });
 
 type StaffForm = z.infer<typeof staffSchema>;
@@ -32,29 +35,40 @@ interface Props {
 }
 
 export function EditStaffModal({ user, onClose }: Props) {
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<StaffForm>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
   });
 
-  const currentRole = watch('role');
+  const currentRole = watch("role");
 
   const { data: zones = [], isLoading: isLoadingZones } = useDeliveryZones();
-  
-  const { data: salaryProfile, isLoading: isLoadingSalary } = useSalaryProfile(user.id);
+
+  const { data: salaryProfile, isLoading: isLoadingSalary } = useSalaryProfile(
+    user.id,
+  );
   const updateSalaryMutation = useUpdateSalaryProfile();
 
   useEffect(() => {
     if (isLoadingSalary) return;
-    
+
     reset({
       fullName: user.fullName,
       phone: user.phone,
       email: user.email,
       role: user.role as any,
-      kitchenId: user.role === 'kitchen' ? user.kitchenId : '',
-      vehicleType: user.role === 'delivery_partner' ? user.vehicleType : 'bike',
-      zoneIds: user.role === 'delivery_partner' ? user.zoneIds || [] : [],
-      shifts: user.role === 'delivery_partner' ? (user.shifts || ['breakfast', 'lunch', 'dinner']) : [],
+      kitchenId: user.role === "kitchen" ? user.kitchenId : "",
+      vehicleType: user.role === "delivery_partner" ? user.vehicleType : "bike",
+      zoneIds: user.role === "delivery_partner" ? user.zoneIds || [] : [],
+      shifts:
+        user.role === "delivery_partner"
+          ? user.shifts || ["breakfast", "lunch", "dinner"]
+          : [],
       basicSalary: salaryProfile?.basicSalary ?? 15000,
       overtimeRate: salaryProfile?.overtimeRate ?? 100,
     });
@@ -70,19 +84,19 @@ export function EditStaffModal({ user, onClose }: Props) {
         email: data.email,
         role: data.role,
       };
-      
-      if (data.role === 'kitchen' && data.kitchenId) {
+
+      if (data.role === "kitchen" && data.kitchenId) {
         payload.kitchenId = data.kitchenId;
       }
-      
-      if (data.role === 'delivery_partner') {
+
+      if (data.role === "delivery_partner") {
         payload.vehicleType = data.vehicleType;
         payload.zoneIds = data.zoneIds || [];
-        payload.shifts = data.shifts || ['breakfast', 'lunch', 'dinner'];
+        payload.shifts = data.shifts || ["breakfast", "lunch", "dinner"];
       }
-      
+
       await updateMutation.mutateAsync({ uid: user.id, data: payload });
-      
+
       await updateSalaryMutation.mutateAsync({
         id: user.id,
         basicSalary: data.basicSalary,
@@ -90,8 +104,8 @@ export function EditStaffModal({ user, onClose }: Props) {
         isActive: user.isActive,
         updatedAt: null as any, // managed by mutation
       });
-      
-      toast.success('Staff account updated successfully!');
+
+      toast.success("Staff account updated successfully!");
       onClose();
     } catch {
       // Error handled globally via QueryClient
@@ -102,73 +116,153 @@ export function EditStaffModal({ user, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-900/50 backdrop-blur-sm">
       <Card className="w-full max-w-lg bg-white overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-rice-200">
-          <h2 className="text-xl font-semibold text-ink-900">Edit Staff Account</h2>
-          <button onClick={onClose} className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors">
+          <h2 className="text-xl font-semibold text-ink-900">
+            Edit Staff Account
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="overflow-y-auto p-6">
-          <form id="edit-staff-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            id="edit-staff-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+          >
             <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Full Name</label>
-              <input {...register('fullName')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
-              {errors.fullName && <p className="text-xs text-danger">{errors.fullName.message}</p>}
+              <label className="text-sm font-medium text-ink-700">
+                Full Name
+              </label>
+              <input
+                {...register("fullName")}
+                className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600"
+              />
+              {errors.fullName && (
+                <p className="text-xs text-danger">{errors.fullName.message}</p>
+              )}
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Phone (E.164)</label>
-              <input type="tel" {...register('phone')} placeholder="+91..." className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
-              {errors.phone && <p className="text-xs text-danger">{errors.phone.message}</p>}
+              <label className="text-sm font-medium text-ink-700">
+                Phone (E.164)
+              </label>
+              <input
+                type="tel"
+                {...register("phone")}
+                placeholder="+91..."
+                className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data"
+              />
+              {errors.phone && (
+                <p className="text-xs text-danger">{errors.phone.message}</p>
+              )}
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-ink-700">Email Address</label>
-              <input type="email" {...register('email')} className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600" />
-              {errors.email && <p className="text-xs text-danger">{errors.email.message}</p>}
-              <p className="text-[10px] text-amber-600 font-medium">Note: Changing this only updates the database profile. Authentication emails can only be changed by the user.</p>
+              <label className="text-sm font-medium text-ink-700">
+                Email Address
+              </label>
+              <input
+                type="email"
+                {...register("email")}
+                className="lowercase w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600"
+              />
+              {errors.email && (
+                <p className="text-xs text-danger">{errors.email.message}</p>
+              )}
+              <p className="text-[10px] text-amber-600 font-medium">
+                Note: Changing this only updates the database profile.
+                Authentication emails can only be changed by the user.
+              </p>
             </div>
 
             <div className="space-y-1">
               <label className="text-sm font-medium text-ink-700">Role</label>
-              <select {...register('role')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 capitalize bg-white">
+              <select
+                {...register("role")}
+                className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 capitalize bg-white"
+              >
                 <option value="admin">Admin</option>
                 <option value="kitchen">Kitchen</option>
                 <option value="delivery_partner">Delivery Partner</option>
                 <option value="support">Support</option>
               </select>
-              {errors.role && <p className="text-xs text-danger">{errors.role.message}</p>}
+              {errors.role && (
+                <p className="text-xs text-danger">{errors.role.message}</p>
+              )}
             </div>
 
             <div className="space-y-4 bg-ink-50 p-4 rounded-lg border border-ink-100 mt-4 relative">
-              {isLoadingSalary && <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center text-sm font-medium">Loading salary profile...</div>}
-              <h3 className="text-sm font-bold text-ink-900 mb-2">Salary Details</h3>
+              {isLoadingSalary && (
+                <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center text-sm font-medium">
+                  Loading salary profile...
+                </div>
+              )}
+              <h3 className="text-sm font-bold text-ink-900 mb-2">
+                Salary Details
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-ink-700">Base Salary (Monthly) ₹</label>
-                  <input type="number" step="0.01" {...register('basicSalary')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
-                  {errors.basicSalary && <p className="text-xs text-danger">{errors.basicSalary.message}</p>}
+                  <label className="text-sm font-medium text-ink-700">
+                    Base Salary (Monthly) ₹
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    {...register("basicSalary")}
+                    className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data"
+                  />
+                  {errors.basicSalary && (
+                    <p className="text-xs text-danger">
+                      {errors.basicSalary.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-ink-700">Overtime Rate (Per Hour) ₹</label>
-                  <input type="number" step="0.01" {...register('overtimeRate')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
-                  {errors.overtimeRate && <p className="text-xs text-danger">{errors.overtimeRate.message}</p>}
+                  <label className="text-sm font-medium text-ink-700">
+                    Overtime Rate (Per Hour) ₹
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    {...register("overtimeRate")}
+                    className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data"
+                  />
+                  {errors.overtimeRate && (
+                    <p className="text-xs text-danger">
+                      {errors.overtimeRate.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {currentRole === 'kitchen' && (
+            {currentRole === "kitchen" && (
               <div className="space-y-1 bg-rice-50 p-4 rounded-lg border border-rice-200">
-                <label className="text-sm font-medium text-ink-700">Kitchen Assignment ID</label>
-                <input {...register('kitchenId')} placeholder="e.g. KITCHEN_CENTRAL" className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data" />
+                <label className="text-sm font-medium text-ink-700">
+                  Kitchen Assignment ID
+                </label>
+                <input
+                  {...register("kitchenId")}
+                  placeholder="e.g. KITCHEN_CENTRAL"
+                  className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 font-data"
+                />
               </div>
             )}
 
-            {currentRole === 'delivery_partner' && (
+            {currentRole === "delivery_partner" && (
               <div className="space-y-4 bg-rice-50 p-4 rounded-lg border border-rice-200">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-ink-700">Vehicle Type</label>
-                  <select {...register('vehicleType')} className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 bg-white">
+                  <label className="text-sm font-medium text-ink-700">
+                    Vehicle Type
+                  </label>
+                  <select
+                    {...register("vehicleType")}
+                    className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 bg-white"
+                  >
                     <option value="bike">Bike</option>
                     <option value="bicycle">Bicycle</option>
                     <option value="on_foot">On Foot</option>
@@ -178,21 +272,29 @@ export function EditStaffModal({ user, onClose }: Props) {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-ink-700 flex justify-between items-center">
                     <span>Assigned Zones</span>
-                    {isLoadingZones && <span className="text-xs text-ink-500 font-sans">Loading zones...</span>}
+                    {isLoadingZones && (
+                      <span className="text-xs text-ink-500 font-sans">
+                        Loading zones...
+                      </span>
+                    )}
                   </label>
-                  
+
                   {zones.length === 0 ? (
                     <div className="text-xs text-ink-500 italic py-2 bg-white rounded-lg px-3 border border-dashed border-rice-300">
-                      No delivery zones created yet. You can assign zones later when they are created.
+                      No delivery zones created yet. You can assign zones later
+                      when they are created.
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-rice-300 rounded-lg p-2.5 bg-white">
-                      {zones.map(zone => (
-                        <label key={zone.id} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded">
+                      {zones.map((zone) => (
+                        <label
+                          key={zone.id}
+                          className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded"
+                        >
                           <input
                             type="checkbox"
                             value={zone.id}
-                            {...register('zoneIds')}
+                            {...register("zoneIds")}
                             className="rounded border-rice-300 text-leaf-600 focus:ring-leaf-500"
                           />
                           <span className="truncate">{zone.name}</span>
@@ -202,14 +304,19 @@ export function EditStaffModal({ user, onClose }: Props) {
                   )}
                 </div>
                 <div className="space-y-2 pt-2 border-t border-rice-200">
-                  <label className="text-sm font-medium text-ink-700">Eligible Shifts</label>
+                  <label className="text-sm font-medium text-ink-700">
+                    Eligible Shifts
+                  </label>
                   <div className="grid grid-cols-3 gap-2 bg-white border border-rice-300 rounded-lg p-2.5">
-                    {['breakfast', 'lunch', 'dinner'].map((shift) => (
-                      <label key={shift} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded">
+                    {["breakfast", "lunch", "dinner"].map((shift) => (
+                      <label
+                        key={shift}
+                        className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer hover:bg-rice-50 p-1 rounded"
+                      >
                         <input
                           type="checkbox"
                           value={shift}
-                          {...register('shifts')}
+                          {...register("shifts")}
                           className="rounded border-rice-300 text-leaf-600 focus:ring-leaf-500"
                         />
                         <span className="capitalize truncate">{shift}</span>
@@ -223,8 +330,18 @@ export function EditStaffModal({ user, onClose }: Props) {
         </div>
 
         <div className="p-4 border-t border-rice-200 bg-rice-25 flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose} disabled={updateMutation.isPending}>Cancel</Button>
-          <Button type="submit" form="edit-staff-form" isLoading={updateMutation.isPending}>
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={updateMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="edit-staff-form"
+            isLoading={updateMutation.isPending}
+          >
             Save Changes
           </Button>
         </div>

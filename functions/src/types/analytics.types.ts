@@ -1,31 +1,31 @@
-import type { ID, ISODateString, Timestamp } from './common.types';
+import type { ID, ISODateString, Timestamp } from "./common.types";
 
 export interface DailySummary {
   id: ID; // e.g. "summary_2024-03-21"
   date: ISODateString;
-  
+
   // Sales
   totalRevenue: number;
   cashPayments: number;
   onlinePayments: number;
   pendingPayments: number;
   refundedPayments: number;
-  
+
   // Customers
   activeCustomers: number;
   newCustomers: number;
   activeSubscriptions: number;
-  
+
   // Kitchen Production
   breakfastCount: number;
   lunchCount: number;
   dinnerCount: number;
-  
+
   // Delivery
   totalDeliveries: number;
   completedDeliveries: number;
   failedDeliveries: number;
-  
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -33,7 +33,7 @@ export interface DailySummary {
 export interface OrderGenerationRun {
   id: ID;
   date: ISODateString;
-  mealType: 'breakfast' | 'lunch' | 'dinner';
+  mealType: "breakfast" | "lunch" | "dinner";
   startedAt: Timestamp;
   completedAt?: Timestamp;
   durationMs?: number;
@@ -42,6 +42,6 @@ export interface OrderGenerationRun {
   ordersCancelled: number;
   ordersFailed: number;
   notificationsFailed: number;
-  status: 'success' | 'partial' | 'failed' | 'running';
+  status: "success" | "partial" | "failed" | "running";
   error?: string;
 }
