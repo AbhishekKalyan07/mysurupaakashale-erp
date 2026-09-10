@@ -210,7 +210,8 @@ export function useUnskipDay() {
       await auditRepository.logAction(
         "skip_removed",
         firebaseUser.uid,
-        "Customer",
+        "customer",
+        firebaseUser.displayName || "Customer",
         subscriptionId,
         "subscription",
         {
