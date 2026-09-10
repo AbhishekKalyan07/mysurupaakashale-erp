@@ -7,6 +7,7 @@ export interface AuditLog {
   entityId: string;
   performedBy: string;
   performedByRole: string;
+  performedByName?: string;
   timestamp: Timestamp;
   previousValue?: unknown;
   newValue?: unknown;

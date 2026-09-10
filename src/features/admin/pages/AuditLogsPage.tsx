@@ -6,6 +6,7 @@ import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
 import { TableSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import { useAuditLogs, useExportAuditLogs } from "../hooks/useAuditLogs";
+import { useAuditReferences } from "../hooks/useAuditReferences";
 import type { AuditLogFilter } from "@/shared/services/firestore/auditRepository";
 import {
   ShieldAlert,
@@ -33,6 +34,7 @@ export function AuditLogsPage() {
     currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
 
   const { data, isLoading, isError } = useAuditLogs(filters, currentLastDoc);
+  const { data: references } = useAuditReferences(data?.logs);
   const exportMutation = useExportAuditLogs();
 
   const handleNextPage = () => {
@@ -269,21 +271,16 @@ export function AuditLogsPage() {
                                   {log.performedByRole || "Unknown role"}
                                 </span>
                               </>
-                            ) : log.performedByRole &&
-                              log.performedByRole !== log.performedBy ? (
+                            ) : (
                               <>
-                                <span className="font-bold font-sans text-text capitalize">
-                                  {log.performedByRole}
+                                <span className="font-bold font-sans text-text">
+                                  {references?.[`user:${log.performedBy}`] || "Unknown user"}
                                 </span>
                                 <br />
-                                <span className="opacity-70 text-[9px]">
-                                  Legacy ID: {log.performedBy}
+                                <span className="opacity-70 text-[9px] capitalize">
+                                  {log.performedByRole || "Unknown role"}
                                 </span>
                               </>
-                            ) : (
-                              <span className="opacity-70 text-[9px]">
-                                {log.performedBy}
-                              </span>
                             )}
                           </div>
                         )}
@@ -292,8 +289,8 @@ export function AuditLogsPage() {
                             <span className="text-text-muted font-sans font-bold uppercase tracking-wider text-[8px]">
                               Entity:{" "}
                             </span>
-                            <span className="opacity-70 text-[9px]">
-                              {log.entityId}
+                            <span className="font-bold font-sans text-text">
+                              {references?.[`${log.entityType}:${log.entityId}`] || "Unknown entity"}
                             </span>
                           </div>
                         )}

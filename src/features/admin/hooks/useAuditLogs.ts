@@ -38,6 +38,10 @@ export function useExportAuditLogs() {
 
       if (allLogs.length === 0) return "No data";
 
+      // Dynamically import the resolver to avoid circular/initialization issues if any
+      const { resolveAuditReferences } = await import("../utils/auditReferenceResolver");
+      const resolvedRefs = await resolveAuditReferences(allLogs);
+
       const header = [
         "Timestamp",
         "Action",
@@ -51,11 +55,20 @@ export function useExportAuditLogs() {
         const date = log.timestamp
           ? new Date(log.timestamp.seconds * 1000).toISOString()
           : "";
-        // Use performedByName as primary actor — fall back to performedByRole, never expose UID in export
-        const actorDisplay =
-          log.performedByName || log.performedByRole || "Unknown user";
+
+        let actorDisplay = log.performedByName;
+        if (!actorDisplay) {
+           actorDisplay = resolvedRefs[`user:${log.performedBy}`] || log.performedByRole || "Unknown user";
+        }
+
         const roleDisplay = log.performedByRole || "";
-        return `"${date}","${log.action}","${actorDisplay}","${roleDisplay}","${log.entityType || ""}","${log.entityId || ""}","${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
+
+        let entityDisplay = "";
+        if (log.entityId) {
+           entityDisplay = resolvedRefs[`${log.entityType}:${log.entityId}`] || "Unknown entity";
+        }
+
+        return `"${date}","${log.action}","${actorDisplay}","${roleDisplay}","${log.entityType || ""}","${entityDisplay}","${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
       });
 
       return [header, ...rows].join("\n");
