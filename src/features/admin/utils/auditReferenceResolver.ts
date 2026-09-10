@@ -1,7 +1,7 @@
 import { db } from "@/shared/lib/firebase";
 import { collection, query, where, documentId, getDocs } from "firebase/firestore";
 import type { AuditLog } from "@/shared/types/audit.types";
-import type { Order, ManualPayment, UserProfile, SalaryAdvance, PayrollRecord, DeliveryZone, DailyMenu } from "@/shared/types";
+import type { Order, ManualPayment, UserProfile, PayrollRecord, DeliveryZone, DailyMenu } from "@/shared/types";
 
 /**
  * A composite map of resolved display strings for actors and entities.
@@ -151,7 +151,7 @@ export async function resolveAuditReferences(
 /**
  * Returns a human-readable display string based on the collection's schema.
  */
-function formatResolvedEntity(colName: string, id: string, data: any): string {
+function formatResolvedEntity(colName: string, _id: string, data: any): string {
   switch (colName) {
     case "users": {
       const user = data as UserProfile;
@@ -175,8 +175,7 @@ function formatResolvedEntity(colName: string, id: string, data: any): string {
       return `Subscription`;
     }
     case "salaryAdvances": {
-      const advance = data as SalaryAdvance;
-      return advance.staffName ? `Salary Advance for ${advance.staffName}` : "Salary Advance";
+      return "Salary Advance";
     }
     case "salaryProfiles": {
       return `Salary Profile`;

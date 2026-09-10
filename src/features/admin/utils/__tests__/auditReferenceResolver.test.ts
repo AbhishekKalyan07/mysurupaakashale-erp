@@ -36,7 +36,7 @@ describe("auditReferenceResolver", () => {
         performedByName: "John Doe",
         entityId: "ent1",
         entityType: "system",
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
@@ -61,7 +61,7 @@ describe("auditReferenceResolver", () => {
         performedBy: "uid123",
         entityId: "settings1",
         entityType: "settings",
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
@@ -82,7 +82,7 @@ describe("auditReferenceResolver", () => {
         performedBy: "deleted_uid",
         entityId: "ent1",
         entityType: "system",
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
@@ -106,7 +106,7 @@ describe("auditReferenceResolver", () => {
         entityId: "att1",
         entityType: "attendance",
         details: { staffId: "staff123" }
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
@@ -128,7 +128,7 @@ describe("auditReferenceResolver", () => {
         performedByName: "Admin",
         entityId: "ord1",
         entityType: "order",
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
@@ -227,7 +227,7 @@ describe("auditReferenceResolver", () => {
         performedByName: "Admin",
         entityId: "menu1",
         entityType: "menu",
-      } as AuditLog,
+      } as unknown as AuditLog,
     ];
 
     const resolved = await resolveAuditReferences(logs);
