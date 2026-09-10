@@ -48,7 +48,7 @@ withFirestoreEmulator('Payroll & Salary Advance Transactions', () => {
         deductions: 0,
         grossSalary: 30000,
         netSalary: 30000,
-        status: 'review',
+        status: 'approved',
         paymentDate: null,
       })
     );
