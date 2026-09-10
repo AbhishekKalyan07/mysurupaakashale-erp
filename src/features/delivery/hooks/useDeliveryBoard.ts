@@ -4,7 +4,7 @@ import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { deliveryRepository } from "@/shared/services/firestore/deliveryRepository";
 
 import { queryKeys } from "@/shared/lib/queryKeys";
-import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import toast from "react-hot-toast";
 import { deliveryService } from "@/shared/services/business/deliveryService";
@@ -12,6 +12,7 @@ import type { Order } from "@/shared/types";
 
 export function useDeliveryBoard(date: string) {
   const queryClient = useQueryClient();
+  const { firebaseUser, role, profile } = useAuth();
 
   // Reuse the exact same query key as Kitchen Production Board to share a single source of truth and avoid extra reads.
   const queryKey = useMemo(() => queryKeys.kitchen.dayOrders(date), [date]);
@@ -47,13 +48,12 @@ export function useDeliveryBoard(date: string) {
       partnerId: string | null;
     }) => {
       await deliveryRepository.reassignOrder(orderId, partnerId);
-      const user = getAuth().currentUser;
-      if (user) {
+      if (firebaseUser) {
         await auditRepository.logAction(
           partnerId ? "order_reassigned" : "order_unassigned",
-          user.uid,
-          "admin",
-          user.displayName || "Staff",
+          firebaseUser.uid,
+          role || "admin",
+          profile?.fullName || firebaseUser.displayName || "Staff",
           orderId,
           "order",
           { partnerId },

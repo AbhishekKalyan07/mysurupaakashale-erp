@@ -9,6 +9,7 @@ interface Props {
   customerMap: Map<string, any>;
   onReassign: (orderId: string, partnerId: string | null) => void;
   partners: any[];
+  canReassign?: boolean;
 }
 
 export function DeliveryDispatchTable({
@@ -16,6 +17,7 @@ export function DeliveryDispatchTable({
   customerMap,
   onReassign,
   partners,
+  canReassign = true,
 }: Props) {
   if (groupedOrders.length === 0) {
     return (
@@ -99,26 +101,28 @@ export function DeliveryDispatchTable({
                         : undefined
                     }
                     extraActions={
-                      <select
-                        className="h-8 text-xs border border-border rounded-[10px] bg-white px-2 text-text focus:outline-none focus:ring-1 focus:ring-secondary/40 disabled:opacity-50 disabled:bg-gray-100"
-                        value={order.deliveryPartnerId || ""}
-                        onChange={(e) =>
-                          onReassign(order.id, e.target.value || null)
-                        }
-                        title="Reassign partner"
-                        disabled={[
-                          "picked_up",
-                          "out_for_delivery",
-                          "delivered",
-                        ].includes(order.status)}
-                      >
-                        <option value="">Unassign</option>
-                        {partners.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.fullName || p.id}
-                          </option>
-                        ))}
-                      </select>
+                      canReassign ? (
+                        <select
+                          className="h-8 text-xs border border-border rounded-[10px] bg-white px-2 text-text focus:outline-none focus:ring-1 focus:ring-secondary/40 disabled:opacity-50 disabled:bg-gray-100"
+                          value={order.deliveryPartnerId || ""}
+                          onChange={(e) =>
+                            onReassign(order.id, e.target.value || null)
+                          }
+                          title="Reassign partner"
+                          disabled={[
+                            "picked_up",
+                            "out_for_delivery",
+                            "delivered",
+                          ].includes(order.status)}
+                        >
+                          <option value="">Unassign</option>
+                          {partners.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.fullName || p.id}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null
                     }
                   />
                 );

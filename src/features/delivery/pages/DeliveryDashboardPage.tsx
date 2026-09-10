@@ -4,6 +4,7 @@ import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { userRepository } from "@/shared/services/firestore/userRepository";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useDeliveryBoard } from "../hooks/useDeliveryBoard";
 import { DeliverySummaryCards } from "../components/DeliverySummaryCards";
 import { DeliveryFilters } from "../components/DeliveryFilters";
@@ -14,6 +15,8 @@ import { PremiumCard } from "@/shared/components/ui/PremiumCard";
 
 export function DeliveryDashboardPage() {
   const today = getTodayInTimezone();
+  const { role } = useAuth();
+  const canReassign = role === "admin";
 
   const { allOrders, summary, isLoading, reassignMutation } =
     useDeliveryBoard(today);
@@ -165,6 +168,7 @@ export function DeliveryDashboardPage() {
         groupedOrders={groupedOrders}
         customerMap={customerMap}
         partners={deliveryPartners}
+        canReassign={canReassign}
         onReassign={(orderId, partnerId) =>
           reassignMutation.mutate({ orderId, partnerId })
         }

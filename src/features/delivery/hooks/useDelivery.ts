@@ -4,7 +4,7 @@ import { deliveryRepository } from "@/shared/services/firestore/deliveryReposito
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import type { Order } from "@/shared/types";
 import { queryKeys } from "@/shared/lib/queryKeys";
-import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { where } from "firebase/firestore";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import toast from "react-hot-toast";
@@ -95,6 +95,7 @@ export function usePartnerOrders(partnerId: string, date: string) {
 
 export function useAssignDelivery() {
   const queryClient = useQueryClient();
+  const { firebaseUser, role, profile } = useAuth();
   return useMutation({
     mutationFn: async ({
       orderIds,
@@ -104,13 +105,12 @@ export function useAssignDelivery() {
       partnerId: string;
     }) => {
       await deliveryRepository.assignOrders(orderIds, partnerId);
-      const user = getAuth().currentUser;
-      if (user) {
+      if (firebaseUser) {
         await auditRepository.logAction(
           "order_assigned",
-          user.uid,
-          "admin",
-          user.displayName || "Staff",
+          firebaseUser.uid,
+          role || "admin",
+          profile?.fullName || firebaseUser.displayName || "Staff",
           orderIds.join(","),
           "order",
           { partnerId },
@@ -132,6 +132,7 @@ export function useAssignDelivery() {
 
 export function useReassignDelivery() {
   const queryClient = useQueryClient();
+  const { firebaseUser, role, profile } = useAuth();
   return useMutation({
     mutationFn: async ({
       orderId,
@@ -141,13 +142,12 @@ export function useReassignDelivery() {
       partnerId: string | null;
     }) => {
       await deliveryRepository.reassignOrder(orderId, partnerId);
-      const user = getAuth().currentUser;
-      if (user) {
+      if (firebaseUser) {
         await auditRepository.logAction(
           partnerId ? "order_reassigned" : "order_unassigned",
-          user.uid,
-          "admin",
-          user.displayName || "Staff",
+          firebaseUser.uid,
+          role || "admin",
+          profile?.fullName || firebaseUser.displayName || "Staff",
           orderId,
           "order",
           { partnerId },
