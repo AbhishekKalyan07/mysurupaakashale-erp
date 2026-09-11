@@ -91,7 +91,11 @@ class CustomerService {
     // Synchronize today's active orders with the new partner
     const { orderService } =
       await import("@/shared/services/business/orderService");
-    await orderService.syncCustomerActiveOrders(customerId, mealType);
+    if (mealType) {
+      await orderService.syncCustomerActiveOrders(customerId, mealType);
+    } else {
+      await orderService.syncCustomerActiveOrders(customerId);
+    }
 
     // Create an audit log
     await auditRepository.logAction(
