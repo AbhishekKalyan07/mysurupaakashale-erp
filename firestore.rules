@@ -121,6 +121,7 @@ service cloud.firestore {
                         unchanged('role') &&
                         unchanged('id') &&
                         unchanged('deliveryPartnerId') &&
+                        unchanged('mealDeliveryPartners') &&
                         unchanged('isActive') &&
                         unchanged('kitchenId') &&
                         unchanged('assignedAt') &&

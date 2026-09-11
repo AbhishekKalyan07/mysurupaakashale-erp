@@ -529,11 +529,14 @@ class OrderService {
       );
 
       if (eligiblePartners.length > 0) {
+        const prefPartnerId =
+          customer?.mealDeliveryPartners?.[mealType] ||
+          customer?.deliveryPartnerId;
         if (
-          customer?.deliveryPartnerId &&
-          eligiblePartners.some((p) => p.id === customer.deliveryPartnerId)
+          prefPartnerId &&
+          eligiblePartners.some((p) => p.id === prefPartnerId)
         ) {
-          partnerId = customer.deliveryPartnerId;
+          partnerId = prefPartnerId;
         } else {
           eligiblePartners.sort((a, b) => {
             const aLoad = workloadMap.get(a.id) || 0;
@@ -903,7 +906,10 @@ class OrderService {
               p.shifts.includes(order.mealType)),
         );
         if (eligiblePartners.length > 0) {
-          const prefPartnerId = (customer as CustomerProfile).deliveryPartnerId;
+          const custProfile = customer as CustomerProfile;
+          const prefPartnerId =
+            custProfile.mealDeliveryPartners?.[order.mealType] ||
+            custProfile.deliveryPartnerId;
           if (
             prefPartnerId &&
             eligiblePartners.some((p) => p.id === prefPartnerId)

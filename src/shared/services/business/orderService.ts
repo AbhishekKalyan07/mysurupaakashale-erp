@@ -21,6 +21,7 @@ import type {
   CustomerProfile,
   DeliveryPartnerProfile,
   MealPlan,
+  MealType,
 } from "@/shared/types";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
@@ -691,7 +692,7 @@ class OrderService {
    * Synchronize today's active orders whenever a customer's zone or delivery partner changes.
    * This is called by CustomerService to maintain consistency without relying on Firestore Triggers.
    */
-  async syncCustomerActiveOrders(customerId: string): Promise<void> {
+  async syncCustomerActiveOrders(customerId: string, targetMealType?: string | "all"): Promise<void> {
     const today = getTodayInTimezone();
 
     // Fetch today's orders for this customer
@@ -711,7 +712,7 @@ class OrderService {
       "out_for_delivery",
     ];
     const ordersToSync = activeOrders.filter(
-      (o) => !TERMINAL_AND_LOCKED_STATUSES.includes(o.status),
+      (o) => !TERMINAL_AND_LOCKED_STATUSES.includes(o.status) && (!targetMealType || targetMealType === "all" || o.mealType === targetMealType),
     );
 
     if (ordersToSync.length === 0) return;
@@ -780,7 +781,10 @@ class OrderService {
               p.shifts.includes(order.mealType)),
         );
         if (eligiblePartners.length > 0) {
-          const prefPartnerId = (customer as CustomerProfile).deliveryPartnerId;
+          const custProfile = customer as CustomerProfile;
+          const prefPartnerId =
+            custProfile.mealDeliveryPartners?.[order.mealType as MealType] ||
+            custProfile.deliveryPartnerId;
           if (
             prefPartnerId &&
             eligiblePartners.some((p) => p.id === prefPartnerId)
@@ -806,7 +810,9 @@ class OrderService {
                 ),
               );
             }
-            workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+            if (partnerId) {
+              workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+            }
           }
         }
       }
@@ -1090,11 +1096,14 @@ class OrderService {
       );
 
       if (eligiblePartners.length > 0) {
+        const prefPartnerId =
+          customer?.mealDeliveryPartners?.[mealType as MealType] ||
+          customer?.deliveryPartnerId;
         if (
-          customer?.deliveryPartnerId &&
-          eligiblePartners.some((p) => p.id === customer.deliveryPartnerId)
+          prefPartnerId &&
+          eligiblePartners.some((p) => p.id === prefPartnerId)
         ) {
-          partnerId = customer.deliveryPartnerId;
+          partnerId = prefPartnerId;
         } else {
           eligiblePartners.sort((a, b) => {
             const aLoad = workloadMap.get(a.id) || 0;
@@ -1104,7 +1113,9 @@ class OrderService {
           });
           partnerId = eligiblePartners[0].id;
         }
-        workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+        if (partnerId) {
+          workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+        }
       }
     }
 

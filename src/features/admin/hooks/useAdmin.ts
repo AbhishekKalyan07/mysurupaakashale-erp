@@ -338,9 +338,11 @@ export function useAssignDeliveryPartner() {
     mutationFn: async ({
       customerId,
       partnerId,
+      mealType,
     }: {
       customerId: string;
-      partnerId: string;
+      partnerId: string | null;
+      mealType?: import("@/shared/types").MealType | "all";
     }) => {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Not authenticated");
@@ -352,6 +354,7 @@ export function useAssignDeliveryPartner() {
         partnerId,
         currentUser.uid,
         currentUser.displayName || "Admin",
+        mealType,
       );
     },
     onSuccess: async () => {
