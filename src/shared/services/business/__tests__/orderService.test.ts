@@ -3,10 +3,23 @@ import { orderService } from "../orderService";
 import { orderRepository } from "../../firestore/orderRepository";
 import { kitchenRepository } from "../../firestore/kitchenRepository";
 
-vi.mock("../../firestore/holidayRepository", () => ({
+vi.mock("@/shared/services/firestore/holidayRepository", () => ({
   holidayRepository: {
     isHoliday: vi.fn().mockResolvedValue(false),
   },
+}));
+
+vi.mock("@/shared/services/firestore/auditRepository", () => ({
+  auditRepository: {
+    logAction: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock("@/shared/services/firestore/notificationService", () => ({
+  notifyAdminAlert: vi.fn().mockResolvedValue(undefined),
+  notifyOrderGeneratedCustomer: vi.fn().mockResolvedValue(undefined),
+  notifyOrderGeneratedDriver: vi.fn().mockResolvedValue(undefined),
+  notifyDailyOrdersGenerated: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock Firebase Firestore
@@ -15,8 +28,12 @@ vi.mock("firebase/firestore", async (importOriginal) => {
   return {
     ...actual,
     getDoc: vi.fn(),
-    addDoc: vi.fn(),
+    addDoc: vi.fn().mockResolvedValue({ id: "mock_id" }),
     setDoc: vi.fn().mockResolvedValue(undefined),
+    getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+    query: vi.fn(),
+    onSnapshot: vi.fn(),
+    getCountFromServer: vi.fn().mockResolvedValue({ data: () => ({ count: 0 }) }),
     writeBatch: vi.fn(() => ({
       set: vi.fn(),
       update: vi.fn(),
@@ -501,7 +518,7 @@ describe("orderService", () => {
       expect(batchSet).toHaveBeenCalledTimes(1);
 
       const createdOrder = batchSet.mock.calls[0][1];
-      expect(createdOrder.subscriptionId).toBe("sub_resumed_yesterday");
+      expect(createdOrder.subscriptionId).toBe('sub_resumed_yesterday'); console.log('Finished assertions');
     });
   });
 
