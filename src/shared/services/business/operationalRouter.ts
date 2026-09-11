@@ -1,4 +1,3 @@
-import type { Address } from "@/shared/types/user.types";
 import type { DeliveryZone } from "@/shared/types/delivery.types";
 
 export interface RoutingResult {

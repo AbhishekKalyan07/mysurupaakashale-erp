@@ -12,7 +12,6 @@ import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { orderGenerationRunRepository } from "../firestore/analyticsRepository";
 import { userRepository } from "../firestore/userRepository";
 import { mealPlanRepository } from "../firestore/mealPlanRepository";
-import { kitchenRepository } from "../firestore/kitchenRepository";
 import { deliveryZoneRepository } from "../firestore/deliveryZoneRepository";
 import { notifyDailyOrdersGenerated } from "../firestore/notificationService";
 import { holidayRepository } from "../firestore/holidayRepository";
@@ -540,14 +539,12 @@ class OrderService {
       allZones,
       allPartners,
       todaysOrders,
-      allKitchens,
     ] = await Promise.all([
       mealPlanRepository.list(),
       userRepository.getById(subscription.customerId),
       deliveryZoneRepository.list(),
       userRepository.list(where("role", "==", "delivery_partner")),
       orderRepository.list(where("date", "==", date)),
-      kitchenRepository.list(),
     ]);
 
     const activePartners = allPartners.filter(
@@ -559,8 +556,6 @@ class OrderService {
       activePartners.map((p) => [p.id, p]),
     );
     const zoneMap = new Map(allZones.map((z) => [z.id, z]));
-    const defaultKitchenId =
-      allKitchens.length === 0 ? null : allKitchens[0].id;
 
     const workloadMap = new Map<string, number>();
     todaysOrders.forEach((o) => {
@@ -592,7 +587,6 @@ class OrderService {
         allZones,
         mealPlans,
         workloadMap,
-        defaultKitchenId,
       );
       ordersToCreate.push(order);
 
