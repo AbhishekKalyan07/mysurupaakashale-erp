@@ -28,6 +28,8 @@ import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
 import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
+import { deliveryZoneRepository } from "@/shared/services/firestore/deliveryZoneRepository";
+import { resolveOperationalZoneAndKitchen } from "@/shared/services/business/operationalRouter";
 import {
   AddressPicker,
   type PickedAddress,
@@ -931,6 +933,20 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
         ? `${selectedAddress.line1} ${selectedAddress.line2 || ""}, ${selectedAddress.city}, ${selectedAddress.pincode}`.trim()
         : undefined;
 
+      const allZones = await deliveryZoneRepository.list();
+      let zoneId: string;
+      let kitchenId: string;
+
+      try {
+        const routing = resolveOperationalZoneAndKitchen(selectedAddress, allZones);
+        zoneId = routing.zoneId;
+        kitchenId = routing.kitchenId;
+      } catch (err: any) {
+        alert(err.message || "Delivery is not currently available for this pincode.");
+        setLoading(false);
+        return;
+      }
+
       await setDoc(doc(db, "orders", orderId), {
         id: orderId,
         displayId: `ORD-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
@@ -951,8 +967,8 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
         currency: "INR",
         status: "scheduled",
         deliveryAddressId: addressId,
-        zoneId: null,
-        kitchenId: null,
+        zoneId,
+        kitchenId,
         deliveryPartnerId: null,
         deliveryWindow: null,
         paymentId: null,

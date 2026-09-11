@@ -24,6 +24,7 @@ import type {
   MealPlan,
 } from "@/shared/types";
 import { getTodayInTimezone } from "@/shared/lib/date";
+import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -181,7 +182,6 @@ class OrderService {
         allZones,
         allPartners,
         todaysOrders,
-        allKitchens,
       ] = await Promise.all([
         subscriptionRepository.list(where("status", "==", "active")),
         mealPlanRepository.list(),
@@ -189,7 +189,6 @@ class OrderService {
         deliveryZoneRepository.list(),
         userRepository.list(where("role", "==", "delivery_partner")),
         orderRepository.list(where("date", "==", today)),
-        kitchenRepository.list(),
       ]);
       const customerMap = new Map<string, CustomerProfile>(
         allCustomers.map((c) => [c.id, c as CustomerProfile]),
@@ -201,8 +200,6 @@ class OrderService {
         activePartners.map((p) => [p.id, p]),
       );
       const zoneMap = new Map(allZones.map((z) => [z.id, z]));
-      const defaultKitchenId =
-        allKitchens.length === 0 ? null : allKitchens[0].id;
 
       const workloadMap = new Map<string, number>();
       todaysOrders.forEach((o) => {
@@ -282,7 +279,6 @@ class OrderService {
                 allZones,
                 mealPlans,
                 workloadMap,
-                defaultKitchenId,
               );
               order.status = "cancelled";
               // kitchenStatus is not applicable for cancelled orders
@@ -304,7 +300,6 @@ class OrderService {
               allZones,
               mealPlans,
               workloadMap,
-              defaultKitchenId,
             );
             ordersToCreate.push(order);
             success = true;
@@ -756,24 +751,27 @@ class OrderService {
       }
     });
 
-    let zoneId = (customer as CustomerProfile).zoneId ?? null;
+    const custProfile = customer as CustomerProfile;
 
-    if (!zoneId) {
-      const custProfile = customer as CustomerProfile;
-      const defaultAddress =
-        custProfile.addresses?.find(
-          (a: any) => a.id === custProfile.defaultAddressId,
-        ) || custProfile.addresses?.[0];
-      if (defaultAddress?.pincode) {
-        const matchedZone = allZones.find((z) =>
-          z.pincodes.includes(defaultAddress.pincode),
-        );
-        if (matchedZone) zoneId = matchedZone.id;
-      }
-    }
+    // We do NOT want to update orders if routing fails. Wait, syncCustomerActiveOrders is called when address changes.
+    // If the new address has no zone, we should probably clear the zoneId and kitchenId, OR throw an error.
+    // Since we're enforcing the core invariant that no operational order can have kitchenId: null,
+    // if a customer changes their address to an unsupported area mid-subscription, we cannot route it.
+    // The safest behavior is to throw an error so the address update fails, preventing the customer from
+    // moving their address to an unserviceable area while having active orders, or at least surfacing it.
+    const defaultAddress = custProfile.addresses?.find(
+      (a: any) => a.id === custProfile.defaultAddressId,
+    ) || custProfile.addresses?.[0];
 
-    const zoneName = zoneId ? zoneMap.get(zoneId)?.name : undefined;
-    const kitchenId = zoneId ? zoneMap.get(zoneId)?.kitchenId : undefined;
+    // For syncCustomerActiveOrders, we route based on the default address
+    // (though strictly it should use order.deliveryAddressId if it varies).
+    // The previous logic routed to the customer's default address.
+    const { zoneId, kitchenId } = resolveOperationalZoneAndKitchen(
+      defaultAddress,
+      allZones
+    );
+
+    const zoneName = zoneMap.get(zoneId)?.name;
 
     const batch = writeBatch(db);
     ordersToSync.forEach((order) => {
@@ -832,8 +830,8 @@ class OrderService {
       const ref = doc(db, "orders", order.id!);
       const updatePayload: any = {
         deliveryPartnerId: partnerId ?? null,
-        zoneId: zoneId ?? null,
-        kitchenId: kitchenId ?? null,
+        zoneId,
+        kitchenId,
         driverName: driver?.fullName ?? null,
         driverPhone: driver?.phone ?? null,
         zoneName: zoneName ?? null,
@@ -1076,23 +1074,17 @@ class OrderService {
     allZones: any[],
     mealPlans: MealPlan[],
     workloadMap: Map<string, number>,
-    defaultKitchenId: string | null,
   ): Partial<Order> {
     const customer = customerMap.get(sub.customerId);
 
-    let zoneId = customer?.zoneId ?? null;
-    if (!zoneId) {
-      const defaultAddress =
-        customer?.addresses?.find(
-          (a: any) => a.id === customer.defaultAddressId,
-        ) || customer?.addresses?.[0];
-      if (defaultAddress?.pincode) {
-        const matchedZone = allZones.find((z) =>
-          z.pincodes.includes(defaultAddress.pincode),
-        );
-        if (matchedZone) zoneId = matchedZone.id;
-      }
-    }
+    const addr =
+      customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
+      customer?.addresses?.[0];
+
+    const { zoneId, kitchenId } = resolveOperationalZoneAndKitchen(
+      addr,
+      allZones
+    );
 
     let partnerId: string | null = null;
     if (zoneId) {
@@ -1134,9 +1126,6 @@ class OrderService {
     }
 
     const driver = partnerMap.get(partnerId || "");
-    const addr =
-      customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
-      customer?.addresses?.[0];
     const addressStr = addr
       ? `${addr.line1} ${addr.line2 || ""}, ${addr.city}, ${addr.pincode}`.trim()
       : undefined;
@@ -1183,10 +1172,8 @@ class OrderService {
       currency: "INR",
       status: "scheduled",
       deliveryAddressId: sub.deliveryAddressId ?? null,
-      zoneId: zoneId ?? null,
-      kitchenId: zoneId
-        ? (zoneMap.get(zoneId)?.kitchenId ?? defaultKitchenId)
-        : defaultKitchenId,
+      zoneId,
+      kitchenId,
       deliveryPartnerId: partnerId ?? null,
       deliveryWindow: null,
       paymentId: sub.latestPaymentId ?? null,

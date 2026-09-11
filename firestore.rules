@@ -362,10 +362,14 @@ service cloud.firestore {
                        // date must be a 10-char ISO date string (YYYY-MM-DD)
                        request.resource.data.date is string &&
                        request.resource.data.date.size() == 10 &&
-                       // Operational fields must be null — only admin/automation may set them
+                       // Operational fields: deliveryPartnerId must remain null (assigned later),
+                       // but zoneId and kitchenId must be valid strings resolved by the client's operational router.
                        request.resource.data.get('deliveryPartnerId', null) == null &&
-                       request.resource.data.get('kitchenId', null) == null &&
-                       request.resource.data.get('zoneId', null) == null &&
+                       request.resource.data.get('zoneId', null) is string &&
+                       request.resource.data.get('kitchenId', null) is string &&
+                       // Enforce cross-document routing integrity: the kitchen MUST match the zone's assigned kitchen
+                       exists(/databases/$(database)/documents/deliveryZones/$(request.resource.data.zoneId)) &&
+                       request.resource.data.kitchenId == get(/databases/$(database)/documents/deliveryZones/$(request.resource.data.zoneId)).data.get('kitchenId', null) &&
                        // subscriptionId must be null for one-time orders
                        request.resource.data.get('subscriptionId', null) == null &&
                        // createdAt must be present (required by queries)

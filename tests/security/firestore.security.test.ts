@@ -776,8 +776,8 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       currency: 'INR',
       status: 'scheduled',
       deliveryAddressId: 'addr1',
-      zoneId: null,
-      kitchenId: null,
+      zoneId: 'zone-test',
+      kitchenId: 'kitchen-test',
       deliveryPartnerId: null,
       deliveryWindow: null,
       paymentId: null,
@@ -824,10 +824,47 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
+    it('DENY: Customer cannot submit a missing or null zoneId', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-no-zone'), {
+        ...validOneTimeOrder,
+        zoneId: null
+      }));
+    });
+
+    it('DENY: Customer cannot submit a missing or null kitchenId', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-no-kitchen'), {
+        ...validOneTimeOrder,
+        kitchenId: null
+      }));
+    });
+
+    it('DENY: Customer cannot forge mismatched zoneId and kitchenId', async () => {
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      // Setup zone with kitchen-test
+      await setDoc(doc(adminDb, 'deliveryZones', 'zone-test'), { kitchenId: 'kitchen-test' });
+
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-mismatch'), {
+        ...validOneTimeOrder,
+        kitchenId: 'some-other-kitchen'
+      }));
+    });
+
+    it('DENY: Customer cannot submit a nonexistent zoneId', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'orders', 'trial-bad-zone'), {
+        ...validOneTimeOrder,
+        zoneId: 'does-not-exist'
+      }));
+    });
+
     it('ALLOW: Legitimate existing one-time/trial flow succeeds', async () => {
       // Seed the meal plan so the price validation passes
       const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
       await setDoc(doc(adminDb, 'mealPlans', 'basic-plan'), { pricePerDay: 150, pricingMatrix: { lunch: 150 } });
+      await setDoc(doc(adminDb, 'deliveryZones', 'zone-test'), { kitchenId: 'kitchen-test' });
 
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(setDoc(doc(db, 'orders', 'trial-valid'), validOneTimeOrder));

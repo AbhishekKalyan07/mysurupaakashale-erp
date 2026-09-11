@@ -160,8 +160,35 @@ describe("orderService", () => {
       vi.spyOn(orderGenerationRunRepository, "update").mockResolvedValue();
 
       vi.spyOn(mealPlanRepository, "list").mockResolvedValue([]);
-      vi.spyOn(userRepository, "list").mockResolvedValue([]);
-      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([]);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        {
+          id: "c2",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+        {
+          id: "c1",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+        {
+          id: "c3",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+        {
+          id: "c4",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        }
+      ] as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "zone1", pincodes: ["570001"], kitchenId: "k1" }
+      ] as any);
       vi.spyOn(kitchenRepository, "list").mockResolvedValue([]);
 
       const { getDoc } = await import("firebase/firestore");
@@ -265,8 +292,17 @@ describe("orderService", () => {
         await import("../../firestore/kitchenRepository");
 
       vi.spyOn(mealPlanRepository, "list").mockResolvedValue([]);
-      vi.spyOn(userRepository, "list").mockResolvedValue([]);
-      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([]);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        {
+          id: "c1",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+      ] as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "zone1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
       vi.spyOn(kitchenRepository, "list").mockResolvedValue([]);
 
       // The previous run (maybe buggy) left a "success" marker
@@ -409,8 +445,17 @@ describe("orderService", () => {
       );
       vi.spyOn(orderGenerationRunRepository, "update").mockResolvedValue();
       vi.spyOn(mealPlanRepository, "list").mockResolvedValue([]);
-      vi.spyOn(userRepository, "list").mockResolvedValue([]);
-      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([]);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        {
+          id: "c1",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+      ] as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "zone1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
       vi.spyOn(kitchenRepository, "list").mockResolvedValue([]);
       vi.spyOn(orderRepository, "list").mockResolvedValue([] as any);
 
@@ -512,7 +557,7 @@ describe("orderService", () => {
       const { deliveryZoneRepository } =
         await import("../../firestore/deliveryZoneRepository");
       vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
-        { id: "z1", name: "Zone 1" } as any,
+        { id: "z1", name: "Zone 1", pincodes: ["570001"], kitchenId: "k1" } as any,
       ]);
       const { userRepository } = await import("../../firestore/userRepository");
       vi.spyOn(userRepository, "list").mockResolvedValue([
@@ -529,7 +574,8 @@ describe("orderService", () => {
       vi.spyOn(userRepository, "getById").mockResolvedValue({
         id: "c1",
         deliveryPartnerId: "p1",
-        zoneId: "z1",
+        defaultAddressId: "addr1",
+        addresses: [{ id: "addr1", pincode: "570001" }],
       } as any);
 
       const { writeBatch } = await import("firebase/firestore");
@@ -717,7 +763,7 @@ describe("orderService", () => {
       const activePartners = [
         { id: "p1", isAvailable: true, zoneIds: ["zone1"], shifts: ["lunch"] },
       ] as any[];
-      const allZones = [{ id: "zone1", pincodes: ["570001"] }] as any[];
+      const allZones = [{ id: "zone1", pincodes: ["570001"], kitchenId: "k1" }] as any[];
       const mealPlans = [
         {
           id: "plan123",
@@ -741,7 +787,6 @@ describe("orderService", () => {
         allZones,
         mealPlans,
         workloadMap,
-        "k1",
       );
 
       expect(order).toBeDefined();
