@@ -14,13 +14,13 @@ describe("customerService", () => {
     it("throws if customerId is missing", async () => {
       await expect(
         customerService.assignDeliveryPartner("", "p1", "a1", "Admin"),
-      ).rejects.toThrow("Customer ID and Partner ID are required.");
+      ).rejects.toThrow("Customer ID is required.");
     });
 
-    it("throws if partnerId is missing", async () => {
+    it("throws if partnerId is missing for global assignment", async () => {
       await expect(
-        customerService.assignDeliveryPartner("c1", "", "a1", "Admin"),
-      ).rejects.toThrow("Customer ID and Partner ID are required.");
+        customerService.assignDeliveryPartner("c1", "", "a1", "Admin", "all"),
+      ).rejects.toThrow("Partner ID is required for global assignment.");
     });
 
     it("throws if customer not found", async () => {

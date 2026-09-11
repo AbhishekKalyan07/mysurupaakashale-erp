@@ -40,6 +40,12 @@ export interface CustomerProfile extends BaseUserProfile {
   defaultAddressId: string | null;
   /** Permanently assigned delivery partner. Copied to every generated order. */
   deliveryPartnerId?: string | null;
+  /** Meal-specific delivery partner assignments (e.g. breakfast, lunch, dinner). */
+  mealDeliveryPartners?: {
+    breakfast?: string | null;
+    lunch?: string | null;
+    dinner?: string | null;
+  } | null;
   /** Permanently assigned delivery zone. Copied to every generated order. (Priority 2, below Partner, above Pincode) */
   zoneId?: string | null;
   assignedAt?: Timestamp | null;

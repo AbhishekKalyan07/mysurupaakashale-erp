@@ -1,64 +1,97 @@
 import { Timestamp, serverTimestamp } from "firebase/firestore";
 import { userRepository } from "../firestore/userRepository";
 import { auditRepository } from "../firestore/auditRepository";
-import type { CustomerProfile } from "@/shared/types";
+import type { CustomerProfile, MealType } from "@/shared/types";
 
 class CustomerService {
   /**
-   * Assigns a delivery partner permanently to a customer.
+   * Assigns a delivery partner permanently to a customer for all meals or a specific meal type.
    * All future orders generated for this customer will inherit this assignment.
    */
   async assignDeliveryPartner(
     customerId: string,
-    partnerId: string,
+    partnerId: string | null,
     adminId: string,
     adminName: string,
+    mealType?: MealType | "all",
   ): Promise<void> {
-    if (!customerId || !partnerId) {
-      throw new Error("Customer ID and Partner ID are required.");
+    if (!customerId) {
+      throw new Error("Customer ID is required.");
+    }
+
+    if (!partnerId && (!mealType || mealType === "all")) {
+      throw new Error("Partner ID is required for global assignment.");
     }
 
     const [customer, partner] = await Promise.all([
       userRepository.getById(customerId),
-      userRepository.getById(partnerId),
+      partnerId ? userRepository.getById(partnerId) : Promise.resolve(null),
     ]);
 
     if (!customer) {
       throw new Error(`Customer with ID ${customerId} not found.`);
     }
 
-    if (!partner || partner.role !== "delivery_partner") {
-      throw new Error(
-        `Delivery partner with ID ${partnerId} not found or invalid role.`,
-      );
+    if (partnerId) {
+      if (!partner || partner.role !== "delivery_partner") {
+        throw new Error(
+          `Delivery partner with ID ${partnerId} not found or invalid role.`,
+        );
+      }
+
+      if (!partner.isActive) {
+        throw new Error(
+          `Cannot assign inactive delivery partner ${partner.fullName}.`,
+        );
+      }
     }
 
-    if (!partner.isActive) {
-      throw new Error(
-        `Cannot assign inactive delivery partner ${partner.fullName}.`,
-      );
-    }
-
+    const custProfile = customer as CustomerProfile;
+    const currentMealPartners = custProfile.mealDeliveryPartners || {};
     const oldPartnerId =
-      (customer as CustomerProfile).deliveryPartnerId || null;
+      mealType && mealType !== "all"
+        ? currentMealPartners[mealType] !== undefined ? currentMealPartners[mealType] : custProfile.deliveryPartnerId || null
+        : custProfile.deliveryPartnerId || null;
 
     // Idempotency check
-    if (oldPartnerId === partnerId) {
-      return;
+    if (mealType && mealType !== "all") {
+      const existingMealVal = currentMealPartners[mealType] === undefined ? null : currentMealPartners[mealType];
+      if (existingMealVal === partnerId) return;
+    } else {
+      if (oldPartnerId === partnerId && !custProfile.mealDeliveryPartners) {
+        return;
+      }
     }
 
-    // Update the customer record
-    await userRepository.update(customerId, {
-      deliveryPartnerId: partner.id,
+    const updatePayload: any = {
       assignedAt: serverTimestamp() as unknown as Timestamp,
       assignedBy: adminId,
       updatedAt: serverTimestamp() as unknown as Timestamp,
-    } as any);
+    };
+
+    if (mealType && mealType !== "all") {
+      const newMealPartners = { ...currentMealPartners };
+      if (partnerId === null) {
+        newMealPartners[mealType] = null; // null represents unassigned/inherit explicitly
+      } else {
+        newMealPartners[mealType] = partnerId;
+      }
+      updatePayload.mealDeliveryPartners = newMealPartners;
+
+      // If setting a specific meal and no global exists, we should probably still ensure it gets written correctly
+      // But we don't modify deliveryPartnerId here.
+    } else {
+      updatePayload.deliveryPartnerId = partnerId;
+      updatePayload.mealDeliveryPartners = null; // Clear all meal-specific overrides
+    }
+
+    // Update the customer record
+    await userRepository.update(customerId, updatePayload);
 
     // Synchronize today's active orders with the new partner
     const { orderService } =
       await import("@/shared/services/business/orderService");
-    await orderService.syncCustomerActiveOrders(customerId);
+    await orderService.syncCustomerActiveOrders(customerId, mealType);
 
     // Create an audit log
     await auditRepository.logAction(
@@ -70,8 +103,9 @@ class CustomerService {
       "user",
       {
         oldPartnerId,
-        newPartnerId: partner.id,
-        newPartnerName: partner.fullName,
+        newPartnerId: partnerId,
+        newPartnerName: partner ? partner.fullName : "Unassigned",
+        mealType: mealType || "all",
       },
     );
   }

@@ -201,6 +201,7 @@ function CustomerDetailDialog({
   const [selectedPartnerId, setSelectedPartnerId] = useState(
     customer.deliveryPartnerId || "",
   );
+  const [selectedMealType, setSelectedMealType] = useState<import("@/shared/types").MealType | "all">("all");
 
   const [isEditingZone, setIsEditingZone] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState(customer.zoneId || "");
@@ -429,13 +430,35 @@ function CustomerDetailDialog({
 
                 {isEditingPartner ? (
                   <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <select
+                        value={selectedMealType}
+                        onChange={(e) => {
+                          const val = e.target.value as any;
+                          setSelectedMealType(val);
+                          if (val !== "all" && customer.mealDeliveryPartners && (customer.mealDeliveryPartners as any)[val]) {
+                            setSelectedPartnerId((customer.mealDeliveryPartners as any)[val]!);
+                          } else if (val === "all") {
+                            setSelectedPartnerId(customer.deliveryPartnerId || "");
+                          } else {
+                            setSelectedPartnerId("");
+                          }
+                        }}
+                        className="bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
+                      >
+                        <option value="all">All Meals</option>
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                      </select>
                       <select
                         value={selectedPartnerId}
                         onChange={(e) => setSelectedPartnerId(e.target.value)}
                         className="flex-1 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
                       >
-                        <option value="">Select a Delivery Partner</option>
+                        <option value="">
+                          {selectedMealType === "all" ? "Select a Delivery Partner" : "Inherit / Default"}
+                        </option>
                         {deliveryPartners.map((dp) => {
                           const dpZoneNames = (dp.zoneIds || []).map(
                             (id) => zones.find((z) => z.id === id)?.name || id,
@@ -455,15 +478,15 @@ function CustomerDetailDialog({
                         variant="primary"
                         size="sm"
                         disabled={
-                          !selectedPartnerId ||
-                          selectedPartnerId === customer.deliveryPartnerId ||
+                          (selectedMealType === "all" && !selectedPartnerId) ||
                           assignPartner.isPending
                         }
                         onClick={() => {
                           assignPartner.mutate(
                             {
                               customerId: customer.id,
-                              partnerId: selectedPartnerId,
+                              partnerId: selectedPartnerId || null,
+                              mealType: selectedMealType,
                             },
                             { onSuccess: () => setIsEditingPartner(false) },
                           );
@@ -498,6 +521,13 @@ function CustomerDetailDialog({
                             ? "Unknown Partner"
                             : "Unassigned"}
                       </div>
+                      {customer.mealDeliveryPartners && (
+                        <div className="text-xs text-text-muted mt-1 space-y-0.5">
+                          {customer.mealDeliveryPartners.breakfast && <div>Breakfast: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.breakfast)?.fullName || "Unknown"}</div>}
+                          {customer.mealDeliveryPartners.lunch && <div>Lunch: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.lunch)?.fullName || "Unknown"}</div>}
+                          {customer.mealDeliveryPartners.dinner && <div>Dinner: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.dinner)?.fullName || "Unknown"}</div>}
+                        </div>
+                      )}
                     </div>
                     {(customer.assignedAt || customer.assignedBy) && (
                       <div>
