@@ -103,12 +103,15 @@ describe('Holiday Security Rules', () => {
 
   describe('Order creation on a holiday', () => {
     it('denies customer one-time order creation if date is an active holiday', async () => {
-      // 1. Create active holiday
+      // 1. Create active holiday, meal plan, and delivery zone
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await setDoc(doc(context.firestore(), 'holidays', HOLIDAY_ID), VALID_HOLIDAY_DOC);
         // Also create the meal plan needed for order validation
         await setDoc(doc(context.firestore(), 'mealPlans', 'plan-1'), {
           pricingMatrix: { lunch: 65 }
+        });
+        await setDoc(doc(context.firestore(), 'deliveryZones', 'zone-1'), {
+          kitchenId: 'kitchen-1'
         });
       });
 
@@ -134,13 +137,15 @@ describe('Holiday Security Rules', () => {
         currency: 'INR',
         status: 'scheduled',
         deliveryAddressId: 'addr-1',
+        zoneId: 'zone-1',
+        kitchenId: 'kitchen-1',
         createdAt: 'ts',
         updatedAt: 'ts'
       }));
     });
 
     it('allows customer one-time order creation if holiday is cancelled', async () => {
-      // 1. Create CANCELLED holiday
+      // 1. Create CANCELLED holiday, meal plan, and delivery zone
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await setDoc(doc(context.firestore(), 'holidays', HOLIDAY_ID), {
           ...VALID_HOLIDAY_DOC,
@@ -148,6 +153,9 @@ describe('Holiday Security Rules', () => {
         });
         await setDoc(doc(context.firestore(), 'mealPlans', 'plan-1'), {
           pricingMatrix: { lunch: 65 }
+        });
+        await setDoc(doc(context.firestore(), 'deliveryZones', 'zone-1'), {
+          kitchenId: 'kitchen-1'
         });
       });
 
@@ -173,6 +181,8 @@ describe('Holiday Security Rules', () => {
         currency: 'INR',
         status: 'scheduled',
         deliveryAddressId: 'addr-1',
+        zoneId: 'zone-1',
+        kitchenId: 'kitchen-1',
         createdAt: 'ts',
         updatedAt: 'ts'
       }));
