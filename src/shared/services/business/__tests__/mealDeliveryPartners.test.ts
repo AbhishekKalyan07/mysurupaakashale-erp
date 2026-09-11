@@ -30,7 +30,7 @@ describe("mealDeliveryPartners logic", () => {
         return null;
       });
       vi.spyOn(userRepository, "update").mockResolvedValue(undefined);
-      vi.spyOn(auditRepository, "logAction").mockResolvedValue("logId");
+      vi.spyOn(auditRepository, "logAction").mockResolvedValue(undefined as any);
       vi.spyOn(orderService, "syncCustomerActiveOrders").mockResolvedValue(undefined);
     });
 

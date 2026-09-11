@@ -21,6 +21,7 @@ import type {
   CustomerProfile,
   DeliveryPartnerProfile,
   MealPlan,
+  MealType,
 } from "@/shared/types";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
@@ -809,7 +810,9 @@ class OrderService {
                 ),
               );
             }
-            workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+            if (partnerId) {
+              workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+            }
           }
         }
       }
@@ -1110,7 +1113,9 @@ class OrderService {
           });
           partnerId = eligiblePartners[0].id;
         }
-        workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+        if (partnerId) {
+          workloadMap.set(partnerId, (workloadMap.get(partnerId) || 0) + 1);
+        }
       }
     }
 

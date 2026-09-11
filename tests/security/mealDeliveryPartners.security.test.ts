@@ -28,8 +28,8 @@ beforeEach(async () => {
 });
 
 describe('mealDeliveryPartners Security Rules', () => {
-  const adminAuth = { sub: 'admin-1', email: 'admin@mysurupaakashale.com' };
-  const customerAuth = { sub: 'cust-1', email: 'cust@example.com' };
+  const adminAuth = { sub: 'admin-1', email: 'admin@mysurupaakashale.com' } as any;
+  const customerAuth = { sub: 'cust-1', email: 'cust@example.com' } as any;
 
   it('DENY: Normal customer cannot modify mealDeliveryPartners', async () => {
     const db = testEnv.authenticatedContext('cust-1', customerAuth).firestore();
