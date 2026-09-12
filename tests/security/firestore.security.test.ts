@@ -1105,4 +1105,121 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       await assertFails(updateDoc(doc(db, 'payroll', 'pr-paid'), { status: 'draft' }));
     });
   });
+
+  describe('Inventory (Finding #4 Remediation)', () => {
+    it('DENY: Unauthenticated read', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Unauthenticated create/update/delete', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Customer read', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Customer create/update/delete', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Delivery partner read', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Delivery partner create/update/delete', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('ALLOW: Kitchen staff can read inventory belonging to their own kitchen', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'inventory', 'item-k1')));
+    });
+
+    it('DENY: Kitchen staff reading another kitchen\'s inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-k2'), { kitchenId: 'kitchen-2', name: 'Pepper' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item-k2')));
+    });
+
+    it('ALLOW: Kitchen staff to create inventory for their own kitchen', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'inventory', 'new-item-k1'), { kitchenId: 'kitchen-1', name: 'Rice' }));
+    });
+
+    it('DENY: Kitchen staff creating inventory for another kitchen', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'new-item-k2'), { kitchenId: 'kitchen-2', name: 'Rice' }));
+    });
+
+    it('ALLOW: Kitchen staff updating their own kitchen\'s inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-update-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'inventory', 'item-update-k1'), { name: 'Sea Salt', kitchenId: 'kitchen-1' }));
+    });
+
+    it('DENY: Kitchen staff updating inventory belonging to another kitchen', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-update-k2'), { kitchenId: 'kitchen-2', name: 'Pepper' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'inventory', 'item-update-k2'), { name: 'Black Pepper', kitchenId: 'kitchen-2' }));
+    });
+
+    it('DENY: Kitchen staff changing an existing item\'s kitchenId', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-reassign-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      // Try to reassign to kitchen-2
+      await assertFails(updateDoc(doc(db, 'inventory', 'item-reassign-k1'), { kitchenId: 'kitchen-2' }));
+    });
+
+    it('DENY: Kitchen staff deleting inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-delete-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item-delete-k1')));
+    });
+
+    it('ALLOW: Admin read', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'inventory', 'item-k2')));
+    });
+
+    it('ALLOW: Admin create', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' }));
+    });
+
+    it('ALLOW: Admin update', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'inventory', 'admin-item'), { kitchenId: 'kitchen-3' }));
+    });
+
+    it('ALLOW: Admin delete', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(deleteDoc(doc(db, 'inventory', 'admin-item')));
+    });
+  });
 });

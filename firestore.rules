@@ -177,10 +177,16 @@ service cloud.firestore {
 
     // ---------- inventory/{itemId} ----------
     match /inventory/{itemId} {
-      allow read: if isSignedIn();
-      // Only admins or kitchen staff can create/update their own inventory
-      allow create: if isAdmin() || (isKitchen() && request.resource.data.kitchenId == callerKitchenId());
-      allow update: if isAdmin() || (isKitchen() && resource.data.kitchenId == callerKitchenId());
+      allow read: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
+
+      allow create: if isAdmin() ||
+        (isKitchen() &&
+         request.resource.data.kitchenId == callerKitchenId());
+
+      allow update: if isAdmin() ||
+        (isAuthorizedKitchen(resource.data.kitchenId) &&
+         request.resource.data.kitchenId == resource.data.kitchenId);
+
       allow delete: if isAdmin();
     }
 
@@ -583,11 +589,6 @@ service cloud.firestore {
       allow write: if isAdmin(); // Phase 4: Manual order generation via Admin UI
     }
 
-    // ---------- inventory/{itemId} ----------
-    match /inventory/{itemId} {
-      allow read: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
-      allow write: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
-    }
 
     match /settings/userCounters {
       // Allow any signed-in user to read and increment the user ID counter.
