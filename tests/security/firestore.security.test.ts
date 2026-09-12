@@ -1222,4 +1222,69 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       await assertSucceeds(deleteDoc(doc(db, 'inventory', 'admin-item')));
     });
   });
+  describe('FailureQueue (Finding #3 Remediation)', () => {
+    const validFailureRecord = {
+      customerId: 'cust-1',
+      subscriptionId: 'sub-1',
+      mealType: 'lunch',
+      date: '2026-09-12',
+      reason: 'Generation failed',
+      attempts: 1,
+      retryCount: 0,
+      status: 'pending',
+    };
+
+    it('DENY: Unauthenticated create', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq1'), validFailureRecord));
+    });
+
+    it('DENY: Customer create', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq2'), validFailureRecord));
+    });
+
+    it('DENY: Delivery partner create', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq3'), validFailureRecord));
+    });
+
+    it('DENY: Kitchen staff create', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq4'), validFailureRecord));
+    });
+
+    it('ALLOW: Admin create', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'failureQueue', 'fq-admin'), validFailureRecord));
+    });
+
+    it('ALLOW: Admin read', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'failureQueue', 'fq-admin')));
+    });
+
+    it('DENY: Non-admin read', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(getDoc(doc(db, 'failureQueue', 'fq-admin')));
+    });
+
+    it('ALLOW: Admin update', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
+    });
+
+    it('DENY: Non-admin update', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
+    });
+
+    it('DENY: Nobody can delete, including admin', async () => {
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(deleteDoc(doc(adminDb, 'failureQueue', 'fq-admin')));
+
+      const customerDb = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(deleteDoc(doc(customerDb, 'failureQueue', 'fq-admin')));
+    });
+  });
 });

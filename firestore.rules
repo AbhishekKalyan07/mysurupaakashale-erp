@@ -622,7 +622,7 @@ service cloud.firestore {
     // so there is a full history of all past generation failures.
     match /failureQueue/{recordId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if false;
     }
