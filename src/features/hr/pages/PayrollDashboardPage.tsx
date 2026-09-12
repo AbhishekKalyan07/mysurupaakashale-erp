@@ -23,6 +23,7 @@ import {
 import { useStaffUsers } from "@/features/admin/hooks/useAdmin";
 import { useBusinessSettings } from "@/features/admin/hooks/useSettings";
 import { salaryProfileRepository } from "@/shared/services/firestore/payrollRepository";
+import { sanitizeSpreadsheetValue } from "@/shared/utils/spreadsheet";
 import { attendanceRepository } from "@/shared/services/firestore/attendanceRepository";
 import { calculatePayroll } from "../utils/payrollCalculator";
 import {
@@ -84,7 +85,11 @@ export function PayrollDashboardPage() {
       const status =
         record?.status === "paid" ? "Paid" : record ? "Draft" : "Not Generated";
       const salary = record ? record.netSalary : 0;
-      return [user.id, user.fullName, user.role, status, salary];
+      
+      const safeName = sanitizeSpreadsheetValue(user.fullName);
+      const csvName = `"${String(safeName).replace(/"/g, '""')}"`;
+      
+      return [user.id, csvName, user.role, status, salary];
     });
     const csvContent =
       "data:text/csv;charset=utf-8," +

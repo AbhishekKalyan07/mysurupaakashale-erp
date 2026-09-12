@@ -8,6 +8,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
+import { sanitizeSpreadsheetValue } from "@/shared/utils/spreadsheet";
 import { orderRepository } from "./orderRepository";
 import { subscriptionRepository } from "./subscriptionRepository";
 import {
@@ -409,7 +410,7 @@ export class AutomationService {
     users.forEach((u: any) =>
       customersSheet.addRow({
         id: u.id,
-        name: `${u.firstName || u.name} ${u.lastName || ""}`.trim(),
+        name: sanitizeSpreadsheetValue(`${u.firstName || u.name} ${u.lastName || ""}`.trim()),
         email: u.email,
         phone: u.phone,
       }),

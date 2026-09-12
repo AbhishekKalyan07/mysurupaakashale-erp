@@ -5,6 +5,7 @@ import {
 } from "@/shared/services/firestore/auditRepository";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { AuditLog } from "@/shared/types";
+import { sanitizeSpreadsheetValue } from "@/shared/utils/spreadsheet";
 
 export function useAuditLogs(
   filters: AuditLogFilter,
@@ -67,8 +68,14 @@ export function useExportAuditLogs() {
         if (log.entityId) {
            entityDisplay = resolvedRefs[`${log.entityType}:${log.entityId}`] || "Unknown entity";
         }
+        
+        const safeActor = sanitizeSpreadsheetValue(actorDisplay);
+        const safeEntity = sanitizeSpreadsheetValue(entityDisplay);
+        
+        const csvActor = `"${String(safeActor).replace(/"/g, '""')}"`;
+        const csvEntity = `"${String(safeEntity).replace(/"/g, '""')}"`;
 
-        return `"${date}","${log.action}","${actorDisplay}","${roleDisplay}","${log.entityType || ""}","${entityDisplay}","${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
+        return `"${date}","${log.action}",${csvActor},"${roleDisplay}","${log.entityType || ""}",${csvEntity},"${JSON.stringify(log.details || {}).replace(/"/g, '""')}"`;
       });
 
       return [header, ...rows].join("\n");
