@@ -769,7 +769,7 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       planId: 'basic-plan',
       planTier: 'basic',
       mealType: 'lunch',
-      date: '2025-05-05',
+      date: '2099-05-05',
       itemsLabel: 'Trial',
       selectedOptionId: null,
       price: 150,
@@ -860,13 +860,44 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
-    it('ALLOW: Legitimate existing one-time/trial flow succeeds', async () => {
+    it('DENY: Customer cannot create a one-time order for yesterday (cutoff passed)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await assertFails(setDoc(doc(db, 'orders', 'trial-yesterday'), {
+        ...validOneTimeOrder,
+        date: yesterdayStr
+      }));
+    });
+
+    it('DENY: Customer cannot create a one-time breakfast order after the breakfast cutoff', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      // Using today's date because the breakfast cutoff for today (5:00 AM) has already passed,
+      // but it's not a "past" date in the same way yesterday is.
+      const todayStr = new Date().toISOString().split('T')[0];
+      await assertFails(setDoc(doc(db, 'orders', 'trial-today-bfast'), {
+        ...validOneTimeOrder,
+        date: todayStr,
+        mealType: 'breakfast'
+      }));
+    });
+
+    it('ALLOW: Admin can create a one-time order for yesterday (bypasses cutoff restrictions)', async () => {
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await assertSucceeds(setDoc(doc(adminDb, 'orders', 'trial-admin-bypass'), {
+        ...validOneTimeOrder,
+        date: yesterdayStr
+      }));
+    });
+
+    it('ALLOW: Legitimate existing one-time/trial flow succeeds (future date before cutoff)', async () => {
       // Seed the meal plan so the price validation passes
       const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
       await setDoc(doc(adminDb, 'mealPlans', 'basic-plan'), { pricePerDay: 150, pricingMatrix: { lunch: 150 } });
       await setDoc(doc(adminDb, 'deliveryZones', 'zone-test'), { kitchenId: 'kitchen-test' });
 
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      // validOneTimeOrder uses 2099-05-05 and 'lunch', which is a future lunch before its cutoff
       await assertSucceeds(setDoc(doc(db, 'orders', 'trial-valid'), validOneTimeOrder));
     });
   });

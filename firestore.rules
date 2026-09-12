@@ -377,6 +377,8 @@ service cloud.firestore {
                        ('createdAt' in request.resource.data) &&
                        // Holiday check: one-time orders also blocked on active holidays
                        !isActiveholidayForDate(request.resource.data.date) &&
+                       // Enforce cutoff times and implicitly prevent backdating
+                       checkMealsCutoff(request.resource.data.date, [request.resource.data.mealType]) &&
                        // Strict field allowlist — no unauthorized operational fields
                        request.resource.data.keys().hasOnly([
                          'id', 'displayId', 'source', 'customerId', 'customerName',
