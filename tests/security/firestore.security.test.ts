@@ -107,6 +107,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
           customerId: CUSTOMER_B_UID, status: 'active',
           pricePerDaySnapshot: 150, creditBalance: 0,
         }),
+        setDoc(doc(db, 'subscriptions', 'sub-pending'), {
+          customerId: CUSTOMER_A_UID, status: 'pending_payment',
+          depositAmount: 1000, updatedAt: new Date(),
+        }),
 
         // Payments
         setDoc(doc(db, 'payments', 'pay-a'), {
@@ -934,6 +938,46 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Payment with valid createdAt is allowed if legitimate', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(setDoc(doc(db, 'payments', 'pay-valid-1'), validPayment));
+    });
+
+    it('DENY: Customer cannot create security deposit payment with amount below depositAmount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-underpay'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 500, // depositAmount is 1000
+        purpose: 'security_deposit'
+      }));
+    });
+
+    it('ALLOW: Customer can create security deposit payment matching depositAmount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-match'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 1000, // depositAmount is 1000
+        purpose: 'security_deposit'
+      }));
+    });
+
+    it('DENY: Customer cannot bypass by omitting purpose on pending subscription', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-no-purpose'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 1000,
+        purpose: 'usage' // MUST be security_deposit
+      }));
+    });
+
+    it('ALLOW: Customer can create usage payment for active subscription regardless of amount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-usage'), {
+        ...validPayment,
+        subscriptionId: 'sub-a', // active subscription
+        amount: 150,
+        purpose: 'usage'
+      }));
     });
 
     it('DENY: Customer cannot create payment for another customer subscription', async () => {

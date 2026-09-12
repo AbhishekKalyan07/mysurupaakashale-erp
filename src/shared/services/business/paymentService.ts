@@ -117,6 +117,23 @@ class PaymentService {
       }
 
       const subRef = doc(db, "subscriptions", payment.subscriptionId);
+      const subSnap = await t.get(subRef);
+      if (!subSnap.exists()) {
+        throw new Error("Referenced subscription not found.");
+      }
+
+      const subscription = subSnap.data();
+      if (subscription.status !== "pending_payment") {
+        throw new Error("Subscription is not in a pending payment state.");
+      }
+
+      if (payment.purpose !== "security_deposit") {
+        throw new Error("Activation requires a security deposit payment.");
+      }
+
+      if (payment.amount !== subscription.depositAmount) {
+        throw new Error("Payment amount does not match required security deposit.");
+      }
 
       t.update(paymentRef, {
         status: "verified",

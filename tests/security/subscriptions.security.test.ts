@@ -41,6 +41,10 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
         pricingMatrix: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 }
       });
 
+      await setDoc(doc(db, 'settings', 'business'), {
+        pricing: { securityDepositAmount: 1000 }
+      });
+
       await setDoc(doc(db, 'subscriptions', 'sub-active'), {
         id: 'sub-active',
         customerId: CUSTOMER_UID,
@@ -106,6 +110,62 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       autoRenew: true,
       latestPaymentId: null,
       depositAmount: 1000,
+      deliveryPartnerId: null,
+      pauseStartDate: null,
+      pauseEndDate: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+  });
+
+  it('DENY: Customer cannot create subscription with tampered depositAmount', async () => {
+    const db = env.authenticatedContext(CUSTOMER_UID).firestore();
+    await assertFails(setDoc(doc(db, 'subscriptions', 'tampered-deposit-sub'), {
+      id: 'tampered-deposit-sub',
+      customerId: CUSTOMER_UID,
+      planId: 'plan-1',
+      planTier: 'standard',
+      quantity: 1,
+      pricePerDaySnapshot: 140,
+      pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
+      deliveryAddressId: 'addr-1',
+      zoneId: 'zone-1',
+      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      status: 'pending_payment',
+      startDate: '2025-01-01',
+      endDate: null,
+      billingCycle: 'monthly',
+      autoRenew: true,
+      latestPaymentId: null,
+      depositAmount: 1, // Tampered
+      deliveryPartnerId: null,
+      pauseStartDate: null,
+      pauseEndDate: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+  });
+
+  it('ALLOW: Admin can create subscription bypassing depositAmount check', async () => {
+    const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+    await assertSucceeds(setDoc(doc(adminDb, 'subscriptions', 'admin-sub'), {
+      id: 'admin-sub',
+      customerId: CUSTOMER_UID,
+      planId: 'plan-1',
+      planTier: 'standard',
+      quantity: 1,
+      pricePerDaySnapshot: 140,
+      pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
+      deliveryAddressId: 'addr-1',
+      zoneId: 'zone-1',
+      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      status: 'pending_payment',
+      startDate: '2025-01-01',
+      endDate: null,
+      billingCycle: 'monthly',
+      autoRenew: true,
+      latestPaymentId: null,
+      depositAmount: 500, // Allowed for Admin
       deliveryPartnerId: null,
       pauseStartDate: null,
       pauseEndDate: null,
