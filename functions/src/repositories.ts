@@ -75,6 +75,8 @@ export const orderRepository = {
 };
 export const subscriptionRepository = createRepo<Subscription>("subscriptions");
 export const orderGenerationRunRepository = createRepo("orderGenerationRuns");
+export const analyticsRepository = createRepo("analytics");
+export const unskipRequestRepository = createRepo("unskipRequests");
 export const userRepository = createRepo<
   CustomerProfile | DeliveryPartnerProfile | any
 >("users");
