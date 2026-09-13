@@ -3,6 +3,7 @@ import {
   getFirestore as adminGetFirestore,
   type Firestore,
 } from "firebase-admin/firestore";
+import { getAuth as adminGetAuth } from "firebase-admin/auth";
 
 export function initTestApp(): App {
   if (getApps().length === 0) {
@@ -14,6 +15,11 @@ export function initTestApp(): App {
 export function getFirestore(): Firestore {
   initTestApp();
   return adminGetFirestore();
+}
+
+export function getAuth() {
+  initTestApp();
+  return adminGetAuth();
 }
 
 export async function cleanupTestApp() {

@@ -16,7 +16,8 @@ import { queryClient } from "@/shared/lib/queryClient";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import type { UserProfile } from "@/shared/types";
 import { doc, updateDoc, arrayRemove } from "firebase/firestore";
-import { db, auth } from "@/shared/lib/firebase";
+import { db, auth, functions } from "@/shared/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "auth/invalid-email": "That email address doesn't look right.",
@@ -84,10 +85,13 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
   const profile = await userRepository.getById(user.uid);
 
   if (!profile) {
-    const displayId = await userRepository.generateNextDisplayId(
-      "customer",
-      user.displayName || "Google User",
-    );
+    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
+    const { data } = await generateUserDisplayId({
+      targetUserUid: user.uid,
+      requestedRole: "customer",
+    });
+    const displayId = data.displayId;
+
     await userRepository.create(
       {
         displayId,
@@ -152,10 +156,17 @@ export async function signUpCustomer(
     const { db } = await import("@/shared/lib/firebase");
 
     const phoneDocRef = doc(db, "userPhones", phone);
-    const displayId = await userRepository.generateNextDisplayId(
-      "customer",
-      fullName,
-    );
+
+    // Set display name so backend ID generation can use it securely
+    await updateProfile(credential.user, { displayName: fullName });
+
+    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
+    const { data } = await generateUserDisplayId({
+      targetUserUid: credential.user.uid,
+      requestedRole: "customer",
+    });
+    const displayId = data.displayId;
+
     const userDocRef = doc(db, "users", credential.user.uid);
 
     const { writeBatch } = await import("firebase/firestore");
@@ -189,8 +200,6 @@ export async function signUpCustomer(
       }
       throw e;
     }
-
-    await updateProfile(credential.user, { displayName: fullName });
   } catch (error) {
     console.error("Failed to initialize customer profile:", error);
     try {
@@ -280,10 +289,13 @@ export async function signUpWithGoogle(
     const emailCred = EmailAuthProvider.credential(user.email, password);
     await linkWithCredential(user, emailCred);
 
-    const displayId = await userRepository.generateNextDisplayId(
-      "customer",
-      user.displayName || "Google User",
-    );
+    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
+    const { data } = await generateUserDisplayId({
+      targetUserUid: user.uid,
+      requestedRole: "customer",
+    });
+    const displayId = data.displayId;
+
     const userDocRef = doc(db, "users", user.uid);
 
     const { writeBatch } = await import("firebase/firestore");

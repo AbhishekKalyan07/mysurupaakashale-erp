@@ -590,17 +590,21 @@ service cloud.firestore {
     }
 
 
+    match /idempotency/{document=**} {
+      // Idempotency records are strictly managed by the backend Admin SDK.
+      allow read, write: if false;
+    }
+
     match /settings/userCounters {
-      // Allow any signed-in user to read and increment the user ID counter.
-      // This is required for client-side sign-up (since we don't have Cloud Functions).
-      allow read, write: if isSignedIn();
+      // Counter is incremented strictly by backend Callable functions.
+      allow read, write: if false;
     }
 
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn();
-      allow write: if isAdmin(); // Phase 1: Settings updated by admin
+      allow read: if isSignedIn() && settingId != 'userCounters';
+      allow write: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
     }
 
     match /auditLogs/{logId} {

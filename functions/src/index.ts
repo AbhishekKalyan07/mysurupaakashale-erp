@@ -143,3 +143,4 @@ export const onOrderCancelled = onDocumentUpdated(
 );
 
 export * from "./holidays";
+export * from "./users";

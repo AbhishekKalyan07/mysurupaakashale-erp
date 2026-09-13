@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userRepository } from "../userRepository";
-import { getDocs, runTransaction } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";
 
 describe("userRepository", () => {
   beforeEach(() => {
@@ -49,73 +49,6 @@ describe("userRepository", () => {
     });
   });
 
-  describe("generateNextDisplayId", () => {
-    it("generates customer ID with fullName", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "John Doe",
-      );
-      expect(result).toBe("MP-J001");
-      expect(runTransaction).toHaveBeenCalled();
-    });
-
-    it("generates customer ID with invalid letter", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "123 Doe",
-      );
-      expect(result).toBe("MP-U001");
-    });
-
-    it("generates admin ID", async () => {
-      // the global runTransaction mock in vitest.setup.ts sets exists to false, count is 1000
-      const result = await userRepository.generateNextDisplayId("admin");
-      expect(result).toBe("ADMIN-1001");
-    });
-
-    it("uses existing count for customer if document exists", async () => {
-      vi.mocked(runTransaction).mockImplementationOnce(
-        async (_db, updateFunction) => {
-          const transaction = {
-            get: vi.fn(async () => ({
-              exists: () => true,
-              data: () => ({ customer_J: 42 }),
-            })),
-            set: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn(),
-          } as any;
-          return await updateFunction(transaction);
-        },
-      );
-
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "John",
-      );
-      expect(result).toBe("MP-J043");
-    });
-
-    it("uses existing count if document exists", async () => {
-      vi.mocked(runTransaction).mockImplementationOnce(
-        async (_db, updateFunction) => {
-          const transaction = {
-            get: vi.fn(async () => ({
-              exists: () => true,
-              data: () => ({ admin: 1005, customer_A: 5 }),
-            })),
-            set: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn(),
-          } as any;
-          return await updateFunction(transaction);
-        },
-      );
-
-      const result = await userRepository.generateNextDisplayId("admin");
-      expect(result).toBe("ADMIN-1006");
-    });
-  });
 
   describe("updateProfile", () => {
     it("updates user profile", async () => {

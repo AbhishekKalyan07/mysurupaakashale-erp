@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { firebaseApp, db, auth } from "@/shared/lib/firebase";
+import { firebaseApp, db, auth, functions } from "@/shared/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import {
   where,
   serverTimestamp,
@@ -118,7 +119,12 @@ export function useCreateStaffUser() {
         );
         await updateProfile(credential.user, { displayName: data.fullName });
 
-        const displayId = await userRepository.generateNextDisplayId(data.role);
+        const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
+        const { data: idData } = await generateUserDisplayId({
+          targetUserUid: credential.user.uid,
+          requestedRole: data.role,
+        });
+        const displayId = idData.displayId;
 
         const profileData: any = {
           displayId,
