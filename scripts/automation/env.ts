@@ -20,11 +20,18 @@
  */
 
 // import.meta.env is a plain object in vite-node — we can safely
-// assign new properties onto it.
+// assign new properties onto it for public Firebase client configuration only.
 const metaEnv = import.meta.env as Record<string, string | undefined>;
 
 for (const [key, value] of Object.entries(process.env)) {
   if (key.startsWith('VITE_') && value !== undefined) {
     metaEnv[key] = value;
   }
+}
+
+// In Node.js automation runs, set the official App Check global debug token
+// directly on globalThis so the Firebase App Check SDK debug provider consumes it
+// without exposing it through import.meta.env.
+if (process.env.APPCHECK_DEBUG_TOKEN) {
+  (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.APPCHECK_DEBUG_TOKEN;
 }

@@ -15,7 +15,7 @@ The system is built as a pure Vite + React (TypeScript) SPA relying exclusively 
 A thorough security audit was performed across the Firebase ecosystem:
 - **Firestore Rules**: Strict RBAC has been validated. Each collection verifies the requestor’s role by performing a `firestore.get()` on their user profile. The Automation account has been designated an `admin` role, securely bounded by `isAdmin()` checks. Newly added `analytics` collection has been secured.
 - **Storage Rules**: Verified the integration of `isAdmin()` against Storage rules using cross-service `firestore.get()`. Backup JSONs and Monthly Excel Reports are completely protected from public read/write access.
-- **Environment Secrets**: Secrets are securely injected strictly at runtime via GitHub Actions (`VITE_FIREBASE_API_KEY`, `VITE_AUTOMATION_EMAIL`, etc.) preventing bundle leakage of the automation service credentials.
+- **Environment Secrets**: Secrets are securely injected strictly at runtime via GitHub Actions (`VITE_FIREBASE_API_KEY`, `AUTOMATION_EMAIL`, etc.) preventing bundle leakage of the automation service credentials.
 
 ## 4. Performance & Scalability Review
 - **Query Optimization**: Identified and resolved performance pitfalls. Specifically, iterating and querying one-by-one inside a transaction for `skips` was mitigated.
@@ -38,7 +38,7 @@ A thorough security audit was performed across the Firebase ecosystem:
 - [x] Apply `firestore.rules` and `storage.rules` via Firebase CLI
 - [x] Ensure `firestore.indexes.json` is deployed
 - [x] Provision an Admin user in Firebase Auth and ensure their `users/{uid}` doc has `role: 'admin'`
-- [x] Add GitHub Repository Secrets for deployment (`VITE_AUTOMATION_EMAIL`, `VITE_AUTOMATION_PASSWORD`, and Firebase config)
+- [x] Add GitHub Repository Secrets for deployment (`AUTOMATION_EMAIL`, `AUTOMATION_PASSWORD`, and Firebase config)
 - [x] Verify Vercel production branch tracking
 
 ## 8. Final Recommendation

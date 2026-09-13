@@ -17,8 +17,9 @@ describe('production GitHub Actions automations', () => {
     expect(content).toContain("node-version: '22'");
     expect(content).toContain('npm ci');
     expect(content).toContain(`npx vite-node --config vite.config.ts ${entryPoint}`);
-    expect(content).toContain('VITE_AUTOMATION_EMAIL: ${{ secrets.VITE_AUTOMATION_EMAIL }}');
-    expect(content).toContain('VITE_AUTOMATION_PASSWORD: ${{ secrets.VITE_AUTOMATION_PASSWORD }}');
+    expect(content).toContain('AUTOMATION_EMAIL: ${{ secrets.AUTOMATION_EMAIL }}');
+    expect(content).toContain('AUTOMATION_PASSWORD: ${{ secrets.AUTOMATION_PASSWORD }}');
+    expect(content).toContain('APPCHECK_DEBUG_TOKEN: ${{ secrets.APPCHECK_DEBUG_TOKEN }}');
   });
 
   it('automation workflows do not deploy Cloud Functions (deployed separately via CI)', () => {

@@ -6,15 +6,13 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/shared/lib/firebase';
 
 export async function authenticateForAutomation() {
-  // Since vite-node natively loads .env.local into import.meta.env,
-  // we should check both import.meta.env and process.env.
-  const email = (import.meta.env.VITE_AUTOMATION_EMAIL as string | undefined) || process.env.VITE_AUTOMATION_EMAIL;
-  const password = (import.meta.env.VITE_AUTOMATION_PASSWORD as string | undefined) || process.env.VITE_AUTOMATION_PASSWORD;
+  const email = process.env.AUTOMATION_EMAIL;
+  const password = process.env.AUTOMATION_PASSWORD;
 
   if (!email || !password) {
     throw new Error(
-      'Automation credentials missing. Set VITE_AUTOMATION_EMAIL and ' +
-      'VITE_AUTOMATION_PASSWORD in GitHub Actions secrets (see .env.example).'
+      'Automation credentials missing. Set AUTOMATION_EMAIL and ' +
+      'AUTOMATION_PASSWORD in GitHub Actions secrets (see .env.example).'
     );
   }
 
