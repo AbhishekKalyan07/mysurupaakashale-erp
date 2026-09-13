@@ -76,8 +76,8 @@ async function initSentryLazy() {
           enableInp: false, // Disables web-vitals INP tracking which causes startTime crashes on some browsers
         }),
         Sentry.replayIntegration({
-          maskAllText: false,
-          blockAllMedia: false,
+          maskAllText: true,
+          blockAllMedia: true,
         }),
       ],
       // Performance Monitoring
