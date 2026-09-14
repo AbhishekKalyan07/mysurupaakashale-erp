@@ -226,10 +226,10 @@ describe('active automation service', () => {
     mockPaymentRepository.list.mockResolvedValue([{ id: 'p1' }]);
     mockAnalyticsRepository.list.mockResolvedValue([{ id: 'a1', date: '2026-09-04' }]);
 
-    await automationService.generateMonthlyExcel();
-
-    const { uploadBytes } = await import('firebase/storage');
-    expect(uploadBytes).toHaveBeenCalled();
+    const result = await automationService.generateMonthlyExcel();
+    expect(result.timestamp).toBeDefined();
+    expect(result.filename).toMatch(/^monthly_export_.*\.xlsx$/);
+    expect(result.buffer).toBeDefined();
   });
 
   it('cleans up old logs', async () => {

@@ -33,6 +33,12 @@ export interface DatabaseBackupResult {
   backupData: Record<string, any[]>;
 }
 
+export interface MonthlyExcelResult {
+  timestamp: string;
+  filename: string;
+  buffer: ArrayBuffer;
+}
+
 export class AutomationService {
   /**
    * Generate daily sales and operational summary
@@ -409,7 +415,7 @@ export class AutomationService {
   /**
    * Monthly Excel Export
    */
-  async generateMonthlyExcel() {
+  async generateMonthlyExcel(): Promise<MonthlyExcelResult> {
     console.log("Generating Monthly Excel Export...");
     const ExcelJS = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
@@ -552,22 +558,18 @@ export class AutomationService {
     );
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
     const timestamp = getTodayInTimezone("Asia/Kolkata", new Date()).substring(
       0,
       7,
     );
-    const { storage } = await import("@/shared/lib/firebase");
-    const { ref, uploadBytes } = await import("firebase/storage");
+    const filename = `monthly_export_${timestamp}.xlsx`;
+    console.log(`Monthly Excel Export generated (${filename})`);
 
-    const excelRef = ref(storage, `reports/monthly_export_${timestamp}.xlsx`);
-    await uploadBytes(excelRef, blob);
-    console.log(
-      `Monthly Excel Export uploaded to reports/monthly_export_${timestamp}.xlsx`,
-    );
+    return {
+      timestamp,
+      filename,
+      buffer,
+    };
   }
 
   /**

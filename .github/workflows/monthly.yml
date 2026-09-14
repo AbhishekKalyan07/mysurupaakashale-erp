@@ -48,3 +48,13 @@ jobs:
           AUTOMATION_EMAIL: ${{ secrets.AUTOMATION_EMAIL }}
           AUTOMATION_PASSWORD: ${{ secrets.AUTOMATION_PASSWORD }}
         run: npx vite-node --config vite.config.ts scripts/automation/monthly.ts
+
+      - name: Upload Monthly Reports and Backups
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-maintenance-${{ github.run_id }}
+          path: |
+            backup/
+            reports/
+          retention-days: 90
