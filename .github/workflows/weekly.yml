@@ -32,3 +32,10 @@ jobs:
           AUTOMATION_EMAIL: ${{ secrets.AUTOMATION_EMAIL }}
           AUTOMATION_PASSWORD: ${{ secrets.AUTOMATION_PASSWORD }}
         run: npx vite-node --config vite.config.ts scripts/automation/weekly.ts
+
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90

@@ -24,6 +24,15 @@ import type { DailySummary } from "@/shared/types";
 import { addDays } from "date-fns";
 import { getTodayInTimezone } from "@/shared/lib/date";
 
+export interface DatabaseBackupResult {
+  timestamp: string;
+  filename: string;
+  collections: Record<string, number>;
+  totalDocuments: number;
+  jsonString: string;
+  backupData: Record<string, any[]>;
+}
+
 export class AutomationService {
   /**
    * Generate daily sales and operational summary
@@ -344,13 +353,16 @@ export class AutomationService {
   }
 
   /**
-   * Database Backup (Monthly or Weekly)
+   * Database Backup Export
+   * Compiles canonical Firestore collections and returns structured metadata and JSON string.
+   * Zero-dependency on Firebase Cloud Storage (Spark plan compatible).
    */
-  async exportDatabaseBackup() {
+  async exportDatabaseBackup(): Promise<DatabaseBackupResult> {
     console.log("Starting database backup...");
     const now = new Date();
     const timestamp = `${getTodayInTimezone("Asia/Kolkata", now)}_${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
-    const backupData: Record<string, any> = {};
+    const backupData: Record<string, any[]> = {};
+    const counts: Record<string, number> = {};
 
     // List of core collections to back up
     const collections = [
@@ -365,29 +377,33 @@ export class AutomationService {
       "settings",
     ];
 
+    let totalDocs = 0;
     for (const coll of collections) {
       const snap = await getDocs(collection(db, coll));
-      backupData[coll] = snap.docs.map((doc) => ({
+      const docs = snap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+      backupData[coll] = docs;
+      counts[coll] = docs.length;
+      totalDocs += docs.length;
     }
 
-    const jsonString = JSON.stringify(backupData);
-    const blob = new Blob([jsonString], { type: "application/json" });
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const filename = `firestore_backup_${timestamp}.json`;
 
-    // Upload to Firebase Storage
-    const { storage } = await import("@/shared/lib/firebase");
-    const { ref, uploadBytes } = await import("firebase/storage");
-
-    const backupRef = ref(
-      storage,
-      `backups/firestore_backup_${timestamp}.json`,
-    );
-    await uploadBytes(backupRef, blob);
     console.log(
-      `Database backup uploaded to backups/firestore_backup_${timestamp}.json`,
+      `Database backup prepared: ${totalDocs} documents across ${collections.length} collections (${filename})`,
     );
+
+    return {
+      timestamp,
+      filename,
+      collections: counts,
+      totalDocuments: totalDocs,
+      jsonString,
+      backupData,
+    };
   }
 
   /**

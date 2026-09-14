@@ -208,10 +208,15 @@ describe('active automation service', () => {
   });
 
   it('exports database backup', async () => {
-    await automationService.exportDatabaseBackup();
-    // Check if uploadBytes was called via dynamic import mock
-    const { uploadBytes } = await import('firebase/storage');
-    expect(uploadBytes).toHaveBeenCalled();
+    const result = await automationService.exportDatabaseBackup();
+    expect(result.timestamp).toBeDefined();
+    expect(result.filename).toMatch(/^firestore_backup_.*\.json$/);
+    expect(result.totalDocuments).toBeGreaterThanOrEqual(0);
+    expect(result.jsonString).toBeDefined();
+    expect(result.backupData).toBeDefined();
+    expect(result.collections).toHaveProperty('users');
+    expect(result.collections).toHaveProperty('orders');
+    expect(result.collections).toHaveProperty('payments');
   });
 
   it('generates monthly excel', async () => {
