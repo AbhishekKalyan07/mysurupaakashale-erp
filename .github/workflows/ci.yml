@@ -299,7 +299,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/serviceAccount.json
         run: |
           npm install -g firebase-tools
-          firebase deploy --force --only hosting,firestore:rules,firestore:indexes,storage
+          firebase deploy --force --only hosting,firestore:rules,firestore:indexes
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
