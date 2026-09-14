@@ -145,3 +145,4 @@ export const onOrderCancelled = onDocumentUpdated(
 export * from "./holidays";
 export * from "./users";
 export * from "./scheduled/dailyAutomation";
+export * from "./scheduled/weeklyBackup";
