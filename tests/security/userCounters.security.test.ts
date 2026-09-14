@@ -2,12 +2,15 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import {
   initializeTestEnvironment,
   RulesTestEnvironment,
-  RulesTestContext,
 } from "@firebase/rules-unit-testing";
 import { readFileSync } from "fs";
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "../../src/shared/lib/firebase"; // Using the app's functions instance
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
 let testEnv: RulesTestEnvironment;
 
@@ -23,71 +26,227 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await testEnv.cleanup();
+  if (testEnv) {
+    await testEnv.cleanup();
+  }
 });
 
 beforeEach(async () => {
-  await testEnv.clearFirestore();
+  if (testEnv) {
+    await testEnv.clearFirestore();
+  }
 });
 
-describe("Security Finding #9: userCounters and Idempotency Rules", () => {
-  it("unauthenticated read/write denied", async () => {
+describe("Security Rules: settings/userCounters (Spark Compatibility)", () => {
+  it("1. unauthenticated read and write are denied", async () => {
     const unauthed = testEnv.unauthenticatedContext();
     const db = unauthed.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { customer_A: 1 })).rejects.toThrowError();
+
+    await expect(getDoc(ref)).rejects.toThrow();
+    await expect(setDoc(ref, { customer_A: 1 })).rejects.toThrow();
   });
 
-  it("customer read/write denied", async () => {
-    const customer = testEnv.authenticatedContext("cust1", { role: "customer" });
+  it("2. customer can read userCounters document", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
     const db = customer.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { customer_A: 1 })).rejects.toThrowError();
-    await expect(updateDoc(ref, { customer_A: 1 })).rejects.toThrowError();
-    await expect(deleteDoc(ref)).rejects.toThrowError();
+
+    const snap = await getDoc(ref);
+    expect(snap.exists()).toBe(true);
+    expect(snap.data()?.customer_A).toBe(5);
   });
 
-  it("delivery read/write denied", async () => {
-    const delivery = testEnv.authenticatedContext("dlvy1", { role: "delivery_partner" });
-    const db = delivery.firestore();
+  it("3. first customer for a letter initializes counter correctly to 1", async () => {
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { delivery_partner: 1001 })).rejects.toThrowError();
+
+    // Creating document with customer_A: 1
+    await expect(setDoc(ref, { customer_A: 1 })).resolves.not.toThrow();
+
+    // Adding customer_B: 1 to existing document via merge
+    await expect(
+      setDoc(ref, { customer_B: 1 }, { merge: true }),
+    ).resolves.not.toThrow();
   });
 
-  it("kitchen read/write denied", async () => {
-    const kitchen = testEnv.authenticatedContext("ktch1", { role: "kitchen" });
-    const db = kitchen.firestore();
+  it("4. customer cannot initialize a counter with a value other than 1", async () => {
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { kitchen: 1001 })).rejects.toThrowError();
+
+    await expect(setDoc(ref, { customer_A: 2 })).rejects.toThrow();
+    await expect(setDoc(ref, { customer_A: 0 })).rejects.toThrow();
+    await expect(setDoc(ref, { customer_A: -1 })).rejects.toThrow();
   });
 
-  it("staff read/write denied", async () => {
-    const staff = testEnv.authenticatedContext("acct1", { role: "accounts" });
-    const db = staff.firestore();
+  it("5. existing counter increments by exactly 1", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { accounts: 1001 })).rejects.toThrowError();
+
+    await expect(
+      updateDoc(ref, { customer_A: 6 }),
+    ).resolves.not.toThrow();
   });
 
-  it("admin direct client access denied", async () => {
-    const admin = testEnv.authenticatedContext("admin1", { role: "admin" });
+  it("6. customer cannot increment by 2", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(updateDoc(ref, { customer_A: 7 })).rejects.toThrow();
+  });
+
+  it("7. customer cannot decrement a counter", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(updateDoc(ref, { customer_A: 4 })).rejects.toThrow();
+  });
+
+  it("8. customer cannot modify a staff counter", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+        kitchen: 1001,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(updateDoc(ref, { kitchen: 1002 })).rejects.toThrow();
+    await expect(setDoc(ref, { delivery_partner: 1001 }, { merge: true })).rejects.toThrow();
+  });
+
+  it("9. customer cannot modify multiple counters in one update", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+        customer_B: 2,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(
+      updateDoc(ref, { customer_A: 6, customer_B: 3 }),
+    ).rejects.toThrow();
+  });
+
+  it("10. customer cannot add arbitrary fields", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(
+      updateDoc(ref, { arbitraryField: 123 }),
+    ).rejects.toThrow();
+    await expect(
+      setDoc(ref, { customer_A: 6, role: "admin" }, { merge: true }),
+    ).rejects.toThrow();
+  });
+
+  it("11. customer cannot delete the counter document", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        customer_A: 5,
+      });
+    });
+
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
+    const db = customer.firestore();
+    const ref = doc(db, "settings/userCounters");
+
+    await expect(deleteDoc(ref)).rejects.toThrow();
+  });
+
+  it("12. admin can manage and update staff counters", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users/admin1"), {
+        role: "admin",
+        isActive: true,
+      });
+      await setDoc(doc(context.firestore(), "settings/userCounters"), {
+        kitchen: 1001,
+      });
+    });
+
+    const admin = testEnv.authenticatedContext("admin1", {
+      role: "admin",
+    });
     const db = admin.firestore();
     const ref = doc(db, "settings/userCounters");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { admin: 1001 })).rejects.toThrowError();
-    await expect(updateDoc(ref, { admin: 1002 })).rejects.toThrowError();
-    await expect(deleteDoc(ref)).rejects.toThrowError();
+
+    await expect(
+      updateDoc(ref, { kitchen: 1002, delivery_partner: 1001 }),
+    ).resolves.not.toThrow();
   });
 
-  it("idempotency direct client access denied", async () => {
-    const customer = testEnv.authenticatedContext("cust1", { role: "customer" });
+  it("13. idempotency collection remains denied to all client contexts", async () => {
+    const customer = testEnv.authenticatedContext("cust1", {
+      role: "customer",
+    });
     const db = customer.firestore();
     const ref = doc(db, "idempotency/displayIds/allocations/cust1");
-    await expect(getDoc(ref)).rejects.toThrowError();
-    await expect(setDoc(ref, { displayId: "123" })).rejects.toThrowError();
+
+    await expect(getDoc(ref)).rejects.toThrow();
+    await expect(setDoc(ref, { displayId: "MP-A001" })).rejects.toThrow();
   });
 });

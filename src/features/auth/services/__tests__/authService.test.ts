@@ -73,9 +73,11 @@ vi.mock("@/shared/services/firestore/userRepository", () => ({
     getById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    generateNextDisplayId: vi.fn(),
   },
 }));
 
+import { userRepository } from "@/shared/services/firestore/userRepository";
 import {
   mapAuthError,
   signIn,
@@ -105,8 +107,7 @@ describe("authService - signUpCustomer Failure Injections", () => {
 
     mockGetDoc.mockResolvedValue({ exists: () => false }); // Phone does not exist by default
 
-    const httpsMockFn = vi.fn().mockResolvedValue({ data: { displayId: "C-1234" } });
-    mockHttpsCallable.mockReturnValue(httpsMockFn);
+    vi.mocked(userRepository.generateNextDisplayId).mockResolvedValue("MP-T001");
 
     mockBatch = {
       set: vi.fn(),
@@ -129,9 +130,10 @@ describe("authService - signUpCustomer Failure Injections", () => {
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
   });
 
-  it("cleans up and deletes Auth user if httpsCallable throws an error", async () => {
-    const httpsMockFn = vi.fn().mockRejectedValue(new Error("ID generation failed"));
-    mockHttpsCallable.mockReturnValue(httpsMockFn);
+  it("cleans up and deletes Auth user if generateNextDisplayId throws an error", async () => {
+    vi.mocked(userRepository.generateNextDisplayId).mockRejectedValueOnce(
+      new Error("ID generation failed"),
+    );
 
     await expect(
       signUpCustomer("test@test.com", "password", "Test User", "+1234567890"),

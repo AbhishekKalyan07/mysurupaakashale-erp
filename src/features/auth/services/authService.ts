@@ -16,8 +16,7 @@ import { queryClient } from "@/shared/lib/queryClient";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import type { UserProfile } from "@/shared/types";
 import { doc, updateDoc, arrayRemove } from "firebase/firestore";
-import { db, auth, functions } from "@/shared/lib/firebase";
-import { httpsCallable } from "firebase/functions";
+import { db, auth } from "@/shared/lib/firebase";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "auth/invalid-email": "That email address doesn't look right.",
@@ -85,12 +84,10 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
   const profile = await userRepository.getById(user.uid);
 
   if (!profile) {
-    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
-    const { data } = await generateUserDisplayId({
-      targetUserUid: user.uid,
-      requestedRole: "customer",
-    });
-    const displayId = data.displayId;
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      user.displayName || "Google User",
+    );
 
     await userRepository.create(
       {
@@ -160,12 +157,10 @@ export async function signUpCustomer(
     // Set display name so backend ID generation can use it securely
     await updateProfile(credential.user, { displayName: fullName });
 
-    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
-    const { data } = await generateUserDisplayId({
-      targetUserUid: credential.user.uid,
-      requestedRole: "customer",
-    });
-    const displayId = data.displayId;
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      fullName,
+    );
 
     const userDocRef = doc(db, "users", credential.user.uid);
 
@@ -289,12 +284,10 @@ export async function signUpWithGoogle(
     const emailCred = EmailAuthProvider.credential(user.email, password);
     await linkWithCredential(user, emailCred);
 
-    const generateUserDisplayId = httpsCallable<{ targetUserUid: string; requestedRole: string }, { displayId: string }>(functions, "generateUserDisplayId");
-    const { data } = await generateUserDisplayId({
-      targetUserUid: user.uid,
-      requestedRole: "customer",
-    });
-    const displayId = data.displayId;
+    const displayId = await userRepository.generateNextDisplayId(
+      "customer",
+      user.displayName || "Google User",
+    );
 
     const userDocRef = doc(db, "users", user.uid);
 
