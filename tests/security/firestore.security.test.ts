@@ -1213,11 +1213,17 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     });
 
     it('ALLOW: Admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' });
+      });
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertSucceeds(updateDoc(doc(db, 'inventory', 'admin-item'), { kitchenId: 'kitchen-3' }));
     });
 
     it('ALLOW: Admin delete', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' });
+      });
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertSucceeds(deleteDoc(doc(db, 'inventory', 'admin-item')));
     });
@@ -1260,26 +1266,41 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     });
 
     it('ALLOW: Admin read', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertSucceeds(getDoc(doc(db, 'failureQueue', 'fq-admin')));
     });
 
     it('DENY: Non-admin read', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(getDoc(doc(db, 'failureQueue', 'fq-admin')));
     });
 
     it('ALLOW: Admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertSucceeds(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
     });
 
     it('DENY: Non-admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
     });
 
     it('DENY: Nobody can delete, including admin', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
       const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
       await assertFails(deleteDoc(doc(adminDb, 'failureQueue', 'fq-admin')));
 
