@@ -232,10 +232,21 @@ function PaymentDetailDialog({
                     <button
                       type="button"
                       onClick={() => {
-                        const win = window.open();
-                        win?.document.write(
-                          `<iframe src="${payment.screenshotUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`,
-                        );
+                        const win = window.open("", "_blank");
+                        if (win) {
+                          win.document.title = "Payment Proof Preview";
+                          const img = win.document.createElement("img");
+                          img.src = payment.screenshotUrl!;
+                          img.style.maxWidth = "100%";
+                          img.style.maxHeight = "100vh";
+                          img.style.objectFit = "contain";
+                          win.document.body.style.margin = "0";
+                          win.document.body.style.display = "flex";
+                          win.document.body.style.justifyContent = "center";
+                          win.document.body.style.alignItems = "center";
+                          win.document.body.style.backgroundColor = "#111";
+                          win.document.body.appendChild(img);
+                        }
                       }}
                       className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors cursor-pointer"
                     >
