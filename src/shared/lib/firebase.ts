@@ -20,7 +20,6 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import {
-  getStorage,
   connectStorageEmulator,
   type FirebaseStorage,
 } from "firebase/storage";
@@ -269,7 +268,9 @@ if (useEmulators) {
   setLogLevel("debug");
 }
 
-export const storage: FirebaseStorage = getStorage(firebaseApp);
+// On the Firebase Spark plan, Firebase Cloud Storage is disabled.
+// Null stub exported to prevent runtime initialization crashes while preserving type contracts.
+export const storage: FirebaseStorage = null as unknown as FirebaseStorage;
 export const functions: Functions = getFunctions(firebaseApp, "asia-south1");
 
 let messagingInstance: any = null;
@@ -366,7 +367,9 @@ if (useEmulators) {
   // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
-  connectStorageEmulator(storage, "127.0.0.1", 9199);
+  if (storage) {
+    connectStorageEmulator(storage, "127.0.0.1", 9199);
+  }
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   console.info("[firebase] Connected to local Emulator Suite.");
 }

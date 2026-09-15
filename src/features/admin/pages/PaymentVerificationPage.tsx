@@ -39,6 +39,9 @@ import { format } from "date-fns";
 
 function isSafeScreenshotUrl(url: string | null | undefined): boolean {
   if (!url) return false;
+  if (url.startsWith("data:image/")) {
+    return /^data:image\/(jpeg|png|webp|gif|jpg);base64,[A-Za-z0-9+/=]+$/.test(url);
+  }
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") return false;
@@ -225,14 +228,29 @@ function PaymentDetailDialog({
                   <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted flex items-center gap-1.5">
                     <ImageIcon size={14} /> Proof of Payment
                   </span>
-                  <a
-                    href={payment.screenshotUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
-                  >
-                    Open Original <ExternalLink size={12} />
-                  </a>
+                  {payment.screenshotUrl.startsWith("data:") ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const win = window.open();
+                        win?.document.write(
+                          `<iframe src="${payment.screenshotUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`,
+                        );
+                      }}
+                      className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors cursor-pointer"
+                    >
+                      View Full Size <ExternalLink size={12} />
+                    </button>
+                  ) : (
+                    <a
+                      href={payment.screenshotUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
+                    >
+                      Open Original <ExternalLink size={12} />
+                    </a>
+                  )}
                 </div>
                 <div className="bg-background-alt p-2 flex justify-center">
                   <img

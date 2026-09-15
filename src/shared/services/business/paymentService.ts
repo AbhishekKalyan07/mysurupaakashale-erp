@@ -1,5 +1,4 @@
 import { Timestamp } from "firebase/firestore";
-import { getStorage, ref, deleteObject } from "firebase/storage";
 import {
   runTransaction,
   doc,
@@ -325,21 +324,6 @@ class PaymentService {
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
     });
-
-    // Delete screenshot from storage if it exists
-    if (capturedPayment.screenshotUrl) {
-      try {
-        const storage = getStorage();
-        // Since we store the full download URL, we can pass it directly to ref()
-        const screenshotRef = ref(storage, capturedPayment.screenshotUrl);
-        await deleteObject(screenshotRef);
-      } catch (err) {
-        console.error(
-          "[PaymentService] Failed to delete rejected screenshot:",
-          err,
-        );
-      }
-    }
 
     return capturedPayment;
   }

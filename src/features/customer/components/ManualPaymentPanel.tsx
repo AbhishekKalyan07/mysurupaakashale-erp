@@ -76,30 +76,30 @@ export function ManualPaymentPanel({
       label: string;
       icon: React.ReactNode;
       placeholder: string;
-      needsScreenshot: boolean;
+      allowScreenshot: boolean;
     }
   > = {
     upi: {
       label: "UPI",
       icon: <Smartphone size={16} />,
-      placeholder: "UPI Transaction ID (e.g. 3109876543210)",
-      needsScreenshot: true,
+      placeholder: "UPI Reference / 12-digit UTR number",
+      allowScreenshot: true,
     },
     cash: {
       label: "Cash",
       icon: <Banknote size={16} />,
       placeholder: "Cash receipt number (optional)",
-      needsScreenshot: false,
+      allowScreenshot: false,
     },
     bank_transfer: {
       label: "Bank Transfer",
       icon: <Building2 size={16} />,
-      placeholder: "UTR / Reference number",
-      needsScreenshot: false,
+      placeholder: "Bank UTR / Transaction Reference number",
+      allowScreenshot: true,
     },
   };
 
-  const needsScreenshot = methodConfig[form.paymentMethod].needsScreenshot;
+  const allowScreenshot = methodConfig[form.paymentMethod].allowScreenshot;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -120,12 +120,8 @@ export function ManualPaymentPanel({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (needsScreenshot && !screenshotFile) {
-      toast.error("Please upload a screenshot of your payment.");
-      return;
-    }
     if (form.paymentMethod !== "cash" && !form.referenceNumber.trim()) {
-      toast.error("Please enter the transaction reference number.");
+      toast.error("Please enter the transaction reference / UTR number.");
       return;
     }
 
@@ -256,10 +252,11 @@ export function ManualPaymentPanel({
         )}
 
         {/* Screenshot upload */}
-        {needsScreenshot && (
+        {allowScreenshot && (
           <div>
-            <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans uppercase tracking-wider">
-              Payment Screenshot <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-ink-700 mb-2 font-sans uppercase tracking-wider flex items-center justify-between">
+              <span>Payment Screenshot</span>
+              <span className="text-ink-500 text-[10px] font-normal normal-case">Optional proof</span>
             </label>
             {screenshotPreview ? (
               <div className="relative rounded-xl overflow-hidden border-2 border-emerald-400 bg-emerald-50">
