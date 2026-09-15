@@ -30,6 +30,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
 import type { Holiday, HolidayCreateResult } from "@/shared/types";
@@ -148,6 +149,53 @@ class HolidayRepository {
       cancelledBy,
       updatedAt: serverTimestamp(),
     });
+  }
+
+  /**
+   * Cancels all eligible orders for a given date.
+   * Runs as a client-side chunked batch operation.
+   * Must be called by an Admin user.
+   */
+  async cancelHolidayOrders(date: string): Promise<void> {
+    const results = await Promise.all(
+      HOLIDAY_CANCELLABLE_STATUSES.map((status) =>
+        orderRepository.list(
+          where("date", "==", date),
+          where("status", "==", status),
+        ),
+      ),
+    );
+
+    const seen = new Set<string>();
+    const eligibleOrders = [];
+
+    for (const batch of results) {
+      for (const order of batch) {
+        if (!seen.has(order.id!)) {
+          seen.add(order.id!);
+          eligibleOrders.push(order);
+        }
+      }
+    }
+
+    if (eligibleOrders.length === 0) return;
+
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < eligibleOrders.length; i += BATCH_SIZE) {
+      const chunk = eligibleOrders.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+
+      for (const order of chunk) {
+        const ref = doc(db, "orders", order.id!);
+        batch.update(ref, {
+          status: "cancelled",
+          cancellationReason: "holiday",
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+    }
   }
 
   /**
