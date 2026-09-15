@@ -21,20 +21,13 @@ export function useExportAuditLogs() {
   return useMutation({
     mutationFn: async (filters: AuditLogFilter) => {
       // Phase 7: Client-side CSV generation instead of Cloud Function
-      let allLogs: AuditLog[] = [];
-      let pageParam: QueryDocumentSnapshot<AuditLog> | undefined = undefined;
 
-      // Fetch all logs iteratively (up to a reasonable limit for client side)
-      for (let i = 0; i < 50; i++) {
-        const { logs, lastDoc } = await auditRepository.getAuditLogs(
-          filters,
-          100,
-          pageParam,
-        );
-        allLogs = allLogs.concat(logs);
-        if (!lastDoc || logs.length < 100) break;
-        pageParam = lastDoc;
-      }
+      // Fetch up to 5000 logs in a single query rather than paginating sequentially
+      // This massively reduces network round-trips for the export function.
+      const { logs: allLogs } = await auditRepository.getAuditLogs(
+        filters,
+        5000,
+      );
 
       if (allLogs.length === 0) return "No data";
 
