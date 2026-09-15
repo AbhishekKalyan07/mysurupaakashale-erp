@@ -37,7 +37,22 @@ async function runMonthlyTasks() {
       `Monthly Excel report saved to ${reportPath} (${(reportStats.size / 1024).toFixed(2)} KB)`
     );
 
-    console.log('3. Cleaning up old logs (older than 90 days)...');
+    console.log('3. Exporting 90-Day Payment Receipts (ZIP)...');
+    const zipResult = await automationService.exportPaymentScreenshotsZip({ days: 90 });
+    if (zipResult.buffer) {
+      const zipPath = path.join(reportsDir, zipResult.filename);
+      fs.writeFileSync(zipPath, zipResult.buffer);
+      const zipStats = fs.statSync(zipPath);
+      console.log(
+        `Payment receipts archive saved to ${zipPath} (${(zipStats.size / 1024).toFixed(2)} KB, ${zipResult.count} receipts)`
+      );
+    }
+
+    console.log('4. Pruning verified/rejected payment screenshots older than 90 days...');
+    const pruneResult = await automationService.pruneOldPaymentScreenshots(90);
+    console.log(`Pruned ${pruneResult.prunedCount} old screenshots from Firestore.`);
+
+    console.log('5. Cleaning up old logs (older than 90 days)...');
     await automationService.cleanupOldLogs(90);
 
     console.log('--- Monthly Automation Tasks Completed Successfully ---');

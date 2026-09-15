@@ -6,6 +6,7 @@ import {
   getDocs,
   collection,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
 import { sanitizeSpreadsheetValue } from "@/shared/utils/spreadsheet";
@@ -20,8 +21,8 @@ import {
   notifySubscriptionExpired,
   notifySubscriptionRenewalReminder,
 } from "./notificationService";
-import type { DailySummary } from "@/shared/types";
-import { addDays } from "date-fns";
+import type { DailySummary, ManualPayment } from "@/shared/types";
+import { addDays, subDays, format } from "date-fns";
 import { getTodayInTimezone } from "@/shared/lib/date";
 
 export interface DatabaseBackupResult {
@@ -37,6 +38,35 @@ export interface MonthlyExcelResult {
   timestamp: string;
   filename: string;
   buffer: ArrayBuffer;
+}
+
+export interface ScreenshotExportFilter {
+  startDate?: string;
+  endDate?: string;
+  specificDate?: string;
+  days?: number;
+}
+
+export interface ScreenshotExportFile {
+  filename: string;
+  buffer: Uint8Array | Buffer;
+  paymentId: string;
+  customerId: string;
+  date: string;
+  customerName: string;
+  displayId: string;
+}
+
+export interface ScreenshotExportResult {
+  files: ScreenshotExportFile[];
+  total: number;
+}
+
+export interface ScreenshotZipResult {
+  filename: string;
+  blob?: Blob;
+  buffer?: Buffer;
+  count: number;
 }
 
 export class AutomationService {
@@ -624,6 +654,240 @@ export class AutomationService {
     console.log(
       `Log cleanup complete. Deleted ${deletedRuns} runs, ${deletedAnalytics} analytics, ${deletedAudit} audit logs.`,
     );
+  }
+
+  /**
+   * Generates a collision-free filename for a payment screenshot:
+   * Format: {CustomerID}_{CustomerName}_{Date}.jpg
+   * Example: CUST-042_RameshKumar_2026-09-12.jpg
+   */
+  buildScreenshotFileName(
+    payment: ManualPayment,
+    userMap?: Map<string, any>,
+    usedNames?: Set<string>,
+  ): string {
+    const user = userMap?.get(payment.customerId);
+    const displayId =
+      user?.displayId ||
+      (user?.id ? `CUST-${user.id.slice(0, 6).toUpperCase()}` : (payment.customerId || "CUST-UNKNOWN"));
+
+    // Clean name: alphanumeric + underscores only
+    const rawName =
+      payment.customerName ||
+      user?.name ||
+      `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+      "Customer";
+    const cleanName = rawName.replace(/[^a-zA-Z0-9_-]/g, "") || "Customer";
+
+    // Date
+    let dateStr = payment.paymentDate;
+    if (!dateStr && payment.createdAt) {
+      try {
+        const d =
+          typeof payment.createdAt.toDate === "function"
+            ? payment.createdAt.toDate()
+            : new Date(payment.createdAt as any);
+        dateStr = format(d, "yyyy-MM-dd");
+      } catch {
+        dateStr = getTodayInTimezone();
+      }
+    }
+    if (!dateStr) dateStr = getTodayInTimezone();
+
+    const baseName = `${displayId}_${cleanName}_${dateStr}`;
+    let filename = `${baseName}.jpg`;
+
+    if (usedNames) {
+      let counter = 2;
+      while (usedNames.has(filename)) {
+        filename = `${baseName}_${counter}.jpg`;
+        counter++;
+      }
+      usedNames.add(filename);
+    }
+
+    return filename;
+  }
+
+  /**
+   * Export payment screenshots based on filter options.
+   * Resolves customer names and IDs, decodes base64 to binary buffers.
+   */
+  async exportPaymentScreenshots(
+    filter: ScreenshotExportFilter = { days: 90 },
+  ): Promise<ScreenshotExportResult> {
+    console.log("[automationService] Exporting payment screenshots with filter:", filter);
+    const { paymentRepository } = await import("./paymentRepository");
+    let allPayments: ManualPayment[] = [];
+
+    if (filter.specificDate) {
+      allPayments = await paymentRepository.list(
+        where("paymentDate", "==", filter.specificDate),
+      );
+    } else if (filter.startDate && filter.endDate) {
+      allPayments = await paymentRepository.list(
+        where("paymentDate", ">=", filter.startDate),
+        where("paymentDate", "<=", filter.endDate),
+      );
+    } else {
+      const days = filter.days ?? 90;
+      const cutoffDate = subDays(new Date(), days);
+      const cutoffTimestamp = Timestamp.fromDate(cutoffDate);
+      allPayments = await paymentRepository.list(
+        where("createdAt", ">=", cutoffTimestamp),
+      );
+    }
+
+    // Filter payments that have an inline screenshot data URI
+    const paymentsWithScreenshots = allPayments.filter(
+      (p) =>
+        p.screenshotUrl &&
+        typeof p.screenshotUrl === "string" &&
+        p.screenshotUrl.startsWith("data:image/"),
+    );
+
+    // Pre-fetch unique customers to resolve names & display IDs
+    const uniqueCustomerIds = [
+      ...new Set(paymentsWithScreenshots.map((p) => p.customerId).filter(Boolean)),
+    ];
+    const userMap = new Map<string, any>();
+    await Promise.all(
+      uniqueCustomerIds.map(async (cid) => {
+        try {
+          const u = await userRepository.getById(cid);
+          if (u) userMap.set(cid, u);
+        } catch (err) {
+          console.warn(`[automationService] Failed to fetch customer ${cid}:`, err);
+        }
+      }),
+    );
+
+    const usedNames = new Set<string>();
+    const files: ScreenshotExportFile[] = [];
+
+    for (const p of paymentsWithScreenshots) {
+      try {
+        const matches = p.screenshotUrl!.match(/^data:image\/[a-zA-Z]+;base64,(.+)$/);
+        const base64Data = matches ? matches[1] : p.screenshotUrl!.split(",")[1];
+        if (!base64Data) continue;
+
+        let buffer: Uint8Array | Buffer;
+        if (typeof Buffer !== "undefined") {
+          buffer = Buffer.from(base64Data, "base64");
+        } else {
+          const binaryStr = atob(base64Data);
+          const len = binaryStr.length;
+          const bytes = new Uint8Array(len);
+          for (let j = 0; j < len; j++) {
+            bytes[j] = binaryStr.charCodeAt(j);
+          }
+          buffer = bytes;
+        }
+
+        const user = userMap.get(p.customerId);
+        const filename = this.buildScreenshotFileName(p, userMap, usedNames);
+
+        files.push({
+          filename,
+          buffer,
+          paymentId: p.id,
+          customerId: p.customerId,
+          date: p.paymentDate || "",
+          customerName: p.customerName || user?.name || "Customer",
+          displayId: user?.displayId || p.customerId,
+        });
+      } catch (err) {
+        console.error(`[automationService] Failed to decode screenshot for payment ${p.id}:`, err);
+      }
+    }
+
+    console.log(`[automationService] Extracted ${files.length} screenshot files.`);
+    return { files, total: files.length };
+  }
+
+  /**
+   * Bundles exported payment screenshots into a ZIP archive.
+   * Returns a downloadable Blob in the browser or Buffer in Node.
+   */
+  async exportPaymentScreenshotsZip(
+    filter: ScreenshotExportFilter = { days: 90 },
+  ): Promise<ScreenshotZipResult> {
+    const { files } = await this.exportPaymentScreenshots(filter);
+    const JSZipModule = await import("jszip");
+    const JSZip = (JSZipModule as any).default || JSZipModule;
+    const zip = new JSZip();
+
+    for (const f of files) {
+      zip.file(f.filename, f.buffer);
+    }
+
+    let nameSuffix = "export";
+    if (filter.specificDate) {
+      nameSuffix = filter.specificDate;
+    } else if (filter.startDate && filter.endDate) {
+      nameSuffix = `${filter.startDate}_to_${filter.endDate}`;
+    } else if (filter.days) {
+      nameSuffix = `last_${filter.days}_days`;
+    }
+    const filename = `mysuru_receipts_${nameSuffix}.zip`;
+
+    if (typeof window !== "undefined") {
+      const blob = await zip.generateAsync({ type: "blob" });
+      return { filename, blob, count: files.length };
+    } else {
+      const buffer = await zip.generateAsync({ type: "nodebuffer" });
+      return { filename, buffer, count: files.length };
+    }
+  }
+
+  /**
+   * Prunes screenshotUrl from payments older than retentionDays (default: 90 days)
+   * ONLY if status is 'verified' or 'rejected'.
+   * Never prunes unverified ('pending') payments!
+   */
+  async pruneOldPaymentScreenshots(
+    retentionDays: number = 90,
+  ): Promise<{ prunedCount: number }> {
+    console.log(`[automationService] Pruning payment screenshots older than ${retentionDays} days...`);
+    const cutoffDate = subDays(new Date(), retentionDays);
+    const fbCutoffTimestamp = Timestamp.fromDate(cutoffDate);
+
+    const { paymentRepository } = await import("./paymentRepository");
+    const oldPayments = await paymentRepository.list(
+      where("createdAt", "<", fbCutoffTimestamp),
+    );
+
+    // Only prune if status is verified or rejected AND screenshotUrl is present
+    const eligibleToPrune = oldPayments.filter(
+      (p) =>
+        (p.status === "verified" || p.status === "rejected") &&
+        Boolean(p.screenshotUrl),
+    );
+
+    console.log(
+      `[automationService] Found ${eligibleToPrune.length} verified/rejected payments eligible for screenshot pruning.`,
+    );
+
+    let prunedCount = 0;
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < eligibleToPrune.length; i += BATCH_SIZE) {
+      const chunk = eligibleToPrune.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+
+      for (const p of chunk) {
+        const ref = doc(db, "payments", p.id);
+        batch.update(ref, {
+          screenshotUrl: null,
+          screenshotPrunedAt: serverTimestamp(),
+        });
+        prunedCount++;
+      }
+
+      await batch.commit();
+    }
+
+    console.log(`[automationService] Successfully pruned ${prunedCount} payment screenshots.`);
+    return { prunedCount };
   }
 }
 
