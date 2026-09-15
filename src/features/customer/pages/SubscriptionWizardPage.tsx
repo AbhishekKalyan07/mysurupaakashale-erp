@@ -243,6 +243,30 @@ export function SubscriptionWizardPage() {
     }
   };
 
+  // Validate and proceed to Step 3
+  const handleProceedToReview = async () => {
+    if (!selectedAddressId) return;
+    const currentAddress = addresses.find((a) => a.id === selectedAddressId);
+    if (!currentAddress) return;
+
+    try {
+      const { deliveryZoneRepository } = await import(
+        "@/shared/services/firestore/deliveryZoneRepository"
+      );
+      const { resolveOperationalZoneAndKitchen } = await import(
+        "@/shared/services/business/operationalRouter"
+      );
+      const allZones = await deliveryZoneRepository.list();
+      resolveOperationalZoneAndKitchen(currentAddress, allZones);
+      setStep(3);
+    } catch (err: any) {
+      toast.error(
+        err?.message ||
+          `Delivery is not currently available for pincode ${currentAddress.pincode}. Please select or add an address in our delivery zones.`,
+      );
+    }
+  };
+
   // Submit Draft
   const handleConfirmSubscription = async () => {
     if (!plan || !selectedAddressId) return;
@@ -271,6 +295,28 @@ export function SubscriptionWizardPage() {
     }
 
     try {
+      // Validate delivery zone serviceability for selected address
+      const currentAddress = addresses.find((a) => a.id === selectedAddressId);
+      if (currentAddress) {
+        const { deliveryZoneRepository } = await import(
+          "@/shared/services/firestore/deliveryZoneRepository"
+        );
+        const { resolveOperationalZoneAndKitchen } = await import(
+          "@/shared/services/business/operationalRouter"
+        );
+        const allZones = await deliveryZoneRepository.list();
+        try {
+          resolveOperationalZoneAndKitchen(currentAddress, allZones);
+        } catch (routingErr: any) {
+          setSubmissionError(
+            routingErr?.message ||
+              `Delivery is not currently available for pincode ${currentAddress.pincode}. Please select a serviceable address.`,
+          );
+          setSubmittingDraft(false);
+          return;
+        }
+      }
+
       // Phase 3: Create subscription via Business Service
       const subscriptionId = await subscriptionService.createSubscription(
         firebaseUser!.uid,
@@ -722,7 +768,7 @@ export function SubscriptionWizardPage() {
               <ArrowLeft size={16} /> Back to Preferences
             </Button>
             <Button
-              onClick={() => setStep(3)}
+              onClick={handleProceedToReview}
               disabled={!selectedAddressId || showAddressForm}
               className="flex items-center gap-2 font-sans font-semibold"
             >

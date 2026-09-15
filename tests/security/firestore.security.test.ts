@@ -107,6 +107,10 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
           customerId: CUSTOMER_B_UID, status: 'active',
           pricePerDaySnapshot: 150, creditBalance: 0,
         }),
+        setDoc(doc(db, 'subscriptions', 'sub-pending'), {
+          customerId: CUSTOMER_A_UID, status: 'pending_payment',
+          depositAmount: 1000, updatedAt: new Date(),
+        }),
 
         // Payments
         setDoc(doc(db, 'payments', 'pay-a'), {
@@ -769,7 +773,7 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       planId: 'basic-plan',
       planTier: 'basic',
       mealType: 'lunch',
-      date: '2025-05-05',
+      date: '2099-05-05',
       itemsLabel: 'Trial',
       selectedOptionId: null,
       price: 150,
@@ -860,13 +864,44 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
-    it('ALLOW: Legitimate existing one-time/trial flow succeeds', async () => {
+    it('DENY: Customer cannot create a one-time order for yesterday (cutoff passed)', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await assertFails(setDoc(doc(db, 'orders', 'trial-yesterday'), {
+        ...validOneTimeOrder,
+        date: yesterdayStr
+      }));
+    });
+
+    it('DENY: Customer cannot create a one-time breakfast order after the breakfast cutoff', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      // Using today's date because the breakfast cutoff for today (5:00 AM) has already passed,
+      // but it's not a "past" date in the same way yesterday is.
+      const todayStr = new Date().toISOString().split('T')[0];
+      await assertFails(setDoc(doc(db, 'orders', 'trial-today-bfast'), {
+        ...validOneTimeOrder,
+        date: todayStr,
+        mealType: 'breakfast'
+      }));
+    });
+
+    it('ALLOW: Admin can create a one-time order for yesterday (bypasses cutoff restrictions)', async () => {
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await assertSucceeds(setDoc(doc(adminDb, 'orders', 'trial-admin-bypass'), {
+        ...validOneTimeOrder,
+        date: yesterdayStr
+      }));
+    });
+
+    it('ALLOW: Legitimate existing one-time/trial flow succeeds (future date before cutoff)', async () => {
       // Seed the meal plan so the price validation passes
       const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
       await setDoc(doc(adminDb, 'mealPlans', 'basic-plan'), { pricePerDay: 150, pricingMatrix: { lunch: 150 } });
       await setDoc(doc(adminDb, 'deliveryZones', 'zone-test'), { kitchenId: 'kitchen-test' });
 
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      // validOneTimeOrder uses 2099-05-05 and 'lunch', which is a future lunch before its cutoff
       await assertSucceeds(setDoc(doc(db, 'orders', 'trial-valid'), validOneTimeOrder));
     });
   });
@@ -903,6 +938,46 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('ALLOW: Payment with valid createdAt is allowed if legitimate', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertSucceeds(setDoc(doc(db, 'payments', 'pay-valid-1'), validPayment));
+    });
+
+    it('DENY: Customer cannot create security deposit payment with amount below depositAmount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-underpay'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 500, // depositAmount is 1000
+        purpose: 'security_deposit'
+      }));
+    });
+
+    it('ALLOW: Customer can create security deposit payment matching depositAmount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-match'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 1000, // depositAmount is 1000
+        purpose: 'security_deposit'
+      }));
+    });
+
+    it('DENY: Customer cannot bypass by omitting purpose on pending subscription', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'payments', 'pay-no-purpose'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 1000,
+        purpose: 'usage' // MUST be security_deposit
+      }));
+    });
+
+    it('ALLOW: Customer can create usage payment for active subscription regardless of amount', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-usage'), {
+        ...validPayment,
+        subscriptionId: 'sub-a', // active subscription
+        amount: 150,
+        purpose: 'usage'
+      }));
     });
 
     it('DENY: Customer cannot create payment for another customer subscription', async () => {
@@ -1028,6 +1103,209 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       });
       const db = env.authenticatedContext(ADMIN_UID).firestore();
       await assertFails(updateDoc(doc(db, 'payroll', 'pr-paid'), { status: 'draft' }));
+    });
+  });
+
+  describe('Inventory (Finding #4 Remediation)', () => {
+    it('DENY: Unauthenticated read', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Unauthenticated create/update/delete', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Customer read', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Customer create/update/delete', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Delivery partner read', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('DENY: Delivery partner create/update/delete', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'item1'), { kitchenId: 'kitchen-1' }));
+      await assertFails(updateDoc(doc(db, 'inventory', 'item1'), { name: 'Milk' }));
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item1')));
+    });
+
+    it('ALLOW: Kitchen staff can read inventory belonging to their own kitchen', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'inventory', 'item-k1')));
+    });
+
+    it('DENY: Kitchen staff reading another kitchen\'s inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-k2'), { kitchenId: 'kitchen-2', name: 'Pepper' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(getDoc(doc(db, 'inventory', 'item-k2')));
+    });
+
+    it('ALLOW: Kitchen staff to create inventory for their own kitchen', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'inventory', 'new-item-k1'), { kitchenId: 'kitchen-1', name: 'Rice' }));
+    });
+
+    it('DENY: Kitchen staff creating inventory for another kitchen', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'inventory', 'new-item-k2'), { kitchenId: 'kitchen-2', name: 'Rice' }));
+    });
+
+    it('ALLOW: Kitchen staff updating their own kitchen\'s inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-update-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'inventory', 'item-update-k1'), { name: 'Sea Salt', kitchenId: 'kitchen-1' }));
+    });
+
+    it('DENY: Kitchen staff updating inventory belonging to another kitchen', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-update-k2'), { kitchenId: 'kitchen-2', name: 'Pepper' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'inventory', 'item-update-k2'), { name: 'Black Pepper', kitchenId: 'kitchen-2' }));
+    });
+
+    it('DENY: Kitchen staff changing an existing item\'s kitchenId', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-reassign-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      // Try to reassign to kitchen-2
+      await assertFails(updateDoc(doc(db, 'inventory', 'item-reassign-k1'), { kitchenId: 'kitchen-2' }));
+    });
+
+    it('DENY: Kitchen staff deleting inventory', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'item-delete-k1'), { kitchenId: 'kitchen-1', name: 'Salt' });
+      });
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(deleteDoc(doc(db, 'inventory', 'item-delete-k1')));
+    });
+
+    it('ALLOW: Admin read', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'inventory', 'item-k2')));
+    });
+
+    it('ALLOW: Admin create', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' }));
+    });
+
+    it('ALLOW: Admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'inventory', 'admin-item'), { kitchenId: 'kitchen-3' }));
+    });
+
+    it('ALLOW: Admin delete', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'inventory', 'admin-item'), { kitchenId: 'kitchen-2', name: 'Admin Salt' });
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(deleteDoc(doc(db, 'inventory', 'admin-item')));
+    });
+  });
+  describe('FailureQueue (Finding #3 Remediation)', () => {
+    const validFailureRecord = {
+      customerId: 'cust-1',
+      subscriptionId: 'sub-1',
+      mealType: 'lunch',
+      date: '2026-09-12',
+      reason: 'Generation failed',
+      attempts: 1,
+      retryCount: 0,
+      status: 'pending',
+    };
+
+    it('DENY: Unauthenticated create', async () => {
+      const db = env.unauthenticatedContext().firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq1'), validFailureRecord));
+    });
+
+    it('DENY: Customer create', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq2'), validFailureRecord));
+    });
+
+    it('DENY: Delivery partner create', async () => {
+      const db = env.authenticatedContext(DELIVERY_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq3'), validFailureRecord));
+    });
+
+    it('DENY: Kitchen staff create', async () => {
+      const db = env.authenticatedContext(KITCHEN_UID).firestore();
+      await assertFails(setDoc(doc(db, 'failureQueue', 'fq4'), validFailureRecord));
+    });
+
+    it('ALLOW: Admin create', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'failureQueue', 'fq-admin'), validFailureRecord));
+    });
+
+    it('ALLOW: Admin read', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, 'failureQueue', 'fq-admin')));
+    });
+
+    it('DENY: Non-admin read', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(getDoc(doc(db, 'failureQueue', 'fq-admin')));
+    });
+
+    it('ALLOW: Admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
+    });
+
+    it('DENY: Non-admin update', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'failureQueue', 'fq-admin'), { status: 'resolved' }));
+    });
+
+    it('DENY: Nobody can delete, including admin', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'failureQueue', 'fq-admin'), validFailureRecord);
+      });
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertFails(deleteDoc(doc(adminDb, 'failureQueue', 'fq-admin')));
+
+      const customerDb = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(deleteDoc(doc(customerDb, 'failureQueue', 'fq-admin')));
     });
   });
 });

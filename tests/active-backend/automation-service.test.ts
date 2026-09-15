@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => {
     mockSubscriptionRepository: { list: vi.fn(), update: vi.fn() },
     mockAnalyticsRepository: { create: vi.fn(), list: vi.fn(), delete: vi.fn() },
     mockOrderGenerationRunRepository: { list: vi.fn(), delete: vi.fn() },
-    mockUserRepository: { list: vi.fn() },
+    mockUserRepository: { list: vi.fn(), getById: vi.fn() },
     mockNotifySubscriptionExpired: vi.fn(),
     mockNotifySubscriptionRenewalReminder: vi.fn(),
     mockOrderService: { restoreOrdersForUnskipDay: vi.fn() },
@@ -49,15 +49,16 @@ vi.mock('firebase/firestore', async (importOriginal) => {
       };
     }),
     collection: vi.fn(),
-    doc: vi.fn(),
+    doc: vi.fn(() => ({ id: 'doc-id' })),
     query: vi.fn(),
     updateDoc: vi.fn(),
+    writeBatch: vi.fn(() => ({ update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) })),
     runTransaction: vi.fn(async (_, cb) => cb({
       get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ status: 'active' }) }),
       update: vi.fn()
     })),
     Timestamp: {
-      fromDate: vi.fn(() => 'MOCK_TIMESTAMP')
+      fromDate: vi.fn((d) => ({ toDate: () => d, seconds: Math.floor(d.getTime() / 1000) }))
     }
   };
 });
@@ -208,10 +209,15 @@ describe('active automation service', () => {
   });
 
   it('exports database backup', async () => {
-    await automationService.exportDatabaseBackup();
-    // Check if uploadBytes was called via dynamic import mock
-    const { uploadBytes } = await import('firebase/storage');
-    expect(uploadBytes).toHaveBeenCalled();
+    const result = await automationService.exportDatabaseBackup();
+    expect(result.timestamp).toBeDefined();
+    expect(result.filename).toMatch(/^firestore_backup_.*\.json$/);
+    expect(result.totalDocuments).toBeGreaterThanOrEqual(0);
+    expect(result.jsonString).toBeDefined();
+    expect(result.backupData).toBeDefined();
+    expect(result.collections).toHaveProperty('users');
+    expect(result.collections).toHaveProperty('orders');
+    expect(result.collections).toHaveProperty('payments');
   });
 
   it('generates monthly excel', async () => {
@@ -221,10 +227,10 @@ describe('active automation service', () => {
     mockPaymentRepository.list.mockResolvedValue([{ id: 'p1' }]);
     mockAnalyticsRepository.list.mockResolvedValue([{ id: 'a1', date: '2026-09-04' }]);
 
-    await automationService.generateMonthlyExcel();
-
-    const { uploadBytes } = await import('firebase/storage');
-    expect(uploadBytes).toHaveBeenCalled();
+    const result = await automationService.generateMonthlyExcel();
+    expect(result.timestamp).toBeDefined();
+    expect(result.filename).toMatch(/^monthly_export_.*\.xlsx$/);
+    expect(result.buffer).toBeDefined();
   });
 
   it('cleans up old logs', async () => {
@@ -236,5 +242,113 @@ describe('active automation service', () => {
 
     expect(mockOrderGenerationRunRepository.delete).toHaveBeenCalledWith('run1');
     expect(mockAnalyticsRepository.delete).toHaveBeenCalledWith('analytics1');
+  });
+
+  it('buildScreenshotFileName generates collision-free format: CUST-042_CustomerName_YYYY-MM-DD.jpg', () => {
+    const payment = {
+      id: 'pay-1',
+      customerId: 'user-1',
+      customerName: 'Ramesh Kumar',
+      paymentDate: '2026-09-12',
+    } as any;
+
+    const userMap = new Map([
+      ['user-1', { id: 'user-1', displayId: 'CUST-042', name: 'Ramesh Kumar' }],
+    ]);
+
+    const usedNames = new Set<string>();
+
+    const filename1 = automationService.buildScreenshotFileName(payment, userMap, usedNames);
+    expect(filename1).toBe('CUST-042_RameshKumar_2026-09-12.jpg');
+
+    // Second payment on same date for same user - collision prevention
+    const payment2 = {
+      id: 'pay-2',
+      customerId: 'user-1',
+      customerName: 'Ramesh Kumar',
+      paymentDate: '2026-09-12',
+    } as any;
+    const filename2 = automationService.buildScreenshotFileName(payment2, userMap, usedNames);
+    expect(filename2).toBe('CUST-042_RameshKumar_2026-09-12_2.jpg');
+  });
+
+  it('exportPaymentScreenshots extracts valid base64 screenshots and resolves customer metadata', async () => {
+    mockPaymentRepository.list.mockResolvedValueOnce([
+      {
+        id: 'p1',
+        customerId: 'c1',
+        customerName: 'Priya Sharma',
+        paymentDate: '2026-09-10',
+        screenshotUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP...',
+      },
+      {
+        id: 'p2',
+        customerId: 'c2',
+        customerName: 'Cash Payer',
+        paymentDate: '2026-09-10',
+        screenshotUrl: null, // No screenshot
+      },
+    ]);
+
+    mockUserRepository.getById.mockResolvedValueOnce({
+      id: 'c1',
+      displayId: 'CUST-015',
+      name: 'Priya Sharma',
+    });
+
+    const result = await automationService.exportPaymentScreenshots({ days: 30 });
+    expect(result.total).toBe(1);
+    expect(result.files[0].filename).toBe('CUST-015_PriyaSharma_2026-09-10.jpg');
+    expect(result.files[0].paymentId).toBe('p1');
+    expect(result.files[0].buffer).toBeDefined();
+  });
+
+  it('exportPaymentScreenshotsZip bundles screenshots into a zip', async () => {
+    mockPaymentRepository.list.mockResolvedValueOnce([
+      {
+        id: 'p1',
+        customerId: 'c1',
+        paymentDate: '2026-09-12',
+        screenshotUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+      },
+    ]);
+    mockUserRepository.getById.mockResolvedValueOnce({
+      id: 'c1',
+      displayId: 'CUST-001',
+      name: 'John Doe',
+    });
+
+    const result = await automationService.exportPaymentScreenshotsZip({ specificDate: '2026-09-12' });
+    expect(result.filename).toBe('mysuru_receipts_2026-09-12.zip');
+    expect(result.count).toBe(1);
+    expect(result.blob || result.buffer).toBeDefined();
+  });
+
+  it('pruneOldPaymentScreenshots only prunes verified or rejected payments and skips pending payments', async () => {
+    mockPaymentRepository.list.mockResolvedValueOnce([
+      {
+        id: 'p-verified-old',
+        status: 'verified',
+        screenshotUrl: 'data:image/jpeg;base64,...',
+      },
+      {
+        id: 'p-rejected-old',
+        status: 'rejected',
+        screenshotUrl: 'data:image/jpeg;base64,...',
+      },
+      {
+        id: 'p-pending-old',
+        status: 'pending',
+        screenshotUrl: 'data:image/jpeg;base64,...', // Must NOT be pruned!
+      },
+      {
+        id: 'p-already-pruned',
+        status: 'verified',
+        screenshotUrl: null, // Nothing to prune
+      },
+    ]);
+
+    const result = await automationService.pruneOldPaymentScreenshots(90);
+    expect(result.prunedCount).toBe(2);
   });
 });

@@ -1,5 +1,4 @@
 import { Timestamp } from "firebase/firestore";
-import { getStorage, ref, deleteObject } from "firebase/storage";
 import {
   runTransaction,
   doc,
@@ -117,6 +116,23 @@ class PaymentService {
       }
 
       const subRef = doc(db, "subscriptions", payment.subscriptionId);
+      const subSnap = await t.get(subRef);
+      if (!subSnap.exists()) {
+        throw new Error("Referenced subscription not found.");
+      }
+
+      const subscription = subSnap.data();
+      if (subscription.status !== "pending_payment") {
+        throw new Error("Subscription is not in a pending payment state.");
+      }
+
+      if (payment.purpose !== "security_deposit") {
+        throw new Error("Activation requires a security deposit payment.");
+      }
+
+      if (payment.amount !== subscription.depositAmount) {
+        throw new Error("Payment amount does not match required security deposit.");
+      }
 
       t.update(paymentRef, {
         status: "verified",
@@ -308,21 +324,6 @@ class PaymentService {
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
     });
-
-    // Delete screenshot from storage if it exists
-    if (capturedPayment.screenshotUrl) {
-      try {
-        const storage = getStorage();
-        // Since we store the full download URL, we can pass it directly to ref()
-        const screenshotRef = ref(storage, capturedPayment.screenshotUrl);
-        await deleteObject(screenshotRef);
-      } catch (err) {
-        console.error(
-          "[PaymentService] Failed to delete rejected screenshot:",
-          err,
-        );
-      }
-    }
 
     return capturedPayment;
   }

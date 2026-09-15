@@ -28,7 +28,14 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_APPCHECK_DEBUG_TOKEN: ${{ secrets.VITE_APPCHECK_DEBUG_TOKEN }}
-          VITE_AUTOMATION_EMAIL: ${{ secrets.VITE_AUTOMATION_EMAIL }}
-          VITE_AUTOMATION_PASSWORD: ${{ secrets.VITE_AUTOMATION_PASSWORD }}
+          APPCHECK_DEBUG_TOKEN: ${{ secrets.APPCHECK_DEBUG_TOKEN }}
+          AUTOMATION_EMAIL: ${{ secrets.AUTOMATION_EMAIL }}
+          AUTOMATION_PASSWORD: ${{ secrets.AUTOMATION_PASSWORD }}
         run: npx vite-node --config vite.config.ts scripts/automation/weekly.ts
+
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90

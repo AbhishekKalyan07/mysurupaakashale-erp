@@ -88,6 +88,7 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
       "customer",
       user.displayName || "Google User",
     );
+
     await userRepository.create(
       {
         displayId,
@@ -152,10 +153,15 @@ export async function signUpCustomer(
     const { db } = await import("@/shared/lib/firebase");
 
     const phoneDocRef = doc(db, "userPhones", phone);
+
+    // Set display name so backend ID generation can use it securely
+    await updateProfile(credential.user, { displayName: fullName });
+
     const displayId = await userRepository.generateNextDisplayId(
       "customer",
       fullName,
     );
+
     const userDocRef = doc(db, "users", credential.user.uid);
 
     const { writeBatch } = await import("firebase/firestore");
@@ -189,8 +195,6 @@ export async function signUpCustomer(
       }
       throw e;
     }
-
-    await updateProfile(credential.user, { displayName: fullName });
   } catch (error) {
     console.error("Failed to initialize customer profile:", error);
     try {
@@ -284,6 +288,7 @@ export async function signUpWithGoogle(
       "customer",
       user.displayName || "Google User",
     );
+
     const userDocRef = doc(db, "users", user.uid);
 
     const { writeBatch } = await import("firebase/firestore");

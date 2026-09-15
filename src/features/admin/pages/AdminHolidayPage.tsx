@@ -255,16 +255,21 @@ export function AdminHolidayPage() {
   const declareMutation = useMutation({
     mutationFn: async () => {
       const createdBy = auth.currentUser?.uid ?? "unknown";
-      return holidayRepository.createOrGetHoliday({
+      const result = await holidayRepository.createOrGetHoliday({
         date,
         name: name.trim(),
         description: description.trim() || undefined,
         createdBy,
       });
+
+      // Synchronously cancel eligible orders (replaces backend trigger)
+      await holidayRepository.cancelHolidayOrders(date);
+
+      return result;
     },
     onSuccess: ({ holiday }) => {
       toast.success(
-        `Holiday declared for ${holiday.date}. Eligible orders are being cancelled in the background.`,
+        `Holiday declared for ${holiday.date}. Eligible orders have been successfully cancelled.`,
         { duration: 5000 },
       );
       queryClient.invalidateQueries({ queryKey: ["admin", "holidays"] });

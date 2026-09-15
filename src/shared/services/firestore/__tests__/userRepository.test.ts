@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userRepository } from "../userRepository";
-import { getDocs, runTransaction } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";
 
 describe("userRepository", () => {
   beforeEach(() => {
@@ -49,6 +49,7 @@ describe("userRepository", () => {
     });
   });
 
+
   describe("generateNextDisplayId", () => {
     it("generates customer ID with fullName", async () => {
       const result = await userRepository.generateNextDisplayId(
@@ -56,24 +57,39 @@ describe("userRepository", () => {
         "John Doe",
       );
       expect(result).toBe("MP-J001");
-      expect(runTransaction).toHaveBeenCalled();
     });
 
-    it("generates customer ID with invalid letter", async () => {
+    it("normalizes lowercase first letter to uppercase", async () => {
       const result = await userRepository.generateNextDisplayId(
         "customer",
-        "123 Doe",
+        "alice smith",
+      );
+      expect(result).toBe("MP-A001");
+    });
+
+    it("falls back to U for non-alphabet initial", async () => {
+      const result = await userRepository.generateNextDisplayId(
+        "customer",
+        "123 User",
       );
       expect(result).toBe("MP-U001");
     });
 
-    it("generates admin ID", async () => {
-      // the global runTransaction mock in vitest.setup.ts sets exists to false, count is 1000
-      const result = await userRepository.generateNextDisplayId("admin");
-      expect(result).toBe("ADMIN-1001");
+    it("falls back to U for whitespace only name", async () => {
+      const result = await userRepository.generateNextDisplayId(
+        "customer",
+        "   ",
+      );
+      expect(result).toBe("MP-U001");
     });
 
-    it("uses existing count for customer if document exists", async () => {
+    it("falls back to U when fullName is undefined", async () => {
+      const result = await userRepository.generateNextDisplayId("customer");
+      expect(result).toBe("MP-U001");
+    });
+
+    it("increments existing count for customer", async () => {
+      const { runTransaction } = await import("firebase/firestore");
       vi.mocked(runTransaction).mockImplementationOnce(
         async (_db, updateFunction) => {
           const transaction = {
@@ -96,13 +112,35 @@ describe("userRepository", () => {
       expect(result).toBe("MP-J043");
     });
 
-    it("uses existing count if document exists", async () => {
+    it("generates admin ID starting at 1001", async () => {
+      const result = await userRepository.generateNextDisplayId("admin");
+      expect(result).toBe("ADMIN-1001");
+    });
+
+    it("generates kitchen ID starting at 1001", async () => {
+      const result = await userRepository.generateNextDisplayId("kitchen");
+      expect(result).toBe("KTCH-1001");
+    });
+
+    it("generates delivery partner ID starting at 1001", async () => {
+      const result =
+        await userRepository.generateNextDisplayId("delivery_partner");
+      expect(result).toBe("DLVY-1001");
+    });
+
+    it("generates accounts ID starting at 1001", async () => {
+      const result = await userRepository.generateNextDisplayId("accounts");
+      expect(result).toBe("ACCT-1001");
+    });
+
+    it("increments existing count for staff", async () => {
+      const { runTransaction } = await import("firebase/firestore");
       vi.mocked(runTransaction).mockImplementationOnce(
         async (_db, updateFunction) => {
           const transaction = {
             get: vi.fn(async () => ({
               exists: () => true,
-              data: () => ({ admin: 1005, customer_A: 5 }),
+              data: () => ({ kitchen: 1005 }),
             })),
             set: vi.fn(),
             update: vi.fn(),
@@ -112,8 +150,42 @@ describe("userRepository", () => {
         },
       );
 
-      const result = await userRepository.generateNextDisplayId("admin");
-      expect(result).toBe("ADMIN-1006");
+      const result = await userRepository.generateNextDisplayId("kitchen");
+      expect(result).toBe("KTCH-1006");
+    });
+
+    it("simulates sequential transactions incrementing counter consecutively", async () => {
+      const { runTransaction } = await import("firebase/firestore");
+      let storedCount = 10;
+      vi.mocked(runTransaction).mockImplementation(
+        async (_db, updateFunction) => {
+          const transaction = {
+            get: vi.fn(async () => ({
+              exists: () => true,
+              data: () => ({ customer_S: storedCount }),
+            })),
+            set: vi.fn((_ref, data: any) => {
+              if (data.customer_S) storedCount = data.customer_S;
+            }),
+            update: vi.fn(),
+            delete: vi.fn(),
+          } as any;
+          return await updateFunction(transaction);
+        },
+      );
+
+      const id1 = await userRepository.generateNextDisplayId(
+        "customer",
+        "Suresh",
+      );
+      const id2 = await userRepository.generateNextDisplayId(
+        "customer",
+        "Sunil",
+      );
+
+      expect(id1).toBe("MP-S011");
+      expect(id2).toBe("MP-S012");
+      expect(storedCount).toBe(12);
     });
   });
 

@@ -44,7 +44,17 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_APPCHECK_DEBUG_TOKEN: ${{ secrets.VITE_APPCHECK_DEBUG_TOKEN }}
-          VITE_AUTOMATION_EMAIL: ${{ secrets.VITE_AUTOMATION_EMAIL }}
-          VITE_AUTOMATION_PASSWORD: ${{ secrets.VITE_AUTOMATION_PASSWORD }}
+          APPCHECK_DEBUG_TOKEN: ${{ secrets.APPCHECK_DEBUG_TOKEN }}
+          AUTOMATION_EMAIL: ${{ secrets.AUTOMATION_EMAIL }}
+          AUTOMATION_PASSWORD: ${{ secrets.AUTOMATION_PASSWORD }}
         run: npx vite-node --config vite.config.ts scripts/automation/monthly.ts
+
+      - name: Upload Monthly Reports and Backups
+        if: github.event_name != 'schedule' || steps.check_last_day.outputs.is_last_day == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-maintenance-${{ github.run_id }}
+          path: |
+            backup/
+            reports/
+          retention-days: 90

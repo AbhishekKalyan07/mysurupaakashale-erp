@@ -80,11 +80,6 @@ export class GlobalErrorBoundary extends Component<Props, State> {
             </h2>
             <p className="mb-6 text-sm text-ink-500">
               We encountered an unexpected error while loading this page.
-              {this.state.error && (
-                <span className="mt-2 block rounded bg-rice-100 p-2 font-mono text-xs text-ink-700">
-                  {this.state.error.message}
-                </span>
-              )}
             </p>
             <Button onClick={this.handleReload} className="w-full">
               <RefreshCw size={18} className="mr-2" />

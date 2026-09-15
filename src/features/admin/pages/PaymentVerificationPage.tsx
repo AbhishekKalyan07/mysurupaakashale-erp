@@ -34,11 +34,21 @@ import {
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Calendar,
+  FileArchive,
+  Loader2,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "react-hot-toast";
+import { getTodayInTimezone } from "@/shared/lib/date";
 
 function isSafeScreenshotUrl(url: string | null | undefined): boolean {
   if (!url) return false;
+  if (url.startsWith("data:image/")) {
+    return /^data:image\/(jpeg|png|webp|gif|jpg);base64,[A-Za-z0-9+/=]+$/.test(url);
+  }
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") return false;
@@ -51,6 +61,201 @@ function isSafeScreenshotUrl(url: string | null | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+async function downloadSingleScreenshot(payment: ManualPayment, customer?: any) {
+  if (!payment.screenshotUrl) return;
+  try {
+    const { automationService } = await import("@/shared/services/firestore/automationService");
+    const userMap = new Map<string, any>();
+    if (customer) userMap.set(payment.customerId, customer);
+    const filename = automationService.buildScreenshotFileName(payment, userMap);
+
+    const a = document.createElement("a");
+    a.href = payment.screenshotUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(`Downloaded ${filename}`);
+  } catch (err: any) {
+    toast.error(err?.message || "Failed to download screenshot");
+  }
+}
+
+// ── Export Receipts Modal ──────────────────────────────────────────────────────
+function ExportReceiptsModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [exportType, setExportType] = useState<"today" | "specific_date" | "last_30" | "last_90">("today");
+  const [selectedDate, setSelectedDate] = useState(getTodayInTimezone());
+  const [isExporting, setIsExporting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { automationService } = await import("@/shared/services/firestore/automationService");
+      let filter: any = {};
+      if (exportType === "today") {
+        filter = { specificDate: getTodayInTimezone() };
+      } else if (exportType === "specific_date") {
+        filter = { specificDate: selectedDate };
+      } else if (exportType === "last_30") {
+        filter = { days: 30 };
+      } else {
+        filter = { days: 90 };
+      }
+
+      const res = await automationService.exportPaymentScreenshotsZip(filter);
+      if (res.count === 0) {
+        toast.error("No payment screenshots found for the selected period.");
+        return;
+      }
+
+      if (res.blob) {
+        const url = URL.createObjectURL(res.blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success(`Downloaded ${res.count} receipts in ${res.filename}`);
+        onClose();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate receipts archive.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-background border border-primary/20 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex justify-between items-center">
+          <h3 className="text-base font-bold font-sans text-primary flex items-center gap-2">
+            <FileArchive className="text-gold" size={20} />
+            Export Payment Receipts
+          </h3>
+          <button
+            onClick={onClose}
+            disabled={isExporting}
+            className="text-text-muted hover:text-primary p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-xs text-text-muted font-sans leading-relaxed">
+            Download actual customer payment screenshots packaged into a ZIP archive.
+            Files are automatically named as <code className="bg-primary/10 px-1.5 py-0.5 rounded font-mono text-[11px] text-primary font-bold">CustomerID_CustomerName_Date.jpg</code>.
+          </p>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-text-muted block">
+              Export Range
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setExportType("today")}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                  exportType === "today"
+                    ? "bg-gold/15 border-gold text-gold-dark shadow-sm"
+                    : "border-primary/10 hover:bg-primary/5 text-primary"
+                }`}
+              >
+                <Calendar size={14} className="text-gold" /> Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportType("specific_date")}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                  exportType === "specific_date"
+                    ? "bg-gold/15 border-gold text-gold-dark shadow-sm"
+                    : "border-primary/10 hover:bg-primary/5 text-primary"
+                }`}
+              >
+                <Calendar size={14} className="text-gold" /> Specific Date
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportType("last_30")}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                  exportType === "last_30"
+                    ? "bg-gold/15 border-gold text-gold-dark shadow-sm"
+                    : "border-primary/10 hover:bg-primary/5 text-primary"
+                }`}
+              >
+                <FileArchive size={14} className="text-gold" /> Last 30 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportType("last_90")}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                  exportType === "last_90"
+                    ? "bg-gold/15 border-gold text-gold-dark shadow-sm"
+                    : "border-primary/10 hover:bg-primary/5 text-primary"
+                }`}
+              >
+                <FileArchive size={14} className="text-gold" /> Last 90 Days
+              </button>
+            </div>
+          </div>
+
+          {exportType === "specific_date" && (
+            <div className="pt-2 animate-in fade-in duration-150">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1.5">
+                Select Calendar Day
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2 border border-primary/20 bg-background rounded-xl text-sm font-sans text-primary focus:ring-1 focus:ring-gold focus:border-gold outline-none"
+              />
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-primary/10 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="bg-gold hover:bg-gold-dark text-black font-bold flex items-center gap-1.5 shadow-sm"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Packaging ZIP...
+                </>
+              ) : (
+                <>
+                  <Download size={14} /> Download ZIP
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Payment Detail Dialog ──────────────────────────────────────────────────────
@@ -225,14 +430,49 @@ function PaymentDetailDialog({
                   <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted flex items-center gap-1.5">
                     <ImageIcon size={14} /> Proof of Payment
                   </span>
-                  <a
-                    href={payment.screenshotUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
-                  >
-                    Open Original <ExternalLink size={12} />
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => downloadSingleScreenshot(payment, user)}
+                      className="text-primary hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors cursor-pointer"
+                    >
+                      <Download size={12} /> Download Image
+                    </button>
+                    {payment.screenshotUrl.startsWith("data:") ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const win = window.open("", "_blank");
+                          if (win) {
+                            win.document.title = "Payment Proof Preview";
+                            const img = win.document.createElement("img");
+                            img.src = payment.screenshotUrl!;
+                            img.style.maxWidth = "100%";
+                            img.style.maxHeight = "100vh";
+                            img.style.objectFit = "contain";
+                            win.document.body.style.margin = "0";
+                            win.document.body.style.display = "flex";
+                            win.document.body.style.justifyContent = "center";
+                            win.document.body.style.alignItems = "center";
+                            win.document.body.style.backgroundColor = "#111";
+                            win.document.body.appendChild(img);
+                          }
+                        }}
+                        className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors cursor-pointer"
+                      >
+                        View Full Size <ExternalLink size={12} />
+                      </button>
+                    ) : (
+                      <a
+                        href={payment.screenshotUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-gold-dark hover:text-gold text-xs flex items-center gap-1 font-bold transition-colors"
+                      >
+                        Open Original <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="bg-background-alt p-2 flex justify-center">
                   <img
@@ -454,17 +694,32 @@ function PaymentRow({
         <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider">
           Action
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
-          }}
-          className="font-sans text-xs font-bold w-full md:w-auto text-primary hover:text-gold hover:bg-gold/10"
-        >
-          View
-        </Button>
+        <div className="flex items-center gap-1 justify-end">
+          {payment.screenshotUrl && (
+            <button
+              type="button"
+              title="Download Screenshot"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadSingleScreenshot(payment);
+              }}
+              className="p-1.5 rounded-lg text-text-muted hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+            >
+              <Download size={15} />
+            </button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+            className="font-sans text-xs font-bold text-primary hover:text-gold hover:bg-gold/10"
+          >
+            View
+          </Button>
+        </div>
       </td>
     </tr>
   );
@@ -483,6 +738,7 @@ const TABS: { label: string; value: StatusFilter; icon: React.ReactNode }[] = [
 export function PaymentVerificationPage() {
   const [activeTab, setActiveTab] = useState<StatusFilter>("pending");
   const [search, setSearch] = useState("");
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ManualPayment | null>(
     null,
   );
@@ -609,19 +865,27 @@ export function PaymentVerificationPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search
-          size={16}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={handleSearchChange}
-          placeholder="Search by customer name, ID, or reference number..."
-          className="w-full pl-11 pr-4 py-3.5 border border-primary/20 bg-background rounded-xl text-sm font-sans text-primary placeholder:text-text-muted font-medium focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold shadow-sm transition-colors"
-        />
+      {/* Search & Export Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between mb-6">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={handleSearchChange}
+            placeholder="Search by customer name, ID, or reference number..."
+            className="w-full pl-11 pr-4 py-3.5 border border-primary/20 bg-background rounded-xl text-sm font-sans text-primary placeholder:text-text-muted font-medium focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold shadow-sm transition-colors"
+          />
+        </div>
+        <Button
+          onClick={() => setIsExportModalOpen(true)}
+          className="bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 font-bold px-4 py-3.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shrink-0 transition-colors shadow-sm cursor-pointer"
+        >
+          <FileArchive size={16} className="text-gold" /> Export Receipts (.zip)
+        </Button>
       </div>
 
       {sorted.length === 0 ? (
@@ -711,6 +975,11 @@ export function PaymentVerificationPage() {
           onClose={() => setSelectedPayment(null)}
         />
       )}
+
+      <ExportReceiptsModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+      />
     </div>
   );
 }

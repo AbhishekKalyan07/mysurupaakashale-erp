@@ -177,10 +177,16 @@ service cloud.firestore {
 
     // ---------- inventory/{itemId} ----------
     match /inventory/{itemId} {
-      allow read: if isSignedIn();
-      // Only admins or kitchen staff can create/update their own inventory
-      allow create: if isAdmin() || (isKitchen() && request.resource.data.kitchenId == callerKitchenId());
-      allow update: if isAdmin() || (isKitchen() && resource.data.kitchenId == callerKitchenId());
+      allow read: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
+
+      allow create: if isAdmin() ||
+        (isKitchen() &&
+         request.resource.data.kitchenId == callerKitchenId());
+
+      allow update: if isAdmin() ||
+        (isAuthorizedKitchen(resource.data.kitchenId) &&
+         request.resource.data.kitchenId == resource.data.kitchenId);
+
       allow delete: if isAdmin();
     }
 
@@ -257,6 +263,7 @@ service cloud.firestore {
                        request.resource.data.deliveryPartnerId == null &&
                        request.resource.data.latestPaymentId == null &&
                        request.resource.data.pricingMatrixSnapshot == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix &&
+                       request.resource.data.depositAmount == get(/databases/$(database)/documents/settings/business).data.pricing.securityDepositAmount &&
                        request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'createdAt', 'updatedAt']));
 
       // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above, plus legitimate customer edits.
@@ -377,6 +384,8 @@ service cloud.firestore {
                        ('createdAt' in request.resource.data) &&
                        // Holiday check: one-time orders also blocked on active holidays
                        !isActiveholidayForDate(request.resource.data.date) &&
+                       // Enforce cutoff times and implicitly prevent backdating
+                       checkMealsCutoff(request.resource.data.date, [request.resource.data.mealType]) &&
                        // Strict field allowlist — no unauthorized operational fields
                        request.resource.data.keys().hasOnly([
                          'id', 'displayId', 'source', 'customerId', 'customerName',
@@ -515,9 +524,12 @@ service cloud.firestore {
                        request.resource.data.amount > 0 &&
                        ('createdAt' in request.resource.data) &&
                        get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid &&
+                       (get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.status == 'pending_payment' 
+                         ? (request.resource.data.purpose == 'security_deposit' && request.resource.data.amount == get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.depositAmount)
+                         : true) &&
                        request.resource.data.keys().hasOnly([
                          'subscriptionId', 'customerId', 'customerName',
-                         'amount', 'currency', 'paymentMethod', 'referenceNumber',
+                         'amount', 'currency', 'purpose', 'paymentMethod', 'referenceNumber',
                          'paymentDate', 'screenshotUrl', 'billingMonth',
                          'status', 'verificationDate', 'verifiedBy',
                          'verificationNotes', 'createdAt', 'updatedAt'
@@ -577,23 +589,100 @@ service cloud.firestore {
       allow write: if isAdmin(); // Phase 4: Manual order generation via Admin UI
     }
 
-    // ---------- inventory/{itemId} ----------
-    match /inventory/{itemId} {
-      allow read: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
-      allow write: if isAuthorizedKitchen(resource.data.kitchenId) || isAdmin();
+
+    match /idempotency/{document=**} {
+      // Idempotency records are strictly managed by the backend Admin SDK.
+      allow read, write: if false;
+    }
+
+    // ---------- settings/userCounters ----------
+    // Sequential counter document for human-readable display IDs (MP-A001, KTCH-1001, etc.).
+    // Spark-compatible: atomic client-side runTransaction increments guarded by strict invariants.
+    function isValidCounterField(field) {
+      return (
+        (!(field in resource.data) && request.resource.data[field] == 1) ||
+        ((field in resource.data) && (resource.data[field] is int) && (request.resource.data[field] == resource.data[field] + 1))
+      );
+    }
+
+    function isValidCustomerCounterUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return changedKeys.size() == 1 &&
+             (
+               (changedKeys.hasOnly(['customer_A']) && isValidCounterField('customer_A')) ||
+               (changedKeys.hasOnly(['customer_B']) && isValidCounterField('customer_B')) ||
+               (changedKeys.hasOnly(['customer_C']) && isValidCounterField('customer_C')) ||
+               (changedKeys.hasOnly(['customer_D']) && isValidCounterField('customer_D')) ||
+               (changedKeys.hasOnly(['customer_E']) && isValidCounterField('customer_E')) ||
+               (changedKeys.hasOnly(['customer_F']) && isValidCounterField('customer_F')) ||
+               (changedKeys.hasOnly(['customer_G']) && isValidCounterField('customer_G')) ||
+               (changedKeys.hasOnly(['customer_H']) && isValidCounterField('customer_H')) ||
+               (changedKeys.hasOnly(['customer_I']) && isValidCounterField('customer_I')) ||
+               (changedKeys.hasOnly(['customer_J']) && isValidCounterField('customer_J')) ||
+               (changedKeys.hasOnly(['customer_K']) && isValidCounterField('customer_K')) ||
+               (changedKeys.hasOnly(['customer_L']) && isValidCounterField('customer_L')) ||
+               (changedKeys.hasOnly(['customer_M']) && isValidCounterField('customer_M')) ||
+               (changedKeys.hasOnly(['customer_N']) && isValidCounterField('customer_N')) ||
+               (changedKeys.hasOnly(['customer_O']) && isValidCounterField('customer_O')) ||
+               (changedKeys.hasOnly(['customer_P']) && isValidCounterField('customer_P')) ||
+               (changedKeys.hasOnly(['customer_Q']) && isValidCounterField('customer_Q')) ||
+               (changedKeys.hasOnly(['customer_R']) && isValidCounterField('customer_R')) ||
+               (changedKeys.hasOnly(['customer_S']) && isValidCounterField('customer_S')) ||
+               (changedKeys.hasOnly(['customer_T']) && isValidCounterField('customer_T')) ||
+               (changedKeys.hasOnly(['customer_U']) && isValidCounterField('customer_U')) ||
+               (changedKeys.hasOnly(['customer_V']) && isValidCounterField('customer_V')) ||
+               (changedKeys.hasOnly(['customer_W']) && isValidCounterField('customer_W')) ||
+               (changedKeys.hasOnly(['customer_X']) && isValidCounterField('customer_X')) ||
+               (changedKeys.hasOnly(['customer_Y']) && isValidCounterField('customer_Y')) ||
+               (changedKeys.hasOnly(['customer_Z']) && isValidCounterField('customer_Z'))
+             );
+    }
+
+    function isValidCustomerCounterCreate() {
+      let keys = request.resource.data.keys();
+      return keys.size() == 1 &&
+             (
+               (keys.hasOnly(['customer_A']) && request.resource.data.customer_A == 1) ||
+               (keys.hasOnly(['customer_B']) && request.resource.data.customer_B == 1) ||
+               (keys.hasOnly(['customer_C']) && request.resource.data.customer_C == 1) ||
+               (keys.hasOnly(['customer_D']) && request.resource.data.customer_D == 1) ||
+               (keys.hasOnly(['customer_E']) && request.resource.data.customer_E == 1) ||
+               (keys.hasOnly(['customer_F']) && request.resource.data.customer_F == 1) ||
+               (keys.hasOnly(['customer_G']) && request.resource.data.customer_G == 1) ||
+               (keys.hasOnly(['customer_H']) && request.resource.data.customer_H == 1) ||
+               (keys.hasOnly(['customer_I']) && request.resource.data.customer_I == 1) ||
+               (keys.hasOnly(['customer_J']) && request.resource.data.customer_J == 1) ||
+               (keys.hasOnly(['customer_K']) && request.resource.data.customer_K == 1) ||
+               (keys.hasOnly(['customer_L']) && request.resource.data.customer_L == 1) ||
+               (keys.hasOnly(['customer_M']) && request.resource.data.customer_M == 1) ||
+               (keys.hasOnly(['customer_N']) && request.resource.data.customer_N == 1) ||
+               (keys.hasOnly(['customer_O']) && request.resource.data.customer_O == 1) ||
+               (keys.hasOnly(['customer_P']) && request.resource.data.customer_P == 1) ||
+               (keys.hasOnly(['customer_Q']) && request.resource.data.customer_Q == 1) ||
+               (keys.hasOnly(['customer_R']) && request.resource.data.customer_R == 1) ||
+               (keys.hasOnly(['customer_S']) && request.resource.data.customer_S == 1) ||
+               (keys.hasOnly(['customer_T']) && request.resource.data.customer_T == 1) ||
+               (keys.hasOnly(['customer_U']) && request.resource.data.customer_U == 1) ||
+               (keys.hasOnly(['customer_V']) && request.resource.data.customer_V == 1) ||
+               (keys.hasOnly(['customer_W']) && request.resource.data.customer_W == 1) ||
+               (keys.hasOnly(['customer_X']) && request.resource.data.customer_X == 1) ||
+               (keys.hasOnly(['customer_Y']) && request.resource.data.customer_Y == 1) ||
+               (keys.hasOnly(['customer_Z']) && request.resource.data.customer_Z == 1)
+             );
     }
 
     match /settings/userCounters {
-      // Allow any signed-in user to read and increment the user ID counter.
-      // This is required for client-side sign-up (since we don't have Cloud Functions).
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && isValidCustomerCounterCreate());
+      allow update: if isAdmin() || (isSignedIn() && isValidCustomerCounterUpdate());
+      allow delete: if false;
     }
 
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn();
-      allow write: if isAdmin(); // Phase 1: Settings updated by admin
+      allow read: if isSignedIn() && settingId != 'userCounters';
+      allow write: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
     }
 
     match /auditLogs/{logId} {
@@ -615,7 +704,7 @@ service cloud.firestore {
     // so there is a full history of all past generation failures.
     match /failureQueue/{recordId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if false;
     }

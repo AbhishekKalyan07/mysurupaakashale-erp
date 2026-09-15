@@ -9,8 +9,7 @@ const {
   mockGetDoc,
   mockWriteBatch,
   mockServerTimestamp,
-  mockGenerateNextDisplayId,
-  mockRunTransaction,
+  mockHttpsCallable,
 } = vi.hoisted(() => {
   const mockGetDoc = vi.fn();
   return {
@@ -22,15 +21,7 @@ const {
     mockGetDoc,
     mockWriteBatch: vi.fn(),
     mockServerTimestamp: vi.fn(() => "SERVER_TIMESTAMP"),
-    mockGenerateNextDisplayId: vi.fn(),
-    mockRunTransaction: vi.fn(async (_, cb) =>
-      cb({
-        get: mockGetDoc,
-        set: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-      }),
-    ),
+    mockHttpsCallable: vi.fn(() => vi.fn()),
   };
 });
 
@@ -64,24 +55,29 @@ vi.mock("firebase/firestore", async (importOriginal) => {
     writeBatch: mockWriteBatch,
     serverTimestamp: mockServerTimestamp,
     Timestamp: { now: vi.fn() },
-    runTransaction: mockRunTransaction,
   };
 });
 
 vi.mock("@/shared/lib/firebase", () => ({
   auth: { name: "mock-auth" },
   db: { name: "mock-db" },
+  functions: { name: "mock-functions" },
+}));
+
+vi.mock("firebase/functions", () => ({
+  httpsCallable: () => mockHttpsCallable(),
 }));
 
 vi.mock("@/shared/services/firestore/userRepository", () => ({
   userRepository: {
-    generateNextDisplayId: mockGenerateNextDisplayId,
     getById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    generateNextDisplayId: vi.fn(),
   },
 }));
 
+import { userRepository } from "@/shared/services/firestore/userRepository";
 import {
   mapAuthError,
   signIn,
@@ -111,7 +107,7 @@ describe("authService - signUpCustomer Failure Injections", () => {
 
     mockGetDoc.mockResolvedValue({ exists: () => false }); // Phone does not exist by default
 
-    mockGenerateNextDisplayId.mockResolvedValue("C-1234");
+    vi.mocked(userRepository.generateNextDisplayId).mockResolvedValue("MP-T001");
 
     mockBatch = {
       set: vi.fn(),
@@ -121,14 +117,7 @@ describe("authService - signUpCustomer Failure Injections", () => {
 
     mockUpdateProfile.mockResolvedValue(undefined);
 
-    mockRunTransaction.mockImplementation(async (_, cb) =>
-      cb({
-        get: mockGetDoc,
-        set: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-      }),
-    );
+
   });
 
   it("cleans up and deletes Auth user if phone already exists", async () => {
@@ -142,7 +131,7 @@ describe("authService - signUpCustomer Failure Injections", () => {
   });
 
   it("cleans up and deletes Auth user if generateNextDisplayId throws an error", async () => {
-    mockGenerateNextDisplayId.mockRejectedValue(
+    vi.mocked(userRepository.generateNextDisplayId).mockRejectedValueOnce(
       new Error("ID generation failed"),
     );
 
@@ -161,7 +150,8 @@ describe("authService - signUpCustomer Failure Injections", () => {
     ).rejects.toThrow("Profile update failed");
 
     expect(mockUserDelete).toHaveBeenCalledTimes(1);
-    expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    // Batch commit shouldn't be called because updateProfile failed before batch was created
+    expect(mockBatch.commit).not.toHaveBeenCalled();
   });
 
   it("cleans up and deletes Auth user if batch commit throws an error", async () => {
@@ -209,14 +199,7 @@ describe("authService - additional helper functions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockRunTransaction.mockImplementation(async (_, cb) =>
-      cb({
-        get: mockGetDoc,
-        set: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-      }),
-    );
+
 
     const mockBatch = {
       set: vi.fn(),

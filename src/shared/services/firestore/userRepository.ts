@@ -53,12 +53,22 @@ class UserRepository extends BaseRepository<UserProfile> {
     };
   }
 
+  /**
+   * Allocates the next sequential human-readable display ID via an atomic Firestore transaction.
+   *
+   * Formats:
+   *   - Customer: MP-{Initial}{PaddedCount} (e.g. MP-A001). Initial defaults to "U" if blank or non-alphabet.
+   *   - Staff roles (admin, kitchen, delivery_partner, accounts):
+   *     ADMIN-{1001+}, KTCH-{1001+}, DLVY-{1001+}, ACCT-{1001+}
+   */
   async generateNextDisplayId(role: Role, fullName?: string): Promise<string> {
     const counterRef = doc(db, "settings", "userCounters");
 
-    if (role === "customer" && fullName) {
-      const firstLetter = fullName.trim().charAt(0).toUpperCase();
-      const validLetter = /^[A-Z]$/.test(firstLetter) ? firstLetter : "U";
+    if (role === "customer") {
+      const rawName =
+        fullName && typeof fullName === "string" ? fullName.trim() : "";
+      const firstChar = rawName.charAt(0).toUpperCase();
+      const validLetter = /^[A-Z]$/.test(firstChar) ? firstChar : "U";
       const fieldName = `customer_${validLetter}`;
 
       return runTransaction(db, async (transaction) => {
@@ -67,11 +77,14 @@ class UserRepository extends BaseRepository<UserProfile> {
 
         if (counterDoc.exists()) {
           const data = counterDoc.data();
-          if (typeof data[fieldName] === "number") {
+          if (
+            fieldName in data &&
+            typeof data[fieldName] === "number" &&
+            Number.isInteger(data[fieldName]) &&
+            data[fieldName] >= 0
+          ) {
             count = data[fieldName];
           }
-        } else {
-          transaction.set(counterRef, { [fieldName]: count });
         }
 
         const newCount = count + 1;
@@ -83,7 +96,7 @@ class UserRepository extends BaseRepository<UserProfile> {
     }
 
     const prefixMap: Record<Role, string> = {
-      customer: "CUST",
+      customer: "MP",
       admin: "ADMIN",
       kitchen: "KTCH",
       delivery_partner: "DLVY",
@@ -93,16 +106,18 @@ class UserRepository extends BaseRepository<UserProfile> {
 
     return runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
-      let count = 1000; // Starting number
+      let count = 1000;
 
       if (counterDoc.exists()) {
         const data = counterDoc.data();
-        if (typeof data[role] === "number") {
+        if (
+          role in data &&
+          typeof data[role] === "number" &&
+          Number.isInteger(data[role]) &&
+          data[role] >= 0
+        ) {
           count = data[role];
         }
-      } else {
-        // If the settings/userCounters document doesn't exist, create it
-        transaction.set(counterRef, { [role]: count });
       }
 
       const newCount = count + 1;

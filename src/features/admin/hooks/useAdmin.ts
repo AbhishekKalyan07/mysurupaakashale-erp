@@ -118,7 +118,10 @@ export function useCreateStaffUser() {
         );
         await updateProfile(credential.user, { displayName: data.fullName });
 
-        const displayId = await userRepository.generateNextDisplayId(data.role);
+        const displayId = await userRepository.generateNextDisplayId(
+          data.role,
+          data.fullName,
+        );
 
         const profileData: any = {
           displayId,

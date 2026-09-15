@@ -36,15 +36,104 @@ describe("paymentService", () => {
   });
 
   describe("approvePayment", () => {
-    it("approves payment successfully", async () => {
+    it("approves payment successfully when conditions are met", async () => {
       const { runTransaction } = require("firebase/firestore");
-      runTransaction.mockImplementation(async (_db: any) => {
-        // mock transaction behavior if needed, or just let it pass
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            if (ref.path.includes("payments")) {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({ status: "pending", subscriptionId: "sub1", purpose: "security_deposit", amount: 1000, customerId: "c1" })
+              });
+            }
+            if (ref.path.includes("subscriptions")) {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({ status: "pending_payment", depositAmount: 1000 })
+              });
+            }
+            return Promise.resolve({ exists: () => false });
+          }),
+          update: vi.fn(),
+          set: vi.fn()
+        };
+        await cb(mockTransaction);
+        expect(mockTransaction.update).toHaveBeenCalledTimes(2);
       });
-      // the test will just not throw since runTransaction is mocked
+      
       await expect(
         paymentService.approvePayment("pay1", "admin1"),
       ).resolves.not.toThrow();
+    });
+
+    it("rejects if payment already verified", async () => {
+      const { runTransaction } = require("firebase/firestore");
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockResolvedValue({ exists: () => true, data: () => ({ status: "verified" }) }),
+          update: vi.fn(),
+          set: vi.fn()
+        };
+        await cb(mockTransaction);
+      });
+      await expect(paymentService.approvePayment("pay1", "admin1")).rejects.toThrow("This payment has already been processed or verified.");
+    });
+
+    it("rejects if subscription is not pending_payment", async () => {
+      const { runTransaction } = require("firebase/firestore");
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            if (ref.path.includes("payments")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending", subscriptionId: "sub1" }) });
+            if (ref.path.includes("subscriptions")) return Promise.resolve({ exists: () => true, data: () => ({ status: "active", depositAmount: 1000 }) });
+          }),
+        };
+        await cb(mockTransaction);
+      });
+      await expect(paymentService.approvePayment("pay1", "admin1")).rejects.toThrow("Subscription is not in a pending payment state.");
+    });
+
+    it("rejects if missing subscription", async () => {
+      const { runTransaction } = require("firebase/firestore");
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            if (ref.path.includes("payments")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending", subscriptionId: "sub1" }) });
+            if (ref.path.includes("subscriptions")) return Promise.resolve({ exists: () => false });
+          }),
+        };
+        await cb(mockTransaction);
+      });
+      await expect(paymentService.approvePayment("pay1", "admin1")).rejects.toThrow("Referenced subscription not found.");
+    });
+
+    it("rejects if security deposit amount does not match", async () => {
+      const { runTransaction } = require("firebase/firestore");
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            if (ref.path.includes("payments")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending", subscriptionId: "sub1", purpose: "security_deposit", amount: 500 }) });
+            if (ref.path.includes("subscriptions")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending_payment", depositAmount: 1000 }) });
+          }),
+        };
+        await cb(mockTransaction);
+      });
+      await expect(paymentService.approvePayment("pay1", "admin1")).rejects.toThrow("Payment amount does not match required security deposit.");
+    });
+
+    it("rejects if activation payment purpose is not security_deposit", async () => {
+      const { runTransaction } = require("firebase/firestore");
+      runTransaction.mockImplementation(async (_db: any, cb: any) => {
+        const mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            if (ref.path.includes("payments")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending", subscriptionId: "sub1", purpose: "usage", amount: 500 }) });
+            if (ref.path.includes("subscriptions")) return Promise.resolve({ exists: () => true, data: () => ({ status: "pending_payment", depositAmount: 1000 }) });
+          }),
+        };
+        await cb(mockTransaction);
+      });
+      await expect(paymentService.approvePayment("pay1", "admin1")).rejects.toThrow("Activation requires a security deposit payment.");
     });
   });
 

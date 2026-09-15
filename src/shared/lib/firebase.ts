@@ -20,7 +20,6 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import {
-  getStorage,
   connectStorageEmulator,
   type FirebaseStorage,
 } from "firebase/storage";
@@ -112,10 +111,10 @@ export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 //
 // Strategy (three-tier):
 //   1. Production: ReCaptchaV3 using VITE_APPCHECK_SITE_KEY.
-//   2. Local dev (emulator) with VITE_APPCHECK_DEBUG_TOKEN set: registered
+//   2. Local dev (emulator) with APPCHECK_DEBUG_TOKEN set: registered
 //      debug token (whitelist once in Firebase Console → App Check → Apps →
 //      Manage debug tokens).
-//   3. Local dev without VITE_APPCHECK_DEBUG_TOKEN: the SDK auto-generates a
+//   3. Local dev without APPCHECK_DEBUG_TOKEN: the SDK auto-generates a
 //      token and logs it as "[App Check] Debug token: <uuid>". Copy that UUID
 //      to Firebase Console to whitelist it for your dev machine.
 //
@@ -133,15 +132,14 @@ const appCheckSiteKey = getEnv(
   import.meta.env.VITE_APPCHECK_SITE_KEY,
   false,
 );
-const appCheckDebugToken = getEnv(
-  "VITE_APPCHECK_DEBUG_TOKEN",
-  import.meta.env.VITE_APPCHECK_DEBUG_TOKEN,
-  false,
-);
+const appCheckDebugToken =
+  typeof process !== "undefined"
+    ? process.env.APPCHECK_DEBUG_TOKEN
+    : undefined;
 
-if (import.meta.env.PROD && appCheckDebugToken) {
+if (import.meta.env.PROD && typeof window !== "undefined" && appCheckDebugToken) {
   throw new Error(
-    "SECURITY: VITE_APPCHECK_DEBUG_TOKEN must not be set in production builds.",
+    "SECURITY: APPCHECK_DEBUG_TOKEN must not be set in production client builds.",
   );
 }
 
@@ -194,7 +192,9 @@ export const appCheck = (() => {
     // Using globalThis instead of self ensures compatibility with Node.js.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN =
-      appCheckDebugToken ?? true;
+      appCheckDebugToken ??
+      (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN ??
+      true;
 
     return initializeAppCheck(firebaseApp, {
       // CustomProvider is a no-op here; the SDK intercepts via the global debug flag.
@@ -268,7 +268,9 @@ if (useEmulators) {
   setLogLevel("debug");
 }
 
-export const storage: FirebaseStorage = getStorage(firebaseApp);
+// On the Firebase Spark plan, Firebase Cloud Storage is disabled.
+// Null stub exported to prevent runtime initialization crashes while preserving type contracts.
+export const storage: FirebaseStorage = null as unknown as FirebaseStorage;
 export const functions: Functions = getFunctions(firebaseApp, "asia-south1");
 
 let messagingInstance: any = null;
@@ -365,7 +367,9 @@ if (useEmulators) {
   // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
-  connectStorageEmulator(storage, "127.0.0.1", 9199);
+  if (storage) {
+    connectStorageEmulator(storage, "127.0.0.1", 9199);
+  }
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   console.info("[firebase] Connected to local Emulator Suite.");
 }
