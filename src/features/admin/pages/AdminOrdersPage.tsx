@@ -27,13 +27,11 @@ function useCustomerProfileMap(customerIds: string[]) {
   return useQuery({
     queryKey: ["admin", "customer-profiles-map", uniqueIds.join(",")],
     queryFn: async () => {
-      const users = await Promise.all(
-        uniqueIds.map((id) => userRepository.getById(id)),
-      );
-      const map = new Map<string, NonNullable<(typeof users)[number]>>();
-      users.forEach((u, idx) => {
-        if (u) {
-          map.set(uniqueIds[idx], u);
+      const users = await userRepository.getByIds(uniqueIds);
+      const map = new Map<string, (typeof users)[number]>();
+      users.forEach((u) => {
+        if (u && u.id) {
+          map.set(u.id, u);
         }
       });
       return map;

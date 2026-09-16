@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { deliveryZoneRepository } from "@/shared/services/firestore/deliveryZoneRepository";
-import { where } from "firebase/firestore";
+import { where, documentId } from "firebase/firestore";
 /**
  * A shared reference-data hook for fetching and mapping Zones, Partners, and Customers.
  * Highly reusable across Kitchen and Delivery modules to resolve IDs to display names.
@@ -70,7 +70,7 @@ export function useReferenceData(customerIds: string[] = []) {
         chunks.map(async (chunk) => {
           try {
             const profiles = await userRepository.list(
-              where("id", "in", chunk),
+              where(documentId(), "in", chunk),
             );
             for (const profile of profiles) {
               map[profile.id] = profile.fullName || profile.id;

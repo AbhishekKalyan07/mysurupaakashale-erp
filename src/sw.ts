@@ -156,24 +156,33 @@ self.addEventListener("notificationclick", (event: any) => {
 
   // Determine the URL to open (can be provided in payload.data.url)
   const urlToOpen = event.notification.data?.url || "/";
+  const targetUrl = new URL(urlToOpen, self.location.origin).href;
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((windowClients) => {
-        // Check if there is already a window/tab open with the target URL
-        for (let i = 0; i < windowClients.length; i++) {
-          const client = windowClients[i];
-          if (
-            client.url === new URL(urlToOpen, self.location.origin).href &&
-            "focus" in client
-          ) {
-            return client.focus();
+        // Check if there is an existing window belonging to this app origin
+        for (const rawClient of windowClients) {
+          const client = rawClient as WindowClient;
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin === self.location.origin) {
+            // Navigate and focus existing window/tab to stay inside standalone PWA frame
+            if (typeof client.navigate === "function") {
+              return client
+                .navigate(targetUrl)
+                .then((navClient) =>
+                  navClient ? navClient.focus() : client.focus(),
+                );
+            }
+            if (typeof client.focus === "function") {
+              return client.focus();
+            }
           }
         }
-        // If not, open a new window
+        // If no matching window exists, open a new window
         if (self.clients.openWindow) {
-          return self.clients.openWindow(urlToOpen);
+          return self.clients.openWindow(targetUrl);
         }
       }),
   );

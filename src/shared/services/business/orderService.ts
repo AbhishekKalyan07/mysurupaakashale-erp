@@ -6,7 +6,7 @@ import {
   where,
   doc,
 } from "firebase/firestore";
-import { db } from "@/shared/lib/firebase";
+import { db, auth } from "@/shared/lib/firebase";
 import { orderRepository } from "../firestore/orderRepository";
 import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { orderGenerationRunRepository } from "../firestore/analyticsRepository";
@@ -35,6 +35,15 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
     }
   }
   return clean;
+}
+
+function getSystemOrAdminActor() {
+  const user = auth.currentUser;
+  return {
+    uid: user?.uid || "system",
+    role: "admin",
+    name: user?.displayName || user?.email || "System Auto-Generator",
+  };
 }
 
 class OrderService {
@@ -305,14 +314,15 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
+              const actor = getSystemOrAdminActor();
               backgroundTasks.push(
                 import("@/shared/services/firestore/auditRepository")
                   .then((m) =>
                     m.auditRepository.logAction(
                       "delivery_assignment_failed",
-                      "system",
-                      "system",
-                      "System Auto-Generator",
+                      actor.uid,
+                      actor.role,
+                      actor.name,
                       order.id!,
                       "order",
                       {
@@ -440,14 +450,15 @@ class OrderService {
           })
           .catch(console.error);
 
+        const actor = getSystemOrAdminActor();
         import("@/shared/services/firestore/auditRepository")
           .then((m) => {
             m.auditRepository
               .logAction(
                 "orders_generated",
-                "system",
-                "system",
-                "System Auto-Generator",
+                actor.uid,
+                actor.role,
+                actor.name,
                 runId,
                 "system",
                 {
@@ -593,13 +604,14 @@ class OrderService {
 
       if (!order.deliveryPartnerId) {
         try {
+          const actor = getSystemOrAdminActor();
           const auditMod =
             await import("@/shared/services/firestore/auditRepository");
           await auditMod.auditRepository.logAction(
             "delivery_assignment_failed",
-            "system",
-            "system",
-            "System Auto-Generator",
+            actor.uid,
+            actor.role,
+            actor.name,
             order.id!,
             "order",
             {
@@ -881,15 +893,20 @@ class OrderService {
         `[orderService] Cancelled ${cancelledOrders.length} orders for skipped day ${date}`,
       );
 
+      const caller = auth.currentUser;
+      const actorUid = caller?.uid || customerId;
+      const actorRole = caller?.uid === customerId ? "customer" : "admin";
+      const actorName = caller?.displayName || caller?.email || "Customer";
+
       import("@/shared/services/firestore/auditRepository")
         .then((m) => {
           cancelledOrders.forEach((o) => {
             m.auditRepository
               .logAction(
                 "meal_cancelled",
-                customerId,
-                "customer",
-                "Customer",
+                actorUid,
+                actorRole,
+                actorName,
                 o.id!,
                 "order",
                 {

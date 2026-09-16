@@ -23,6 +23,7 @@ export function usePartnerBoard(
   partnerId: string,
   date: string,
   mealType: string,
+  actorRole?: string,
 ) {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const orders = useMemo(
@@ -138,7 +139,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           action,
           user.uid,
-          "delivery_partner",
+          actorRole || "delivery_partner",
           user.displayName || "Delivery Partner",
           orderId,
           "order",
@@ -251,7 +252,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           "delivery_route_completed",
           user.uid,
-          "delivery_partner",
+          actorRole || "delivery_partner",
           user.displayName || "Delivery Partner",
           partnerId,
           "route",

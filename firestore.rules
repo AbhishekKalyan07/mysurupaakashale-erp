@@ -539,7 +539,21 @@ service cloud.firestore {
     }
     match /invoices/{invoiceId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow write: if isAdmin(); // Phase 6: Invoice generation by admin transactions
+      allow create: if (isAdmin() || isAccounts()) &&
+                       ('customerId' in request.resource.data) &&
+                       request.resource.data.customerId is string &&
+                       request.resource.data.customerId.size() > 0 &&
+                       ('totalAmount' in request.resource.data) &&
+                       request.resource.data.totalAmount is number &&
+                       ('status' in request.resource.data) &&
+                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
+      allow update: if (isAdmin() || isAccounts()) &&
+                       request.resource.data.customerId == resource.data.customerId &&
+                       ('totalAmount' in request.resource.data) &&
+                       request.resource.data.totalAmount is number &&
+                       ('status' in request.resource.data) &&
+                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
+      allow delete: if isAdmin();
     }
 
     // ---------- notifications/{notificationId} ----------

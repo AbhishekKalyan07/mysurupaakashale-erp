@@ -4,6 +4,7 @@ import { dailyMenuRepository } from "@/shared/services/firestore/dailyMenuReposi
 import type { DailyMenu } from "@/shared/types";
 import { Timestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import { queryKeys } from "@/shared/lib/queryKeys";
 import toast from "react-hot-toast";
@@ -32,6 +33,7 @@ export function usePublishedDailyMenuByDate(date: string) {
 
 export function useCreateDailyMenu() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (
@@ -57,8 +59,8 @@ export function useCreateDailyMenu() {
         await auditRepository.logAction(
           "menu_created",
           user.uid,
-          "kitchen",
-          user.displayName || "Admin",
+          role || "kitchen",
+          user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           id,
           "menu",
         );
@@ -79,6 +81,7 @@ export function useCreateDailyMenu() {
 
 export function useUpdateDailyMenu() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -98,8 +101,8 @@ export function useUpdateDailyMenu() {
         await auditRepository.logAction(
           "menu_edited",
           user.uid,
-          "kitchen",
-          user.displayName || "Admin",
+          role || "kitchen",
+          user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           id,
           "menu",
           { updatedKeys: Object.keys(data) },
@@ -124,6 +127,7 @@ export function useUpdateDailyMenu() {
 
 export function useDeleteDailyMenu() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -133,8 +137,8 @@ export function useDeleteDailyMenu() {
         await auditRepository.logAction(
           "menu_deleted",
           user.uid,
-          "kitchen",
-          user.displayName || "Admin",
+          role || "kitchen",
+          user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           id,
           "menu",
         );
@@ -154,24 +158,25 @@ export function useDeleteDailyMenu() {
 
 export function usePublishDailyMenu() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (menuId: string) => {
-      // Phase 1: Client-side publish
+      const user = getAuth().currentUser;
+      // Client-side publish
       await dailyMenuRepository.update(menuId, {
         status: "published",
         publishedAt: Timestamp.now(),
-        publishedBy: "admin",
+        publishedBy: user?.uid || (role === "admin" ? "admin" : "kitchen"),
         updatedAt: Timestamp.now(),
       });
 
-      const user = getAuth().currentUser;
       if (user) {
         await auditRepository.logAction(
           "menu_published",
           user.uid,
-          "kitchen",
-          user.displayName || "Admin",
+          role || "kitchen",
+          user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           menuId,
           "menu",
         );
@@ -185,8 +190,6 @@ export function usePublishDailyMenu() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.kitchen.dailyMenuDetail(menuId),
       });
-      // We don't have the exact date here easily, but since dailyMenuList is invalidated,
-      // it covers most views. To be safe, we could invalidate all dailyMenu queries.
       queryClient.invalidateQueries({ queryKey: ["kitchen", "dailyMenu"] });
       toast.success("Menu published successfully");
     },
@@ -198,10 +201,11 @@ export function usePublishDailyMenu() {
 
 export function useArchiveDailyMenu() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (menuId: string) => {
-      // Phase 1: Client-side archive
+      // Client-side archive
       await dailyMenuRepository.update(menuId, {
         status: "archived",
         updatedAt: Timestamp.now(),
@@ -212,8 +216,8 @@ export function useArchiveDailyMenu() {
         await auditRepository.logAction(
           "menu_archived",
           user.uid,
-          "kitchen",
-          user.displayName || "Admin",
+          role || "kitchen",
+          user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           menuId,
           "menu",
         );

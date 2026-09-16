@@ -4,6 +4,7 @@ import { leaveRepository } from "@/shared/services/firestore/leaveRepository";
 import type { LeaveRequest, LeaveStatus } from "@/shared/types";
 import { serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import { notificationRepository } from "@/shared/services/firestore/notificationRepository";
 import { db } from "@/shared/lib/firebase";
@@ -42,6 +43,7 @@ export function usePendingLeaves() {
 
 export function useCreateLeaveRequest() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (
@@ -67,7 +69,7 @@ export function useCreateLeaveRequest() {
         await auditRepository.logAction(
           "leave_requested",
           user.uid,
-          "staff",
+          role || "kitchen",
           user.displayName || "Staff",
           id,
           "leave",
@@ -87,6 +89,7 @@ export function useCreateLeaveRequest() {
 
 export function useUpdateLeaveStatus() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: LeaveStatus }) => {
@@ -101,25 +104,29 @@ export function useUpdateLeaveStatus() {
         await auditRepository.logAction(
           `leave_${status}`,
           user.uid,
-          "admin",
-          user.displayName || "Admin",
+          role || "admin",
+          user.displayName || "Staff",
           id,
           "leave",
         );
 
-        // Notify the staff member about the leave update
+        // Notify the staff member about the leave update (fire-and-forget, non-blocking)
         const leaveRecord = await leaveRepository.getById(id);
         if (leaveRecord && (status === "approved" || status === "rejected")) {
-          await notificationRepository.createNotification({
-            recipientId: leaveRecord.staffId,
-            recipientRole: "staff",
-            channel: "in_app",
-            title: `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-            message: `Your leave request for ${leaveRecord.startDate} has been ${status}.`,
-            type: "leave_updated",
-            priority: status === "approved" ? "normal" : "high",
-            metadata: { leaveId: id, status },
-          });
+          notificationRepository
+            .createNotification({
+              recipientId: leaveRecord.staffId,
+              recipientRole: "staff",
+              channel: "in_app",
+              title: `Leave Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+              message: `Your leave request for ${leaveRecord.startDate} has been ${status}.`,
+              type: "leave_updated",
+              priority: status === "approved" ? "normal" : "high",
+              metadata: { leaveId: id, status },
+            })
+            .catch((err) => {
+              console.warn("[useLeaves] Failed to dispatch staff notification:", err);
+            });
 
           // Phase 6: Automatic Route Reassignment
           // If approved, unassign any orders given to this delivery partner during their leave

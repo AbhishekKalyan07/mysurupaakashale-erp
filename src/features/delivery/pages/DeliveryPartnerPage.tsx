@@ -25,7 +25,7 @@ function getDefaultMealType(): string {
 }
 
 export function DeliveryPartnerPage() {
-  const { firebaseUser, profile } = useAuth();
+  const { firebaseUser, profile, role } = useAuth();
   const today = getTodayInTimezone();
   const [activeMeal, setActiveMeal] = useState<string>(getDefaultMealType());
 
@@ -37,7 +37,12 @@ export function DeliveryPartnerPage() {
     error,
     updateMutation,
     completeRouteMutation,
-  } = usePartnerBoard(firebaseUser?.uid || "", today, activeMeal);
+  } = usePartnerBoard(
+    firebaseUser?.uid || "",
+    today,
+    activeMeal,
+    role || undefined,
+  );
   const { zoneMap } = useReferenceData();
 
   const assignedZones =
