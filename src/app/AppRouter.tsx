@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { GuestRoute } from "@/features/auth/components/GuestRoute";
 import { RequireCompleteProfile } from "@/features/customer/components/RequireCompleteProfile";
@@ -243,6 +243,7 @@ const router = createBrowserRouter([
         errorElement: <RouteErrorBoundary />,
         children: [
           // ── Admin Sub-modules ────────────────────────────────────────────────
+          { path: "/admin", element: <Navigate to="/dashboard" replace /> },
           {
             path: "/admin/customers",
             element: withSuspense(AdminCustomersPage),

@@ -4,20 +4,11 @@ import { MessageSquare, CheckCircle, Loader2 } from "lucide-react";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
-import {
-  BaseRepository,
-  createConverter,
-} from "@/shared/services/firestore/BaseRepository";
-import { db } from "@/shared/lib/firebase";
-import type { Feedback, FeedbackStatus } from "@/shared/types/feedback.types";
+import { feedbackRepository } from "@/shared/services/firestore/feedbackRepository";
+import type { FeedbackStatus } from "@/shared/types/feedback.types";
 import toast from "react-hot-toast";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
-
-const feedbackRepo = new BaseRepository<Feedback>(
-  db,
-  "feedback",
-  createConverter<Feedback>(),
-);
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 
 export function AdminComplaintsPage() {
   const queryClient = useQueryClient();
@@ -29,7 +20,7 @@ export function AdminComplaintsPage() {
     error,
   } = useQuery({
     queryKey: ["admin", "complaints"],
-    queryFn: () => feedbackRepo.list(),
+    queryFn: () => feedbackRepository.list(),
   });
 
   const { customerMap } = useReferenceData(complaints.map((c) => c.customerId));
@@ -44,7 +35,7 @@ export function AdminComplaintsPage() {
       status: FeedbackStatus;
       notes?: string;
     }) => {
-      await feedbackRepo.update(id, { status, resolutionNotes: notes || "" });
+      await feedbackRepository.update(id, { status, resolutionNotes: notes || "" });
     },
     onSuccess: () => {
       toast.success("Complaint updated successfully");
@@ -68,7 +59,11 @@ export function AdminComplaintsPage() {
 
   const filteredComplaints = complaints
     .filter((c) => (filter === "all" ? true : c.status === filter))
-    .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    .sort((a, b) => {
+      const timeA = parseFirestoreDate(a.createdAt)?.getTime() ?? 0;
+      const timeB = parseFirestoreDate(b.createdAt)?.getTime() ?? 0;
+      return timeB - timeA;
+    });
 
   return (
     <div className="space-y-8">
@@ -133,7 +128,7 @@ export function AdminComplaintsPage() {
                       {complaint.status}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {complaint.createdAt.toDate().toLocaleDateString()}
+                      {parseFirestoreDate(complaint.createdAt)?.toLocaleDateString("en-IN") ?? "—"}
                     </span>
                   </div>
                   <h4 className="font-bold text-primary text-lg">

@@ -11,26 +11,35 @@ import { userRepository } from "@/shared/services/firestore/userRepository";
 import { getTodayIST } from "@/features/kitchen/hooks/useKitchenDashboard";
 import type { Order, OrderStatus, MealType } from "@/shared/types";
 import toast from "react-hot-toast";
-import {
-  useCustomerNameMap,
-  useCustomerNameMap as usePartnerNameMap,
-} from "@/features/admin/hooks/useAdmin";
+import { useCustomerNameMap as usePartnerNameMap } from "@/features/admin/hooks/useAdmin";
 import { cn } from "@/shared/lib/cn";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer detail fetcher (for OrderCard customer prop)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function useCustomerMap(customerIds: string[]) {
+function useCustomerProfileMap(customerIds: string[]) {
+  const uniqueIds = useMemo(
+    () => Array.from(new Set(customerIds)).filter(Boolean).sort(),
+    [customerIds],
+  );
+
   return useQuery({
-    queryKey: ["customers-map", customerIds.join(",")],
+    queryKey: ["admin", "customer-profiles-map", uniqueIds.join(",")],
     queryFn: async () => {
-      const { where } = await import("firebase/firestore");
-      const users = await userRepository.list(where("role", "==", "customer"));
-      return new Map(users.map((u) => [u.id, u]));
+      const users = await Promise.all(
+        uniqueIds.map((id) => userRepository.getById(id)),
+      );
+      const map = new Map<string, NonNullable<(typeof users)[number]>>();
+      users.forEach((u, idx) => {
+        if (u) {
+          map.set(uniqueIds[idx], u);
+        }
+      });
+      return map;
     },
     staleTime: 5 * 60 * 1000,
-    enabled: customerIds.length > 0,
+    enabled: uniqueIds.length > 0,
   });
 }
 
@@ -168,8 +177,8 @@ export function AdminOrdersPage() {
     [orders],
   );
 
-  const nameMap = useCustomerNameMap(allCustomerIds);
-  const { data: customerMap = new Map() } = useCustomerMap(allCustomerIds);
+  const { data: customerMap = new Map() } =
+    useCustomerProfileMap(allCustomerIds);
   const partnerNameMap = usePartnerNameMap(allPartnerIds);
 
   const updateStatusMutation = useMutation({
@@ -242,9 +251,9 @@ export function AdminOrdersPage() {
         return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const cName = (nameMap.get(o.customerId) || "").toLowerCase();
         const customer = customerMap.get(o.customerId);
-        const displayId = (customer?.displayId || "").toLowerCase();
+        const cName = (customer?.fullName || o.customerName || "").toLowerCase();
+        const displayId = (customer?.displayId || o.customerCode || "").toLowerCase();
         const oDisplayId = (o.displayId || "").toLowerCase();
         if (
           !cName.includes(q) &&
@@ -437,7 +446,10 @@ export function AdminOrdersPage() {
                       }
                     : {
                         fullName:
-                          nameMap.get(order.customerId) || order.customerId,
+                          order.customerName || order.customerId,
+                        displayId: order.customerCode,
+                        phone: order.customerPhone,
+                        address: order.address,
                       }
                 }
                 planName={planName}

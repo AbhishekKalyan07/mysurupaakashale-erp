@@ -319,14 +319,17 @@ export function AdminAccountsPage() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
               <div className="flex-1 space-y-1.5 w-full">
                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
-                  Customer ID
+                  Customer User ID (UID)
                 </label>
                 <Input
-                  placeholder="e.g. CUST-123"
+                  placeholder="e.g. Firebase Auth UID from Customers tab"
                   value={invoiceCustomerId}
                   onChange={(e) => setInvoiceCustomerId(e.target.value)}
                   className="w-full bg-background"
                 />
+                <p className="text-[11px] text-text-muted">
+                  Use the customer&apos;s Firebase UID so they can view this invoice in their portal.
+                </p>
               </div>
               <div className="w-full sm:w-32 space-y-1.5">
                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">

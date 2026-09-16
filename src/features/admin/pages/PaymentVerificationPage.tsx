@@ -51,6 +51,14 @@ function isSafeScreenshotUrl(url: string | null | undefined): boolean {
   }
   try {
     const parsed = new URL(url);
+    const isDev = import.meta.env.DEV || import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true";
+    if (
+      isDev &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
+      (parsed.protocol === "http:" || parsed.protocol === "https:")
+    ) {
+      return true;
+    }
     if (parsed.protocol !== "https:") return false;
     const hostname = parsed.hostname;
     // Must be a firebase storage URL
