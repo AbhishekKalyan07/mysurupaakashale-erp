@@ -56,22 +56,6 @@ class SalaryAdvanceRepository extends BaseRepository<SalaryAdvance> {
   }
 
   /**
-   * Returns ALL pending advances for a staff member regardless of period.
-   * @deprecated Use getPendingAdvancesByStaffAndPeriod for payroll payment processing.
-   *             This method remains only for backward-compatibility with non-payment contexts.
-   */
-  async getPendingAdvancesByStaff(staffId: string): Promise<SalaryAdvance[]> {
-    const q = query(
-      this.collectionRef,
-      where("staffId", "==", staffId),
-      where("status", "==", "pending"),
-      orderBy("date", "asc"),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => doc.data());
-  }
-
-  /**
    * Period-scoped query: returns only pending advances that belong to the
    * specific payroll period. This is the method that MUST be used for
    * payroll payment processing to prevent cross-period advance deduction.
