@@ -527,6 +527,10 @@ service cloud.firestore {
                        (get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.status == 'pending_payment' 
                          ? (request.resource.data.purpose == 'security_deposit' && request.resource.data.amount == get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.depositAmount)
                          : true) &&
+                       (!('screenshotUrl' in request.resource.data) ||
+                        request.resource.data.screenshotUrl == null ||
+                        (request.resource.data.screenshotUrl is string &&
+                         request.resource.data.screenshotUrl.size() <= 150000)) &&
                        request.resource.data.keys().hasOnly([
                          'subscriptionId', 'customerId', 'customerName',
                          'amount', 'currency', 'purpose', 'paymentMethod', 'referenceNumber',
@@ -590,7 +594,7 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
-      allow create: if isAdmin() || (isSignedIn() && (isCustomerTriggerableNotification() || isStaffTriggerableNotification()));
+      allow create: if isAdmin() || isAccounts() || (isSignedIn() && (isCustomerTriggerableNotification() || isStaffTriggerableNotification()));
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.
