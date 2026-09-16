@@ -93,6 +93,13 @@ export function usePartnerBoard(
       newStatus: OrderStatus;
       deliveryResult?: { reasonCode: string; notes?: string };
     }) => {
+      if (!actorRole || !actorRole.trim()) {
+        throw new Error(
+          "Authenticated actorRole is required to update delivery orders",
+        );
+      }
+      const validatedRole = actorRole.trim();
+
       const { runTransaction, doc, serverTimestamp } =
         await import("firebase/firestore");
       const { db } = await import("@/shared/lib/firebase");
@@ -139,7 +146,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           action,
           user.uid,
-          actorRole || "delivery_partner",
+          validatedRole,
           user.displayName || "Delivery Partner",
           orderId,
           "order",
@@ -207,6 +214,13 @@ export function usePartnerBoard(
 
   const completeRouteMutation = useMutation({
     mutationFn: async () => {
+      if (!actorRole || !actorRole.trim()) {
+        throw new Error(
+          "Authenticated actorRole is required to complete delivery route",
+        );
+      }
+      const validatedRole = actorRole.trim();
+
       // 1. Fetch fresh orders directly from Firestore to avoid race conditions
       // with the local optimistic/stale state.
       const { where } = await import("firebase/firestore");
@@ -252,7 +266,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           "delivery_route_completed",
           user.uid,
-          actorRole || "delivery_partner",
+          validatedRole,
           user.displayName || "Delivery Partner",
           partnerId,
           "route",
