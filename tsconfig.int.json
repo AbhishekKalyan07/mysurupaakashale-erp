@@ -32,6 +32,8 @@
     "src/**/*.tsx",
     "src/**/*.d.ts",
     "tests/**/*.ts",
+    "scripts/automation/auth.ts",
+    "scripts/automation/env.ts",
     "vite.config.ts",
     "vitest.int.config.ts",
     "vitest.int.setup.ts",
