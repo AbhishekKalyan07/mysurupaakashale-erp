@@ -18,12 +18,13 @@ export function DeliveryDashboardPage() {
   const { role } = useAuth();
   const canReassign = role === "admin";
 
-  const { allOrders, summary, isLoading, reassignMutation } =
+  const { allOrders, isLoading, reassignMutation } =
     useDeliveryBoard(today);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [partnerFilter, setPartnerFilter] = useState("all");
+  const [mealFilter, setMealFilter] = useState<string>("all");
 
   // Fetch Delivery Partners
   const { data: deliveryPartners = [] } = useQuery({
@@ -48,13 +49,8 @@ export function DeliveryDashboardPage() {
     queryKey: ["users", "customers", customerIds],
     queryFn: async () => {
       if (customerIds.length === 0) return [];
-      const customerPromises = customerIds.map((id) =>
-        userRepository.getById(id),
-      );
-      const results = await Promise.all(customerPromises);
-      return results.filter(
-        Boolean,
-      ) as import("@/shared/types").CustomerProfile[];
+      const results = await userRepository.getByIds(customerIds);
+      return results as import("@/shared/types").CustomerProfile[];
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -83,9 +79,23 @@ export function DeliveryDashboardPage() {
     [zones],
   );
 
+  const shiftOrders = useMemo(() => {
+    if (mealFilter === "all") return allOrders;
+    return allOrders.filter((o) => o.mealType === mealFilter);
+  }, [allOrders, mealFilter]);
+
+  const activeSummary = useMemo(() => {
+    return deliveryService.getDeliverySummary(shiftOrders);
+  }, [shiftOrders]);
+
   // Apply filters
   const filteredOrders = useMemo(() => {
     return allOrders.filter((o) => {
+      // 0. Meal Shift Filter
+      if (mealFilter !== "all" && o.mealType !== mealFilter) {
+        return false;
+      }
+
       // 1. Status Filter
       if (statusFilter !== "all") {
         if (
@@ -115,7 +125,7 @@ export function DeliveryDashboardPage() {
 
       return true;
     });
-  }, [allOrders, statusFilter, partnerFilter, searchQuery, customerMap]);
+  }, [allOrders, mealFilter, statusFilter, partnerFilter, searchQuery, customerMap]);
 
   const groupedOrders = useMemo(() => {
     return deliveryService.getAreaDeliveryGroups(
@@ -136,14 +146,54 @@ export function DeliveryDashboardPage() {
     <div className="space-y-6 pb-20">
       <HeroBanner
         userName="Dispatch Team"
-        subtitle={`Date: ${today} | Total Orders: ${allOrders.length}`}
+        subtitle={`Date: ${today} | ${mealFilter === "all" ? "All Shifts" : mealFilter.charAt(0).toUpperCase() + mealFilter.slice(1) + " Shift"} | Orders: ${shiftOrders.length}`}
       />
 
-      <DeliverySummaryCards summary={summary} />
+      {/* Shift Selector Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {(["all", "breakfast", "lunch", "dinner"] as const).map((meal) => {
+          const isSelected = mealFilter === meal;
+          const count =
+            meal === "all"
+              ? allOrders.length
+              : allOrders.filter((o) => o.mealType === meal).length;
+          return (
+            <button
+              key={meal}
+              type="button"
+              onClick={() => setMealFilter(meal)}
+              className={`px-4 py-2 rounded-xl font-display font-medium text-xs sm:text-sm flex items-center gap-2 transition-all duration-200 shadow-xs cursor-pointer ${
+                isSelected
+                  ? "bg-primary text-white shadow-primary/20 scale-[1.02]"
+                  : "bg-white text-text-muted hover:text-text hover:bg-rice-100 border border-border"
+              }`}
+            >
+              <span>
+                {meal === "all"
+                  ? "All Shifts"
+                  : meal.charAt(0).toUpperCase() + meal.slice(1)}
+              </span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  isSelected
+                    ? "bg-white/20 text-white"
+                    : "bg-surface-3 text-text-muted"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <DeliverySummaryCards summary={activeSummary} />
 
       <DeliveryFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        mealFilter={mealFilter}
+        onMealChange={setMealFilter}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
         partnerFilter={partnerFilter}

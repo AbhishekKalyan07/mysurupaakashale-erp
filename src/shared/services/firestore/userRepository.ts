@@ -12,6 +12,7 @@ import {
   getDocs,
   doc,
   runTransaction,
+  documentId,
   type QueryConstraint,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -19,6 +20,27 @@ import {
 class UserRepository extends BaseRepository<UserProfile> {
   constructor() {
     super(db, "users", createConverter<UserProfile>());
+  }
+
+  /**
+   * Fetches multiple user profiles by ID in batches of up to 30 (Firestore 'in' query limit).
+   */
+  async getByIds(ids: string[]): Promise<UserProfile[]> {
+    if (!ids || ids.length === 0) return [];
+    const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
+    if (uniqueIds.length === 0) return [];
+
+    const CHUNK_SIZE = 30;
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+      chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const results = await Promise.all(
+      chunks.map((chunk) => this.list(where(documentId(), "in", chunk))),
+    );
+
+    return results.flat();
   }
 
   async getCustomersPaginated(

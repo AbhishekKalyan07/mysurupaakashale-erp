@@ -4,6 +4,7 @@ import type { Order } from "@/shared/types";
 import { BaseRepository, createConverter } from "./BaseRepository";
 import { where, orderBy, type Unsubscribe } from "firebase/firestore";
 import { writeBatch, doc, serverTimestamp } from "firebase/firestore";
+import { userRepository } from "./userRepository";
 
 class DeliveryRepository extends BaseRepository<Order> {
   constructor() {
@@ -121,13 +122,15 @@ class DeliveryRepository extends BaseRepository<Order> {
    * Assigns multiple orders to a specific delivery partner.
    */
   async assignOrders(orderIds: string[], partnerId: string): Promise<void> {
+    const partner = await userRepository.getById(partnerId);
     // Phase 1: Client-side batch assignment
     const batch = writeBatch(db);
     for (const orderId of orderIds) {
       batch.update(doc(db, "orders", orderId), {
         deliveryPartnerId: partnerId,
-        updatedAt:
-          serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        driverName: partner?.fullName ?? null,
+        driverPhone: partner?.phone ?? null,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
       });
     }
     await batch.commit();
@@ -154,11 +157,22 @@ class DeliveryRepository extends BaseRepository<Order> {
       throw new Error(`Cannot reassign order in status: ${order.status}`);
     }
 
+    let driverName: string | null = null;
+    let driverPhone: string | null = null;
+    if (partnerId) {
+      const partner = await userRepository.getById(partnerId);
+      if (partner) {
+        driverName = partner.fullName || null;
+        driverPhone = partner.phone || null;
+      }
+    }
+
     // Phase 1: Client-side reassignment
     await this.update(orderId, {
       deliveryPartnerId: partnerId,
-      updatedAt:
-        serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+      driverName,
+      driverPhone,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
     });
   }
 

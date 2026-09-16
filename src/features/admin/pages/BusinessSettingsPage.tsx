@@ -86,7 +86,7 @@ export function BusinessSettingsPage() {
             lunch: "10:30",
             dinner: "16:00",
           },
-          businessHolidays: settings.operations.businessHolidays.join(", "),
+          businessHolidays: (settings.operations?.businessHolidays ?? []).join(", "),
         },
         payroll: settings.payroll || {
           standardWorkingDays: 22,
@@ -103,7 +103,7 @@ export function BusinessSettingsPage() {
       ...data,
       operations: {
         ...data.operations,
-        businessHolidays: data.operations.businessHolidays
+        businessHolidays: (data.operations?.businessHolidays || "")
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),

@@ -23,6 +23,7 @@ export function usePartnerBoard(
   partnerId: string,
   date: string,
   mealType: string,
+  actorRole?: string,
 ) {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const orders = useMemo(
@@ -73,14 +74,37 @@ export function usePartnerBoard(
   }, [partnerId, date, mealType]);
 
   const allTerminal = useMemo(() => {
-    const activeRouteOrders = allOrders.filter(
+    const activeRouteOrders = orders.filter(
       (o) => !["cancelled", "skipped"].includes(o.status),
     );
     if (activeRouteOrders.length === 0) return false;
     return activeRouteOrders.every((o) =>
       ["delivered", "failed_delivery", "returned_delivery"].includes(o.status),
     );
-  }, [allOrders]);
+  }, [orders]);
+
+  const sessionStatus = useMemo(() => {
+    const mealSession = session?.mealSessions?.[mealType];
+    if (mealSession?.status) {
+      return mealSession.status;
+    }
+    // Backward-compatibility: if legacy overall session is completed, but this meal route has active pending orders,
+    // don't prematurely display route completed.
+    if (session?.status === "completed") {
+      const hasActivePending = orders.some(
+        (o) =>
+          ![
+            "delivered",
+            "failed_delivery",
+            "returned_delivery",
+            "cancelled",
+            "skipped",
+          ].includes(o.status),
+      );
+      if (hasActivePending) return "not_started";
+    }
+    return session?.status || "not_started";
+  }, [session, mealType, orders]);
 
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -92,6 +116,13 @@ export function usePartnerBoard(
       newStatus: OrderStatus;
       deliveryResult?: { reasonCode: string; notes?: string };
     }) => {
+      if (!actorRole || !actorRole.trim()) {
+        throw new Error(
+          "Authenticated actorRole is required to update delivery orders",
+        );
+      }
+      const validatedRole = actorRole.trim();
+
       const { runTransaction, doc, serverTimestamp } =
         await import("firebase/firestore");
       const { db } = await import("@/shared/lib/firebase");
@@ -138,7 +169,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           action,
           user.uid,
-          "delivery_partner",
+          validatedRole,
           user.displayName || "Delivery Partner",
           orderId,
           "order",
@@ -151,6 +182,16 @@ export function usePartnerBoard(
         // If it's the first pickup, or just keep updating total Picked Up
         await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
           status: "picked_up",
+          [`mealSessions.${mealType}`]: {
+            ...(session?.mealSessions?.[mealType] || {}),
+            status: "picked_up",
+            pickedUpAt: serverTimestamp() as unknown as Timestamp,
+            pickedUpBy: partnerId,
+            totalAssigned: orders.length,
+            delivered: orders.filter((o) => (o.id === orderId ? false : o.status === "delivered")).length,
+            failed: orders.filter((o) => (o.id === orderId ? false : o.status === "failed_delivery")).length,
+            returned: orders.filter((o) => (o.id === orderId ? false : o.status === "returned_delivery")).length,
+          },
           pickup: {
             pickedUpAt: serverTimestamp() as unknown as Timestamp,
             pickedUpBy: partnerId,
@@ -159,10 +200,19 @@ export function usePartnerBoard(
         });
       } else if (
         newStatus === "out_for_delivery" &&
-        session?.status !== "in_progress"
+        session?.mealSessions?.[mealType]?.status !== "in_progress"
       ) {
         await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
           status: "in_progress",
+          [`mealSessions.${mealType}`]: {
+            ...(session?.mealSessions?.[mealType] || {}),
+            status: "in_progress",
+            startedAt: serverTimestamp() as unknown as Timestamp,
+            totalAssigned: orders.length,
+            delivered: orders.filter((o) => (o.id === orderId ? false : o.status === "delivered")).length,
+            failed: orders.filter((o) => (o.id === orderId ? false : o.status === "failed_delivery")).length,
+            returned: orders.filter((o) => (o.id === orderId ? false : o.status === "returned_delivery")).length,
+          },
           deliverySession: {
             ...session?.deliverySession,
             startedAt: serverTimestamp() as unknown as Timestamp,
@@ -171,6 +221,25 @@ export function usePartnerBoard(
             failed: 0,
             returned: 0,
           } as any,
+        });
+      } else if (
+        ["delivered", "failed_delivery", "returned_delivery"].includes(newStatus)
+      ) {
+        const updatedOrders = orders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus as OrderStatus } : o,
+        );
+        await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
+          [`mealSessions.${mealType}`]: {
+            ...(session?.mealSessions?.[mealType] || {}),
+            status:
+              session?.mealSessions?.[mealType]?.status === "picked_up"
+                ? "in_progress"
+                : session?.mealSessions?.[mealType]?.status || "in_progress",
+            totalAssigned: orders.length,
+            delivered: updatedOrders.filter((o) => o.status === "delivered").length,
+            failed: updatedOrders.filter((o) => o.status === "failed_delivery").length,
+            returned: updatedOrders.filter((o) => o.status === "returned_delivery").length,
+          },
         });
       }
 
@@ -206,6 +275,13 @@ export function usePartnerBoard(
 
   const completeRouteMutation = useMutation({
     mutationFn: async () => {
+      if (!actorRole || !actorRole.trim()) {
+        throw new Error(
+          "Authenticated actorRole is required to complete delivery route",
+        );
+      }
+      const validatedRole = actorRole.trim();
+
       // 1. Fetch fresh orders directly from Firestore to avoid race conditions
       // with the local optimistic/stale state.
       const { where } = await import("firebase/firestore");
@@ -234,15 +310,48 @@ export function usePartnerBoard(
 
       const summary = deliveryService.getDeliverySummary(activeRouteOrders);
 
+      // Check if all today's orders across all shifts are complete
+      const allTodayOrders = await orderRepository.list(
+        where("deliveryPartnerId", "==", partnerId),
+        where("date", "==", date),
+      );
+      const activeAllToday = allTodayOrders.filter(
+        (o) => !["cancelled", "skipped"].includes(o.status),
+      );
+      const isEntireDayComplete =
+        activeAllToday.length > 0 &&
+        activeAllToday.every((o) =>
+          ["delivered", "failed_delivery", "returned_delivery"].includes(
+            o.status,
+          ),
+        );
+
+      const fullDaySummary = deliveryService.getDeliverySummary(activeAllToday);
+
       await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
-        status: "completed",
-        deliverySession: {
-          startedAt: session?.deliverySession?.startedAt || null,
+        status: isEntireDayComplete ? "completed" : "in_progress",
+        [`mealSessions.${mealType}`]: {
+          status: "completed",
+          startedAt:
+            session?.mealSessions?.[mealType]?.startedAt ||
+            session?.deliverySession?.startedAt ||
+            null,
           completedAt: serverTimestamp() as unknown as Timestamp,
           totalAssigned: summary.assigned,
           delivered: summary.delivered,
           failed: summary.failed,
           returned: summary.returned,
+        },
+        deliverySession: {
+          ...session?.deliverySession,
+          startedAt: session?.deliverySession?.startedAt || null,
+          completedAt: isEntireDayComplete
+            ? (serverTimestamp() as unknown as Timestamp)
+            : session?.deliverySession?.completedAt || null,
+          totalAssigned: fullDaySummary.assigned,
+          delivered: fullDaySummary.delivered,
+          failed: fullDaySummary.failed,
+          returned: fullDaySummary.returned,
         },
       });
 
@@ -251,7 +360,7 @@ export function usePartnerBoard(
         await auditRepository.logAction(
           "delivery_route_completed",
           user.uid,
-          "delivery_partner",
+          validatedRole,
           user.displayName || "Delivery Partner",
           partnerId,
           "route",
@@ -274,6 +383,7 @@ export function usePartnerBoard(
   return {
     orders,
     session,
+    sessionStatus,
     allTerminal,
     isLoading,
     error,

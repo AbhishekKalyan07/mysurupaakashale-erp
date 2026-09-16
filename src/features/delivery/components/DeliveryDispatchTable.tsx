@@ -87,7 +87,17 @@ export function DeliveryDispatchTable({
                       phone: order.customerPhone || customer?.phone,
                       photoUrl: customer?.photoUrl,
                       address: order.address,
-                      addressCoords: undefined,
+                      addressCoords:
+                        order.addressCoords ||
+                        (() => {
+                          if (!order.deliveryAddressId) return null;
+                          const addr = customer?.addresses?.find(
+                            (a: any) => a.id === order.deliveryAddressId,
+                          );
+                          return addr?.lat && addr?.lng
+                            ? { lat: addr.lat, lng: addr.lng }
+                            : null;
+                        })(),
                     }}
                     partnerName={
                       partnerGroup.partnerName !== "Unassigned"

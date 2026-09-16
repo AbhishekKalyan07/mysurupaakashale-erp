@@ -4,7 +4,7 @@ import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 
 // Mock React
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 vi.mock("react", () => ({
   useState: vi.fn((init) => [init, vi.fn()]),
   useEffect: vi.fn((cb) => {
@@ -114,7 +114,28 @@ describe("usePartnerBoard mutation payload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-initialize hook to capture the mutation config
-    board = usePartnerBoard("driver-1", "2026-08-01", "breakfast");
+    board = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "breakfast",
+      "delivery_partner",
+    );
+  });
+
+  it("throws an error if updateMutation is called without an actorRole", async () => {
+    const unauthenticatedBoard = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "breakfast",
+    );
+    await expect(
+      unauthenticatedBoard.updateMutation.mutateAsync({
+        orderId: "ord-1",
+        newStatus: "out_for_delivery",
+      }),
+    ).rejects.toThrow(
+      "Authenticated actorRole is required to update delivery orders",
+    );
   });
 
   it("handles empty partnerId or date gracefully", () => {
@@ -198,7 +219,25 @@ describe("usePartnerBoard complete route & notifications", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    board = usePartnerBoard("driver-1", "2026-08-01", "lunch");
+    board = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "lunch",
+      "delivery_partner",
+    );
+  });
+
+  it("throws an error if completeRouteMutation is called without an actorRole", async () => {
+    const unauthenticatedBoard = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "lunch",
+    );
+    await expect(
+      unauthenticatedBoard.completeRouteMutation.mutateAsync(),
+    ).rejects.toThrow(
+      "Authenticated actorRole is required to complete delivery route",
+    );
   });
 
   it("throws an error if completeRouteMutation is called when not all orders are terminal", async () => {
@@ -211,7 +250,12 @@ describe("usePartnerBoard complete route & notifications", () => {
     ]);
 
     // Re-render hook with allTerminal=false
-    const boardNotTerminal = usePartnerBoard("driver-1", "2026-08-01", "lunch");
+    const boardNotTerminal = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "lunch",
+      "delivery_partner",
+    );
 
     await expect(
       boardNotTerminal.completeRouteMutation.mutateAsync(),
@@ -296,6 +340,7 @@ describe("usePartnerBoard complete route & notifications", () => {
       "driver-1",
       "2026-08-01",
       "lunch",
+      "delivery_partner",
     );
 
     await boardWithTerminal.completeRouteMutation.mutateAsync();
@@ -310,5 +355,27 @@ describe("usePartnerBoard complete route & notifications", () => {
       "route",
       expect.anything(),
     );
+  });
+
+  it("resolves meal-specific sessionStatus accurately", () => {
+    const mockSession = {
+      status: "in_progress",
+      mealSessions: {
+        breakfast: { status: "completed" },
+        lunch: { status: "picked_up" },
+      },
+    };
+    vi.mocked(useState)
+      .mockReturnValueOnce([[], vi.fn()])
+      .mockReturnValueOnce([mockSession as any, vi.fn()]);
+
+    const lunchBoard = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "lunch",
+      "delivery_partner",
+    );
+
+    expect(lunchBoard.sessionStatus).toBe("picked_up");
   });
 });

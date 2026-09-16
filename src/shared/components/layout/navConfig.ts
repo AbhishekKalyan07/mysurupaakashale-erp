@@ -14,6 +14,9 @@ import {
   UserCheck,
   Map,
   CalendarX,
+  CheckCircle,
+  MessageSquare,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import { ROLES, type Role } from "@/shared/constants/roles";
@@ -46,6 +49,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       items: [
         { label: "Orders", to: "/admin/orders", icon: Package },
         { label: "Kitchen", to: "/admin/kitchen", icon: ChefHat },
+        { label: "Daily Menus", to: "/admin/menus", icon: BookOpen },
         { label: "Delivery", to: "/admin/delivery", icon: Truck },
         { label: "Holidays", to: "/admin/holidays", icon: CalendarX },
       ],
@@ -54,6 +58,11 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       groupLabel: "Finance & HR",
       items: [
         { label: "Accounts", to: "/admin/accounts", icon: ReceiptText },
+        {
+          label: "Payment Verification",
+          to: "/admin/payments",
+          icon: CheckCircle,
+        },
         { label: "Payroll", to: "/admin/payroll", icon: CreditCard },
         { label: "Advances", to: "/admin/salary-advances", icon: CreditCard },
         { label: "Staff", to: "/admin/staff", icon: Users },
@@ -62,6 +71,8 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       groupLabel: "System",
       items: [
+        { label: "Complaints", to: "/admin/complaints", icon: MessageSquare },
+        { label: "Audit Logs", to: "/admin/audit", icon: ClipboardList },
         { label: "Analytics", to: "/admin/analytics", icon: TrendingUp },
         { label: "Zones", to: "/admin/zones", icon: Map },
         { label: "Settings", to: "/admin/settings", icon: Settings },

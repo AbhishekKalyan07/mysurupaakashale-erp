@@ -5,7 +5,6 @@ import { GlobalErrorBoundary } from "./shared/components/feedback/GlobalErrorBou
 import "./index.css";
 import { initAnalytics, initPerformance } from "./shared/lib/firebase";
 import { registerSW } from "virtual:pwa-register";
-// Handle dynamic import errors gracefully (e.g. when a new version is deployed and old chunks 404)
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
   if (!navigator.onLine) {
@@ -17,12 +16,19 @@ window.addEventListener("vite:preloadError", (event) => {
       )
     ) {
       // Unregister service workers to break out of stale cache loop, then reload
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
+      if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) => {
+            return Promise.all(registrations.map((r) => r.unregister()));
+          })
+          .catch(() => {})
+          .finally(() => {
+            window.location.reload();
+          });
+      } else {
         window.location.reload();
-      });
+      }
     }
   }
 });
@@ -112,47 +118,6 @@ function queueNonCriticalInitialization() {
       } catch (e) {
         console.warn("Non-critical Firebase init failed:", e);
       }
-
-      try {
-        const updateSW = registerSW({
-          immediate: true,
-          // onNeedRefresh is no longer needed since we use autoUpdate in vite.config.ts
-          onRegisteredSW(_swUrl, r) {
-            if (r) {
-              // 1. Check for updates every hour in the background
-              setInterval(
-                () => {
-                  if (r.installing || !navigator.onLine) return;
-                  r.update().catch(() => {});
-                },
-                60 * 60 * 1000,
-              );
-
-              // 2. Check for updates when the app comes back to the foreground
-              // This is CRITICAL for mobile installed PWAs where users just background the app
-              document.addEventListener("visibilitychange", () => {
-                if (
-                  document.visibilityState === "visible" &&
-                  navigator.onLine
-                ) {
-                  r.update().catch(() => {});
-                }
-              });
-            }
-          },
-          onRegisterError(error: unknown) {
-            console.warn(
-              "Service worker registration blocked by environment:",
-              error,
-            );
-          },
-        });
-        Promise.resolve(updateSW).catch((e) => {
-          console.warn("Service worker registration rejected:", e);
-        });
-      } catch (e) {
-        console.warn("Failed to call registerSW:", e);
-      }
     };
 
     // Use requestIdleCallback if available, otherwise a small setTimeout
@@ -171,8 +136,53 @@ function queueNonCriticalInitialization() {
   setTimeout(triggerInit, 15000);
 }
 
+function initServiceWorker() {
+  try {
+    const updateSW = registerSW({
+      immediate: true,
+      onRegisteredSW(_swUrl, r) {
+        if (r) {
+          // 1. Check for updates every hour in the background
+          setInterval(
+            () => {
+              if (r.installing || !navigator.onLine) return;
+              r.update().catch(() => {});
+            },
+            60 * 60 * 1000,
+          );
+
+          // 2. Check for updates when the app comes back to the foreground
+          // This is CRITICAL for mobile installed PWAs where users just background the app
+          document.addEventListener("visibilitychange", () => {
+            if (
+              document.visibilityState === "visible" &&
+              navigator.onLine
+            ) {
+              r.update().catch(() => {});
+            }
+          });
+        }
+      },
+      onRegisterError(error: unknown) {
+        console.warn(
+          "Service worker registration blocked by environment:",
+          error,
+        );
+      },
+    });
+    Promise.resolve(updateSW).catch((e) => {
+      console.warn("Service worker registration rejected:", e);
+    });
+  } catch (e) {
+    console.warn("Failed to call registerSW:", e);
+  }
+}
+
 // Render UI immediately
 renderApplication();
+
+// Register Service Worker immediately for PWA installability and caching
+initServiceWorker();
 
 // Initialize telemetry in the background
 queueNonCriticalInitialization();

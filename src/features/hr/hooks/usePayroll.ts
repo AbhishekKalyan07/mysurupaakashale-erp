@@ -18,6 +18,7 @@ import type {
 } from "@/shared/types";
 import { db } from "@/shared/lib/firebase";
 import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import { notificationRepository } from "@/shared/services/firestore/notificationRepository";
@@ -34,14 +35,21 @@ export const queryKeys = {
       [...queryKeys.payroll.base, "month", month] as const,
     byStaff: (staffId: string) =>
       [...queryKeys.payroll.base, "staff", staffId] as const,
-    profiles: ["salaryProfiles"] as const,
     profile: (staffId: string) =>
-      [...queryKeys.payroll.profiles, staffId] as const,
+      [...queryKeys.payroll.base, "profile", staffId] as const,
+    profiles: ["salaryProfiles"] as const,
     advances: ["salaryAdvances"] as const,
-    pendingAdvancesByPeriod: (staffId: string, month: string) =>
-      [...queryKeys.payroll.advances, "pending", staffId, month] as const,
+    advancesByStaff: (staffId: string) =>
+      [...queryKeys.payroll.advances, "staff", staffId] as const,
+    pendingAdvancesByPeriod: (staffId: string, payrollMonth: string) =>
+      [
+        ...queryKeys.payroll.advances,
+        "pending",
+        staffId,
+        payrollMonth,
+      ] as const,
     allAdvancesByStaff: (staffId: string) =>
-      [...queryKeys.payroll.advances, "all", staffId] as const,
+      [...queryKeys.payroll.advances, "allByStaff", staffId] as const,
   },
 };
 
@@ -49,13 +57,11 @@ export const queryKeys = {
 // Helper — get actor identity from Firebase Auth current user
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getActorIdentity() {
+function getActorIdentity(roleOverride?: string | null) {
   const user = getAuth().currentUser;
   if (!user) throw new Error("Not authenticated");
-  const name = user.displayName || "Unknown user";
-  // We don't have the role here, but we'll use 'admin' as a safe default
-  // (the Firestore rules enforce role, not this string)
-  return { uid: user.uid, name };
+  const name = user.displayName || "Staff";
+  return { uid: user.uid, name, role: roleOverride || "admin" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,6 +140,7 @@ export function useAdvancesByPeriod(payrollMonth: string | null | undefined) {
 
 export function useAddSalaryAdvance() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (data: {
@@ -145,7 +152,7 @@ export function useAddSalaryAdvance() {
       reason: string;
       notes?: string;
     }) => {
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       const id = crypto.randomUUID();
 
       const record: SalaryAdvance = {
@@ -169,7 +176,7 @@ export function useAddSalaryAdvance() {
       await auditRepository.logAction(
         "salary_advance_created",
         uid,
-        "admin",
+        actorRole,
         name,
         id,
         "salaryAdvance",
@@ -197,6 +204,7 @@ export function useAddSalaryAdvance() {
 /** Edit a PENDING advance. deducted/voided advances cannot be edited through normal workflow. */
 export function useUpdateSalaryAdvance() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -216,7 +224,7 @@ export function useUpdateSalaryAdvance() {
           `Cannot edit a ${advance.status} advance. Only pending advances may be edited.`,
         );
       }
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
 
       await salaryAdvanceRepository.update(advance.id, {
         ...updates,
@@ -226,7 +234,7 @@ export function useUpdateSalaryAdvance() {
       await auditRepository.logAction(
         "salary_advance_updated",
         uid,
-        "admin",
+        actorRole,
         name,
         advance.id,
         "salaryAdvance",
@@ -258,6 +266,7 @@ export function useUpdateSalaryAdvance() {
 /** Void a PENDING advance. Financial record is never deleted. */
 export function useVoidSalaryAdvance() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -279,7 +288,7 @@ export function useVoidSalaryAdvance() {
         throw new Error("A reason is required to void an advance.");
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
 
       await salaryAdvanceRepository.update(advance.id, {
         status: "voided",
@@ -293,7 +302,7 @@ export function useVoidSalaryAdvance() {
       await auditRepository.logAction(
         "salary_advance_voided",
         uid,
-        "admin",
+        actorRole,
         name,
         advance.id,
         "salaryAdvance",
@@ -321,6 +330,7 @@ export function useVoidSalaryAdvance() {
 /** Assign a payroll period to a legacy advance (payrollMonth: null → YYYY-MM). */
 export function useAssignAdvancePeriod() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -342,7 +352,7 @@ export function useAssignAdvancePeriod() {
         throw new Error("Only pending advances can have a period assigned.");
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
 
       await salaryAdvanceRepository.update(advance.id, {
         payrollMonth,
@@ -352,7 +362,7 @@ export function useAssignAdvancePeriod() {
       await auditRepository.logAction(
         "salary_advance_period_assigned",
         uid,
-        "admin",
+        actorRole,
         name,
         advance.id,
         "salaryAdvance",
@@ -382,11 +392,12 @@ export function useAssignAdvancePeriod() {
 
 export function useUpdateSalaryProfile() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (data: EmployeeSalaryProfile) => {
       const exists = await salaryProfileRepository.getProfile(data.id);
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
 
       if (exists) {
         await salaryProfileRepository.update(data.id, {
@@ -406,7 +417,7 @@ export function useUpdateSalaryProfile() {
       await auditRepository.logAction(
         exists ? "salary_profile_updated" : "salary_profile_created",
         uid,
-        "admin",
+        actorRole,
         name,
         data.id,
         "salary_profile",
@@ -439,6 +450,7 @@ export function useUpdateSalaryProfile() {
 
 export function useGeneratePayroll() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async (
@@ -458,11 +470,11 @@ export function useGeneratePayroll() {
       };
       await payrollRepository.create(record, id);
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       await auditRepository.logAction(
         "payroll_generated",
         uid,
-        "admin",
+        actorRole,
         name,
         id,
         "payroll",
@@ -473,16 +485,23 @@ export function useGeneratePayroll() {
         },
       );
 
-      await notificationRepository.createNotification({
-        recipientId: data.staffId,
-        recipientRole: "staff",
-        channel: "in_app",
-        title: `Payroll Generated: ${data.month}`,
-        message: `Your draft payroll for ${data.month} has been generated.`,
-        type: "payroll_generated",
-        priority: "normal",
-        metadata: { payrollId: id, month: data.month },
-      });
+      notificationRepository
+        .createNotification({
+          recipientId: data.staffId,
+          recipientRole: "staff",
+          channel: "in_app",
+          title: `Payroll Generated: ${data.month}`,
+          message: `Your draft payroll for ${data.month} has been generated.`,
+          type: "payroll_generated",
+          priority: "normal",
+          metadata: { payrollId: id, month: data.month },
+        })
+        .catch((e) => {
+          console.warn(
+            "[usePayroll] Failed to dispatch payroll notification:",
+            e,
+          );
+        });
 
       return id;
     },
@@ -498,6 +517,7 @@ export function useGeneratePayroll() {
 
 export function useUpdatePayroll() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -511,11 +531,11 @@ export function useUpdatePayroll() {
         ...data,
         updatedAt: serverTimestamp() as unknown as Timestamp,
       });
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       await auditRepository.logAction(
         "payroll_updated",
         uid,
-        "admin",
+        actorRole,
         name,
         id,
         "payroll",
@@ -540,6 +560,7 @@ export function useUpdatePayroll() {
  */
 export function useUpdatePayrollStatus() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -564,11 +585,11 @@ export function useUpdatePayrollStatus() {
         status,
         updatedAt: serverTimestamp() as unknown as Timestamp,
       });
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       await auditRepository.logAction(
         "payroll_status_changed",
         uid,
-        "admin",
+        actorRole,
         name,
         id,
         "payroll",
@@ -591,6 +612,7 @@ export function useUpdatePayrollStatus() {
 /** Reject a payroll (review → rejected OR approved → rejected). Requires a reason. */
 export function useRejectPayroll() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -610,7 +632,7 @@ export function useRejectPayroll() {
         );
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       const today = getTodayInTimezone();
 
       await payrollRepository.update(payroll.id, {
@@ -625,7 +647,7 @@ export function useRejectPayroll() {
       await auditRepository.logAction(
         "payroll_rejected",
         uid,
-        "admin",
+        actorRole,
         name,
         payroll.id,
         "payroll",
@@ -650,6 +672,7 @@ export function useRejectPayroll() {
 /** Return a payroll to draft (review/rejected → draft). Requires a reason. */
 export function useReturnPayrollToDraft() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -669,7 +692,7 @@ export function useReturnPayrollToDraft() {
         );
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       const today = getTodayInTimezone();
 
       await payrollRepository.update(payroll.id, {
@@ -684,7 +707,7 @@ export function useReturnPayrollToDraft() {
       await auditRepository.logAction(
         "payroll_returned_to_draft",
         uid,
-        "admin",
+        actorRole,
         name,
         payroll.id,
         "payroll",
@@ -711,6 +734,7 @@ export function useReturnPayrollToDraft() {
 /** Return approved payroll to review for further verification. Requires a reason. */
 export function useReturnPayrollToReview() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -727,7 +751,7 @@ export function useReturnPayrollToReview() {
         throw new Error(`Only approved payrolls can be returned to review.`);
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
 
       await payrollRepository.update(payroll.id, {
         status: "review",
@@ -741,7 +765,7 @@ export function useReturnPayrollToReview() {
       await auditRepository.logAction(
         "payroll_returned_to_review",
         uid,
-        "admin",
+        actorRole,
         name,
         payroll.id,
         "payroll",
@@ -770,6 +794,7 @@ export function useReturnPayrollToReview() {
 
 export function usePaySalary() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -790,7 +815,7 @@ export function usePaySalary() {
         throw new Error("Amount paid must be a valid non-negative number.");
       }
 
-      const { uid, name } = getActorIdentity();
+      const { uid, name, role: actorRole } = getActorIdentity(role);
       const paymentDate = getTodayInTimezone();
       let staffIdForNotification = "";
       let monthForNotification = "";
@@ -884,7 +909,7 @@ export function usePaySalary() {
       await auditRepository.logAction(
         "salary_paid",
         uid,
-        "admin",
+        actorRole,
         name,
         payrollId,
         "payroll",
@@ -898,16 +923,23 @@ export function usePaySalary() {
         },
       );
 
-      await notificationRepository.createNotification({
-        recipientId: staffIdForNotification,
-        recipientRole: "staff",
-        channel: "in_app",
-        title: `Salary Paid: ${monthForNotification}`,
-        message: `Your salary for ${monthForNotification} (₹${amountPaid.toLocaleString()}) has been transferred successfully.`,
-        type: "salary_paid",
-        priority: "high",
-        metadata: { payrollId, amount: String(amountPaid) },
-      });
+      notificationRepository
+        .createNotification({
+          recipientId: staffIdForNotification,
+          recipientRole: "staff",
+          channel: "in_app",
+          title: `Salary Paid: ${monthForNotification}`,
+          message: `Your salary for ${monthForNotification} (₹${amountPaid.toLocaleString()}) has been transferred successfully.`,
+          type: "salary_paid",
+          priority: "high",
+          metadata: { payrollId, amount: String(amountPaid) },
+        })
+        .catch((e) => {
+          console.warn(
+            "[usePayroll] Failed to dispatch salary paid notification:",
+            e,
+          );
+        });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payroll.base });

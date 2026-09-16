@@ -4,6 +4,7 @@ import { attendanceRepository } from "@/shared/services/firestore/attendanceRepo
 import type { AttendanceRecord } from "@/shared/types";
 import { serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import toast from "react-hot-toast";
 
@@ -50,6 +51,7 @@ export function useAttendanceByStaff(
 
 export function useCheckIn() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -90,7 +92,7 @@ export function useCheckIn() {
         await auditRepository.logAction(
           "attendance_checked_in",
           user.uid,
-          "staff",
+          role || "kitchen",
           user.displayName || "Staff",
           id,
           "attendance",
@@ -113,6 +115,7 @@ export function useCheckIn() {
 
 export function useCheckOut() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -153,7 +156,7 @@ export function useCheckOut() {
         await auditRepository.logAction(
           "attendance_checked_out",
           user.uid,
-          "staff",
+          role || "kitchen",
           user.displayName || "Staff",
           record.id,
           "attendance",
@@ -176,6 +179,7 @@ export function useCheckOut() {
 
 export function useUpdateAttendance() {
   const queryClient = useQueryClient();
+  const { role } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -195,7 +199,7 @@ export function useUpdateAttendance() {
         await auditRepository.logAction(
           "attendance_updated",
           user.uid,
-          "admin",
+          role || "admin",
           user.displayName || "Admin",
           id,
           "attendance",

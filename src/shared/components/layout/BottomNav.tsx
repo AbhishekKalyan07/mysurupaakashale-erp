@@ -61,7 +61,7 @@ const BOTTOM_TABS_BY_ROLE: Record<Role, BottomNavTab[]> = {
   ],
   [ROLES.ACCOUNTS]: [
     { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-    { label: "Accounts", to: "/accounts/overview", icon: Receipt },
+    { label: "Payroll", to: "/admin/payroll", icon: CreditCard },
     { label: "Analytics", to: "/accounts/analytics", icon: BarChart3 },
   ],
 };
@@ -79,17 +79,12 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: "Audit Logs", to: "/admin/audit", icon: ClipboardList },
     { label: "Settings", to: "/admin/settings", icon: Settings },
   ],
-  [ROLES.KITCHEN]: [
-    { label: "Settings", to: "/admin/settings", icon: Settings },
-  ],
+  [ROLES.KITCHEN]: [],
   [ROLES.DELIVERY_PARTNER]: [],
   [ROLES.CUSTOMER]: [
     { label: "Order History", to: "/customer/orders", icon: Package },
   ],
-  [ROLES.ACCOUNTS]: [
-    { label: "Payroll", to: "/admin/payroll", icon: CreditCard },
-    { label: "Settings", to: "/admin/settings", icon: Settings },
-  ],
+  [ROLES.ACCOUNTS]: [],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

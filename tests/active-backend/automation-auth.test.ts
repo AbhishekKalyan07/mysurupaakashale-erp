@@ -80,7 +80,7 @@ vi.mock('firebase/auth', () => ({
 }));
 
 // env.ts is a side-effect shim — mock it as a no-op
-vi.mock('./env', () => ({}));
+vi.mock('../../scripts/automation/env', () => ({}));
 
 // ---------------------------------------------------------------------------
 // Import subject under test (after mocks are in place)
@@ -139,6 +139,8 @@ describe('authenticateForAutomation()', () => {
 
   afterEach(() => {
     restoreEnv?.();
+    delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    delete process.env.FIRESTORE_EMULATOR_HOST;
   });
 
   // ── 1. Missing credentials (non-emulator) ────────────────────────────────
@@ -207,6 +209,8 @@ describe('authenticateForAutomation()', () => {
       FIREBASE_SERVICE_ACCOUNT: undefined,
       VITE_USE_FIREBASE_EMULATORS: 'true',
       VITE_FIREBASE_PROJECT_ID: 'demo-test',
+      FIREBASE_AUTH_EMULATOR_HOST: undefined,
+      FIRESTORE_EMULATOR_HOST: undefined,
     });
 
     await authenticateForAutomation();

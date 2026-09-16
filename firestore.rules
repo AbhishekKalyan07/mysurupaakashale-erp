@@ -527,6 +527,10 @@ service cloud.firestore {
                        (get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.status == 'pending_payment' 
                          ? (request.resource.data.purpose == 'security_deposit' && request.resource.data.amount == get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.depositAmount)
                          : true) &&
+                       (!('screenshotUrl' in request.resource.data) ||
+                        request.resource.data.screenshotUrl == null ||
+                        (request.resource.data.screenshotUrl is string &&
+                         request.resource.data.screenshotUrl.size() <= 150000)) &&
                        request.resource.data.keys().hasOnly([
                          'subscriptionId', 'customerId', 'customerName',
                          'amount', 'currency', 'purpose', 'paymentMethod', 'referenceNumber',
@@ -539,7 +543,25 @@ service cloud.firestore {
     }
     match /invoices/{invoiceId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow write: if isAdmin(); // Phase 6: Invoice generation by admin transactions
+      allow create: if (isAdmin() || isAccounts()) &&
+                       ('customerId' in request.resource.data) &&
+                       request.resource.data.customerId is string &&
+                       request.resource.data.customerId.size() > 0 &&
+                       ('totalAmount' in request.resource.data) &&
+                       request.resource.data.totalAmount is number &&
+                       request.resource.data.totalAmount >= 0 &&
+                       request.resource.data.totalAmount <= 1000000 &&
+                       ('status' in request.resource.data) &&
+                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
+      allow update: if (isAdmin() || isAccounts()) &&
+                       request.resource.data.customerId == resource.data.customerId &&
+                       ('totalAmount' in request.resource.data) &&
+                       request.resource.data.totalAmount is number &&
+                       request.resource.data.totalAmount >= 0 &&
+                       request.resource.data.totalAmount <= 1000000 &&
+                       ('status' in request.resource.data) &&
+                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
+      allow delete: if isAdmin();
     }
 
     // ---------- notifications/{notificationId} ----------
@@ -572,7 +594,7 @@ service cloud.firestore {
       allow read: if isSignedIn() &&
                      (resource.data.recipientId == request.auth.uid || isAdmin());
 
-      allow create: if isAdmin() || (isSignedIn() && (isCustomerTriggerableNotification() || isStaffTriggerableNotification()));
+      allow create: if isAdmin() || isAccounts() || (isSignedIn() && (isCustomerTriggerableNotification() || isStaffTriggerableNotification()));
 
       // Recipient may only change inAppStatus, status, and readAt fields.
       // Admins can't update via client either — management goes through Cloud Functions.

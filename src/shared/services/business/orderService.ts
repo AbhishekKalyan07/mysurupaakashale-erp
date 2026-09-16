@@ -6,7 +6,7 @@ import {
   where,
   doc,
 } from "firebase/firestore";
-import { db } from "@/shared/lib/firebase";
+import { db, auth } from "@/shared/lib/firebase";
 import { orderRepository } from "../firestore/orderRepository";
 import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { orderGenerationRunRepository } from "../firestore/analyticsRepository";
@@ -35,6 +35,33 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
     }
   }
   return clean;
+}
+
+function getSystemOrAdminActor() {
+  return {
+    uid: "system",
+    role: "system",
+    name: "System Auto-Generator",
+  };
+}
+
+function sanitizeCoordinates(
+  addr: any,
+): { lat: number; lng: number } | null {
+  if (
+    addr &&
+    typeof addr.lat === "number" &&
+    typeof addr.lng === "number" &&
+    Number.isFinite(addr.lat) &&
+    Number.isFinite(addr.lng) &&
+    addr.lat >= -90 &&
+    addr.lat <= 90 &&
+    addr.lng >= -180 &&
+    addr.lng <= 180
+  ) {
+    return { lat: addr.lat, lng: addr.lng };
+  }
+  return null;
 }
 
 class OrderService {
@@ -305,14 +332,15 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
+              const actor = getSystemOrAdminActor();
               backgroundTasks.push(
                 import("@/shared/services/firestore/auditRepository")
                   .then((m) =>
                     m.auditRepository.logAction(
                       "delivery_assignment_failed",
-                      "system",
-                      "system",
-                      "System Auto-Generator",
+                      actor.uid,
+                      actor.role,
+                      actor.name,
                       order.id!,
                       "order",
                       {
@@ -440,14 +468,15 @@ class OrderService {
           })
           .catch(console.error);
 
+        const actor = getSystemOrAdminActor();
         import("@/shared/services/firestore/auditRepository")
           .then((m) => {
             m.auditRepository
               .logAction(
                 "orders_generated",
-                "system",
-                "system",
-                "System Auto-Generator",
+                actor.uid,
+                actor.role,
+                actor.name,
                 runId,
                 "system",
                 {
@@ -593,13 +622,14 @@ class OrderService {
 
       if (!order.deliveryPartnerId) {
         try {
+          const actor = getSystemOrAdminActor();
           const auditMod =
             await import("@/shared/services/firestore/auditRepository");
           await auditMod.auditRepository.logAction(
             "delivery_assignment_failed",
-            "system",
-            "system",
-            "System Auto-Generator",
+            actor.uid,
+            actor.role,
+            actor.name,
             order.id!,
             "order",
             {
@@ -839,6 +869,7 @@ class OrderService {
         customerCode: custProfile.displayId ?? null,
         customerPhone: custProfile.phone ?? null,
         address: addressStr ?? null,
+        addressCoords: sanitizeCoordinates(addr),
         updatedAt: serverTimestamp() as unknown as Timestamp,
       };
 
@@ -881,15 +912,20 @@ class OrderService {
         `[orderService] Cancelled ${cancelledOrders.length} orders for skipped day ${date}`,
       );
 
+      const caller = auth.currentUser;
+      const actorUid = caller?.uid || customerId;
+      const actorRole = caller?.uid === customerId ? "customer" : "admin";
+      const actorName = caller?.displayName || caller?.email || "Customer";
+
       import("@/shared/services/firestore/auditRepository")
         .then((m) => {
           cancelledOrders.forEach((o) => {
             m.auditRepository
               .logAction(
                 "meal_cancelled",
-                customerId,
-                "customer",
-                "Customer",
+                actorUid,
+                actorRole,
+                actorName,
                 o.id!,
                 "order",
                 {
@@ -1152,6 +1188,7 @@ class OrderService {
       customerCode: customer?.displayId || undefined,
       customerPhone: customer?.phone || undefined,
       address: addressStr || undefined,
+      addressCoords: sanitizeCoordinates(addr),
       zoneName: zoneId ? zoneMap.get(zoneId)?.name || undefined : undefined,
       planName: plan?.name || "Unknown Plan",
       driverName: driver?.fullName || undefined,

@@ -7,6 +7,8 @@ import { auth } from "@/shared/lib/firebase";
  * Operates with ZERO dependency on Firebase Cloud Storage / Google Cloud billing,
  * keeping the application 100% compatible with the Firebase Spark plan.
  */
+const MAX_SCREENSHOT_CHARS = 150000;
+
 export async function uploadPaymentScreenshot(file: File): Promise<string> {
   const user = auth.currentUser;
   if (!user) {
@@ -20,7 +22,16 @@ export async function uploadPaymentScreenshot(file: File): Promise<string> {
         .arrayBuffer()
         .then((buf) => {
           const base64 = Buffer.from(buf).toString("base64");
-          resolve(`data:${file.type || "image/jpeg"};base64,${base64}`);
+          const res = `data:${file.type || "image/jpeg"};base64,${base64}`;
+          if (res.length > MAX_SCREENSHOT_CHARS) {
+            reject(
+              new Error(
+                "Screenshot image exceeds maximum allowed size (150 KB). Please upload a smaller photo.",
+              ),
+            );
+            return;
+          }
+          resolve(res);
         })
         .catch(reject);
       return;
@@ -53,19 +64,37 @@ export async function uploadPaymentScreenshot(file: File): Promise<string> {
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          // If canvas context is not obtainable, resolve dataUrl directly
+          if (dataUrl.length > MAX_SCREENSHOT_CHARS) {
+            reject(
+              new Error(
+                "Screenshot image exceeds maximum allowed size (150 KB). Please upload a smaller photo.",
+              ),
+            );
+            return;
+          }
           resolve(dataUrl);
           return;
         }
 
         ctx.drawImage(img, 0, 0, width, height);
         const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        if (compressedDataUrl.length > MAX_SCREENSHOT_CHARS) {
+          reject(
+            new Error(
+              "Screenshot image could not be compressed below maximum allowed size (150 KB). Please upload a smaller photo.",
+            ),
+          );
+          return;
+        }
         resolve(compressedDataUrl);
       };
 
       img.onerror = () => {
-        // If image decode fails, resolve original data URL as fallback
-        resolve(dataUrl);
+        reject(
+          new Error(
+            "Failed to decode image file. Please upload a valid JPEG, PNG, or WebP photo.",
+          ),
+        );
       };
 
       img.src = dataUrl;

@@ -9,6 +9,8 @@ interface Props {
   partnerFilter: string;
   onPartnerChange: (p: string) => void;
   partners: any[];
+  mealFilter?: string;
+  onMealChange?: (m: string) => void;
 }
 
 export function DeliveryFilters({
@@ -19,6 +21,8 @@ export function DeliveryFilters({
   partnerFilter,
   onPartnerChange,
   partners,
+  mealFilter,
+  onMealChange,
 }: Props) {
   return (
     <Card className="p-4 bg-rice-50/50 border-rice-200 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -33,8 +37,22 @@ export function DeliveryFilters({
         />
       </div>
 
-      <div className="flex w-full md:w-auto gap-3 items-center">
+      <div className="flex flex-wrap w-full md:w-auto gap-3 items-center">
         <Filter className="text-text-muted w-4 h-4 hidden md:block" />
+
+        {onMealChange && (
+          <select
+            value={mealFilter || "all"}
+            onChange={(e) => onMealChange(e.target.value)}
+            className="flex-1 md:w-36 border border-rice-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-primary/30 outline-none text-sm font-medium text-text"
+            title="Filter by shift"
+          >
+            <option value="all">All Shifts</option>
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+          </select>
+        )}
 
         <select
           value={partnerFilter}

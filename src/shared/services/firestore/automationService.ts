@@ -81,10 +81,13 @@ export class AutomationService {
       where("status", "in", ["active", "paused"]),
     );
 
-    // Fetch payments for today
+    // Fetch payments for today bounded strictly by IST day
     const { paymentRepository } = await import("./paymentRepository");
+    const startOfDay = new Date(`${today}T00:00:00.000+05:30`);
+    const nextDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
     const todayPayments = await paymentRepository.list(
-      where("createdAt", ">=", new Date(`${today}T00:00:00.000Z`)),
+      where("createdAt", ">=", startOfDay),
+      where("createdAt", "<", nextDay),
     );
 
     let totalRevenue = 0,
@@ -444,11 +447,43 @@ export class AutomationService {
 
   /**
    * Monthly Excel Export
+   * Supports targetMonth (YYYY-MM). If omitted and executed in early days of month (<=5),
+   * automatically targets the completed previous month.
+   * All queries are strictly bounded to protect Firebase Spark plan quota.
    */
-  async generateMonthlyExcel(): Promise<MonthlyExcelResult> {
+  async generateMonthlyExcel(targetMonth?: string): Promise<MonthlyExcelResult> {
     console.log("Generating Monthly Excel Export...");
     const ExcelJS = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
+
+    const todayStr = getTodayInTimezone("Asia/Kolkata", new Date());
+    let monthStr = targetMonth;
+    if (monthStr) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthStr)) {
+        throw new Error(
+          `Invalid targetMonth format: "${monthStr}". Expected YYYY-MM (01-12).`,
+        );
+      }
+    } else {
+      const day = parseInt(todayStr.substring(8, 10), 10);
+      if (day <= 5) {
+        // If run within the first 5 days of a month, export the previous completed month
+        const [year, month] = todayStr.substring(0, 7).split("-").map(Number);
+        const prevDate = new Date(year, month - 2, 1);
+        const prevYear = prevDate.getFullYear();
+        const prevMonth = String(prevDate.getMonth() + 1).padStart(2, "0");
+        monthStr = `${prevYear}-${prevMonth}`;
+      } else {
+        monthStr = todayStr.substring(0, 7);
+      }
+    }
+
+    const [yearNum, monthNum] = monthStr.split("-").map(Number);
+    const lastDayDate = new Date(yearNum, monthNum, 0);
+    const lastDayStr = String(lastDayDate.getDate()).padStart(2, "0");
+
+    const monthStart = `${monthStr}-01`;
+    const monthEnd = `${monthStr}-${lastDayStr}`;
 
     // Customers sheet
     const customersSheet = workbook.addWorksheet("Customers");
@@ -468,7 +503,7 @@ export class AutomationService {
       }),
     );
 
-    // Orders sheet
+    // Orders sheet - scoped strictly to target month
     const ordersSheet = workbook.addWorksheet("Orders");
     ordersSheet.columns = [
       { header: "ID", key: "id", width: 20 },
@@ -477,8 +512,10 @@ export class AutomationService {
       { header: "Status", key: "status", width: 15 },
       { header: "Price", key: "price", width: 10 },
     ];
-    // In a real app we would query for the current month. For demo, we just get recent.
-    const orders = await orderRepository.list();
+    const orders = await orderRepository.list(
+      where("date", ">=", monthStart),
+      where("date", "<=", monthEnd),
+    );
     orders.forEach((o) =>
       ordersSheet.addRow({
         id: o.id,
@@ -507,7 +544,7 @@ export class AutomationService {
       }),
     );
 
-    // Payments sheet
+    // Payments sheet - scoped strictly to target month in IST
     const { paymentRepository } = await import("./paymentRepository");
     const paymentsSheet = workbook.addWorksheet("Payments");
     paymentsSheet.columns = [
@@ -517,7 +554,17 @@ export class AutomationService {
       { header: "Status", key: "status", width: 15 },
       { header: "Date", key: "date", width: 25 },
     ];
-    const payments = await paymentRepository.list();
+    const startPaymentDate = new Date(`${monthStart}T00:00:00.000+05:30`);
+    const nextMonthDate = new Date(yearNum, monthNum, 1);
+    const nextMonthYear = nextMonthDate.getFullYear();
+    const nextMonthStr = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
+    const nextMonthStartDate = new Date(
+      `${nextMonthYear}-${nextMonthStr}-01T00:00:00.000+05:30`,
+    );
+    const payments = await paymentRepository.list(
+      where("createdAt", ">=", startPaymentDate),
+      where("createdAt", "<", nextMonthStartDate),
+    );
     payments.forEach((p) =>
       paymentsSheet.addRow({
         id: p.id,
@@ -528,15 +575,13 @@ export class AutomationService {
       }),
     );
 
-    // Revenue, Kitchen, Delivery from Analytics
-    const currMonthStr = getTodayInTimezone(
-      "Asia/Kolkata",
-      new Date(),
-    ).substring(0, 7);
-    const analytics = await analyticsRepository.list();
-    // Filter for current month using JS since date format is yyyy-MM-dd
+    // Revenue, Kitchen, Delivery from Analytics - scoped to target month
+    const analytics = await analyticsRepository.list(
+      where("date", ">=", monthStart),
+      where("date", "<=", monthEnd),
+    );
     const monthAnalytics = analytics.filter((a) =>
-      a.date.startsWith(currMonthStr),
+      a.date.startsWith(monthStr),
     );
 
     const revenueSheet = workbook.addWorksheet("Revenue");
@@ -588,10 +633,7 @@ export class AutomationService {
     );
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const timestamp = getTodayInTimezone("Asia/Kolkata", new Date()).substring(
-      0,
-      7,
-    );
+    const timestamp = monthStr;
     const filename = `monthly_export_${timestamp}.xlsx`;
     console.log(`Monthly Excel Export generated (${filename})`);
 

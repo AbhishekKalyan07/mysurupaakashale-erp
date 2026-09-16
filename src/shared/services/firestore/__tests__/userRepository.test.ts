@@ -199,4 +199,22 @@ describe("userRepository", () => {
       });
     });
   });
+
+  describe("getByIds", () => {
+    it("returns empty array for empty IDs", async () => {
+      const result = await userRepository.getByIds([]);
+      expect(result).toEqual([]);
+    });
+
+    it("chunks queries into batches of up to 30", async () => {
+      const ids = Array.from({ length: 45 }, (_, i) => `user-${i}`);
+      const listSpy = vi.spyOn(userRepository, "list").mockImplementation(async () => [
+        { id: "mock" } as any,
+      ]);
+
+      const result = await userRepository.getByIds(ids);
+      expect(listSpy).toHaveBeenCalledTimes(2); // 30 + 15
+      expect(result).toHaveLength(2);
+    });
+  });
 });

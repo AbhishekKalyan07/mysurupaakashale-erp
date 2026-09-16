@@ -25,7 +25,8 @@ async function runMonthlyTasks() {
     );
 
     console.log('2. Generating Monthly Excel Export...');
-    const excelResult = await automationService.generateMonthlyExcel();
+    const targetMonth = process.env.TARGET_MONTH || undefined;
+    const excelResult = await automationService.generateMonthlyExcel(targetMonth);
     const reportsDir = path.resolve(process.cwd(), 'reports');
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });

@@ -14,6 +14,18 @@ export type DeliveryDispatchStatus =
 export type DriverSessionStatus =
   "not_started" | "picked_up" | "in_progress" | "completed";
 
+export interface DriverMealSession {
+  status: DriverSessionStatus;
+  pickedUpAt?: Timestamp | null;
+  pickedUpBy?: string | null;
+  startedAt?: Timestamp | null;
+  completedAt?: Timestamp | null;
+  totalAssigned: number;
+  delivered: number;
+  failed: number;
+  returned: number;
+}
+
 export interface DriverSession {
   id: string; // The partnerId
   date: string;
@@ -36,6 +48,9 @@ export interface DriverSession {
     distanceKm?: number | null; // Future GPS tracking
     durationMinutes?: number | null; // Future GPS tracking
   };
+
+  /** Shift-isolated session tracking (e.g. breakfast, lunch, dinner). */
+  mealSessions?: Partial<Record<string, DriverMealSession>>;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -101,6 +116,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
         distanceKm: null,
         durationMinutes: null,
       },
+      mealSessions: {},
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -145,6 +161,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
               distanceKm: null,
               durationMinutes: null,
             },
+            mealSessions: {},
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now(),
           });
@@ -157,7 +174,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
   async updateDriverSession(
     date: string,
     driverId: string,
-    data: Partial<DriverSession>,
+    data: Partial<DriverSession> | Record<string, any>,
   ): Promise<void> {
     const docRef = doc(
       db,
@@ -166,10 +183,27 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
       "driverSessions",
       driverId,
     );
+
+    // Expand dot-notation keys (e.g. "mealSessions.lunch") into nested objects for setDoc merge
+    const sanitizedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key.includes(".")) {
+        const parts = key.split(".");
+        let current = sanitizedData;
+        for (let i = 0; i < parts.length - 1; i++) {
+          current[parts[i]] = current[parts[i]] || {};
+          current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
+      } else {
+        sanitizedData[key] = value;
+      }
+    }
+
     await setDoc(
       docRef,
       {
-        ...data,
+        ...sanitizedData,
         id: driverId,
         date,
         updatedAt: Timestamp.now(),
@@ -180,7 +214,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
     // Ensure parent document exists
     const parentRef = doc(db, "dailyDeliveryStates", date);
     const parentSnap = await getDoc(parentRef);
-    if (!parentSnap.exists()) {
+    if (!parentSnap?.exists()) {
       await setDoc(
         parentRef,
         {

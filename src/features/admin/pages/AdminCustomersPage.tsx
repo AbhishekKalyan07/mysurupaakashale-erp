@@ -457,7 +457,7 @@ function CustomerDetailDialog({
                         className="flex-1 bg-background border border-primary/20 rounded-xl text-sm font-sans text-primary px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gold"
                       >
                         <option value="">
-                          {selectedMealType === "all" ? "Select a Delivery Partner" : "Inherit / Default"}
+                          {selectedMealType === "all" ? "Unassigned (None / Auto-Route)" : "Inherit / Default"}
                         </option>
                         {deliveryPartners.map((dp) => {
                           const dpZoneNames = (dp.zoneIds || []).map(
@@ -477,10 +477,7 @@ function CustomerDetailDialog({
                       <Button
                         variant="primary"
                         size="sm"
-                        disabled={
-                          (selectedMealType === "all" && !selectedPartnerId) ||
-                          assignPartner.isPending
-                        }
+                        disabled={assignPartner.isPending}
                         onClick={() => {
                           assignPartner.mutate(
                             {
@@ -502,6 +499,7 @@ function CustomerDetailDialog({
                           setSelectedPartnerId(
                             customer.deliveryPartnerId || "",
                           );
+                          setSelectedMealType("all");
                         }}
                       >
                         Cancel

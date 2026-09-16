@@ -67,9 +67,10 @@ export function DeliveryPartnerTable({
             ? [addr.line1, addr.line2, addr.city].filter(Boolean).join(", ")
             : order.deliveryAddressId || undefined);
         const addressCoords =
-          addr && addr.lat && addr.lng
+          order.addressCoords ||
+          (addr && addr.lat && addr.lng
             ? { lat: addr.lat, lng: addr.lng }
-            : null;
+            : null);
 
         return (
           <OrderCard
