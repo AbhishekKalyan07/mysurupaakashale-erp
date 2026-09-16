@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import type { PaymentMethod } from "@/shared/types";
+import { APP_CONFIG } from "@/shared/config/appConfig";
 
 function getCurrentBillingMonth() {
   return getTodayInTimezone().slice(0, 7);
@@ -196,15 +197,15 @@ export function ManualPaymentPanel({
         </h4>
         <div className="grid grid-cols-2 gap-y-1 text-ink-600 text-xs">
           <span className="font-semibold">UPI ID:</span>
-          <span className="font-mono">mysuru.paakashale@upi</span>
+          <span className="font-mono">{APP_CONFIG.paymentDetails.upiId}</span>
           <span className="font-semibold">Account Name:</span>
-          <span>Mysuru Paakashale</span>
+          <span>{APP_CONFIG.paymentDetails.accountName}</span>
           <span className="font-semibold">Bank:</span>
-          <span>State Bank of India</span>
+          <span>{APP_CONFIG.paymentDetails.bankName}</span>
           <span className="font-semibold">Account No:</span>
-          <span className="font-mono">XXXX-XXXX-1234</span>
+          <span className="font-mono">{APP_CONFIG.paymentDetails.accountNumber}</span>
           <span className="font-semibold">IFSC:</span>
-          <span className="font-mono">SBIN0012345</span>
+          <span className="font-mono">{APP_CONFIG.paymentDetails.ifscCode}</span>
         </div>
       </div>
 

@@ -20,4 +20,12 @@ export const APP_CONFIG = {
     defaultPageSize: 50,
     maxPageSize: 100,
   },
+  paymentDetails: {
+    upiId: "mysuru.paakashale@upi",
+    accountName: "Mysuru Paakashale",
+    bankName: "State Bank of India",
+    accountNumber: "XXXX-XXXX-1234",
+    ifscCode: "SBIN0012345",
+  },
+  contactEmail: "mysuru.paakashale@gmail.com",
 } as const;

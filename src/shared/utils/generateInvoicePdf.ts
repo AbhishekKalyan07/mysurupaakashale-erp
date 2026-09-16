@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { APP_CONFIG } from "@/shared/config/appConfig";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -41,7 +42,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFontSize(9);
   doc.setTextColor(200, 220, 190);
   doc.text("Daily Home-Style Meal Delivery Service", margin, 24);
-  doc.text("Mysuru, Karnataka | mysuru.paakashale@upi", margin, 30);
+  doc.text(`Mysuru, Karnataka | ${APP_CONFIG.paymentDetails.upiId}`, margin, 30);
 
   // INVOICE label on top-right
   doc.setFont("helvetica", "bold");
@@ -217,7 +218,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
     align: "center",
   });
   doc.text(
-    "For support: mysuru.paakashale@gmail.com  |  This is a system-generated invoice.",
+    `For support: ${APP_CONFIG.contactEmail}  |  This is a system-generated invoice.`,
     W / 2,
     284,
     { align: "center" },
