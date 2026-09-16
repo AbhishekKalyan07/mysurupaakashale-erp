@@ -3,7 +3,9 @@
 import './env';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/shared/lib/firebase';
-import * as admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 export async function authenticateForAutomation() {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -23,9 +25,9 @@ export async function authenticateForAutomation() {
   }
 
   // Initialize firebase-admin if not already initialized
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+  if (!getApps()?.length) {
+    initializeApp({
+      credential: cert(serviceAccount)
     });
   }
 
@@ -33,7 +35,7 @@ export async function authenticateForAutomation() {
   const uid = 'automation-service-account';
 
   // Generate a custom token
-  const customToken = await admin.auth().createCustomToken(uid);
+  const customToken = await getAuth().createCustomToken(uid);
 
   // Authenticate the client SDK with the custom token
   const userCred = await signInWithCustomToken(auth, customToken);
@@ -41,7 +43,7 @@ export async function authenticateForAutomation() {
   // Ensure the automation user has an admin role in Firestore so storage rules pass.
   // We use the admin SDK here to bypass any security rules that would block a
   // newly created (non-admin) user from granting themselves the admin role.
-  const adminDb = admin.firestore();
+  const adminDb = getFirestore();
   const userDocRef = adminDb.collection('users').doc(userCred.user.uid);
   const userDoc = await userDocRef.get();
   
@@ -53,8 +55,8 @@ export async function authenticateForAutomation() {
       firstName: 'Automation',
       lastName: 'Service',
       isActive: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     console.log('Upserted admin role for automation user in Firestore.');
   }
