@@ -5,7 +5,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   onSnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
