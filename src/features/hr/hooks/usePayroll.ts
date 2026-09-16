@@ -38,8 +38,6 @@ export const queryKeys = {
     profile: (staffId: string) =>
       [...queryKeys.payroll.profiles, staffId] as const,
     advances: ["salaryAdvances"] as const,
-    pendingAdvances: (staffId: string) =>
-      [...queryKeys.payroll.advances, "pending", staffId] as const,
     pendingAdvancesByPeriod: (staffId: string, month: string) =>
       [...queryKeys.payroll.advances, "pending", staffId, month] as const,
     allAdvancesByStaff: (staffId: string) =>
@@ -84,18 +82,6 @@ export function useSalaryProfile(staffId: string) {
   return useQuery({
     queryKey: queryKeys.payroll.profile(staffId),
     queryFn: () => salaryProfileRepository.getProfile(staffId),
-    enabled: !!staffId,
-  });
-}
-
-/**
- * @deprecated Use usePendingAdvancesByPeriod for payroll payment.
- * This hook may be used for non-payment contexts (e.g. a general "how many advances does this employee have").
- */
-export function usePendingAdvances(staffId: string) {
-  return useQuery({
-    queryKey: queryKeys.payroll.pendingAdvances(staffId),
-    queryFn: () => salaryAdvanceRepository.getPendingAdvancesByStaff(staffId),
     enabled: !!staffId,
   });
 }
