@@ -39,6 +39,18 @@ export async function authenticateForAutomation() {
   const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
   const isEmulator = process.env.VITE_USE_FIREBASE_EMULATORS === 'true';
 
+  // In local emulator mode, firebase-admin needs FIREBASE_AUTH_EMULATOR_HOST
+  // to sign custom tokens locally without Google IAM credentials, and
+  // FIRESTORE_EMULATOR_HOST to connect to the local Firestore emulator.
+  if (isEmulator) {
+    if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+      process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+    }
+    if (!process.env.FIRESTORE_EMULATOR_HOST) {
+      process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+    }
+  }
+
   // Initialize firebase-admin if not already initialized
   if (!getApps().length) {
     if (serviceAccountRaw) {
@@ -47,9 +59,10 @@ export async function authenticateForAutomation() {
         credential: cert(serviceAccount),
       });
     } else if (isEmulator) {
-      // Local emulator development: admin SDK does not need a real service account.
-      // FIREBASE_AUTH_EMULATOR_HOST must be set in the environment for this to work.
-      const projectId = process.env.VITE_FIREBASE_PROJECT_ID ?? 'demo-test';
+      const projectId =
+        process.env.VITE_FIREBASE_PROJECT_ID ??
+        (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID ??
+        'demo-test';
       initializeApp({ projectId });
     } else {
       throw new Error(
@@ -81,21 +94,22 @@ export async function authenticateForAutomation() {
   const userDocRef = adminDb.collection('users').doc(userCred.user.uid);
   const userDoc = await userDocRef.get();
 
-  if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+  if (!userDoc.exists || userDoc.data()?.role !== 'admin' || userDoc.data()?.isActive !== true) {
     const serviceAccount = serviceAccountRaw ? parseServiceAccount(serviceAccountRaw) : null;
-    await userDocRef.set(
-      {
-        id: userCred.user.uid,
-        email: (serviceAccount as any)?.client_email ?? 'automation@service.account',
-        role: 'admin',
-        firstName: 'Automation',
-        lastName: 'Service',
-        isActive: true,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const now = FieldValue.serverTimestamp();
+    const updateData: Record<string, any> = {
+      id: userCred.user.uid,
+      email: (serviceAccount as any)?.client_email ?? 'automation@service.account',
+      role: 'admin',
+      firstName: 'Automation',
+      lastName: 'Service',
+      isActive: true,
+      updatedAt: now,
+    };
+    if (!userDoc.exists) {
+      updateData.createdAt = now;
+    }
+    await userDocRef.set(updateData, { merge: true });
     console.log('Upserted admin role for automation user in Firestore.');
   }
 

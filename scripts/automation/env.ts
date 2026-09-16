@@ -29,9 +29,18 @@ for (const [key, value] of Object.entries(process.env)) {
   }
 }
 
+// Ensure keys loaded by Vite from .env / .env.local into import.meta.env
+// are also reflected in process.env so Node SDKs (firebase-admin) can see them.
+for (const [key, value] of Object.entries(metaEnv)) {
+  if (key.startsWith('VITE_') && value !== undefined && process.env[key] === undefined) {
+    process.env[key] = value;
+  }
+}
+
 // In Node.js automation runs, set the official App Check global debug token
 // directly on globalThis so the Firebase App Check SDK debug provider consumes it
 // without exposing it through import.meta.env.
 if (process.env.APPCHECK_DEBUG_TOKEN) {
   (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.APPCHECK_DEBUG_TOKEN;
 }
+

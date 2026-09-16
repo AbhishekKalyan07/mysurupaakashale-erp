@@ -214,6 +214,8 @@ describe('authenticateForAutomation()', () => {
     expect(mocks.mockCert).not.toHaveBeenCalled();
     expect(mocks.mockInitializeApp).toHaveBeenCalledWith({ projectId: 'demo-test' });
     expect(mocks.mockCreateCustomToken).toHaveBeenCalled();
+    expect(process.env.FIREBASE_AUTH_EMULATOR_HOST).toBe('127.0.0.1:9099');
+    expect(process.env.FIRESTORE_EMULATOR_HOST).toBe('127.0.0.1:8080');
   });
 
   // ── 6. Skips re-initializing Admin when already initialized ───────────────
@@ -249,7 +251,7 @@ describe('authenticateForAutomation()', () => {
     );
   });
 
-  // ── 8. Upserts admin doc when user doc exists but is not admin ────────────
+  // ── 8. Upserts admin doc when user doc exists but has wrong role or isActive: false ──
   it('upserts admin role document when user doc exists but has wrong role', async () => {
     restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
     mocks.mockUserDocGet.mockResolvedValue({
@@ -262,8 +264,26 @@ describe('authenticateForAutomation()', () => {
     expect(mocks.mockUserDocSet).toHaveBeenCalled();
   });
 
-  // ── 9. Skips upsert when user doc already has admin role ─────────────────
-  it('skips upsert when user doc already has role === "admin"', async () => {
+  it('upserts admin role document when user doc has admin role but isActive is false', async () => {
+    restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
+    mocks.mockUserDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ role: 'admin', isActive: false }),
+    });
+
+    await authenticateForAutomation();
+
+    expect(mocks.mockUserDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'admin',
+        isActive: true,
+      }),
+      { merge: true }
+    );
+  });
+
+  // ── 9. Skips upsert when user doc already has admin role and is active ────
+  it('skips upsert when user doc already has role === "admin" and isActive === true', async () => {
     restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
     mocks.mockUserDocGet.mockResolvedValue({
       exists: true,
@@ -276,18 +296,33 @@ describe('authenticateForAutomation()', () => {
   });
 
   // ── 10. FieldValue.serverTimestamp used in upsert ────────────────────────
-  it('uses FieldValue.serverTimestamp() for createdAt and updatedAt in the upsert', async () => {
+  it('uses FieldValue.serverTimestamp() for createdAt and updatedAt when creating new doc', async () => {
     restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
     mocks.mockUserDocGet.mockResolvedValue({ exists: false, data: () => undefined });
 
     await authenticateForAutomation();
 
-    expect(mocks.mockServerTimestamp).toHaveBeenCalledTimes(2);
+    expect(mocks.mockServerTimestamp).toHaveBeenCalledTimes(1);
     expect(mocks.mockUserDocSet).toHaveBeenCalledWith(
       expect.objectContaining({
         createdAt: 'SERVER_TIMESTAMP',
         updatedAt: 'SERVER_TIMESTAMP',
       }),
+      { merge: true }
+    );
+  });
+
+  it('preserves createdAt and only updates updatedAt when updating an existing user doc', async () => {
+    restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
+    mocks.mockUserDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ role: 'customer', isActive: true }),
+    });
+
+    await authenticateForAutomation();
+
+    expect(mocks.mockUserDocSet).toHaveBeenCalledWith(
+      expect.not.objectContaining({ createdAt: expect.anything() }),
       { merge: true }
     );
   });
