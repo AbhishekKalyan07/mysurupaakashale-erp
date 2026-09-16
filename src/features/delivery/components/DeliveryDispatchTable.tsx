@@ -90,10 +90,10 @@ export function DeliveryDispatchTable({
                       addressCoords:
                         order.addressCoords ||
                         (() => {
-                          const addr =
-                            customer?.addresses?.find(
-                              (a: any) => a.id === customer?.defaultAddressId,
-                            ) || customer?.addresses?.[0];
+                          if (!order.deliveryAddressId) return null;
+                          const addr = customer?.addresses?.find(
+                            (a: any) => a.id === order.deliveryAddressId,
+                          );
                           return addr?.lat && addr?.lng
                             ? { lat: addr.lat, lng: addr.lng }
                             : null;

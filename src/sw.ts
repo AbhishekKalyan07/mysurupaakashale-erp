@@ -173,7 +173,12 @@ self.addEventListener("notificationclick", (event: any) => {
                 .navigate(targetUrl)
                 .then((navClient) =>
                   navClient ? navClient.focus() : client.focus(),
-                );
+                )
+                .catch(() => {
+                  if (typeof client.focus === "function") {
+                    return client.focus();
+                  }
+                });
             }
             if (typeof client.focus === "function") {
               return client.focus();

@@ -38,12 +38,30 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
 }
 
 function getSystemOrAdminActor() {
-  const user = auth.currentUser;
   return {
-    uid: user?.uid || "system",
-    role: "admin",
-    name: user?.displayName || user?.email || "System Auto-Generator",
+    uid: "system",
+    role: "system",
+    name: "System Auto-Generator",
   };
+}
+
+function sanitizeCoordinates(
+  addr: any,
+): { lat: number; lng: number } | null {
+  if (
+    addr &&
+    typeof addr.lat === "number" &&
+    typeof addr.lng === "number" &&
+    Number.isFinite(addr.lat) &&
+    Number.isFinite(addr.lng) &&
+    addr.lat >= -90 &&
+    addr.lat <= 90 &&
+    addr.lng >= -180 &&
+    addr.lng <= 180
+  ) {
+    return { lat: addr.lat, lng: addr.lng };
+  }
+  return null;
 }
 
 class OrderService {
@@ -851,10 +869,7 @@ class OrderService {
         customerCode: custProfile.displayId ?? null,
         customerPhone: custProfile.phone ?? null,
         address: addressStr ?? null,
-        addressCoords:
-          addr && typeof addr.lat === "number" && typeof addr.lng === "number"
-            ? { lat: addr.lat, lng: addr.lng }
-            : null,
+        addressCoords: sanitizeCoordinates(addr),
         updatedAt: serverTimestamp() as unknown as Timestamp,
       };
 
@@ -1173,10 +1188,7 @@ class OrderService {
       customerCode: customer?.displayId || undefined,
       customerPhone: customer?.phone || undefined,
       address: addressStr || undefined,
-      addressCoords:
-        addr && typeof addr.lat === "number" && typeof addr.lng === "number"
-          ? { lat: addr.lat, lng: addr.lng }
-          : null,
+      addressCoords: sanitizeCoordinates(addr),
       zoneName: zoneId ? zoneMap.get(zoneId)?.name || undefined : undefined,
       planName: plan?.name || "Unknown Plan",
       driverName: driver?.fullName || undefined,

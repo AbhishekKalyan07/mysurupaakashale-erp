@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   onSnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -174,7 +175,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
   async updateDriverSession(
     date: string,
     driverId: string,
-    data: Partial<DriverSession>,
+    data: Partial<DriverSession> | Record<string, any>,
   ): Promise<void> {
     const docRef = doc(
       db,
@@ -183,10 +184,27 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
       "driverSessions",
       driverId,
     );
+
+    // Expand dot-notation keys (e.g. "mealSessions.lunch") into nested objects for setDoc merge
+    const sanitizedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key.includes(".")) {
+        const parts = key.split(".");
+        let current = sanitizedData;
+        for (let i = 0; i < parts.length - 1; i++) {
+          current[parts[i]] = current[parts[i]] || {};
+          current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
+      } else {
+        sanitizedData[key] = value;
+      }
+    }
+
     await setDoc(
       docRef,
       {
-        ...data,
+        ...sanitizedData,
         id: driverId,
         date,
         updatedAt: Timestamp.now(),
@@ -197,7 +215,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
     // Ensure parent document exists
     const parentRef = doc(db, "dailyDeliveryStates", date);
     const parentSnap = await getDoc(parentRef);
-    if (!parentSnap.exists()) {
+    if (!parentSnap?.exists()) {
       await setDoc(
         parentRef,
         {

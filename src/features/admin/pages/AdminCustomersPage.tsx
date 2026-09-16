@@ -499,6 +499,7 @@ function CustomerDetailDialog({
                           setSelectedPartnerId(
                             customer.deliveryPartnerId || "",
                           );
+                          setSelectedMealType("all");
                         }}
                       >
                         Cancel

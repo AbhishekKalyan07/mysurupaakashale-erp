@@ -84,10 +84,10 @@ export class AutomationService {
     // Fetch payments for today bounded strictly by IST day
     const { paymentRepository } = await import("./paymentRepository");
     const startOfDay = new Date(`${today}T00:00:00.000+05:30`);
-    const endOfDay = new Date(`${today}T23:59:59.999+05:30`);
+    const nextDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
     const todayPayments = await paymentRepository.list(
       where("createdAt", ">=", startOfDay),
-      where("createdAt", "<=", endOfDay),
+      where("createdAt", "<", nextDay),
     );
 
     let totalRevenue = 0,
@@ -458,7 +458,13 @@ export class AutomationService {
 
     const todayStr = getTodayInTimezone("Asia/Kolkata", new Date());
     let monthStr = targetMonth;
-    if (!monthStr) {
+    if (monthStr) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthStr)) {
+        throw new Error(
+          `Invalid targetMonth format: "${monthStr}". Expected YYYY-MM (01-12).`,
+        );
+      }
+    } else {
       const day = parseInt(todayStr.substring(8, 10), 10);
       if (day <= 5) {
         // If run within the first 5 days of a month, export the previous completed month
@@ -549,10 +555,15 @@ export class AutomationService {
       { header: "Date", key: "date", width: 25 },
     ];
     const startPaymentDate = new Date(`${monthStart}T00:00:00.000+05:30`);
-    const endPaymentDate = new Date(`${monthEnd}T23:59:59.999+05:30`);
+    const nextMonthDate = new Date(yearNum, monthNum, 1);
+    const nextMonthYear = nextMonthDate.getFullYear();
+    const nextMonthStr = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
+    const nextMonthStartDate = new Date(
+      `${nextMonthYear}-${nextMonthStr}-01T00:00:00.000+05:30`,
+    );
     const payments = await paymentRepository.list(
       where("createdAt", ">=", startPaymentDate),
-      where("createdAt", "<=", endPaymentDate),
+      where("createdAt", "<", nextMonthStartDate),
     );
     payments.forEach((p) =>
       paymentsSheet.addRow({
