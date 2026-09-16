@@ -74,14 +74,37 @@ export function usePartnerBoard(
   }, [partnerId, date, mealType]);
 
   const allTerminal = useMemo(() => {
-    const activeRouteOrders = allOrders.filter(
+    const activeRouteOrders = orders.filter(
       (o) => !["cancelled", "skipped"].includes(o.status),
     );
     if (activeRouteOrders.length === 0) return false;
     return activeRouteOrders.every((o) =>
       ["delivered", "failed_delivery", "returned_delivery"].includes(o.status),
     );
-  }, [allOrders]);
+  }, [orders]);
+
+  const sessionStatus = useMemo(() => {
+    const mealSession = session?.mealSessions?.[mealType];
+    if (mealSession?.status) {
+      return mealSession.status;
+    }
+    // Backward-compatibility: if legacy overall session is completed, but this meal route has active pending orders,
+    // don't prematurely display route completed.
+    if (session?.status === "completed") {
+      const hasActivePending = orders.some(
+        (o) =>
+          ![
+            "delivered",
+            "failed_delivery",
+            "returned_delivery",
+            "cancelled",
+            "skipped",
+          ].includes(o.status),
+      );
+      if (hasActivePending) return "not_started";
+    }
+    return session?.status || "not_started";
+  }, [session, mealType, orders]);
 
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -159,6 +182,19 @@ export function usePartnerBoard(
         // If it's the first pickup, or just keep updating total Picked Up
         await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
           status: "picked_up",
+          mealSessions: {
+            ...(session?.mealSessions || {}),
+            [mealType]: {
+              ...(session?.mealSessions?.[mealType] || {}),
+              status: "picked_up",
+              pickedUpAt: serverTimestamp() as unknown as Timestamp,
+              pickedUpBy: partnerId,
+              totalAssigned: orders.length,
+              delivered: orders.filter((o) => o.status === "delivered").length,
+              failed: orders.filter((o) => o.status === "failed_delivery").length,
+              returned: orders.filter((o) => o.status === "returned_delivery").length,
+            },
+          },
           pickup: {
             pickedUpAt: serverTimestamp() as unknown as Timestamp,
             pickedUpBy: partnerId,
@@ -167,10 +203,22 @@ export function usePartnerBoard(
         });
       } else if (
         newStatus === "out_for_delivery" &&
-        session?.status !== "in_progress"
+        session?.mealSessions?.[mealType]?.status !== "in_progress"
       ) {
         await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
           status: "in_progress",
+          mealSessions: {
+            ...(session?.mealSessions || {}),
+            [mealType]: {
+              ...(session?.mealSessions?.[mealType] || {}),
+              status: "in_progress",
+              startedAt: serverTimestamp() as unknown as Timestamp,
+              totalAssigned: orders.length,
+              delivered: orders.filter((o) => o.status === "delivered").length,
+              failed: orders.filter((o) => o.status === "failed_delivery").length,
+              returned: orders.filter((o) => o.status === "returned_delivery").length,
+            },
+          },
           deliverySession: {
             ...session?.deliverySession,
             startedAt: serverTimestamp() as unknown as Timestamp,
@@ -249,8 +297,39 @@ export function usePartnerBoard(
 
       const summary = deliveryService.getDeliverySummary(activeRouteOrders);
 
+      // Check if all today's orders across all shifts are complete
+      const allTodayOrders = await orderRepository.list(
+        where("deliveryPartnerId", "==", partnerId),
+        where("date", "==", date),
+      );
+      const activeAllToday = allTodayOrders.filter(
+        (o) => !["cancelled", "skipped"].includes(o.status),
+      );
+      const isEntireDayComplete =
+        activeAllToday.length > 0 &&
+        activeAllToday.every((o) =>
+          ["delivered", "failed_delivery", "returned_delivery"].includes(
+            o.status,
+          ),
+        );
+
       await dailyDeliveryRepository.updateDriverSession(date, partnerId, {
-        status: "completed",
+        status: isEntireDayComplete ? "completed" : "in_progress",
+        mealSessions: {
+          ...(session?.mealSessions || {}),
+          [mealType]: {
+            status: "completed",
+            startedAt:
+              session?.mealSessions?.[mealType]?.startedAt ||
+              session?.deliverySession?.startedAt ||
+              null,
+            completedAt: serverTimestamp() as unknown as Timestamp,
+            totalAssigned: summary.assigned,
+            delivered: summary.delivered,
+            failed: summary.failed,
+            returned: summary.returned,
+          },
+        },
         deliverySession: {
           startedAt: session?.deliverySession?.startedAt || null,
           completedAt: serverTimestamp() as unknown as Timestamp,
@@ -289,6 +368,7 @@ export function usePartnerBoard(
   return {
     orders,
     session,
+    sessionStatus,
     allTerminal,
     isLoading,
     error,

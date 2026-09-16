@@ -31,7 +31,7 @@ export function DeliveryPartnerPage() {
 
   const {
     orders,
-    session,
+    sessionStatus,
     allTerminal,
     isLoading,
     error,
@@ -187,7 +187,7 @@ export function DeliveryPartnerPage() {
         allTerminal={allTerminal}
         isCompletingRoute={completeRouteMutation.isPending}
         onCompleteRoute={() => completeRouteMutation.mutate()}
-        sessionStatus={session?.status || "not_started"}
+        sessionStatus={sessionStatus}
         currentDeliveryPartnerId={firebaseUser?.uid || null}
       />
     </div>

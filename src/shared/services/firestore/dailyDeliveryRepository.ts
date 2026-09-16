@@ -14,6 +14,18 @@ export type DeliveryDispatchStatus =
 export type DriverSessionStatus =
   "not_started" | "picked_up" | "in_progress" | "completed";
 
+export interface DriverMealSession {
+  status: DriverSessionStatus;
+  pickedUpAt?: Timestamp | null;
+  pickedUpBy?: string | null;
+  startedAt?: Timestamp | null;
+  completedAt?: Timestamp | null;
+  totalAssigned: number;
+  delivered: number;
+  failed: number;
+  returned: number;
+}
+
 export interface DriverSession {
   id: string; // The partnerId
   date: string;
@@ -36,6 +48,9 @@ export interface DriverSession {
     distanceKm?: number | null; // Future GPS tracking
     durationMinutes?: number | null; // Future GPS tracking
   };
+
+  /** Shift-isolated session tracking (e.g. breakfast, lunch, dinner). */
+  mealSessions?: Partial<Record<string, DriverMealSession>>;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -101,6 +116,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
         distanceKm: null,
         durationMinutes: null,
       },
+      mealSessions: {},
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -145,6 +161,7 @@ class DailyDeliveryRepository extends BaseRepository<DailyDeliveryState> {
               distanceKm: null,
               durationMinutes: null,
             },
+            mealSessions: {},
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now(),
           });

@@ -851,6 +851,10 @@ class OrderService {
         customerCode: custProfile.displayId ?? null,
         customerPhone: custProfile.phone ?? null,
         address: addressStr ?? null,
+        addressCoords:
+          addr && typeof addr.lat === "number" && typeof addr.lng === "number"
+            ? { lat: addr.lat, lng: addr.lng }
+            : null,
         updatedAt: serverTimestamp() as unknown as Timestamp,
       };
 
@@ -1169,6 +1173,10 @@ class OrderService {
       customerCode: customer?.displayId || undefined,
       customerPhone: customer?.phone || undefined,
       address: addressStr || undefined,
+      addressCoords:
+        addr && typeof addr.lat === "number" && typeof addr.lng === "number"
+          ? { lat: addr.lat, lng: addr.lng }
+          : null,
       zoneName: zoneId ? zoneMap.get(zoneId)?.name || undefined : undefined,
       planName: plan?.name || "Unknown Plan",
       driverName: driver?.fullName || undefined,

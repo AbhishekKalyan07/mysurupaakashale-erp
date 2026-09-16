@@ -4,7 +4,7 @@ import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 
 // Mock React
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 vi.mock("react", () => ({
   useState: vi.fn((init) => [init, vi.fn()]),
   useEffect: vi.fn((cb) => {
@@ -355,5 +355,27 @@ describe("usePartnerBoard complete route & notifications", () => {
       "route",
       expect.anything(),
     );
+  });
+
+  it("resolves meal-specific sessionStatus accurately", () => {
+    const mockSession = {
+      status: "in_progress",
+      mealSessions: {
+        breakfast: { status: "completed" },
+        lunch: { status: "picked_up" },
+      },
+    };
+    vi.mocked(useState)
+      .mockReturnValueOnce([[], vi.fn()])
+      .mockReturnValueOnce([mockSession as any, vi.fn()]);
+
+    const lunchBoard = usePartnerBoard(
+      "driver-1",
+      "2026-08-01",
+      "lunch",
+      "delivery_partner",
+    );
+
+    expect(lunchBoard.sessionStatus).toBe("picked_up");
   });
 });

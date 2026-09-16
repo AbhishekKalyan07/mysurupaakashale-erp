@@ -89,10 +89,11 @@ export interface Order {
   customerCode?: string;
   customerPhone?: string;
   address?: string; // Full address string
+  addressCoords?: { lat: number; lng: number } | null;
   zoneName?: string;
   planName?: string;
-  driverName?: string;
-  driverPhone?: string;
+  driverName?: string | null;
+  driverPhone?: string | null;
   mealName?: string;
   mealQuantity?: number;
   specialInstructions?: string;

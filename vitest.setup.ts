@@ -87,6 +87,7 @@ vi.mock('firebase/firestore', () => ({
   limit: vi.fn(),
   startAfter: vi.fn(),
   increment: vi.fn((n) => n),
+  documentId: vi.fn(() => '__name__'),
   writeBatch: vi.fn(() => ({
     set: vi.fn(),
     update: vi.fn(),
