@@ -50,7 +50,16 @@ async function runDailyTasks() {
   let hasErrors = false;
   const errors: Error[] = [];
   const metrics: TaskMetric[] = [];
-  const todayStr = getTodayInTimezone();
+  let todayStr = getTodayInTimezone();
+  if (process.env.TARGET_DATE) {
+    const rawTarget = process.env.TARGET_DATE.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rawTarget)) {
+      console.error(`[Daily Automation] Invalid TARGET_DATE format: "${rawTarget}". Expected YYYY-MM-DD.`);
+      process.exit(1);
+    }
+    todayStr = rawTarget;
+    console.log(`[Daily Automation] Using manual TARGET_DATE override: ${todayStr}`);
+  }
 
   try {
     console.log('--- Starting Daily Automation Tasks ---');

@@ -201,7 +201,7 @@ class BillingService {
         try {
           const subRef = doc(db, "subscriptions", subscription.id);
           await updateDoc(subRef, { lastBilledDate: effectiveEndDate });
-        } catch (_) {}
+        } catch {}
       }
       return false;
     }
@@ -349,7 +349,7 @@ class BillingService {
       if (settings?.financials?.invoicePrefix) {
         prefix = settings.financials.invoicePrefix.replace(/[-_]$/, "");
       }
-    } catch (_) {}
+    } catch {}
 
     const invoiceNumber = `${prefix}-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
