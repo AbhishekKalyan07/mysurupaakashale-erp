@@ -788,13 +788,27 @@ class OrderService {
       (a: any) => a.id === custProfile.defaultAddressId,
     ) || custProfile.addresses?.[0];
 
-    // For syncCustomerActiveOrders, we route based on the default address
-    // (though strictly it should use order.deliveryAddressId if it varies).
-    // The previous logic routed to the customer's default address.
-    const { zoneId, kitchenId } = resolveOperationalZoneAndKitchen(
-      defaultAddress,
-      allZones
-    );
+    let zoneId: string | null = null;
+    let kitchenId: string | null = null;
+
+    if (custProfile.zoneId) {
+      const manualZone = allZones.find(
+        (z) => z.id === custProfile.zoneId && z.isActive !== false,
+      );
+      if (manualZone?.kitchenId) {
+        zoneId = manualZone.id;
+        kitchenId = manualZone.kitchenId;
+      }
+    }
+
+    if (!zoneId || !kitchenId) {
+      const resolved = resolveOperationalZoneAndKitchen(
+        defaultAddress,
+        allZones,
+      );
+      zoneId = resolved.zoneId;
+      kitchenId = resolved.kitchenId;
+    }
 
     const zoneName = zoneMap.get(zoneId)?.name;
 
@@ -1117,10 +1131,24 @@ class OrderService {
       customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
       customer?.addresses?.[0];
 
-    const { zoneId, kitchenId } = resolveOperationalZoneAndKitchen(
-      addr,
-      allZones
-    );
+    let zoneId: string | null = null;
+    let kitchenId: string | null = null;
+
+    if (customer?.zoneId) {
+      const manualZone = allZones.find(
+        (z) => z.id === customer.zoneId && z.isActive !== false,
+      );
+      if (manualZone?.kitchenId) {
+        zoneId = manualZone.id;
+        kitchenId = manualZone.kitchenId;
+      }
+    }
+
+    if (!zoneId || !kitchenId) {
+      const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
+      zoneId = resolved.zoneId;
+      kitchenId = resolved.kitchenId;
+    }
 
     let partnerId: string | null = null;
     if (zoneId) {

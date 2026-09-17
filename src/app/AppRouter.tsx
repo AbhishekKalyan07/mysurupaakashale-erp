@@ -348,7 +348,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={[ROLES.KITCHEN]} />,
+    element: <ProtectedRoute allowedRoles={[ROLES.KITCHEN, ROLES.ADMIN]} />,
     children: [
       {
         element: <AppShell />,

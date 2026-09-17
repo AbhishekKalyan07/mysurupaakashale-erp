@@ -13,12 +13,13 @@ import {
 } from "@/features/hr/hooks/usePayroll";
 import { toast } from "react-hot-toast";
 import type { UserProfile } from "@/shared/types";
+import { STAFF_ROLES, ROLE_LABELS } from "@/shared/constants/roles";
 
 const staffSchema = z.object({
   fullName: z.string().min(2, "Name is required"),
   phone: z.string().min(10, "Phone is required (e.g. +919876543210)"),
   email: z.string().email("Invalid email address"),
-  role: z.enum(["admin", "kitchen", "delivery_partner", "support"]),
+  role: z.enum(STAFF_ROLES as [string, ...string[]]),
   kitchenId: z.string().optional(),
   vehicleType: z.enum(["bike", "bicycle", "on_foot", "other"]).optional(),
   zoneIds: z.array(z.string()).optional(),
@@ -183,12 +184,13 @@ export function EditStaffModal({ user, onClose }: Props) {
               <label className="text-sm font-medium text-ink-700">Role</label>
               <select
                 {...register("role")}
-                className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 capitalize bg-white"
+                className="w-full h-10 px-3 rounded-lg border border-rice-300 focus:ring-2 focus:ring-leaf-600 bg-white"
               >
-                <option value="admin">Admin</option>
-                <option value="kitchen">Kitchen</option>
-                <option value="delivery_partner">Delivery Partner</option>
-                <option value="support">Support</option>
+                {STAFF_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
               </select>
               {errors.role && (
                 <p className="text-xs text-danger">{errors.role.message}</p>

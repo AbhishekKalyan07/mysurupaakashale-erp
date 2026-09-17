@@ -328,10 +328,9 @@ function PaymentDetailDialog({
       } else {
         await rejectPayment.mutateAsync({ paymentId: payment.id, notes });
       }
+      onClose();
     } catch {
       // Handled by onError callback in hook (shows toast)
-    } finally {
-      onClose();
     }
   };
 

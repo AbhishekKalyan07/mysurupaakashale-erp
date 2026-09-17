@@ -96,6 +96,11 @@ export function useSeedData() {
             lunch: { start: "12:30", end: "14:00" },
             dinner: { start: "19:30", end: "21:00" },
           },
+          cancellationCutoffTimes: {
+            breakfast: "05:00",
+            lunch: "10:30",
+            dinner: "16:00",
+          },
           businessHolidays: [],
         },
         payroll: {

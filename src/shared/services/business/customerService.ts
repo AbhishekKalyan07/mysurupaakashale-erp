@@ -19,23 +19,22 @@ class CustomerService {
       throw new Error("Customer ID is required.");
     }
 
-    if (!partnerId && (!mealType || mealType === "all")) {
-      throw new Error("Partner ID is required for global assignment.");
-    }
+    const cleanPartnerId =
+      partnerId && partnerId.trim() !== "" ? partnerId.trim() : null;
 
     const [customer, partner] = await Promise.all([
       userRepository.getById(customerId),
-      partnerId ? userRepository.getById(partnerId) : Promise.resolve(null),
+      cleanPartnerId ? userRepository.getById(cleanPartnerId) : Promise.resolve(null),
     ]);
 
     if (!customer) {
       throw new Error(`Customer with ID ${customerId} not found.`);
     }
 
-    if (partnerId) {
+    if (cleanPartnerId) {
       if (!partner || partner.role !== "delivery_partner") {
         throw new Error(
-          `Delivery partner with ID ${partnerId} not found or invalid role.`,
+          `Delivery partner with ID ${cleanPartnerId} not found or invalid role.`,
         );
       }
 
@@ -50,15 +49,20 @@ class CustomerService {
     const currentMealPartners = custProfile.mealDeliveryPartners || {};
     const oldPartnerId =
       mealType && mealType !== "all"
-        ? currentMealPartners[mealType] !== undefined ? currentMealPartners[mealType] : custProfile.deliveryPartnerId || null
+        ? currentMealPartners[mealType] !== undefined
+          ? currentMealPartners[mealType]
+          : custProfile.deliveryPartnerId || null
         : custProfile.deliveryPartnerId || null;
 
     // Idempotency check
     if (mealType && mealType !== "all") {
-      const existingMealVal = currentMealPartners[mealType] === undefined ? null : currentMealPartners[mealType];
-      if (existingMealVal === partnerId) return;
+      const existingMealVal =
+        currentMealPartners[mealType] === undefined
+          ? null
+          : currentMealPartners[mealType];
+      if (existingMealVal === cleanPartnerId) return;
     } else {
-      if (oldPartnerId === partnerId && !custProfile.mealDeliveryPartners) {
+      if (oldPartnerId === cleanPartnerId && !custProfile.mealDeliveryPartners) {
         return;
       }
     }
@@ -71,17 +75,10 @@ class CustomerService {
 
     if (mealType && mealType !== "all") {
       const newMealPartners = { ...currentMealPartners };
-      if (partnerId === null) {
-        newMealPartners[mealType] = null; // null represents unassigned/inherit explicitly
-      } else {
-        newMealPartners[mealType] = partnerId;
-      }
+      newMealPartners[mealType] = cleanPartnerId; // null represents inherit/unassigned
       updatePayload.mealDeliveryPartners = newMealPartners;
-
-      // If setting a specific meal and no global exists, we should probably still ensure it gets written correctly
-      // But we don't modify deliveryPartnerId here.
     } else {
-      updatePayload.deliveryPartnerId = partnerId;
+      updatePayload.deliveryPartnerId = cleanPartnerId;
       updatePayload.mealDeliveryPartners = null; // Clear all meal-specific overrides
     }
 
@@ -99,7 +96,7 @@ class CustomerService {
 
     // Create an audit log
     await auditRepository.logAction(
-      "delivery_partner_assigned",
+      cleanPartnerId ? "delivery_partner_assigned" : "delivery_partner_unassigned",
       adminId,
       "admin",
       adminName,
@@ -107,7 +104,7 @@ class CustomerService {
       "user",
       {
         oldPartnerId,
-        newPartnerId: partnerId,
+        newPartnerId: cleanPartnerId,
         newPartnerName: partner ? partner.fullName : "Unassigned",
         mealType: mealType || "all",
       },
@@ -116,34 +113,57 @@ class CustomerService {
 
   /**
    * Assigns a delivery zone permanently to a customer.
+   * Passing a null or empty zoneId clears manual override, reverting to pincode auto-routing.
    * All future orders generated for this customer will inherit this zone assignment.
    */
   async assignCustomerZone(
     customerId: string,
-    zoneId: string,
+    zoneId: string | null,
     adminId: string,
     adminName: string,
   ): Promise<void> {
-    if (!customerId || !zoneId) {
-      throw new Error("Customer ID and Zone ID are required.");
+    if (!customerId) {
+      throw new Error("Customer ID is required.");
     }
 
-    const customer = await userRepository.getById(customerId);
+    const cleanZoneId =
+      zoneId && zoneId.trim() !== "" ? zoneId.trim() : null;
+
+    const [customer, zone] = await Promise.all([
+      userRepository.getById(customerId),
+      cleanZoneId
+        ? (async () => {
+            const { deliveryZoneRepository } = await import(
+              "../firestore/deliveryZoneRepository"
+            );
+            return deliveryZoneRepository.getById(cleanZoneId);
+          })()
+        : Promise.resolve(null),
+    ]);
 
     if (!customer) {
       throw new Error(`Customer with ID ${customerId} not found.`);
     }
 
+    if (cleanZoneId) {
+      if (!zone) {
+        throw new Error(`Delivery zone with ID ${cleanZoneId} not found.`);
+      }
+      if (!zone.isActive) {
+        throw new Error(`Cannot assign inactive delivery zone "${zone.name}".`);
+      }
+    }
+
     const oldZoneId = (customer as CustomerProfile).zoneId || null;
 
     // Idempotency check
-    if (oldZoneId === zoneId) {
+    if (oldZoneId === cleanZoneId) {
       return;
     }
 
     // Update the customer record
     await userRepository.update(customerId, {
-      zoneId,
+      zoneId: cleanZoneId,
       assignedAt: serverTimestamp() as unknown as Timestamp,
       assignedBy: adminId,
       updatedAt: serverTimestamp() as unknown as Timestamp,
@@ -156,7 +176,7 @@ class CustomerService {
 
     // Create an audit log
     await auditRepository.logAction(
-      "customer_zone_assigned",
+      cleanZoneId ? "customer_zone_assigned" : "customer_zone_unassigned",
       adminId,
       "admin",
       adminName,
@@ -164,7 +184,7 @@ class CustomerService {
       "user",
       {
         oldZoneId,
-        newZoneId: zoneId,
+        newZoneId: cleanZoneId,
       },
     );
   }

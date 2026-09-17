@@ -352,16 +352,12 @@ export function useResumeSubscription() {
         );
       }
 
-      // @ts-ignore - function not imported or doesn't exist in original code
-      if (typeof notifySubscriptionResumed !== "undefined") {
-        // @ts-ignore
-        notifySubscriptionResumed(
-          subscription.customerId,
-          subscription.id,
-        ).catch((err: any) =>
-          console.error("[useResumeSubscription] notification failed:", err),
-        );
-      }
+      notifySubscriptionResumed(
+        subscription.customerId,
+        subscription.id,
+      ).catch((err: unknown) =>
+        console.error("[useResumeSubscription] notification failed:", err),
+      );
 
       return subscription;
     },
