@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { Timestamp } from "firebase/firestore";
 
 /**
@@ -53,14 +54,14 @@ export function getModifiableMeals(
   mealTypes: string[],
 ): string[] {
   const now = new Date();
-  const today = new Intl.DateTimeFormat("en-CA", {
+  const today = getCachedDateTimeFormatter("en-CA", {
     timeZone: "Asia/Kolkata",
   }).format(now);
 
   if (date > today) return mealTypes;
   if (date < today) return [];
 
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",

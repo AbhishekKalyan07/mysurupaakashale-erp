@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { Timestamp } from "firebase/firestore";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -617,7 +618,7 @@ export function CustomerDashboardPage() {
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
-                                        {new Intl.DateTimeFormat("en-IN", {
+                                        {getCachedDateTimeFormatter("en-IN", {
                                           hour: "numeric",
                                           minute: "numeric",
                                           hour12: true,
