@@ -261,20 +261,28 @@ export class AutomationService {
           );
 
           if (reminderType === "expired") {
-            const wasUpdated = await runTransaction(db, async (transaction) => {
-              const subRef = doc(db, "subscriptions", sub.id);
-              const subSnap = await transaction.get(subRef);
-              if (subSnap.exists() && subSnap.data().status === "active") {
-                transaction.update(subRef, { status: "expired" });
-                return true;
-              }
-              return false;
-            });
+            // Subscriptions with auto-renewal enabled must NOT be marked expired here;
+            // billingService auto-renews them at cycle end. Only expire if autoRenew is false.
+            if (sub.autoRenew === false) {
+              const wasUpdated = await runTransaction(db, async (transaction) => {
+                const subRef = doc(db, "subscriptions", sub.id);
+                const subSnap = await transaction.get(subRef);
+                if (subSnap.exists() && subSnap.data().status === "active") {
+                  transaction.update(subRef, { status: "expired" });
+                  return true;
+                }
+                return false;
+              });
 
-            if (wasUpdated) {
-              await notifySubscriptionExpired(sub.customerId, sub.id);
+              if (wasUpdated) {
+                await notifySubscriptionExpired(sub.customerId, sub.id);
+              }
+            } else {
+              console.log(
+                `[automationService] Subscription ${sub.id} is past endDate but has autoRenew enabled. Leaving active for billingService auto-renewal.`,
+              );
             }
-          } else {
+          } else if (sub.autoRenew === false) {
             const daysMap: Record<string, number> = {
               tomorrow: 1,
               "3_days": 3,
@@ -359,34 +367,41 @@ export class AutomationService {
     const subsToCheck = [...activeSubs, ...pausedSubs];
 
     for (const sub of subsToCheck) {
-      if (
-        sub.status === "active" &&
-        sub.pauseStartDate &&
-        sub.pauseStartDate <= today
-      ) {
-        if (sub.pauseEndDate && sub.pauseEndDate < today) {
+      try {
+        if (
+          sub.status === "active" &&
+          sub.pauseStartDate &&
+          sub.pauseStartDate <= today
+        ) {
+          if (sub.pauseEndDate && sub.pauseEndDate < today) {
+            await subscriptionRepository.update(sub.id, {
+              pauseStartDate: null,
+              pauseEndDate: null,
+            });
+            console.log(
+              `[automationService] Cleared outdated pause schedule for subscription ${sub.id}`,
+            );
+          } else {
+            await subscriptionRepository.update(sub.id, { status: "paused" });
+            console.log(`[automationService] Auto-paused subscription ${sub.id}`);
+          }
+        } else if (
+          sub.status === "paused" &&
+          sub.pauseEndDate &&
+          sub.pauseEndDate < today
+        ) {
           await subscriptionRepository.update(sub.id, {
+            status: "active",
             pauseStartDate: null,
             pauseEndDate: null,
           });
-          console.log(
-            `[automationService] Cleared outdated pause schedule for subscription ${sub.id}`,
-          );
-        } else {
-          await subscriptionRepository.update(sub.id, { status: "paused" });
-          console.log(`[automationService] Auto-paused subscription ${sub.id}`);
+          console.log(`[automationService] Auto-resumed subscription ${sub.id}`);
         }
-      } else if (
-        sub.status === "paused" &&
-        sub.pauseEndDate &&
-        sub.pauseEndDate < today
-      ) {
-        await subscriptionRepository.update(sub.id, {
-          status: "active",
-          pauseStartDate: null,
-          pauseEndDate: null,
-        });
-        console.log(`[automationService] Auto-resumed subscription ${sub.id}`);
+      } catch (subErr) {
+        console.error(
+          `[automationService] Failed to process scheduled pause/resume for subscription ${sub.id}:`,
+          subErr,
+        );
       }
     }
   }

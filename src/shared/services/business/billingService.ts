@@ -1,6 +1,8 @@
 import {
   Timestamp,
   doc,
+  getDoc,
+  updateDoc,
   serverTimestamp,
   runTransaction,
 } from "firebase/firestore";
@@ -18,28 +20,91 @@ class BillingService {
    */
   async processDailyBilling(
     today: string,
-  ): Promise<{ success: boolean; processed: number; errors: number }> {
+  ): Promise<{
+    success: boolean;
+    processed: number;
+    errors: number;
+    quarantined: number;
+  }> {
     let processed = 0;
     let errors = 0;
+    let quarantined = 0;
 
     try {
       const allSubs = await subscriptionRepository.list();
-      const subscriptions = allSubs.filter(
-        (sub) => sub.status === "active" || sub.status === "paused",
-      );
+
+      // Look back up to 30 days relative to today for expired subscriptions to catch any that were missed
+      // or marked expired before their invoice could be generated (e.g. from prior failed runs).
+      const todayDate = new Date(`${today}T00:00:00Z`);
+      const thirtyDaysAgo = new Date(
+        todayDate.getTime() - 30 * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .split("T")[0];
+
+      const subscriptions = allSubs.filter((sub) => {
+        if (
+          (sub.status === "active" || sub.status === "paused") &&
+          sub.endDate &&
+          sub.endDate < today
+        ) {
+          return true;
+        }
+        // Include recently expired subscriptions that have not yet had their invoice generated
+        if (
+          sub.status === "expired" &&
+          sub.endDate &&
+          sub.endDate >= thirtyDaysAgo &&
+          (sub as any).lastBilledDate !== sub.endDate
+        ) {
+          return true;
+        }
+        // Include cancelled subscriptions that have not yet had their final usage invoiced
+        if (
+          sub.status === "cancelled" &&
+          sub.cancellationDate &&
+          (sub as any).lastBilledDate !== sub.cancellationDate
+        ) {
+          return true;
+        }
+        return false;
+      });
 
       for (const sub of subscriptions) {
-        if (!sub.endDate || sub.endDate >= today) continue;
-
         try {
-          await this.processSubscriptionEnd(sub, today);
-          processed++;
-        } catch (err) {
+          const reason = sub.status === "cancelled" ? "cancelled" : "expired";
+          const didProcess = await this.processWithRetry(() =>
+            this.processSubscriptionEnd(sub, today, reason),
+          );
+          if (didProcess) {
+            processed++;
+          }
+        } catch (err: any) {
           console.error(
             `[BillingService] Error processing subscription ${sub.id}:`,
             err,
           );
           errors++;
+
+          try {
+            const { failureQueueRepository } = await import(
+              "../firestore/failureQueueRepository"
+            );
+            await failureQueueRepository.logFailure(
+              sub.customerId,
+              sub.id,
+              "billing",
+              today,
+              `Billing failed: ${err?.message || String(err)}`,
+              err?.stack,
+            );
+            quarantined++;
+          } catch (qErr) {
+            console.error(
+              `[BillingService] Failed to log failure to queue for subscription ${sub.id}:`,
+              qErr,
+            );
+          }
         }
       }
     } catch (err) {
@@ -47,27 +112,102 @@ class BillingService {
         "[BillingService] Failed to list subscriptions for billing:",
         err,
       );
-      return { success: false, processed, errors };
+      return { success: false, processed, errors, quarantined };
     }
 
-    return { success: errors === 0, processed, errors };
+    return {
+      success: errors === 0 || errors === quarantined,
+      processed,
+      errors,
+      quarantined,
+    };
+  }
+
+  /**
+   * Executes an asynchronous operation with retry logic and exponential backoff.
+   * Absorbs transient network glitches or momentary Firestore concurrency contention.
+   */
+  private async processWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 2,
+    baseDelayMs = 300,
+  ): Promise<T> {
+    let lastError: any;
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      try {
+        return await operation();
+      } catch (err: any) {
+        lastError = err;
+        if (attempt <= maxRetries) {
+          const delay = baseDelayMs * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Retrieves orders for subscription billing using a multi-tiered approach:
+   * Tier 1: Query by subscriptionId (uses built-in single-field index, zero composite index requirement)
+   * Tier 2: Query by customerId in date range (composite query with automatic in-memory fallback)
+   */
+  private async getOrdersForSubscription(
+    subscription: Subscription,
+    effectiveEndDate: string,
+  ) {
+    try {
+      if (typeof orderRepository.getBySubscriptionId === "function") {
+        const subOrders = await orderRepository.getBySubscriptionId(
+          subscription.id,
+        );
+        if (subOrders && subOrders.length > 0) {
+          return subOrders;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        `[BillingService] getBySubscriptionId failed for ${subscription.id}, falling back to range query:`,
+        err,
+      );
+    }
+
+    return await orderRepository.getCustomerOrdersInRange(
+      subscription.customerId,
+      subscription.startDate,
+      effectiveEndDate,
+    );
   }
 
   async processSubscriptionEnd(
     subscription: Subscription,
     today: string,
     reason: "expired" | "cancelled" = "expired",
-  ): Promise<void> {
+  ): Promise<boolean> {
     const effectiveEndDate =
-      subscription.cancellationDate || subscription.endDate!;
+      reason === "cancelled"
+        ? subscription.cancellationDate || today
+        : subscription.cancellationDate || subscription.endDate || today;
     const invoiceId = `inv_${subscription.id}_${effectiveEndDate}`;
     const invoiceRef = doc(db, "invoices", invoiceId);
 
-    // We do NOT do a pre-check here anymore, the transaction handles idempotency
+    // Check if invoice already exists for this cycle to avoid redundant order fetching
+    const existingInvCheck = await getDoc(invoiceRef);
+    if (existingInvCheck.exists()) {
+      if (
+        subscription.status === "expired" &&
+        (subscription as any).lastBilledDate !== effectiveEndDate
+      ) {
+        try {
+          const subRef = doc(db, "subscriptions", subscription.id);
+          await updateDoc(subRef, { lastBilledDate: effectiveEndDate });
+        } catch (_) {}
+      }
+      return false;
+    }
 
-    const customerOrders = await orderRepository.getCustomerOrdersInRange(
-      subscription.customerId,
-      subscription.startDate,
+    const customerOrders = await this.getOrdersForSubscription(
+      subscription,
       effectiveEndDate,
     );
 
@@ -198,8 +338,20 @@ class BillingService {
     );
 
     const balanceDue = totalAmount - paymentsTotal;
+    const payableAmount = Math.max(0, balanceDue);
 
-    const invoiceNumber = `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    let prefix = "INV";
+    try {
+      const { settingsRepository } = await import(
+        "../firestore/settingsRepository"
+      );
+      const settings = await settingsRepository.getBusinessSettings();
+      if (settings?.financials?.invoicePrefix) {
+        prefix = settings.financials.invoicePrefix.replace(/[-_]$/, "");
+      }
+    } catch (_) {}
+
+    const invoiceNumber = `${prefix}-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
     // Start Transaction for Idempotency
     await runTransaction(db, async (txn) => {
@@ -233,7 +385,7 @@ class BillingService {
         subtotal: totalAmount,
         taxRate: 0,
         taxAmount: 0,
-        totalAmount: balanceDue,
+        totalAmount: payableAmount,
         depositHeld,
         currency: "INR",
         status: balanceDue <= 0 ? "paid" : "issued",
@@ -249,28 +401,54 @@ class BillingService {
       if (reason !== "cancelled") {
         const subRef = doc(db, "subscriptions", subscription.id);
         if (subscription.autoRenew !== false) {
-          // Calculate new dates
-          let d = new Date(subscription.endDate!);
-          let foundStart = false;
-          while (!foundStart) {
-            d.setDate(d.getDate() + 1);
-            if (d.getDay() !== 0) foundStart = true;
-          }
-          const nextStart = d.toISOString().split("T")[0];
+          let nextStart: string;
+          let nextEnd: string;
 
-          let durationDays = subscription.billingCycle === "weekly" ? 6 : 29;
-          let daysAdded = 0;
-          let e = new Date(nextStart);
-          while (daysAdded < durationDays) {
-            e.setDate(e.getDate() + 1);
-            if (e.getDay() !== 0) daysAdded++;
+          const currentEnd = subscription.endDate || effectiveEndDate || today;
+
+          if (subscription.billingCycle === "monthly") {
+            // Calendar month renewal: 1st of next month to last day of next month
+            const [yearStr, monthStr] = currentEnd.split("-");
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10); // 1-12
+
+            // Next month start: in UTC 0-indexed month, `month` is the following month
+            const nextStartDate = new Date(Date.UTC(year, month, 1));
+            const nextStartYear = nextStartDate.getUTCFullYear();
+            const nextStartMonth = String(nextStartDate.getUTCMonth() + 1).padStart(2, "0");
+            nextStart = `${nextStartYear}-${nextStartMonth}-01`;
+
+            // Next month end: day 0 of the month after next
+            const lastDayObj = new Date(Date.UTC(nextStartYear, nextStartDate.getUTCMonth() + 1, 0));
+            const nextEndDay = String(lastDayObj.getUTCDate()).padStart(2, "0");
+            nextEnd = `${nextStartYear}-${nextStartMonth}-${nextEndDay}`;
+          } else {
+            // Weekly: 7 active delivery days (skipping Sundays)
+            const [sy, sm, sd] = currentEnd.split("-").map(Number);
+            const d = new Date(Date.UTC(sy, sm - 1, sd));
+            let foundStart = false;
+            while (!foundStart) {
+              d.setUTCDate(d.getUTCDate() + 1);
+              if (d.getUTCDay() !== 0) foundStart = true;
+            }
+            nextStart = d.toISOString().split("T")[0];
+
+            let durationDays = 6;
+            let daysAdded = 0;
+            const e = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+            while (daysAdded < durationDays) {
+              e.setUTCDate(e.getUTCDate() + 1);
+              if (e.getUTCDay() !== 0) daysAdded++;
+            }
+            nextEnd = e.toISOString().split("T")[0];
           }
-          const nextEnd = e.toISOString().split("T")[0];
 
           txn.update(subRef, {
             startDate: nextStart,
             endDate: nextEnd,
             status: "active",
+            lastBilledDate: effectiveEndDate,
+            lastInvoiceId: invoiceId,
             updatedAt: serverTimestamp() as unknown as Timestamp,
           });
 
@@ -280,6 +458,8 @@ class BillingService {
         } else {
           txn.update(subRef, {
             status: "expired",
+            lastBilledDate: effectiveEndDate,
+            lastInvoiceId: invoiceId,
             updatedAt: serverTimestamp() as unknown as Timestamp,
           });
           console.log(
@@ -288,6 +468,8 @@ class BillingService {
         }
       }
     });
+
+    return true;
   }
 }
 

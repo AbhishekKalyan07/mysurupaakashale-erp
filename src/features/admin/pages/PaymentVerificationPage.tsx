@@ -577,8 +577,10 @@ function PaymentDetailDialog({
                     className={`text-sm font-sans mb-5 font-medium ${confirmAction === "approve" ? "text-emerald-800" : "text-red-800"}`}
                   >
                     {confirmAction === "approve"
-                      ? "This will verify the payment, activate the subscription, generate a PDF invoice, and email the customer."
-                      : "This will reject the payment. The customer's subscription will remain pending and they will be notified."}
+                      ? payment.purpose === "security_deposit"
+                        ? "This will verify the security deposit payment, activate the subscription, generate an invoice, and notify the customer."
+                        : "This will verify the payment, settle any outstanding billing invoices, and notify the customer."
+                      : "This will reject the payment. The customer will be notified."}
                   </p>
                   <div className="flex gap-3">
                     <Button

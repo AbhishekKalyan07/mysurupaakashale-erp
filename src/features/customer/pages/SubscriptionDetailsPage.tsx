@@ -150,17 +150,25 @@ export function SubscriptionDetailsPage() {
 
     setUpdating(true);
     try {
-      await subscriptionRepository.update(subscription.id, {
-        status:
+      if (action === "cancel") {
+        const { subscriptionService } = await import(
+          "@/shared/services/business/subscriptionService"
+        );
+        await subscriptionService.rejectSubscription(subscription);
+        toast.success("Subscription cancelled and final usage settled.");
+      } else {
+        await subscriptionRepository.update(subscription.id, {
+          status: action === "renew" ? "pending_payment" : "active",
+          ...(action === "resume"
+            ? { pauseStartDate: null, pauseEndDate: null }
+            : {}),
+        });
+        toast.success(
           action === "renew"
-            ? "pending_payment"
-            : action === "resume"
-              ? "active"
-              : "cancelled",
-        ...(action === "resume"
-          ? { pauseStartDate: null, pauseEndDate: null }
-          : {}),
-      });
+            ? "Subscription set to renew. Please proceed to payment."
+            : "Subscription resumed successfully.",
+        );
+      }
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(subscription.customerId),
       });
@@ -535,6 +543,12 @@ export function SubscriptionDetailsPage() {
                 <span className="text-stone-950 font-semibold flex items-center gap-1">
                   <Calendar size={14} className="text-ink-500" />{" "}
                   {subscription.startDate}
+                </span>
+              </div>
+              <div className="flex justify-between text-ink-600 items-center">
+                <span>Current Cycle:</span>
+                <span className="text-stone-950 font-semibold text-xs">
+                  {subscription.startDate} to {subscription.endDate || "Month-End"}
                 </span>
               </div>
               <div className="border-t border-rice-300 pt-3 flex justify-between font-bold text-stone-950 text-base">

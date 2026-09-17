@@ -148,6 +148,28 @@ class UserRepository extends BaseRepository<UserProfile> {
       return `${prefix}-${newCount}`;
     });
   }
+
+  /**
+   * Find a user by displayId, phone, or email.
+   */
+  async getByDisplayIdOrPhone(identifier: string): Promise<UserProfile | null> {
+    const trimmed = identifier.trim();
+    if (!trimmed) return null;
+
+    // Try by displayId
+    const byDisplay = await this.list(where("displayId", "==", trimmed), limit(1));
+    if (byDisplay.length > 0) return byDisplay[0];
+
+    // Try by phone
+    const byPhone = await this.list(where("phone", "==", trimmed), limit(1));
+    if (byPhone.length > 0) return byPhone[0];
+
+    // Try by email
+    const byEmail = await this.list(where("email", "==", trimmed.toLowerCase()), limit(1));
+    if (byEmail.length > 0) return byEmail[0];
+
+    return null;
+  }
 }
 
 /** Singleton — one Firestore collection reference reused across the whole app. */

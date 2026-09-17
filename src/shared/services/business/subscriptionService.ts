@@ -187,23 +187,32 @@ class SubscriptionService {
       cancellationDate: getTodayInTimezone(),
     });
 
-    // Reject any pending payments associated with this subscription
-    const { paymentRepository } =
-      await import("../firestore/paymentRepository");
-    const { payments } = await paymentRepository.getPaymentsPaginated(
-      { status: "pending" },
-      100,
-    );
-    const relatedPayments = payments.filter(
-      (p) => p.subscriptionId === subscription.id,
-    );
+    // Reject any pending payments associated with this subscription (admin-only privilege)
+    try {
+      const { paymentRepository } =
+        await import("../firestore/paymentRepository");
+      const { payments } = await paymentRepository.getPaymentsPaginated(
+        { status: "pending" },
+        100,
+      );
+      const relatedPayments = payments.filter(
+        (p) => p.subscriptionId === subscription.id,
+      );
 
-    for (const payment of relatedPayments) {
-      await paymentRepository.update(payment.id, {
-        status: "rejected",
-        verificationNotes:
-          "Subscription draft was cancelled by the customer or admin.",
-      });
+      for (const payment of relatedPayments) {
+        await paymentRepository.update(payment.id, {
+          status: "rejected",
+          verificationNotes:
+            "Subscription draft was cancelled by the customer or admin.",
+        });
+      }
+    } catch (paymentErr) {
+      // In customer self-cancellation context, client writes to /payments are restricted by security rules.
+      // Daily automation / backend settles unverified claims.
+      console.warn(
+        `[SubscriptionService] Client payment cleanup skipped (handled by backend):`,
+        paymentErr,
+      );
     }
 
     // Unify natural expiry + manual cancellation settlement
@@ -217,8 +226,10 @@ class SubscriptionService {
           "cancelled",
         );
       } catch (err) {
-        console.error(
-          `[SubscriptionService] Failed to process final settlement for cancelled subscription ${subscription.id}:`,
+        // In customer self-cancellation context, invoice creation is restricted to admin/accounts by security rules.
+        // Daily billing automation will settle this cancelled subscription via processDailyBilling.
+        console.warn(
+          `[SubscriptionService] Final settlement deferred to daily billing automation for cancelled subscription ${subscription.id}:`,
           err,
         );
       }

@@ -35,6 +35,7 @@ vi.mock("firebase/firestore", async (importOriginal) => {
       await fn(txn);
     }),
     doc: vi.fn(() => ({ id: "mock-ref" })),
+    getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
     serverTimestamp: vi.fn(() => ({ _isServerTimestamp: true })),
     Timestamp: actual.Timestamp,
   };
@@ -45,10 +46,16 @@ vi.mock("@/shared/services/firestore/subscriptionRepository", () => ({
   subscriptionRepository: { list: vi.fn(), getById: vi.fn() },
 }));
 vi.mock("@/shared/services/firestore/orderRepository", () => ({
-  orderRepository: { getCustomerOrdersInRange: vi.fn() },
+  orderRepository: {
+    getCustomerOrdersInRange: vi.fn(),
+    getBySubscriptionId: vi.fn(),
+  },
 }));
 vi.mock("@/shared/services/firestore/paymentRepository", () => ({
   paymentRepository: { getByCustomerId: vi.fn() },
+}));
+vi.mock("@/shared/services/firestore/failureQueueRepository", () => ({
+  failureQueueRepository: { logFailure: vi.fn().mockResolvedValue("mock-id") },
 }));
 
 import { orderRepository } from "@/shared/services/firestore/orderRepository";

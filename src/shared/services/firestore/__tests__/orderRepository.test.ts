@@ -87,6 +87,59 @@ describe("orderRepository", () => {
       );
       expect(subscribeSpy).toHaveBeenCalled();
     });
+
+    it("getBySubscriptionId", async () => {
+      const listSpy = vi
+        .spyOn(orderRepository, "list")
+        .mockResolvedValueOnce([
+          { id: "2", date: "2026-08-02" } as any,
+          { id: "1", date: "2026-08-01" } as any,
+        ]);
+      const res = await orderRepository.getBySubscriptionId("sub-123");
+      expect(listSpy).toHaveBeenCalled();
+      expect(res).toHaveLength(2);
+      expect(res[0].id).toBe("1"); // Sorted by date asc
+      expect(res[1].id).toBe("2");
+    });
+
+    it("getCustomerOrdersInRange returns orders normally when index exists", async () => {
+      const listSpy = vi
+        .spyOn(orderRepository, "list")
+        .mockResolvedValueOnce([{ id: "ord-1", date: "2026-08-01" } as any]);
+      const res = await orderRepository.getCustomerOrdersInRange(
+        "cust-1",
+        "2026-08-01",
+        "2026-08-10",
+      );
+      expect(listSpy).toHaveBeenCalledTimes(1);
+      expect(res).toHaveLength(1);
+    });
+
+    it("getCustomerOrdersInRange falls back to in-memory filter when index is missing", async () => {
+      const indexError: any = new Error("The query requires an index");
+      indexError.code = "failed-precondition";
+
+      const listSpy = vi
+        .spyOn(orderRepository, "list")
+        .mockRejectedValueOnce(indexError)
+        .mockResolvedValueOnce([
+          { id: "ord-old", date: "2026-07-20" } as any,
+          { id: "ord-in-range-2", date: "2026-08-05" } as any,
+          { id: "ord-in-range-1", date: "2026-08-01" } as any,
+          { id: "ord-future", date: "2026-09-01" } as any,
+        ]);
+
+      const res = await orderRepository.getCustomerOrdersInRange(
+        "cust-1",
+        "2026-08-01",
+        "2026-08-10",
+      );
+
+      expect(listSpy).toHaveBeenCalledTimes(2);
+      expect(res).toHaveLength(2);
+      expect(res[0].id).toBe("ord-in-range-1");
+      expect(res[1].id).toBe("ord-in-range-2");
+    });
   });
 
   describe("batchCreate", () => {

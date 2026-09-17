@@ -182,19 +182,50 @@ class OrderRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Retrieves all orders belonging to a specific subscription.
+   * Single-field equality query on subscriptionId uses automatic single-field indexes
+   * and never requires composite indexes.
+   */
+  async getBySubscriptionId(subscriptionId: string): Promise<Order[]> {
+    const orders = await this.list(where("subscriptionId", "==", subscriptionId));
+    return (orders || []).sort((a, b) =>
+      (a.date || "").localeCompare(b.date || ""),
+    );
+  }
+
+  /**
    * Retrieves all orders for a specific customer within a date range.
+   * Includes automatic in-memory fallback if Firestore composite index is missing or building.
    */
   async getCustomerOrdersInRange(
     customerId: string,
     startDate: string,
     endDate: string,
   ): Promise<Order[]> {
-    return this.list(
-      where("customerId", "==", customerId),
-      where("date", ">=", startDate),
-      where("date", "<=", endDate),
-      orderBy("date", "asc"),
-    );
+    try {
+      return await this.list(
+        where("customerId", "==", customerId),
+        where("date", ">=", startDate),
+        where("date", "<=", endDate),
+        orderBy("date", "asc"),
+      );
+    } catch (err: any) {
+      if (
+        err?.code === "failed-precondition" ||
+        (typeof err?.message === "string" &&
+          err.message.toLowerCase().includes("index"))
+      ) {
+        console.warn(
+          `[OrderRepository] getCustomerOrdersInRange composite index unavailable, using in-memory filter:`,
+          err?.message,
+        );
+        const docs = await this.list(where("customerId", "==", customerId));
+        return (docs || [])
+          .filter((o) => o.date && o.date >= startDate && o.date <= endDate)
+          .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      }
+      throw err;
+    }
   }
 
   /**

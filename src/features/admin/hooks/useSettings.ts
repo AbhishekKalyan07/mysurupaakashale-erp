@@ -56,7 +56,7 @@ export function useUpdateBusinessSettings() {
   return useMutation({
     mutationFn: async (data: Partial<BusinessSettings>) => {
       // Phase 1: Client-side settings update
-      await settingsRepository.update("business", data);
+      await settingsRepository.saveBusinessSettings(data);
 
       const user = getAuth().currentUser;
       if (user) {

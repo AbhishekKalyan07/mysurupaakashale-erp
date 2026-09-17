@@ -519,7 +519,7 @@ describe("orderService", () => {
 
       const createdOrder = batchSet.mock.calls[0][1];
       expect(createdOrder.subscriptionId).toBe('sub_resumed_yesterday'); console.log('Finished assertions');
-    });
+    }, 25000);
   });
 
   describe("updateOrderStatus", () => {

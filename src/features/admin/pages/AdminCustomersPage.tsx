@@ -10,7 +10,9 @@ import {
   X,
   Filter,
   MoreVertical,
+  Copy,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
@@ -222,9 +224,22 @@ function CustomerDetailDialog({
             <h2 className="text-2xl font-bold text-primary font-display">
               Customer Details
             </h2>
-            <p className="text-text-muted text-xs font-mono mt-1 bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
-              {customer.displayId || "Customer"}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-text-muted text-xs font-mono bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
+                {customer.displayId || "Customer"}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(customer.id);
+                  toast.success("Customer UID copied!");
+                }}
+                className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded border border-primary/10 flex items-center gap-1 transition-colors cursor-pointer"
+                title="Click to copy Firebase Auth UID for accounts/invoicing"
+              >
+                UID: {customer.id.substring(0, 8)}... <Copy size={12} />
+              </button>
+            </div>
           </div>
           <button
             onClick={onClose}

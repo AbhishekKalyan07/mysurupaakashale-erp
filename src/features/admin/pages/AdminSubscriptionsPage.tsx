@@ -36,7 +36,9 @@ import {
 } from "../hooks/useAdminSubscriptions";
 import { useSubscriptionStats } from "@/features/customer/hooks/useMySubscription";
 import { usePaymentDetail } from "@/features/customer/hooks/usePayments";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/queryKeys";
+import { toast } from "react-hot-toast";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 
 // ── Status → badge tone ──────────────────────────────────────────────────────
@@ -82,6 +84,7 @@ function SubscriptionDetailDialog({
     "approve" | "reject" | "pause" | "resume" | null
   >(null);
 
+  const queryClient = useQueryClient();
   const approve = useApproveSubscription();
   const reject = useRejectSubscription();
   const pause = usePauseSubscription();
@@ -225,7 +228,9 @@ function SubscriptionDetailDialog({
                 End Date
               </div>
               <div className="font-bold text-primary">
-                {formatDate(subscription.endDate)}
+                {subscription.endDate
+                  ? formatDate(subscription.endDate)
+                  : "Month-End (Rolling)"}
               </div>
             </div>
 
@@ -257,15 +262,22 @@ function SubscriptionDetailDialog({
                     try {
                       const { subscriptionRepository } =
                         await import("@/shared/services/firestore/subscriptionRepository");
+                      const newStatus = subscription.autoRenew === false;
                       await subscriptionRepository.update(subscription.id, {
-                        autoRenew:
-                          subscription.autoRenew === false ? true : false,
+                        autoRenew: newStatus,
                       });
-                      // Will auto-refresh since this dialog is fed from the active query
+                      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
+                      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+                      queryClient.invalidateQueries({
+                        queryKey: queryKeys.subscriptions.detail(subscription.id),
+                      });
+                      toast.success(
+                        `Auto-renew ${newStatus ? "enabled" : "disabled"}`,
+                      );
                       onClose();
                     } catch (err: any) {
                       console.error("Failed to update auto-renew", err);
-                      alert("Failed to update: " + err.message);
+                      toast.error("Failed to update: " + (err.message || "Unknown error"));
                     }
                   }}
                   className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary ${subscription.autoRenew !== false ? "bg-emerald-500" : "bg-gray-300"}`}
@@ -807,7 +819,7 @@ export function AdminSubscriptionsPage() {
                         Start: {formatDate(row.startDate)}
                       </div>
                       <div className="text-xs text-text-muted mt-0.5">
-                        End: {formatDate(row.endDate)}
+                        End: {row.endDate ? formatDate(row.endDate) : "Month-End (Rolling)"}
                       </div>
                     </td>
                     <td className="px-6 py-4">

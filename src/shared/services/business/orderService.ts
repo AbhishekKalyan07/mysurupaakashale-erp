@@ -74,7 +74,7 @@ class OrderService {
   ): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
     const today = dateOverride || getTodayInTimezone();
 
-    const isSunday = new Date(today).getDay() === 0;
+    const isSunday = new Date(`${today}T00:00:00Z`).getUTCDay() === 0;
     if (isSunday) {
       console.log(
         `[orderService] Today (${today}) is Sunday. Skipping order generation.`,
@@ -543,7 +543,7 @@ class OrderService {
     date: string,
     mealTypesToGenerate: import("@/shared/types").MealType[],
   ): Promise<void> {
-    const isSunday = new Date(date).getDay() === 0;
+    const isSunday = new Date(`${date}T00:00:00Z`).getUTCDay() === 0;
     if (isSunday) {
       console.log(
         `[orderService] Subscription ${subscription.id} skip generateOrdersForSubscription since ${date} is Sunday.`,

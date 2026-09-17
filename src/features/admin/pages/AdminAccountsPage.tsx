@@ -88,8 +88,24 @@ export function AdminAccountsPage() {
       if (isNaN(amount) || amount <= 0) {
         throw new Error("Amount must be a valid positive number");
       }
+
+      let targetUid = invoiceCustomerId.trim();
+      const { userRepository } = await import(
+        "@/shared/services/firestore/userRepository"
+      );
+      if (targetUid.length !== 28) {
+        const found = await userRepository.getByDisplayIdOrPhone(targetUid);
+        if (found) {
+          targetUid = found.id;
+        } else {
+          throw new Error(
+            `Customer not found for "${invoiceCustomerId}". Please enter a valid UID, Display ID (e.g. MP-A001), phone, or email.`,
+          );
+        }
+      }
+
       await accountsRepository.generateInvoice({
-        customerId: invoiceCustomerId.trim(),
+        customerId: targetUid,
         amount,
         description: invoiceDesc.trim(),
       });
@@ -319,16 +335,16 @@ export function AdminAccountsPage() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
               <div className="flex-1 space-y-1.5 w-full">
                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
-                  Customer User ID (UID)
+                  Customer (Display ID, Phone, or UID)
                 </label>
                 <Input
-                  placeholder="e.g. Firebase Auth UID from Customers tab"
+                  placeholder="e.g. MP-A001, phone, or Firebase UID"
                   value={invoiceCustomerId}
                   onChange={(e) => setInvoiceCustomerId(e.target.value)}
                   className="w-full bg-background"
                 />
                 <p className="text-[11px] text-text-muted">
-                  Use the customer&apos;s Firebase UID so they can view this invoice in their portal.
+                  Enter Display ID (e.g. MP-A001), phone, email, or UID. Automatically resolved.
                 </p>
               </div>
               <div className="w-full sm:w-32 space-y-1.5">
