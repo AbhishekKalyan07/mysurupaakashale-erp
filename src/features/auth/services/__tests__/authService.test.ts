@@ -188,6 +188,23 @@ describe("authService - mapAuthError", () => {
     expect(mapAuthError({ code: "auth/popup-closed-by-user" })).toBe(
       "Sign-in cancelled.",
     );
+    expect(mapAuthError({ code: "auth/cancelled-popup-request" })).toBe(
+      "Sign-in cancelled.",
+    );
+    expect(mapAuthError({ code: "auth/popup-blocked" })).toBe(
+      "Popup was blocked by your browser. Please allow popups for this site and try again.",
+    );
+    expect(
+      mapAuthError({ code: "auth/account-exists-with-different-credential" }),
+    ).toBe(
+      "An account already exists with the same email address but different sign-in credentials. Sign in using the original provider.",
+    );
+    expect(
+      mapAuthError({ code: "auth/user-not-found" }, "resetPassword"),
+    ).toBe("No account found with this email address.");
+    expect(mapAuthError({ code: "auth/user-not-found" }, "login")).toBe(
+      "Incorrect email or password.",
+    );
     expect(mapAuthError({ code: "unknown-code", message: "Custom msg" })).toBe(
       "Custom msg",
     );

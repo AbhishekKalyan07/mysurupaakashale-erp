@@ -1,4 +1,3 @@
-import { Timestamp } from "firebase/firestore";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -7,7 +6,6 @@ import { z } from "zod";
 import { User, MapPin, AlertCircle, Save } from "lucide-react";
 
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { userRepository } from "@/shared/services/firestore/userRepository";
 import { useCustomerAddresses } from "@/features/customer/hooks/useCustomerAddresses";
 import { usePushNotifications } from "@/features/notifications/hooks/usePushNotifications";
 import { PageHeader } from "@/shared/components/layout/PageHeader";
@@ -15,15 +13,16 @@ import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import toast from "react-hot-toast";
-import { serverTimestamp } from "firebase/firestore";
-
-const INDIAN_MOBILE_REGEX = /^(?:\+91[-\s]?)?[6-9]\d{9}$/;
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your full name"),
   phone: z
     .string()
-    .regex(INDIAN_MOBILE_REGEX, "Enter a valid 10-digit mobile number"),
+    .trim()
+    .transform((val) => val.replace(/\D/g, "").slice(-10))
+    .refine((val) => /^[6-9]\d{9}$/.test(val), {
+      message: "Enter a valid 10-digit mobile number",
+    }),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -97,32 +96,42 @@ export function ProfilePage() {
     if (!firebaseUser) return;
     setIsSaving(true);
     try {
-      if (values.phone !== profile?.phone) {
-        // Check if new phone is already taken
-        const { doc, getDoc, setDoc } = await import("firebase/firestore");
-        const { db } = await import("@/shared/lib/firebase");
-        const phoneDocRef = doc(db, "userPhones", values.phone);
-        const existingPhone = await getDoc(phoneDocRef);
+      const { doc, writeBatch, serverTimestamp } = await import(
+        "firebase/firestore"
+      );
+      const { db } = await import("@/shared/lib/firebase");
 
-        if (
-          existingPhone.exists() &&
-          existingPhone.data()?.uid !== firebaseUser.uid
-        ) {
+      const batch = writeBatch(db);
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+
+      if (values.phone !== profile?.phone) {
+        // Claim the new phone number
+        const newPhoneDocRef = doc(db, "userPhones", values.phone);
+        batch.set(newPhoneDocRef, { uid: firebaseUser.uid });
+
+        // Release previous phone registration if one existed
+        if (profile?.phone && profile.phone.trim().length > 0) {
+          const oldPhoneDocRef = doc(db, "userPhones", profile.phone);
+          batch.delete(oldPhoneDocRef);
+        }
+      }
+
+      batch.update(userDocRef, {
+        fullName: values.fullName,
+        phone: values.phone,
+        updatedAt: serverTimestamp(),
+      });
+
+      try {
+        await batch.commit();
+      } catch (err: any) {
+        if (err?.code === "permission-denied") {
           throw new Error(
             "This mobile number is already registered to another account.",
           );
         }
-
-        // Claim the new phone number
-        await setDoc(phoneDocRef, { uid: firebaseUser.uid });
+        throw err;
       }
-
-      await userRepository.update(firebaseUser.uid, {
-        fullName: values.fullName,
-        phone: values.phone,
-        updatedAt:
-          serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      });
 
       const { orderService } =
         await import("@/shared/services/business/orderService");

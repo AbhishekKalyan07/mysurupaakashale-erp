@@ -150,7 +150,8 @@ service cloud.firestore {
     match /userPhones/{phone} {
       allow read: if isAdmin();
       allow create: if (isSignedIn() && request.resource.data.uid == request.auth.uid && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.phone == phone) || isAdmin();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
     }
 
     // ---------- mealPlans/{planId} — public catalog ----------

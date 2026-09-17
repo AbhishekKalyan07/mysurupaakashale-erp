@@ -32,10 +32,17 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Too many attempts. Please wait a moment and try again.",
   "auth/network-request-failed":
     "Network error — check your connection and try again.",
+  "auth/popup-blocked":
+    "Popup was blocked by your browser. Please allow popups for this site and try again.",
+  "auth/account-exists-with-different-credential":
+    "An account already exists with the same email address but different sign-in credentials. Sign in using the original provider.",
 };
 
 /** Turns a raw Firebase Auth error into copy that's safe and useful to show a user. */
-export function mapAuthError(error: unknown): string {
+export function mapAuthError(
+  error: unknown,
+  context?: "login" | "resetPassword",
+): string {
   const code = (error as { code?: string } | undefined)?.code;
   const msg = (error as { message?: string } | undefined)?.message;
 
@@ -44,6 +51,10 @@ export function mapAuthError(error: unknown): string {
     code === "auth/cancelled-popup-request"
   ) {
     return "Sign-in cancelled.";
+  }
+
+  if (context === "resetPassword" && code === "auth/user-not-found") {
+    return "No account found with this email address.";
   }
 
   return (

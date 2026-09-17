@@ -263,7 +263,7 @@ export class AutomationService {
           if (reminderType === "expired") {
             // Subscriptions with auto-renewal enabled must NOT be marked expired here;
             // billingService auto-renews them at cycle end. Only expire if autoRenew is false.
-            if (sub.autoRenew === false) {
+            if (!sub.autoRenew) {
               const wasUpdated = await runTransaction(db, async (transaction) => {
                 const subRef = doc(db, "subscriptions", sub.id);
                 const subSnap = await transaction.get(subRef);
@@ -282,7 +282,7 @@ export class AutomationService {
                 `[automationService] Subscription ${sub.id} is past endDate but has autoRenew enabled. Leaving active for billingService auto-renewal.`,
               );
             }
-          } else if (sub.autoRenew === false) {
+          } else if (!sub.autoRenew) {
             const daysMap: Record<string, number> = {
               tomorrow: 1,
               "3_days": 3,

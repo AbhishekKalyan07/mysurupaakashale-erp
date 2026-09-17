@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/shared/lib/firebase";
 import { userRepository } from "@/shared/services/firestore/userRepository";
@@ -20,18 +20,29 @@ interface AuthProviderProps {
  *  - status 'loading': we don't yet know if anyone is signed in. Never
  *    render app content or redirect to /login during this state.
  *  - status 'unauthenticated': definitely no one signed in.
- *  - status 'authenticated': we know the uid AND the role (from the ID
- *    token's custom claim). `profile` (the Firestore document) may still
- *    be `null` for a brief moment after this — its own onSnapshot
- *    subscription hasn't delivered a first snapshot yet — so treat
- *    `profile === null` here as "still loading the profile", not "no
- *    profile exists".
+ *  - status 'authenticated': we know the uid AND the authoritative role (from
+ *    cache or Firestore). `profile` may still be updating in the background.
  */
 function getInitialState(): {
   status: AuthStatus;
   role: Role | null;
   uid: string | null;
 } {
+  try {
+    const lastUid =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem("last_active_uid")
+        : null;
+    if (lastUid) {
+      const cached = localStorage.getItem(`auth_cache_${lastUid}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.uid === lastUid && isRole(parsed.role)) {
+          return { status: "loading", role: parsed.role, uid: lastUid };
+        }
+      }
+    }
+  } catch {}
   return { status: "loading", role: null, uid: null };
 }
 
@@ -42,6 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<Role | null>(init.role);
   const [error, setError] = useState<string | null>(null);
+  const preservedErrorRef = useRef<boolean>(false);
 
   // 0. Handle Google Sign-In Redirects (PWA/Mobile)
   useEffect(() => {
@@ -49,8 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // this will capture the result and ensure their Firestore profile is created.
     handleGoogleRedirectResult().catch((err: any) => {
       console.error("[auth] Redirect error:", err);
-      // Don't import mapAuthError here to avoid circular dependencies, just show a generic message
-      // or extract the message if it's available.
       setError(
         err?.message ||
           "Authentication failed. Please check your browser settings or try again.",
@@ -63,7 +73,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const unsubscribe = onAuthStateChanged(
       auth,
       (user) => {
-        setError(null);
+        if (!preservedErrorRef.current) {
+          setError(null);
+        } else {
+          preservedErrorRef.current = false;
+        }
         setFirebaseUser(user);
 
         if (!user) {
@@ -88,8 +102,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
           try {
             localStorage.setItem("last_active_uid", user.uid);
           } catch {}
-          // Always wait for the authoritative profile from Firestore before switching to authenticated
-          setStatus("loading");
+
+          // SWR Cache Hydration: check if we have a cached authoritative role for this user
+          let cachedRole: Role | null = null;
+          try {
+            const cached = localStorage.getItem(`auth_cache_${user.uid}`);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (parsed && parsed.uid === user.uid && isRole(parsed.role)) {
+                cachedRole = parsed.role;
+              }
+            }
+          } catch {}
+
+          if (cachedRole) {
+            setRole(cachedRole);
+            setStatus("authenticated");
+          } else {
+            // Wait for authoritative profile from Firestore before switching to authenticated
+            setStatus("loading");
+          }
         }
       },
       (err) => {
@@ -109,24 +141,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    // We are signed in, but waiting for the profile to establish the role
-    // ONLY set loading if we didn't already resolve the role from localStorage cache.
-    setStatus((prev) => (prev !== "authenticated" ? "loading" : prev));
-
     // Safety timeout: if the Firestore subscription hasn't resolved after an
-    // extended wait, show an error state but DO NOT sign them out automatically.
-    // Signing out automatically breaks offline support if the cache is empty but
-    // the user is technically signed in.
+    // extended wait, show an error state and cleanly sign out if the profile never existed.
     const timeoutId = setTimeout(() => {
+      // If we are already authenticated from local cache and the browser is offline,
+      // preserve offline access — do not drop the session.
+      if (typeof navigator !== "undefined" && !navigator.onLine && role) {
+        console.warn("[auth] Offline: Preserving cached role session.");
+        return;
+      }
+
       console.error(
         "[auth] Profile load timed out after 20s — entering error state.",
       );
+      preservedErrorRef.current = true;
       setError(
-        "Could not load your profile. Please check your connection or try signing out and back in.",
+        "Could not load your profile. Please check your connection or try signing in again.",
       );
-      // Keep them unauthenticated so the app doesn't load a broken dashboard,
-      // but let them decide whether to retry or sign out manually.
-      setStatus("unauthenticated");
+      Promise.resolve(signOutUser()).catch(() => setStatus("unauthenticated"));
     }, 20000);
 
     if (import.meta.env.DEV) {
@@ -140,10 +172,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
         if (data && data.isActive === false) {
           clearTimeout(timeoutId);
+          preservedErrorRef.current = true;
           setError(
             "Your account has been deactivated. Please contact support.",
           );
-          signOutUser().catch(() => setStatus("unauthenticated"));
+          Promise.resolve(signOutUser()).catch(() =>
+            setStatus("unauthenticated"),
+          );
           return;
         }
 
@@ -152,8 +187,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (data) {
           if (!isRole(data.role)) {
             clearTimeout(timeoutId);
+            preservedErrorRef.current = true;
             setError(`Invalid or missing role on profile: ${data.role}`);
-            signOutUser().catch(() => setStatus("unauthenticated"));
+            Promise.resolve(signOutUser()).catch(() =>
+              setStatus("unauthenticated"),
+            );
             return;
           }
 
@@ -193,14 +231,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [
-    firebaseUser,
-    firebaseUser?.uid,
-    firebaseUser?.email,
-    firebaseUser?.displayName,
-    firebaseUser?.phoneNumber,
-    firebaseUser?.photoURL,
-  ]);
+  }, [firebaseUser?.uid, role]);
   // 3. Signal that critical startup (Auth + Profile resolution) is complete
   useEffect(() => {
     if (status !== "loading") {

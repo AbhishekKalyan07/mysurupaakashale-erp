@@ -5,7 +5,6 @@ import { z } from "zod";
 import {
   Link,
   useLocation,
-  useNavigate,
   type Location,
 } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
@@ -26,12 +25,13 @@ const loginSchema = z.object({
   email: z
     .string()
     .min(1, "Email is required")
-    .email("Enter a valid email address"),
+    .trim()
+    .toLowerCase()
+    .pipe(z.string().email("Enter a valid email address")),
   password: z.string().min(1, "Password is required"),
 });
 
 export function DesktopLoginPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { error: globalAuthError } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
@@ -49,16 +49,12 @@ export function DesktopLoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  const goToNext = () => {
-    const from = (location.state as { from?: Location } | null)?.from;
-    navigate(from?.pathname ?? "/", { replace: true });
-  };
-
   const onSubmit = async (values: LoginFormValues) => {
     setFormError(null);
     try {
       await signIn(values.email, values.password);
-      goToNext();
+      // GuestRoute wraps /login and will automatically navigate to
+      // target route once status is authenticated and role is resolved.
     } catch (err) {
       setFormError(mapAuthError(err));
     }
@@ -69,11 +65,19 @@ export function DesktopLoginPage() {
     setFormError(null);
     setIsGoogleLoading(true);
     try {
+      const from = (location.state as { from?: Location } | null)?.from;
+      if (from) {
+        try {
+          sessionStorage.setItem(
+            "auth_redirect_from",
+            `${from.pathname}${from.search || ""}${from.hash || ""}`,
+          );
+        } catch {}
+      }
       await signInWithGoogle();
-      goToNext();
+      // If mobile/PWA, browser redirects away. If desktop popup, GuestRoute redirects.
     } catch (err) {
       setFormError(mapAuthError(err));
-    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -91,7 +95,7 @@ export function DesktopLoginPage() {
       toast.success("Password reset link sent to your email!");
       setForgotPasswordMode(false);
     } catch (err) {
-      setFormError(mapAuthError(err));
+      setFormError(mapAuthError(err, "resetPassword"));
     } finally {
       setResetLoading(false);
     }

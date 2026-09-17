@@ -176,7 +176,18 @@ export class AccountsRepository {
    * Ensures timezone boundaries strictly follow IST (Asia/Kolkata).
    */
   async generateMonthlyReport(monthStr: string): Promise<string> {
-    const invoices = await this.getInvoicesForMonth(monthStr);
+    const year = parseInt(monthStr.split("-")[0]);
+    const month = parseInt(monthStr.split("-")[1]);
+    const paddedMonth = month.toString().padStart(2, "0");
+    const lastDay = new Date(year, month, 0).getDate();
+    const paddedLastDay = lastDay.toString().padStart(2, "0");
+
+    const startDate = new Date(`${year}-${paddedMonth}-01T00:00:00+05:30`);
+    const endDate = new Date(
+      `${year}-${paddedMonth}-${paddedLastDay}T23:59:59.999+05:30`,
+    );
+
+    const invoices = await this.getInvoicesInRange(startDate, endDate);
     let csvContent =
       "Invoice Number,Customer ID,Billing Period Start,Billing Period End,Subtotal,Deposit Held,Total Due,Status,Date\n";
     invoices.forEach((inv) => {
