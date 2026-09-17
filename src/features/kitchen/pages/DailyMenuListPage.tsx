@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Edit, Trash2, Globe, Archive, CalendarDays } from "lucide-react";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
@@ -133,7 +134,7 @@ function MenuCard({
     <Card className="flex flex-col h-full overflow-hidden transition-shadow hover:shadow-card-hover">
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex items-center justify-between">
         <h3 className="font-display font-bold text-ink-900 text-lg">
-          {new Intl.DateTimeFormat("en-IN", {
+          {getCachedDateTimeFormatter("en-IN", {
             weekday: "short",
             month: "short",
             day: "numeric",
