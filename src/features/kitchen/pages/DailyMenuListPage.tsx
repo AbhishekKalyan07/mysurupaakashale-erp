@@ -4,6 +4,7 @@ import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
 import { TableSkeleton } from "@/shared/components/feedback/SkeletonLoader";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import {
@@ -133,7 +134,7 @@ function MenuCard({
     <Card className="flex flex-col h-full overflow-hidden transition-shadow hover:shadow-card-hover">
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex items-center justify-between">
         <h3 className="font-display font-bold text-ink-900 text-lg">
-          {new Intl.DateTimeFormat("en-IN", {
+          {getCachedDateTimeFormatter("en-IN", {
             weekday: "short",
             month: "short",
             day: "numeric",

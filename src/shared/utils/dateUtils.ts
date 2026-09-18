@@ -38,6 +38,8 @@ export function parseFirestoreDate(ts: unknown): Date | null {
   return null;
 }
 
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
+
 /**
  * Returns today's date as YYYY-MM-DD in Asia/Kolkata timezone.
  * Guarantees frontend and backend business date string alignment.
@@ -53,22 +55,22 @@ export function getModifiableMeals(
   mealTypes: string[],
 ): string[] {
   const now = new Date();
-  const today = new Intl.DateTimeFormat("en-CA", {
+  const today = getCachedDateTimeFormatter("en-CA", {
     timeZone: "Asia/Kolkata",
   }).format(now);
 
   if (date > today) return mealTypes;
   if (date < today) return [];
 
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",
     hourCycle: "h23",
   }).formatToParts(now);
-  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+  const hour = parseInt(parts.find((p: Intl.DateTimeFormatPart) => p.type === "hour")?.value || "0", 10);
   const minute = parseInt(
-    parts.find((p) => p.type === "minute")?.value || "0",
+    parts.find((p: Intl.DateTimeFormatPart) => p.type === "minute")?.value || "0",
     10,
   );
   const currentTimeMinutes = hour * 60 + minute;

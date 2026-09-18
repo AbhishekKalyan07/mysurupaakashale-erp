@@ -3,6 +3,7 @@ import { ChefHat, Printer } from "lucide-react";
 import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { APP_CONFIG } from "@/shared/config/appConfig";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 // Hooks & Services
 import {
@@ -73,7 +74,7 @@ export function ProductionBoardPage() {
     );
   }
 
-  const displayDate = new Intl.DateTimeFormat("en-IN", {
+  const displayDate = getCachedDateTimeFormatter("en-IN", {
     weekday: "long",
     year: "numeric",
     month: "long",
