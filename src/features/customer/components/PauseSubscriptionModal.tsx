@@ -96,12 +96,12 @@ export function PauseSubscriptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="max-w-md w-full bg-white p-6 relative rounded-2xl shadow-2xl border border-primary/20">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <Card className="max-w-md w-full bg-white p-5 sm:p-6 relative rounded-2xl shadow-2xl border border-primary/20 max-h-[90dvh] overflow-y-auto">
         <button
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-4 right-4 text-ink-500 hover:text-ink-700 transition-colors p-1"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 text-ink-500 hover:text-ink-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <XCircle size={20} />
         </button>
@@ -163,14 +163,14 @@ export function PauseSubscriptionModal({
             <Button
               type="button"
               variant="secondary"
-              className="flex-1 font-sans font-bold"
+              className="flex-1 font-sans font-bold min-h-[44px]"
               onClick={onClose}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 font-sans font-bold"
+              className="flex-1 font-sans font-bold min-h-[44px]"
               isLoading={updating}
             >
               Confirm Pause

@@ -11,6 +11,7 @@ import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import type { Notification, NotificationInAppStatus } from "@/shared/types";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   BellOff,
@@ -25,8 +26,12 @@ import {
   Settings,
   User,
   Search,
+  Send,
+  History,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { AdminSendNotificationModal } from "../components/AdminSendNotificationModal";
 
 function NotificationIcon({ type }: { type: string }) {
   const iconClass = "shrink-0";
@@ -85,7 +90,7 @@ function NotificationCard({
 
   return (
     <div
-      className={`group relative flex gap-4 p-5 rounded-2xl border transition-all duration-300 ${
+      className={`group relative flex flex-col sm:flex-row gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${
         isUnread
           ? "bg-primary/5 border-primary/20 shadow-sm"
           : "bg-card border-primary/5 hover:border-primary/10 hover:shadow-sm"
@@ -96,56 +101,72 @@ function NotificationCard({
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1/2 bg-gold rounded-r-full shadow-[0_0_8px_rgba(212,175,55,0.5)]" />
       )}
 
-      <div className="flex flex-col items-center pt-1 shrink-0">
-        <div
-          className={`p-2.5 rounded-xl transition-colors ${isUnread ? "bg-white shadow-sm border border-primary/10" : "bg-primary/5"}`}
-        >
-          <NotificationIcon type={notification.type} />
-        </div>
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h4
-              className={`text-base font-display ${isUnread ? "font-bold text-primary" : "font-semibold text-text-muted"}`}
-            >
-              {notification.title}
-            </h4>
-            {priorityBadge(notification.priority)}
+      <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+        <div className="pt-0.5 shrink-0">
+          <div
+            className={`p-2.5 rounded-xl transition-colors ${
+              isUnread
+                ? "bg-white shadow-sm border border-primary/10"
+                : "bg-primary/5"
+            }`}
+          >
+            <NotificationIcon type={notification.type} />
           </div>
-          <span className="text-xs text-primary/40 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-            <Clock size={12} /> {timeAgo}
-          </span>
         </div>
-        <p
-          className={`text-sm font-sans leading-relaxed ${isUnread ? "text-text-muted" : "text-text-muted/70"}`}
-        >
-          {notification.message}
-        </p>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 mb-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h4
+                className={`text-sm sm:text-base font-display ${
+                  isUnread
+                    ? "font-bold text-primary"
+                    : "font-semibold text-text"
+                }`}
+              >
+                {notification.title}
+              </h4>
+              {priorityBadge(notification.priority)}
+            </div>
+            <span className="text-[11px] sm:text-xs text-primary/50 font-semibold tracking-wide shrink-0 flex items-center gap-1">
+              <Clock size={12} /> {timeAgo}
+            </span>
+          </div>
+          <p
+            className={`text-xs sm:text-sm font-sans leading-relaxed ${
+              isUnread ? "text-text font-medium" : "text-text-muted"
+            }`}
+          >
+            {notification.message}
+          </p>
+        </div>
       </div>
 
-      {/* Actions (visible on hover for desktop, always visible on mobile if needed, but we'll use group-hover) */}
-      <div className="flex flex-col sm:flex-row gap-2 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity items-start pt-1">
+      {/* Actions (always accessible on mobile, hover on desktop) */}
+      <div className="flex sm:flex-col gap-2 shrink-0 self-end sm:self-start pt-2 sm:pt-0 border-t border-primary/5 sm:border-0 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
         {isUnread && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onRead}
-            className="h-9 w-9 p-0 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg"
+            className="h-9 sm:h-10 px-3 sm:w-10 sm:p-0 text-text-muted hover:text-primary hover:bg-primary/10 rounded-xl text-xs gap-1.5 min-h-[36px]"
             title="Mark as read"
+            aria-label="Mark as read"
           >
-            <CheckCheck size={18} />
+            <CheckCheck size={16} />
+            <span className="sm:hidden font-medium">Mark Read</span>
           </Button>
         )}
         <Button
           variant="ghost"
           size="sm"
           onClick={onArchive}
-          className="h-9 w-9 p-0 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg"
+          className="h-9 sm:h-10 px-3 sm:w-10 sm:p-0 text-text-muted hover:text-danger hover:bg-danger/10 rounded-xl text-xs gap-1.5 min-h-[36px]"
           title="Archive"
+          aria-label="Archive notification"
         >
-          <Archive size={18} />
+          <Archive size={16} />
+          <span className="sm:hidden font-medium">Archive</span>
         </Button>
       </div>
     </div>
@@ -162,8 +183,11 @@ const TABS: { label: string; value: FilterTab }[] = [
 ];
 
 export function NotificationCenter() {
+  const { role } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const { data: notifications, isLoading, error, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
@@ -210,16 +234,36 @@ export function NotificationCenter() {
             </p>
           )}
         </div>
-        {unreadCount > 0 && (
-          <Button
-            variant="secondary"
-            onClick={() => markAllRead.mutate()}
-            isLoading={markAllRead.isPending}
-            className="gap-2 font-sans font-bold shadow-sm self-start md:self-auto"
-          >
-            <CheckCheck size={18} /> Mark All Read
-          </Button>
-        )}
+        <div className="flex items-center gap-3 flex-wrap self-start md:self-auto">
+          {role === "admin" && (
+            <>
+              <Button
+                variant="primary"
+                onClick={() => setShowSendModal(true)}
+                className="gap-2 font-sans font-bold shadow-sm min-h-[44px]"
+              >
+                <Send size={16} /> Send Notification
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/admin/notifications/history")}
+                className="gap-2 font-sans font-bold shadow-sm min-h-[44px]"
+              >
+                <History size={16} /> Audit History
+              </Button>
+            </>
+          )}
+          {unreadCount > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => markAllRead.mutate()}
+              isLoading={markAllRead.isPending}
+              className="gap-2 font-sans font-bold shadow-sm min-h-[44px]"
+            >
+              <CheckCheck size={18} /> Mark All Read
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search & Tabs */}
@@ -302,6 +346,14 @@ export function NotificationCenter() {
             />
           ))}
         </div>
+      )}
+
+      {/* Admin Send Notification Modal */}
+      {role === "admin" && (
+        <AdminSendNotificationModal
+          isOpen={showSendModal}
+          onClose={() => setShowSendModal(false)}
+        />
       )}
     </div>
   );

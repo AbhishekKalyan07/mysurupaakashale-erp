@@ -367,15 +367,26 @@ export function SubscriptionWizardPage() {
         plan.tier,
         quantity,
         calculatedDailyPrice,
-        plan.pricingMatrix || {
-          breakfast: 60,
-          lunch: 65,
-          dinner: 65,
-          breakfast_lunch: 115,
-          lunch_dinner: 115,
-          breakfast_dinner: 115,
-          breakfast_lunch_dinner: 159,
-        }, // fallback to generic pricing if missing from old plan
+        plan.pricingMatrix ||
+          (plan.tier === "regular"
+            ? {
+                breakfast: 60,
+                lunch: 85,
+                dinner: 85,
+                breakfast_lunch: 140,
+                lunch_dinner: 140,
+                breakfast_dinner: 140,
+                breakfast_lunch_dinner: 210,
+              }
+            : {
+                breakfast: 60,
+                lunch: 65,
+                dinner: 65,
+                breakfast_lunch: 115,
+                lunch_dinner: 115,
+                breakfast_dinner: 115,
+                breakfast_lunch_dinner: 159,
+              }),
         mealPreferences,
         startDate,
         selectedAddressId,
@@ -438,9 +449,9 @@ export function SubscriptionWizardPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       {/* Stepper Header */}
-      <div className="flex justify-between items-center mb-8 border-b border-rice-300 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 sm:mb-8 border-b border-rice-300 pb-4">
         <div>
-          <h1 className="text-2xl font-serif text-amber-950 font-bold">
+          <h1 className="text-xl sm:text-2xl font-serif text-amber-950 font-bold">
             Subscribe to {plan?.name}
           </h1>
           <p className="text-ink-500 text-xs font-sans mt-0.5">
@@ -495,7 +506,7 @@ export function SubscriptionWizardPage() {
             <h3 className="text-sm font-sans font-bold text-ink-800 mb-2">
               Switch Plan Tier:
             </h3>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               {plans.map((p) => (
                 <button
                   key={p.id}

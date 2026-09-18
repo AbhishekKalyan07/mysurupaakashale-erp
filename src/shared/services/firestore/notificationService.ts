@@ -524,22 +524,114 @@ export async function notifyStaffAccountCreated(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Holiday notifications
+// Admin Broadcast Notifications
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface BroadcastNotificationParams {
+  targetAudience:
+    | "all"
+    | "customer"
+    | "delivery_partner"
+    | "kitchen"
+    | "staff"
+    | "specific_user";
+  specificUserId?: string;
+  specificUserRole?: string;
+  type?: NotificationType;
+  title: string;
+  message: string;
+  priority?: NotificationPriority;
+  metadata?: Record<string, string>;
+}
+
 /**
- * Sends a `holiday_declared` notification to every active user in the system.
- *
- * Guarantees:
- *   - Deterministic per-user doc ID: `holiday_notify_${date}_${userId}`
- *     prevents duplicate notifications on retry.
- *   - Already-read notifications are NOT reset to `unread`.
- *     Implemented via a Firestore transaction per user that preserves the
- *     existing `inAppStatus` when the document already exists.
- *   - Chunked into batches of ≤ HOLIDAY_NOTIF_BATCH_SIZE (400) to stay
- *     within the Firestore 500-write-per-batch limit and match the
- *     project's existing BATCH_SIZE constant.
- *   - Notification failure is fire-and-forget; the caller must `.catch()`.
- *
- * Roles notified: admin, kitchen, customer, delivery_partner
+ * Broadcast or targeted notification sent directly by an Admin.
+ * Supports sending to all customers, delivery partners, kitchen staff,
+ * all active users, or a specific customer/staff member.
  */
+export async function sendAdminBroadcastNotification(
+  params: BroadcastNotificationParams,
+): Promise<{ success: boolean; recipientCount: number }> {
+  const {
+    targetAudience,
+    specificUserId,
+    specificUserRole,
+    type = "system_alert",
+    title,
+    message,
+    priority = "normal",
+    metadata = {},
+  } = params;
+
+  const currentAdminUid = auth.currentUser?.uid || "admin";
+
+  // 1. Single target recipient
+  if (targetAudience === "specific_user" && specificUserId) {
+    await send(
+      specificUserId,
+      specificUserRole || "customer",
+      type,
+      title,
+      message,
+      { priority, metadata, createdBy: currentAdminUid },
+    );
+    return { success: true, recipientCount: 1 };
+  }
+
+  // 2. Fetch target users from UserRepository
+  let targetUsers: { id: string; role: string }[] = [];
+  try {
+    const { userRepository } = await import(
+      "@/shared/services/firestore/userRepository"
+    );
+    if (targetAudience === "all") {
+      const allUsers = await userRepository.list();
+      targetUsers = allUsers
+        .filter((u) => u.isActive !== false)
+        .map((u) => ({ id: u.id, role: u.role }));
+    } else if (targetAudience === "staff") {
+      const allUsers = await userRepository.list();
+      targetUsers = allUsers
+        .filter(
+          (u) =>
+            u.isActive !== false &&
+            ["admin", "kitchen", "delivery_partner", "accounts"].includes(
+              u.role,
+            ),
+        )
+        .map((u) => ({ id: u.id, role: u.role }));
+    } else {
+      const roleUsers = await userRepository.list();
+      targetUsers = roleUsers
+        .filter((u) => u.role === targetAudience && u.isActive !== false)
+        .map((u) => ({ id: u.id, role: u.role }));
+    }
+  } catch (err) {
+    console.error("Failed to query target recipients for broadcast:", err);
+    throw new Error("Could not retrieve recipients for broadcast notification");
+  }
+
+  if (targetUsers.length === 0) {
+    return { success: true, recipientCount: 0 };
+  }
+
+  // 3. Construct payloads and batch write via notificationRepository
+  const payloads: CreateNotificationPayload[] = targetUsers.map((u) => ({
+    recipientId: u.id,
+    recipientRole: u.role,
+    channel: "in_app",
+    type,
+    title,
+    message,
+    priority,
+    relatedEntityType: null,
+    relatedEntityId: null,
+    metadata,
+    expiresAt: null,
+    createdBy: currentAdminUid,
+  }));
+
+  const count = await notificationRepository.createBatch(payloads);
+  return { success: true, recipientCount: count };
+}
+

@@ -15,13 +15,12 @@ export function useSeedData() {
       // Seed 1: Subscription Plans (mealPlans)
       const plans = [
         {
-          id: "monthly-standard",
-          name: "Monthly Standard",
-          description: "Basic daily meals",
-          tier: "standard",
-          meals: ["breakfast", "lunch", "dinner"],
+          id: "basic-plan",
+          name: "Basic Plan",
+          description: "Wholesome daily meals with 3 separate deliveries.",
+          tier: "basic",
           pricePerDay: 159,
-          billingCycle: "monthly",
+          deliveryIncluded: true,
           isActive: true,
           sortOrder: 1,
           pricingMatrix: {
@@ -33,26 +32,138 @@ export function useSeedData() {
             breakfast_dinner: 115,
             breakfast_lunch_dinner: 159,
           },
+          mealSlots: [
+            {
+              mealType: "breakfast",
+              isCustomerSelectable: false,
+              options: [
+                {
+                  id: "basic-breakfast-1",
+                  label: "As Per Breakfast Menu",
+                  items: ["Breakfast Menu Item"],
+                },
+              ],
+            },
+            {
+              mealType: "lunch",
+              isCustomerSelectable: true,
+              options: [
+                {
+                  id: "basic-lunch-1",
+                  label: "Rice & Sambar",
+                  items: ["Pickle", "Rice", "Sambar"],
+                },
+                {
+                  id: "basic-lunch-2",
+                  label: "Ragi Ball",
+                  items: ["1 Ragi Ball", "Sambar", "Buttermilk"],
+                },
+                {
+                  id: "basic-lunch-3",
+                  label: "Chapati & Sagu",
+                  items: ["3 Chapati", "Sagu", "Buttermilk"],
+                },
+              ],
+            },
+            {
+              mealType: "dinner",
+              isCustomerSelectable: true,
+              options: [
+                {
+                  id: "basic-dinner-1",
+                  label: "Rice & Sambar",
+                  items: ["Rice", "Sambar", "Palya"],
+                },
+                {
+                  id: "basic-dinner-2",
+                  label: "Ragi Ball",
+                  items: ["1 Ragi Ball", "Sambar", "Palya"],
+                },
+                {
+                  id: "basic-dinner-3",
+                  label: "Chapati & Palya",
+                  items: ["3 Chapati", "Palya"],
+                },
+              ],
+            },
+          ],
         },
         {
-          id: "weekly-premium",
-          name: "Weekly Premium",
-          description: "Premium meals with extras",
-          tier: "premium",
-          meals: ["breakfast", "lunch", "dinner"],
-          pricePerDay: 220,
-          billingCycle: "weekly",
+          id: "regular-plan",
+          name: "Regular Plan",
+          description: "Wholesome daily meals with 3 separate deliveries.",
+          tier: "regular",
+          pricePerDay: 210,
+          deliveryIncluded: true,
           isActive: true,
           sortOrder: 2,
           pricingMatrix: {
-            breakfast: 80,
-            lunch: 90,
-            dinner: 90,
-            breakfast_lunch: 160,
-            lunch_dinner: 160,
-            breakfast_dinner: 160,
-            breakfast_lunch_dinner: 220,
+            breakfast: 60,
+            lunch: 85,
+            dinner: 85,
+            breakfast_lunch: 140,
+            lunch_dinner: 140,
+            breakfast_dinner: 140,
+            breakfast_lunch_dinner: 210,
           },
+          mealSlots: [
+            {
+              mealType: "breakfast",
+              isCustomerSelectable: false,
+              options: [
+                {
+                  id: "regular-breakfast-1",
+                  label: "As Per Breakfast Menu",
+                  items: ["Breakfast Menu Item"],
+                },
+              ],
+            },
+            {
+              mealType: "lunch",
+              isCustomerSelectable: true,
+              options: [
+                {
+                  id: "regular-lunch-1",
+                  label: "Ragi Ball Meal",
+                  items: [
+                    "Pickle",
+                    "Rice",
+                    "Sambar",
+                    "1 Ragi Ball",
+                    "Buttermilk",
+                  ],
+                },
+                {
+                  id: "regular-lunch-2",
+                  label: "Chapati Meal",
+                  items: [
+                    "Pickle",
+                    "Rice",
+                    "Sambar",
+                    "1 Chapati",
+                    "Sagu/Palya",
+                    "Buttermilk",
+                  ],
+                },
+              ],
+            },
+            {
+              mealType: "dinner",
+              isCustomerSelectable: true,
+              options: [
+                {
+                  id: "regular-dinner-1",
+                  label: "Chapati Meal",
+                  items: ["Rice", "Sambar", "1 Chapati", "Palya", "Curd"],
+                },
+                {
+                  id: "regular-dinner-2",
+                  label: "Ragi Ball Meal",
+                  items: ["Rice", "Sambar", "1 Ragi Ball", "Curd"],
+                },
+              ],
+            },
+          ],
         },
       ];
 

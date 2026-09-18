@@ -111,11 +111,12 @@ export function EditSubscriptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="max-w-xl w-full bg-white p-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <Card className="max-w-xl w-full bg-white p-4 sm:p-6 relative max-h-[90dvh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-ink-500 hover:text-ink-600"
+          aria-label="Close dialog"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 text-ink-500 hover:text-ink-600 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
         >
           <XCircle size={20} />
         </button>
@@ -128,7 +129,7 @@ export function EditSubscriptionModal({
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex justify-between items-center bg-rice-50 p-4 rounded-xl border border-rice-200">
+          <div className="flex justify-between items-center bg-rice-50 p-3 sm:p-4 rounded-xl border border-rice-200">
             <h3 className="font-sans font-bold text-ink-800 text-sm">
               Number of People
             </h3>
@@ -136,17 +137,19 @@ export function EditSubscriptionModal({
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] bg-white rounded-lg shadow-sm text-ink-700 font-bold flex items-center justify-center text-lg transition-colors active:bg-rice-200"
+                aria-label="Decrease quantity"
               >
                 -
               </button>
-              <span className="text-sm font-bold w-12 text-center">
+              <span className="text-sm font-bold w-10 text-center">
                 {quantity}
               </span>
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                className="w-8 h-8 bg-white rounded shadow-sm text-ink-700 font-bold"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] bg-white rounded-lg shadow-sm text-ink-700 font-bold flex items-center justify-center text-lg transition-colors active:bg-rice-200"
+                aria-label="Increase quantity"
               >
                 +
               </button>
@@ -265,14 +268,14 @@ export function EditSubscriptionModal({
             <Button
               type="button"
               variant="secondary"
-              className="flex-1 font-sans"
+              className="flex-1 font-sans min-h-[44px]"
               onClick={onClose}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 font-sans"
+              className="flex-1 font-sans min-h-[44px]"
               isLoading={updateMutation.isPending}
             >
               Save Changes

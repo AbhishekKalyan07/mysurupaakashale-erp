@@ -235,7 +235,7 @@ export function MobileLoginPage() {
                       showPassword ? "Hide password" : "Show password"
                     }
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 text-[#5a4a44] p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -255,7 +255,7 @@ export function MobileLoginPage() {
                   setForgotPasswordMode(true);
                   setFormError(null);
                 }}
-                className="text-xs font-semibold text-[#5c1417] hover:underline"
+                className="text-xs font-semibold text-[#5c1417] hover:underline py-1 px-1 flex items-center"
               >
                 Forgot password?
               </button>

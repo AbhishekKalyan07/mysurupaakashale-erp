@@ -83,7 +83,7 @@ export default defineConfig(({ mode }) => {
         config: false,
       },
       devOptions: {
-        enabled: false,
+        enabled: true,
         type: 'module',
       },
       manifest: {
@@ -95,9 +95,10 @@ export default defineConfig(({ mode }) => {
         scope: '/',
         orientation: 'portrait-primary',
         categories: ['food', 'business', 'productivity'],
-        theme_color: '#3A4D23',
-        background_color: '#ffffff',
+        theme_color: '#4A235A',
+        background_color: '#fef1e8',
         display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
         icons: [
           {
             src: '/pwa-192x192.png',
@@ -112,10 +113,39 @@ export default defineConfig(({ mode }) => {
             purpose: 'any'
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/pwa-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
+          }
+        ],
+        shortcuts: [
+          {
+            name: 'Subscriptions',
+            short_name: 'Subscriptions',
+            description: 'Manage customer subscriptions',
+            url: '/subscriptions',
+            icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Kitchen Board',
+            short_name: 'Kitchen',
+            description: 'Production and kitchen orders',
+            url: '/kitchen',
+            icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Delivery Operations',
+            short_name: 'Deliveries',
+            description: 'Delivery routes and dispatch',
+            url: '/delivery',
+            icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
           }
         ]
       }

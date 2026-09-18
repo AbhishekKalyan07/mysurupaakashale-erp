@@ -122,9 +122,9 @@ export function KitchenProductionTable({
       {/* Filters Bar */}
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex flex-wrap gap-3">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[220px]">
           <Search
-            size={15}
+            size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500"
           />
           <input
@@ -132,17 +132,17 @@ export function KitchenProductionTable({
             placeholder="Search customer or Order ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none"
+            className="w-full h-11 sm:h-9 pl-9 pr-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none"
           />
         </div>
 
         {/* Meal Filter Pills */}
-        <div className="flex gap-2 items-center mr-auto">
+        <div className="flex gap-2 items-center flex-wrap mr-auto">
           {(["all", "breakfast", "lunch", "dinner"] as const).map((meal) => (
             <button
               key={meal}
               onClick={() => setMealFilter(meal)}
-              className={`px-4 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors uppercase ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs tracking-wider font-bold transition-colors uppercase ${
                 mealFilter === meal
                   ? "bg-ink-900 text-white"
                   : "bg-surface-2 text-ink-500 border border-border hover:bg-surface-3"
@@ -157,7 +157,7 @@ export function KitchenProductionTable({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as any)}
-          className="h-9 px-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none"
+          className="h-11 sm:h-9 px-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none w-full sm:w-auto"
         >
           <option value="all">All Statuses</option>
           <option value="scheduled">Scheduled</option>
@@ -171,7 +171,7 @@ export function KitchenProductionTable({
         <select
           value={areaFilter}
           onChange={(e) => setAreaFilter(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none"
+          className="h-11 sm:h-9 px-3 rounded-lg border border-rice-300 bg-white text-sm focus:ring-2 focus:ring-leaf-500 outline-none w-full sm:w-auto"
         >
           <option value="all">All Areas</option>
           {uniqueAreas.map((area) => (

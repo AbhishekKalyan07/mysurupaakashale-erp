@@ -92,26 +92,26 @@ export function CustomerOrderHistoryPage() {
       </div>
 
       {orders && orders.length > 0 && (
-        <div className="mb-8 grid grid-cols-3 gap-4">
-          <div className="bg-surface-1 rounded-xl p-4 border border-border text-center">
-            <div className="text-2xl font-bold text-text">{orders.length}</div>
-            <div className="text-xs font-medium text-text-muted uppercase tracking-wider mt-1">
+        <div className="mb-6 sm:mb-8 grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-surface-1 rounded-xl p-2.5 sm:p-4 border border-border text-center">
+            <div className="text-xl sm:text-2xl font-bold font-mono text-text">{orders.length}</div>
+            <div className="text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-tight sm:tracking-wider mt-1 truncate">
               Loaded Orders
             </div>
           </div>
-          <div className="bg-success/10 rounded-xl p-4 border border-success/20 text-center">
-            <div className="text-2xl font-bold text-success">
+          <div className="bg-success/10 rounded-xl p-2.5 sm:p-4 border border-success/20 text-center">
+            <div className="text-xl sm:text-2xl font-bold font-mono text-success">
               {orders.filter((o) => o.status === "delivered").length}
             </div>
-            <div className="text-xs font-medium text-success/80 uppercase tracking-wider mt-1">
+            <div className="text-[10px] sm:text-xs font-semibold text-success/80 uppercase tracking-tight sm:tracking-wider mt-1 truncate">
               Delivered
             </div>
           </div>
-          <div className="bg-danger/10 rounded-xl p-4 border border-danger/20 text-center">
-            <div className="text-2xl font-bold text-danger">
+          <div className="bg-danger/10 rounded-xl p-2.5 sm:p-4 border border-danger/20 text-center">
+            <div className="text-xl sm:text-2xl font-bold font-mono text-danger">
               {orders.filter((o) => o.status === "cancelled").length}
             </div>
-            <div className="text-xs font-medium text-danger/80 uppercase tracking-wider mt-1">
+            <div className="text-[10px] sm:text-xs font-semibold text-danger/80 uppercase tracking-tight sm:tracking-wider mt-1 truncate">
               Cancelled
             </div>
           </div>

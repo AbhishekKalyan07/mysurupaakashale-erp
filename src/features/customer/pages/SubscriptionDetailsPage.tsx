@@ -360,9 +360,9 @@ export function SubscriptionDetailsPage() {
                 return (
                   <div
                     key={pref.mealType}
-                    className="flex gap-4 p-3 bg-rice-50 rounded-lg"
+                    className="flex flex-col sm:flex-row gap-1.5 sm:gap-4 p-3 bg-rice-50 rounded-lg"
                   >
-                    <span className="capitalize font-sans font-bold text-ink-700 min-w-[100px]">
+                    <span className="capitalize font-sans font-bold text-ink-700 sm:min-w-[100px]">
                       {pref.mealType}
                     </span>
                     <div className="font-sans text-ink-600 text-sm">
@@ -560,8 +560,8 @@ export function SubscriptionDetailsPage() {
                 <span>₹{securityDeposit}</span>
               </div>
 
-              <div className="border-t border-rice-300 pt-3 mt-3 flex items-start gap-3">
-                <div className="pt-1">
+              <div className="border-t border-rice-300 pt-3 mt-3 flex items-center gap-3">
+                <div className="flex items-center justify-center min-w-[44px] min-h-[44px]">
                   <button
                     onClick={async () => {
                       if (
@@ -589,13 +589,14 @@ export function SubscriptionDetailsPage() {
                         );
                       }
                     }}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${subscription.autoRenew !== false ? "bg-emerald-600" : "bg-rice-300"}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${subscription.autoRenew !== false ? "bg-emerald-600" : "bg-rice-300"}`}
                     role="switch"
                     aria-checked={subscription.autoRenew !== false}
+                    aria-label="Toggle Auto-Renew"
                   >
                     <span
                       aria-hidden="true"
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscription.autoRenew !== false ? "translate-x-2" : "-translate-x-2"}`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${subscription.autoRenew !== false ? "translate-x-5" : "translate-x-0.5"}`}
                     />
                   </button>
                 </div>
@@ -623,7 +624,7 @@ export function SubscriptionDetailsPage() {
                 <Button
                   onClick={() => navigate("/customer/orders")}
                   disabled={updating}
-                  className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5 bg-ink-900 hover:bg-ink-800 text-white border-transparent"
+                  className="w-full justify-start gap-2.5 font-sans font-semibold min-h-[44px] py-2.5 bg-ink-900 hover:bg-ink-800 text-white border-transparent"
                 >
                   <PackageOpen size={16} /> View Order History
                 </Button>
@@ -633,7 +634,7 @@ export function SubscriptionDetailsPage() {
                       onClick={() => setShowEditModal(true)}
                       disabled={updating}
                       variant="secondary"
-                      className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                      className="w-full justify-start gap-2.5 font-sans font-semibold min-h-[44px] py-2.5"
                     >
                       <Edit2 size={16} /> Edit Preferences
                     </Button>
@@ -641,7 +642,7 @@ export function SubscriptionDetailsPage() {
                       onClick={() => setShowCancelTodayModal(true)}
                       disabled={updating}
                       variant="secondary"
-                      className="w-full justify-start gap-2.5 text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-sans font-semibold py-2.5"
+                      className="w-full justify-start gap-2.5 text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-sans font-semibold min-h-[44px] py-2.5"
                     >
                       <XCircle size={16} /> Cancel Today
                     </Button>
@@ -649,7 +650,7 @@ export function SubscriptionDetailsPage() {
                       onClick={() => setShowSkipDayModal(true)}
                       disabled={updating}
                       variant="secondary"
-                      className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                      className="w-full justify-start gap-2.5 font-sans font-semibold min-h-[44px] py-2.5"
                     >
                       <Calendar size={16} /> Skip a Day
                     </Button>
@@ -657,7 +658,7 @@ export function SubscriptionDetailsPage() {
                       onClick={() => setShowPauseModal(true)}
                       disabled={updating}
                       variant="secondary"
-                      className="w-full justify-start gap-2.5 text-amber-800 border-amber-300 hover:bg-amber-50 font-sans font-semibold py-2.5"
+                      className="w-full justify-start gap-2.5 text-amber-800 border-amber-300 hover:bg-amber-50 font-sans font-semibold min-h-[44px] py-2.5"
                     >
                       <Pause size={16} /> Pause Subscription
                     </Button>
@@ -667,7 +668,7 @@ export function SubscriptionDetailsPage() {
                   <Button
                     onClick={() => setShowResumeModal(true)}
                     disabled={updating}
-                    className="w-full justify-start gap-2.5 font-sans font-semibold py-2.5"
+                    className="w-full justify-start gap-2.5 font-sans font-semibold min-h-[44px] py-2.5"
                   >
                     <Play size={16} /> Resume Subscription
                   </Button>
@@ -678,7 +679,7 @@ export function SubscriptionDetailsPage() {
                       onClick={() => handleLifecycleAction("cancel")}
                       disabled={updating}
                       variant="secondary"
-                      className="w-full justify-start gap-2.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 font-sans font-semibold py-2.5"
+                      className="w-full justify-start gap-2.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 font-sans font-semibold min-h-[44px] py-2.5"
                     >
                       <XCircle size={16} /> Cancel Subscription
                     </Button>

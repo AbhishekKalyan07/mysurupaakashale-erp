@@ -124,7 +124,7 @@ export function DeliveryPartnerPage() {
           <button
             key={meal}
             onClick={() => setActiveMeal(meal)}
-            className={`px-4 py-2 rounded-full font-bold text-sm flex-shrink-0 transition-colors ${
+            className={`min-h-[44px] px-4 py-2.5 rounded-full font-bold text-sm flex-shrink-0 transition-colors ${
               activeMeal === meal
                 ? "bg-ink-900 text-white"
                 : "bg-surface-2 text-ink-500 border border-border hover:bg-surface-3"

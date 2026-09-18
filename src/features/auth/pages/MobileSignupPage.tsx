@@ -188,10 +188,11 @@ export function MobileSignupPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[#5a4a44] p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               {errors.password && (
@@ -212,13 +213,14 @@ export function MobileSignupPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a4a44] p-1.5"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[#5a4a44] p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 >
                   {showConfirmPassword ? (
-                    <EyeOff size={16} />
+                    <EyeOff size={18} />
                   ) : (
-                    <Eye size={16} />
+                    <Eye size={18} />
                   )}
                 </button>
               </div>

@@ -26,12 +26,12 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 lg:h-16 items-center justify-between bg-card/90 backdrop-blur-md px-4 lg:px-6 border-b border-border">
+    <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:h-16 pt-[env(safe-area-inset-top,0px)] lg:pt-0 items-center justify-between bg-card/90 backdrop-blur-md px-4 lg:px-6 border-b border-border">
       {/* Left: hamburger + brand name on mobile */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="p-2 -ml-1 text-text-muted hover:text-primary hover:bg-surface-2 transition-colors rounded-[10px] lg:hidden"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 -ml-1 text-text-muted hover:text-primary hover:bg-surface-2 transition-colors rounded-[10px] lg:hidden"
           aria-label="Open menu"
         >
           <Menu size={22} />

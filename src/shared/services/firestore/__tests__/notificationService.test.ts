@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as notificationService from "../notificationService";
 import { notificationRepository } from "../notificationRepository";
+import { userRepository } from "@/shared/services/firestore/userRepository";
 
 vi.mock("../notificationRepository", () => ({
   notificationRepository: {
     createNotification: vi.fn(),
+    createBatch: vi.fn(),
+  },
+}));
+
+vi.mock("@/shared/services/firestore/userRepository", () => ({
+  userRepository: {
+    list: vi.fn(),
   },
 }));
 
@@ -428,6 +436,103 @@ describe("notificationService", () => {
           type: "system_alert",
         }),
       );
+    });
+  });
+
+  describe("Admin Broadcast Notifications", () => {
+    it("sends to specific user directly", async () => {
+      vi.mocked(notificationRepository.createNotification).mockResolvedValueOnce(
+        "n-single",
+      );
+
+      const res = await notificationService.sendAdminBroadcastNotification({
+        targetAudience: "specific_user",
+        specificUserId: "user-target-1",
+        specificUserRole: "customer",
+        type: "system_alert",
+        title: "Personal Alert",
+        message: "Your delivery is delayed",
+        priority: "high",
+      });
+
+      expect(res).toEqual({ success: true, recipientCount: 1 });
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "user-target-1",
+          recipientRole: "customer",
+          type: "system_alert",
+          title: "Personal Alert",
+          message: "Your delivery is delayed",
+          priority: "high",
+          createdBy: "test-admin-uid",
+        }),
+      );
+    });
+
+    it("broadcasts to all active customers via createBatch", async () => {
+      vi.mocked(userRepository.list).mockResolvedValueOnce([
+        { id: "c1", role: "customer", isActive: true } as any,
+        { id: "c2", role: "customer", isActive: false } as any, // inactive - should filter out
+        { id: "k1", role: "kitchen", isActive: true } as any, // kitchen - should filter out
+      ]);
+      vi.mocked(notificationRepository.createBatch).mockResolvedValueOnce(1);
+
+      const res = await notificationService.sendAdminBroadcastNotification({
+        targetAudience: "customer",
+        title: "Festival Menu",
+        message: "Special festive treats available!",
+      });
+
+      expect(res).toEqual({ success: true, recipientCount: 1 });
+      expect(notificationRepository.createBatch).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            recipientId: "c1",
+            recipientRole: "customer",
+            title: "Festival Menu",
+            createdBy: "test-admin-uid",
+          }),
+        ]),
+      );
+    });
+
+    it("broadcasts to staff members (admin, kitchen, delivery_partner, accounts)", async () => {
+      vi.mocked(userRepository.list).mockResolvedValueOnce([
+        { id: "k1", role: "kitchen", isActive: true } as any,
+        { id: "d1", role: "delivery_partner", isActive: true } as any,
+        { id: "c1", role: "customer", isActive: true } as any, // customer - excluded from staff
+      ]);
+      vi.mocked(notificationRepository.createBatch).mockResolvedValueOnce(2);
+
+      const res = await notificationService.sendAdminBroadcastNotification({
+        targetAudience: "staff",
+        title: "Staff Meeting",
+        message: "Briefing at 4 PM",
+      });
+
+      expect(res).toEqual({ success: true, recipientCount: 2 });
+      expect(notificationRepository.createBatch).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ recipientId: "k1", recipientRole: "kitchen" }),
+          expect.objectContaining({
+            recipientId: "d1",
+            recipientRole: "delivery_partner",
+          }),
+        ]),
+      );
+    });
+
+    it("handles 0 matching recipients cleanly without error", async () => {
+      vi.mocked(userRepository.list).mockResolvedValueOnce([]);
+
+      const res = await notificationService.sendAdminBroadcastNotification({
+        targetAudience: "delivery_partner",
+        title: "Driver Notice",
+        message: "Rain forecast",
+      });
+
+      expect(res).toEqual({ success: true, recipientCount: 0 });
+      expect(notificationRepository.createBatch).not.toHaveBeenCalled();
     });
   });
 

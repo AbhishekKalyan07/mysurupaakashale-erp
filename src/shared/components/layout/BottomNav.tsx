@@ -15,6 +15,7 @@ import {
   X,
   Receipt,
   CalendarX,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { Role } from "@/shared/constants/roles";
@@ -69,6 +70,7 @@ const BOTTOM_TABS_BY_ROLE: Record<Role, BottomNavTab[]> = {
 // "More" menu items by role
 const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
   [ROLES.ADMIN]: [
+    { label: "Notifications", to: "/admin/notifications", icon: Bell },
     { label: "Customers", to: "/admin/customers", icon: Users },
     { label: "Subscriptions", to: "/admin/subscriptions", icon: ClipboardList },
     { label: "Staff", to: "/admin/staff", icon: UserCheck },
@@ -82,6 +84,8 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
   [ROLES.KITCHEN]: [],
   [ROLES.DELIVERY_PARTNER]: [],
   [ROLES.CUSTOMER]: [
+    { label: "Notifications", to: "/customer/notifications", icon: Bell },
+    { label: "Billing & Payments", to: "/customer/payments", icon: CreditCard },
     { label: "Order History", to: "/customer/orders", icon: Package },
   ],
   [ROLES.ACCOUNTS]: [],
@@ -120,7 +124,7 @@ export function BottomNav({ role }: BottomNavProps) {
 
           <div
             className={cn(
-              "fixed bottom-[60px] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-all duration-300 ease-in-out",
+              "fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-all duration-300 ease-in-out",
               showMore
                 ? "translate-y-0 opacity-100 pointer-events-auto"
                 : "translate-y-full opacity-0 pointer-events-none invisible",
@@ -133,7 +137,7 @@ export function BottomNav({ role }: BottomNavProps) {
               <button
                 aria-label="Close menu"
                 onClick={() => setShowMore(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
               >
                 <X size={16} />
               </button>
@@ -159,11 +163,6 @@ export function BottomNav({ role }: BottomNavProps) {
                 </button>
               ))}
             </div>
-            {/* Safe area */}
-            <div
-              className="h-safe"
-              style={{ height: "env(safe-area-inset-bottom, 0px)" }}
-            />
           </div>
         </>
       )}

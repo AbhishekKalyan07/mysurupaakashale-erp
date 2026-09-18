@@ -234,7 +234,7 @@ export function ProfilePage() {
               {...register("phone")}
             />
 
-            <Button type="submit" isLoading={isSaving} className="w-full mt-4">
+            <Button type="submit" isLoading={isSaving} className="w-full mt-4 min-h-[44px] font-bold">
               <Save size={16} className="mr-2" /> Save Profile
             </Button>
           </form>
@@ -255,6 +255,7 @@ export function ProfilePage() {
                 <Button
                   variant="secondary"
                   onClick={() => setShowAddressForm(true)}
+                  className="min-h-[44px] font-semibold"
                 >
                   Add New Address
                 </Button>
@@ -288,7 +289,7 @@ export function ProfilePage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-danger hover:bg-danger-subtle hover:text-danger-active"
+                      className="text-danger hover:bg-danger-subtle hover:text-danger-active min-h-[44px] min-w-[44px] px-3 font-semibold"
                       onClick={() => deleteAddress(address.id!)}
                       disabled={isDeleting}
                     >
@@ -300,7 +301,7 @@ export function ProfilePage() {
                 {!showAddressForm && (
                   <Button
                     variant="secondary"
-                    className="w-full"
+                    className="w-full min-h-[44px] font-semibold"
                     onClick={() => setShowAddressForm(true)}
                   >
                     + Add Another Address
@@ -360,10 +361,15 @@ export function ProfilePage() {
                     type="button"
                     variant="ghost"
                     onClick={() => setShowAddressForm(false)}
+                    className="min-h-[44px] flex-1 sm:flex-initial"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" isLoading={isAdding}>
+                  <Button
+                    type="submit"
+                    isLoading={isAdding}
+                    className="min-h-[44px] flex-1 sm:flex-initial font-bold"
+                  >
                     Save Address
                   </Button>
                 </div>
