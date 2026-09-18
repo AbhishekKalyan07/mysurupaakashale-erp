@@ -22,7 +22,11 @@ import {
   ShoppingBag,
   Settings,
   Send,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
+import type { NotificationFilter } from "@/shared/services/firestore/notificationRepository";
 import { format } from "date-fns";
 
 function ChannelBadge({ channel }: { channel: string }) {
@@ -181,15 +185,60 @@ function NotificationRow({ n }: { n: Notification }) {
 export function NotificationHistoryPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [showSendModal, setShowSendModal] = useState(false);
+
+  // Cursor pagination state
+  const [pageHistory, setPageHistory] = useState<
+    QueryDocumentSnapshot<Notification>[]
+  >([]);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const currentLastDoc =
+    currentPage > 0 ? pageHistory[currentPage - 1] : undefined;
+
+  const activeFilter: NotificationFilter = {};
+  if (selectedType !== "all") {
+    activeFilter.type = selectedType;
+  }
+  if (selectedStatus !== "all") {
+    activeFilter.inAppStatus = selectedStatus as any;
+  }
+
   const {
-    data: notifications,
+    data,
     isLoading,
+    isFetching,
     error,
     refetch,
-  } = useNotificationHistory();
+  } = useNotificationHistory(activeFilter, currentLastDoc, 20);
 
-  if (isLoading) return <LoadingScreen />;
+  const notifications = data?.notifications;
+
+  const handleNextPage = () => {
+    if (data?.lastDoc) {
+      setPageHistory((prev) => {
+        const next = [...prev];
+        next[currentPage] = data.lastDoc!;
+        return next;
+      });
+      setCurrentPage((p) => p + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    setCurrentPage((p) => Math.max(0, p - 1));
+  };
+
+  const handleFilterChange = (type: string, status: string) => {
+    setSelectedType(type);
+    setSelectedStatus(status);
+    setPageHistory([]);
+    setCurrentPage(0);
+  };
+
+  if (isLoading && !isFetching && currentPage === 0) return <LoadingScreen />;
   if (error) {
     return (
       <ErrorState
@@ -242,25 +291,58 @@ export function NotificationHistoryPage() {
         </div>
       </div>
 
-      <div className="relative mb-6">
-        <Search
-          size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by type, title, recipient, message..."
-          className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm font-sans focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors shadow-xs"
-        />
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by type, title, recipient, message..."
+            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm font-sans focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors shadow-xs"
+          />
+        </div>
+
+        {/* Category Filter */}
+        <select
+          value={selectedType}
+          onChange={(e) => handleFilterChange(e.target.value, selectedStatus)}
+          className="h-10 px-3 bg-card border border-border rounded-xl text-xs font-semibold text-text focus:outline-none focus:border-gold shadow-xs cursor-pointer"
+        >
+          <option value="all">All Categories</option>
+          <option value="system_alert">📢 System Alerts</option>
+          <option value="kitchen_production_ready">🍽️ Kitchen / Food</option>
+          <option value="out_for_delivery">🛵 Delivery</option>
+          <option value="payment_reminder">💳 Payment</option>
+          <option value="subscription_renewal_reminder">📋 Subscriptions</option>
+        </select>
+
+        {/* Status Filter */}
+        <select
+          value={selectedStatus}
+          onChange={(e) => handleFilterChange(selectedType, e.target.value)}
+          className="h-10 px-3 bg-card border border-border rounded-xl text-xs font-semibold text-text focus:outline-none focus:border-gold shadow-xs cursor-pointer"
+        >
+          <option value="all">All Statuses</option>
+          <option value="unread">Unread</option>
+          <option value="read">Read</option>
+          <option value="archived">Archived</option>
+        </select>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Bell size={40} className="text-text-muted/40" />}
-          title="No notification history"
-          description="No notifications have been sent yet."
+          title="No notifications found"
+          description={
+            search || selectedType !== "all" || selectedStatus !== "all"
+              ? "No notifications match the chosen filters."
+              : "No notifications have been recorded yet."
+          }
         />
       ) : (
         <Card className="border-border overflow-hidden shadow-sm">
@@ -283,9 +365,37 @@ export function NotificationHistoryPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-border bg-surface-2 text-xs text-text-muted font-sans font-medium">
-            Showing {filtered.length} notification
-            {filtered.length !== 1 ? "s" : ""}
+
+          {/* Pagination Footer */}
+          <div className="px-4 py-3 border-t border-border bg-surface-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text-muted font-sans font-medium">
+            <span>
+              Showing <strong className="text-text">{filtered.length}</strong>{" "}
+              notification{filtered.length !== 1 ? "s" : ""} on this page
+            </span>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 0 || isLoading || isFetching}
+                className="font-bold text-primary hover:text-gold hover:bg-gold/10 disabled:opacity-40 min-h-[36px]"
+              >
+                <ChevronLeft size={16} className="mr-1" /> Prev
+              </Button>
+              <span className="text-primary font-bold font-data text-xs bg-card px-3 py-1.5 rounded-lg border border-border shadow-xs">
+                Page {currentPage + 1}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={!data?.lastDoc || isLoading || isFetching}
+                className="font-bold text-primary hover:text-gold hover:bg-gold/10 disabled:opacity-40 min-h-[36px]"
+              >
+                Next <ChevronRight size={16} className="ml-1" />
+              </Button>
+            </div>
           </div>
         </Card>
       )}

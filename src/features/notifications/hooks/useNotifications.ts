@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { notificationRepository } from "@/shared/services/firestore/notificationRepository";
-import { Timestamp } from "firebase/firestore";
+import {
+  notificationRepository,
+  type NotificationFilter,
+} from "@/shared/services/firestore/notificationRepository";
+import { Timestamp, type QueryDocumentSnapshot } from "firebase/firestore";
 import type { Notification } from "@/shared/types";
 import { queryKeys } from "@/shared/lib/queryKeys";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -237,13 +240,25 @@ export function useArchiveNotification() {
 }
 
 // ── Admin: all notification history paginated ──────────────────────────────────
-export function useNotificationHistory(page: number = 0) {
+export function useNotificationHistory(
+  filter: NotificationFilter = {},
+  lastDocSnap?: QueryDocumentSnapshot<Notification>,
+  pageSize: number = 20,
+) {
+  const filterKey = JSON.stringify(filter);
+  const cursorId = lastDocSnap?.id ?? "page-0";
+
   return useQuery({
-    queryKey: queryKeys.notifications.adminHistory(page),
-    queryFn: async (): Promise<Notification[]> => {
-      const { notifications } =
-        await notificationRepository.getNotificationsPaginated({}, 30);
-      return notifications;
+    queryKey: queryKeys.notifications.adminHistory(cursorId, filterKey),
+    queryFn: async (): Promise<{
+      notifications: Notification[];
+      lastDoc: QueryDocumentSnapshot<Notification> | null;
+    }> => {
+      return notificationRepository.getNotificationsPaginated(
+        filter,
+        pageSize,
+        lastDocSnap,
+      );
     },
     staleTime: 30_000,
     placeholderData: (prev) => prev,
