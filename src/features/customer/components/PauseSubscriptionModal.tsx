@@ -14,6 +14,7 @@ interface PauseSubscriptionModalProps {
 }
 
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function PauseSubscriptionModal({
   subscription,
@@ -24,7 +25,7 @@ export function PauseSubscriptionModal({
 
   // Calculate India local date and cutoff
   const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",

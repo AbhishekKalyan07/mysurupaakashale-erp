@@ -2,10 +2,11 @@ import { useState } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
   const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",

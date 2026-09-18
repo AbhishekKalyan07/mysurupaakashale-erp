@@ -4,6 +4,7 @@ import type {
   Subscription,
   SubscriptionStatus,
 } from "@/shared/types/subscription.types";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { BaseRepository, createConverter } from "./BaseRepository";
 import {
   where,
@@ -58,7 +59,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     mealTypes: ("breakfast" | "lunch" | "dinner")[],
   ) {
     const now = new Date();
-    const today = new Intl.DateTimeFormat("en-CA", {
+    const today = getCachedDateTimeFormatter("en-CA", {
       timeZone: "Asia/Kolkata",
     }).format(now);
 
@@ -67,7 +68,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     }
 
     if (date === today) {
-      const parts = new Intl.DateTimeFormat("en-US", {
+      const parts = getCachedDateTimeFormatter("en-US", {
         timeZone: "Asia/Kolkata",
         hour: "numeric",
         minute: "numeric",
