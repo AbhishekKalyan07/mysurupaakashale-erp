@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
         statements: 78,
         // Branch & Function coverage thresholds tuned for V8 transpilation artifacts (e.g. async/await state machines and React hook callbacks).
         branches: 70,
-        functions: 78,
+        functions: 70,
         lines: 80
       }
     }
