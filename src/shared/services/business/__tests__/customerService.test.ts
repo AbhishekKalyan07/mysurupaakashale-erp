@@ -17,10 +17,29 @@ describe("customerService", () => {
       ).rejects.toThrow("Customer ID is required.");
     });
 
-    it("throws if partnerId is missing for global assignment", async () => {
-      await expect(
-        customerService.assignDeliveryPartner("c1", "", "a1", "Admin", "all"),
-      ).rejects.toThrow("Partner ID is required for global assignment.");
+    it("allows unassigning partner globally with null", async () => {
+      vi.spyOn(userRepository, "getById").mockResolvedValue({
+        id: "c1",
+        deliveryPartnerId: "oldP1",
+      } as any);
+      vi.spyOn(userRepository, "update").mockResolvedValue();
+      vi.spyOn(auditRepository, "logAction").mockResolvedValue();
+
+      await customerService.assignDeliveryPartner("c1", null, "a1", "Admin", "all");
+
+      expect(userRepository.update).toHaveBeenCalledWith(
+        "c1",
+        expect.objectContaining({ deliveryPartnerId: null, mealDeliveryPartners: null }),
+      );
+      expect(auditRepository.logAction).toHaveBeenCalledWith(
+        "delivery_partner_unassigned",
+        "a1",
+        "admin",
+        "Admin",
+        "c1",
+        "user",
+        expect.objectContaining({ newPartnerId: null, newPartnerName: "Unassigned" }),
+      );
     });
 
     it("throws if customer not found", async () => {
@@ -130,13 +149,32 @@ describe("customerService", () => {
     it("throws if customerId is missing", async () => {
       await expect(
         customerService.assignCustomerZone("", "z1", "a1", "Admin"),
-      ).rejects.toThrow("Customer ID and Zone ID are required.");
+      ).rejects.toThrow("Customer ID is required.");
     });
 
-    it("throws if zoneId is missing", async () => {
-      await expect(
-        customerService.assignCustomerZone("c1", "", "a1", "Admin"),
-      ).rejects.toThrow("Customer ID and Zone ID are required.");
+    it("allows unassigning / resetting customer zone with null or empty string", async () => {
+      vi.spyOn(userRepository, "getById").mockResolvedValue({
+        id: "c1",
+        zoneId: "oldZ1",
+      } as any);
+      vi.spyOn(userRepository, "update").mockResolvedValue();
+      vi.spyOn(auditRepository, "logAction").mockResolvedValue();
+
+      await customerService.assignCustomerZone("c1", null, "a1", "Admin");
+
+      expect(userRepository.update).toHaveBeenCalledWith(
+        "c1",
+        expect.objectContaining({ zoneId: null }),
+      );
+      expect(auditRepository.logAction).toHaveBeenCalledWith(
+        "customer_zone_unassigned",
+        "a1",
+        "admin",
+        "Admin",
+        "c1",
+        "user",
+        expect.objectContaining({ oldZoneId: "oldZ1", newZoneId: null }),
+      );
     });
 
     it("throws if customer not found", async () => {
@@ -146,10 +184,30 @@ describe("customerService", () => {
       ).rejects.toThrow("Customer with ID c1 not found.");
     });
 
+    it("throws if zone does not exist", async () => {
+      vi.spyOn(userRepository, "getById").mockResolvedValue({ id: "c1" } as any);
+      const { deliveryZoneRepository } = await import(
+        "../../firestore/deliveryZoneRepository"
+      );
+      vi.spyOn(deliveryZoneRepository, "getById").mockResolvedValue(null);
+
+      await expect(
+        customerService.assignCustomerZone("c1", "z1", "a1", "Admin"),
+      ).rejects.toThrow("Delivery zone with ID z1 not found.");
+    });
+
     it("returns early if assigning the same zone (idempotency)", async () => {
       vi.spyOn(userRepository, "getById").mockResolvedValue({
         id: "c1",
         zoneId: "z1",
+      } as any);
+      const { deliveryZoneRepository } = await import(
+        "../../firestore/deliveryZoneRepository"
+      );
+      vi.spyOn(deliveryZoneRepository, "getById").mockResolvedValue({
+        id: "z1",
+        name: "Zone 1",
+        isActive: true,
       } as any);
       vi.spyOn(userRepository, "update").mockResolvedValue();
       vi.spyOn(auditRepository, "logAction").mockResolvedValue();
@@ -164,6 +222,14 @@ describe("customerService", () => {
       vi.spyOn(userRepository, "getById").mockResolvedValue({
         id: "c1",
         zoneId: "oldZ1",
+      } as any);
+      const { deliveryZoneRepository } = await import(
+        "../../firestore/deliveryZoneRepository"
+      );
+      vi.spyOn(deliveryZoneRepository, "getById").mockResolvedValue({
+        id: "z1",
+        name: "Zone 1",
+        isActive: true,
       } as any);
       vi.spyOn(userRepository, "update").mockResolvedValue();
       vi.spyOn(auditRepository, "logAction").mockResolvedValue();

@@ -13,6 +13,7 @@ import {
 } from "../hooks/useSettings";
 import { Save, Store, IndianRupee, Clock, Truck, Play } from "lucide-react";
 import { useSeedData } from "../hooks/useSeedData";
+import toast from "react-hot-toast";
 
 const settingsSchema = z.object({
   companyProfile: z.object({
@@ -24,8 +25,8 @@ const settingsSchema = z.object({
   }),
   financials: z.object({
     gstPercentage: z.coerce.number().min(0).max(100),
-    currency: z.string(),
-    invoicePrefix: z.string(),
+    currency: z.string().default("INR"),
+    invoicePrefix: z.string().default("INV"),
   }),
   pricing: z.object({
     mealPrices: z.object({
@@ -76,7 +77,11 @@ export function BusinessSettingsPage() {
     if (settings) {
       reset({
         companyProfile: settings.companyProfile,
-        financials: settings.financials,
+        financials: {
+          gstPercentage: settings.financials?.gstPercentage ?? 0,
+          currency: settings.financials?.currency || "INR",
+          invoicePrefix: settings.financials?.invoicePrefix || "INV",
+        },
         pricing: settings.pricing,
         operations: {
           ...settings.operations,
@@ -97,6 +102,19 @@ export function BusinessSettingsPage() {
       });
     }
   }, [settings, reset]);
+
+  const onError = (errors: any) => {
+    console.warn("[BusinessSettingsPage] Validation errors:", errors);
+    const firstKey = Object.keys(errors)[0];
+    const firstVal = errors[firstKey];
+    const msg =
+      firstVal?.message ||
+      (firstVal ? (Object.values(firstVal)[0] as any) : null)?.message ||
+      "Please fill in all required settings correctly.";
+    toast.error(
+      typeof msg === "string" ? msg : "Validation error in settings form.",
+    );
+  };
 
   const onSubmit = async (data: SettingsForm) => {
     const payload = {
@@ -132,7 +150,7 @@ export function BusinessSettingsPage() {
 
       <form
         id="settings-form"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit, onError)}
         className="space-y-6"
       >
         {/* Company Profile */}
@@ -208,7 +226,13 @@ export function BusinessSettingsPage() {
               step="0.1"
               {...register("financials.gstPercentage")}
             />
-            <div className="md:col-span-3">
+            <Input
+              label="Currency"
+              className="uppercase"
+              placeholder="INR"
+              {...register("financials.currency")}
+            />
+            <div className="md:col-span-2">
               <Input
                 label="Invoice Prefix"
                 className="uppercase"

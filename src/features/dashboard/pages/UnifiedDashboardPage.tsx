@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLES } from "@/shared/constants/roles";
+import { RequireCompleteProfile } from "@/features/customer/components/RequireCompleteProfile";
 import { Loader2 } from "lucide-react";
 
 const AdminDashboardPage = lazy(() =>
@@ -50,7 +51,11 @@ export function UnifiedDashboardPage() {
       case ROLES.ADMIN:
         return <AdminDashboardPage />;
       case ROLES.CUSTOMER:
-        return <CustomerDashboardPage />;
+        return (
+          <RequireCompleteProfile>
+            <CustomerDashboardPage />
+          </RequireCompleteProfile>
+        );
       case ROLES.KITCHEN:
         return <KitchenDashboardPage />;
       case ROLES.DELIVERY_PARTNER:

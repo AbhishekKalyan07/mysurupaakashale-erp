@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/queryKeys";
 import { useBusinessSettings } from "@/features/admin/hooks/useSettings";
 import { ManualPaymentPanel } from "../components/ManualPaymentPanel";
+import { getTodayIST } from "@/shared/utils/dateUtils";
 
 // Zod Schema for Address
 const addressFormSchema = z.object({
@@ -91,31 +92,73 @@ export function SubscriptionWizardPage() {
   );
   const [autoRenew, setAutoRenew] = useState<boolean>(true);
 
-  // Skip Sunday for default start date
+  // Skip Sunday for default start date in IST
   const getDefaultStartDate = () => {
-    let d = new Date(Date.now() + 86400000); // Tomorrow
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Skip Sunday
-    return d.toISOString().split("T")[0];
+    const todayIST = getTodayIST();
+    const [y, m, d] = todayIST.split("-").map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d + 1));
+    if (dateObj.getUTCDay() === 0) {
+      dateObj.setUTCDate(dateObj.getUTCDate() + 1); // Skip Sunday
+    }
+    return dateObj.toISOString().split("T")[0];
   };
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
 
-  // Calculate End Date (skipping Sundays)
+  // Calculate End Date (Month-End for monthly cycle, 7 days for weekly)
   const calculateEndDate = (start: string, cycle: "weekly" | "monthly") => {
-    const d = new Date(start);
-    const activeDaysToAdd = cycle === "weekly" ? 7 : 30;
+    if (!start || typeof start !== "string" || !start.includes("-")) {
+      return getDefaultStartDate();
+    }
+    const parts = start.split("-");
+    if (parts.length !== 3) return getDefaultStartDate();
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return getDefaultStartDate();
 
-    let remainingDaysToAdd = activeDaysToAdd - 1; // start date is day 1
+    if (cycle === "monthly") {
+      const lastDayDate = new Date(Date.UTC(year, month, 0));
+      const lastDay = String(lastDayDate.getUTCDate()).padStart(2, "0");
+      return `${parts[0]}-${parts[1]}-${lastDay}`;
+    }
+
+    const cur = new Date(Date.UTC(year, month - 1, day));
+    let remainingDaysToAdd = 6; // start date is delivery day 1
 
     while (remainingDaysToAdd > 0) {
-      d.setDate(d.getDate() + 1);
-      if (d.getDay() !== 0) {
-        // 0 is Sunday
+      cur.setUTCDate(cur.getUTCDate() + 1);
+      if (cur.getUTCDay() !== 0) {
         remainingDaysToAdd--;
       }
     }
-    return d.toISOString().split("T")[0];
+    return cur.toISOString().split("T")[0];
   };
+
+  const getDeliveryDaysCount = (start: string, end: string) => {
+    if (!start || !end || !start.includes("-") || !end.includes("-")) return 0;
+    const [sy, sm, sd] = start.split("-").map(Number);
+    const [ey, em, ed] = end.split("-").map(Number);
+    if (
+      isNaN(sy) ||
+      isNaN(sm) ||
+      isNaN(sd) ||
+      isNaN(ey) ||
+      isNaN(em) ||
+      isNaN(ed)
+    ) {
+      return 0;
+    }
+    const cur = new Date(Date.UTC(sy, sm - 1, sd));
+    const endObj = new Date(Date.UTC(ey, em - 1, ed));
+    let count = 0;
+    while (cur <= endObj) {
+      if (cur.getUTCDay() !== 0) count++;
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return count;
+  };
+
   const endDate = calculateEndDate(startDate, billingCycle);
 
   const toggleMeal = (type: string) => {
@@ -909,7 +952,7 @@ export function SubscriptionWizardPage() {
                       onChange={() => setBillingCycle("monthly")}
                       className="accent-emerald-600"
                     />
-                    <span className="text-sm font-sans">Monthly (30 days)</span>
+                    <span className="text-sm font-sans">Monthly (Month-End)</span>
                   </label>
                 </div>
 
@@ -922,8 +965,10 @@ export function SubscriptionWizardPage() {
                     type="date"
                     value={startDate}
                     onChange={(e) => {
-                      const selected = new Date(e.target.value);
-                      if (selected.getDay() === 0) {
+                      if (!e.target.value) return;
+                      const [y, m, d] = e.target.value.split("-").map(Number);
+                      const selected = new Date(Date.UTC(y, m - 1, d));
+                      if (selected.getUTCDay() === 0) {
                         alert(
                           "Sundays are holidays. Please select a different start date.",
                         );
@@ -932,11 +977,7 @@ export function SubscriptionWizardPage() {
                         setStartDate(e.target.value);
                       }
                     }}
-                    min={
-                      new Date(Date.now() + 86400000)
-                        .toISOString()
-                        .split("T")[0]
-                    } // tomorrow
+                    min={getDefaultStartDate()}
                     className="border border-ink-400 rounded-md p-1.5 text-xs font-sans"
                   />
                 </div>
@@ -947,8 +988,7 @@ export function SubscriptionWizardPage() {
                 <div className="mt-3 p-2 bg-rice-100 rounded text-xs text-ink-700 font-sans font-medium">
                   <strong>Plan duration:</strong> {startDate} to {endDate}
                   <div className="text-[10px] font-normal text-ink-500 mt-1">
-                    ({billingCycle === "weekly" ? "7" : "30"} deliveries,
-                    excluding Sundays)
+                    ({getDeliveryDaysCount(startDate, endDate)} deliveries, excluding Sundays)
                   </div>
                 </div>
               </Card>

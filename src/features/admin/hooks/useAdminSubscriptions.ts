@@ -352,16 +352,12 @@ export function useResumeSubscription() {
         );
       }
 
-      // @ts-ignore - function not imported or doesn't exist in original code
-      if (typeof notifySubscriptionResumed !== "undefined") {
-        // @ts-ignore
-        notifySubscriptionResumed(
-          subscription.customerId,
-          subscription.id,
-        ).catch((err: any) =>
-          console.error("[useResumeSubscription] notification failed:", err),
-        );
-      }
+      notifySubscriptionResumed(
+        subscription.customerId,
+        subscription.id,
+      ).catch((err: unknown) =>
+        console.error("[useResumeSubscription] notification failed:", err),
+      );
 
       return subscription;
     },
@@ -407,6 +403,27 @@ export function useUpdateDeliveryPartner() {
         deliveryPartnerId: deliveryPartnerId,
       } as Partial<Subscription>);
 
+      // Propagate new delivery partner to today's open orders for this subscription
+      try {
+        const { orderRepository } = await import(
+          "@/shared/services/firestore/orderRepository"
+        );
+        const { getTodayInTimezone } = await import("@/shared/lib/date");
+        const today = getTodayInTimezone();
+        const orders = await orderRepository.getBySubscriptionId(subscriptionId);
+        const openStatuses = ["scheduled", "preparing", "ready_for_pickup"];
+        const todayOpenOrders = orders.filter(
+          (o) => o.date >= today && openStatuses.includes(o.status),
+        );
+        for (const order of todayOpenOrders) {
+          await orderRepository.update(order.id, {
+            deliveryPartnerId: deliveryPartnerId,
+          });
+        }
+      } catch (orderErr) {
+        console.warn("[useUpdateDeliveryPartner] Order partner update skipped:", orderErr);
+      }
+
       const admin = getAuth().currentUser;
       if (admin) {
         await auditRepository.logAction(
@@ -423,10 +440,10 @@ export function useUpdateDeliveryPartner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
-      // Invalidate all customer-specific subscription caches so SubscriptionDetailsPage
-      // also gets the updated delivery partner even when using real-time onSnapshot.
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      toast.success("Delivery partner updated.");
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+      toast.success("Delivery partner updated and assigned to open deliveries.");
     },
     onError: (err: unknown) => {
       toast.error(

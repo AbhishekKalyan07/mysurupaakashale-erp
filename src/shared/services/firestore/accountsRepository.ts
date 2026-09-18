@@ -94,6 +94,83 @@ export class AccountsRepository {
   }
 
   /**
+   * Get all invoices for a specific month (e.g. "2026-07").
+   * Captures both invoices whose billing cycle ended in that month (including month-end bills
+   * generated on the 1st of the following month) and any ad-hoc invoices created in that month.
+   */
+  async getInvoicesForMonth(monthStr: string): Promise<Invoice[]> {
+    const year = parseInt(monthStr.split("-")[0]);
+    const month = parseInt(monthStr.split("-")[1]);
+    const paddedMonth = month.toString().padStart(2, "0");
+    const lastDay = new Date(year, month, 0).getDate();
+    const paddedLastDay = lastDay.toString().padStart(2, "0");
+
+    const startDateStr = `${year}-${paddedMonth}-01`;
+    const endDateStr = `${year}-${paddedMonth}-${paddedLastDay}`;
+
+    const invoicesMap = new Map<string, Invoice>();
+
+    try {
+      // 1. Query by billingPeriodEnd (all subscription cycle bills ending in this month)
+      const qBilling = query(
+        collection(db, "invoices"),
+        where("billingPeriodEnd", ">=", startDateStr),
+        where("billingPeriodEnd", "<=", endDateStr),
+      );
+      const snapBilling = await getDocs(qBilling);
+      snapBilling.docs.forEach((d) => {
+        invoicesMap.set(d.id, d.data() as Invoice);
+      });
+    } catch (err) {
+      console.warn("[accountsRepository] getInvoicesForMonth billing query error:", err);
+    }
+
+    try {
+      // 2. Query by createdAt (covers ad-hoc manual invoices created in this month)
+      const startDate = new Date(`${startDateStr}T00:00:00+05:30`);
+      const endDate = new Date(`${endDateStr}T23:59:59.999+05:30`);
+      const qCreated = query(
+        collection(db, "invoices"),
+        where("createdAt", ">=", Timestamp.fromDate(startDate)),
+        where("createdAt", "<=", Timestamp.fromDate(endDate)),
+      );
+      const snapCreated = await getDocs(qCreated);
+      snapCreated.docs.forEach((d) => {
+        const inv = d.data() as Invoice;
+        // Include if no billingPeriodEnd or if it also belongs to this month
+        if (!inv.billingPeriodEnd || inv.billingPeriodEnd.startsWith(monthStr)) {
+          invoicesMap.set(d.id, inv);
+        }
+      });
+    } catch (err) {
+      console.warn("[accountsRepository] getInvoicesForMonth created query error:", err);
+    }
+
+    return Array.from(invoicesMap.values()).sort((a, b) => {
+      const timeA = (a.createdAt as any)?.seconds ?? 0;
+      const timeB = (b.createdAt as any)?.seconds ?? 0;
+      return timeB - timeA;
+    });
+  }
+
+  /**
+   * Get all invoices for a specific customer, newest first.
+   */
+  async getInvoicesByCustomerId(customerId: string): Promise<Invoice[]> {
+    const q = query(
+      collection(db, "invoices"),
+      where("customerId", "==", customerId),
+    );
+    const snap = await getDocs(q);
+    const invoices = snap.docs.map((doc) => doc.data() as Invoice);
+    return invoices.sort((a, b) => {
+      const timeA = (a.createdAt as any)?.seconds ?? 0;
+      const timeB = (b.createdAt as any)?.seconds ?? 0;
+      return timeB - timeA;
+    });
+  }
+
+  /**
    * Request a backend-generated monthly report.
    * Returns raw CSV string instead of a data URI.
    * Ensures timezone boundaries strictly follow IST (Asia/Kolkata).
@@ -102,23 +179,21 @@ export class AccountsRepository {
     const year = parseInt(monthStr.split("-")[0]);
     const month = parseInt(monthStr.split("-")[1]);
     const paddedMonth = month.toString().padStart(2, "0");
-
-    // Calculate last day of the month
     const lastDay = new Date(year, month, 0).getDate();
     const paddedLastDay = lastDay.toString().padStart(2, "0");
 
-    // Create boundaries explicitly in Asia/Kolkata timezone (UTC+05:30)
     const startDate = new Date(`${year}-${paddedMonth}-01T00:00:00+05:30`);
     const endDate = new Date(
       `${year}-${paddedMonth}-${paddedLastDay}T23:59:59.999+05:30`,
     );
 
     const invoices = await this.getInvoicesInRange(startDate, endDate);
-    let csvContent = "ID,Customer ID,Amount,Status,Issued At\n";
+    let csvContent =
+      "Invoice Number,Customer ID,Billing Period Start,Billing Period End,Subtotal,Deposit Held,Total Due,Status,Date\n";
     invoices.forEach((inv) => {
       const dateStr =
         inv.createdAt && (inv.createdAt as any).seconds
-          ? new Date((inv.createdAt as any).seconds * 1000).toISOString()
+          ? new Date((inv.createdAt as any).seconds * 1000).toISOString().split("T")[0]
           : "";
 
       const escapeCsv = (val: any) => {
@@ -131,8 +206,12 @@ export class AccountsRepository {
       };
 
       const row = [
-        escapeCsv(inv.id),
+        escapeCsv(inv.invoiceNumber || inv.id),
         escapeCsv(inv.customerId),
+        escapeCsv(inv.billingPeriodStart || ""),
+        escapeCsv(inv.billingPeriodEnd || ""),
+        escapeCsv(inv.subtotal ?? inv.totalAmount),
+        escapeCsv(inv.depositHeld ?? 0),
         escapeCsv(inv.totalAmount),
         escapeCsv(inv.status),
         escapeCsv(dateStr),

@@ -77,6 +77,7 @@ export function KitchenDashboardPage() {
     totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
 
   const scheduledCount = byStatus.scheduled ?? 0;
+  const preparingCount = byStatus.preparing ?? 0;
   const packingCount = byStatus.packing ?? 0;
   const readyCount = byStatus.ready_for_pickup ?? 0;
 
@@ -212,6 +213,12 @@ export function KitchenDashboardPage() {
               count={scheduledCount}
               total={totalOrders}
               variant="default"
+            />
+            <WorkflowRow
+              label="Preparing"
+              count={preparingCount}
+              total={totalOrders}
+              variant="warning"
             />
             <WorkflowRow
               label="Packing"

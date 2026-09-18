@@ -153,7 +153,7 @@ if (import.meta.env.PROD && typeof window !== "undefined" && appCheckDebugToken)
  * the misconfiguration clearly rather than crashing at module scope.
  */
 export let appCheckConfigError: string | null = null;
-if (import.meta.env.PROD && !appCheckSiteKey) {
+if (import.meta.env.PROD && !appCheckSiteKey && !useEmulators) {
   appCheckConfigError =
     "Production build requires VITE_APPCHECK_SITE_KEY. " +
     "Configure it in your hosting environment (Vercel / Firebase Hosting / etc).";

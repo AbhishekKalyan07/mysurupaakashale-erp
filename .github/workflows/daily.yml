@@ -3,7 +3,12 @@ name: Daily Automation Tasks
 on:
   schedule:
     - cron: '30 18 * * *' # 00:00 IST (18:30 UTC)
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Target execution date (YYYY-MM-DD). Leave blank for current date in IST.'
+        required: false
+        type: string
 
 jobs:
   run-daily:
@@ -30,4 +35,6 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           APPCHECK_DEBUG_TOKEN: ${{ secrets.APPCHECK_DEBUG_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TARGET_DATE: ${{ inputs.target_date }}
         run: npx vite-node --config vite.config.ts scripts/automation/daily.ts
+

@@ -20,6 +20,19 @@ import {
   notifyPaymentRejected,
 } from "@/shared/services/firestore/notificationService";
 
+import { accountsRepository } from "@/shared/services/firestore/accountsRepository";
+
+// ── Customer: my invoices ───────────────────────────────────────────────────
+export function useMyInvoices() {
+  const { firebaseUser } = useAuth();
+  return useQuery({
+    queryKey: queryKeys.accounts.invoicesByCustomer(firebaseUser?.uid ?? ""),
+    queryFn: () => accountsRepository.getInvoicesByCustomerId(firebaseUser!.uid),
+    enabled: !!firebaseUser,
+    staleTime: 30_000,
+  });
+}
+
 // ── Customer: my payment history ───────────────────────────────────────────────
 export function useMyPayments() {
   const { firebaseUser } = useAuth();
@@ -160,25 +173,28 @@ export function useApprovePayment() {
       ).catch((err) =>
         console.error("[useApprovePayment] verified notification failed:", err),
       );
-      notifySubscriptionActivated(
-        capturedPayment.customerId,
-        capturedPayment.subscriptionId,
-        input.meta?.planTier || "meal",
-        new Date().toISOString().split("T")[0],
-      ).catch((err) =>
-        console.error(
-          "[useApprovePayment] activated notification failed:",
-          err,
-        ),
-      );
+      if (capturedPayment.purpose === "security_deposit") {
+        notifySubscriptionActivated(
+          capturedPayment.customerId,
+          capturedPayment.subscriptionId,
+          input.meta?.planTier || "meal",
+          new Date().toISOString().split("T")[0],
+        ).catch((err) =>
+          console.error(
+            "[useApprovePayment] activated notification failed:",
+            err,
+          ),
+        );
+      }
 
       return { success: true };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.base });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
-      toast.success("Payment approved. Subscription activated.");
+      toast.success("Payment approved successfully.");
     },
     onError: (err: unknown) => {
       toast.error((err as Error).message || "Failed to approve payment.");

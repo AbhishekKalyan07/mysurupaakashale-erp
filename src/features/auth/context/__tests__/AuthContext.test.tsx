@@ -23,18 +23,19 @@ vi.mock("@/shared/services/firestore/userRepository", () => ({
 }));
 
 vi.mock("../../services/authService", () => ({
-  signOutUser: vi.fn(),
+  signOutUser: vi.fn(() => Promise.resolve()),
   handleGoogleRedirectResult: vi.fn(() => Promise.resolve()),
 }));
 
 const { onAuthStateChanged } = await import("firebase/auth");
 
 function TestComponent() {
-  const { status, role } = useAuth();
+  const { status, role, error } = useAuth();
   return (
     <div>
       <span id="status">{status}</span>
       <span id="role">{role || "none"}</span>
+      <span id="error">{error || "none"}</span>
     </div>
   );
 }
@@ -91,6 +92,10 @@ describe("AuthContext - Strict Firestore Resolution", () => {
 
   function getRole() {
     return container?.querySelector("#role")?.textContent;
+  }
+
+  function getError() {
+    return container?.querySelector("#error")?.textContent;
   }
 
   it("1. starts as loading and remains loading after auth state changes to user", () => {
@@ -243,7 +248,7 @@ describe("AuthContext - Strict Firestore Resolution", () => {
     vi.useRealTimers();
   });
 
-  it("9. handles deactivated user profile", async () => {
+  it("9. handles deactivated user profile and preserves error on signout", async () => {
     renderComponent();
 
     act(() => {
@@ -262,6 +267,7 @@ describe("AuthContext - Strict Firestore Resolution", () => {
     });
 
     expect(getStatus()).toBe("unauthenticated");
+    expect(getError()).toContain("Your account has been deactivated");
   });
 
   it("10. handles onAuthStateChanged error", () => {
@@ -304,5 +310,22 @@ describe("AuthContext - Strict Firestore Resolution", () => {
     expect(error?.message).toBe(
       "useAuth() must be called within an <AuthProvider>.",
     );
+  });
+
+  it("12. hydrates role immediately from localStorage auth_cache on auth state change", () => {
+    localStorage.setItem(
+      "auth_cache_user999",
+      JSON.stringify({ uid: "user999", role: "kitchen" }),
+    );
+
+    renderComponent();
+
+    act(() => {
+      authStateCallback({ uid: "user999" });
+    });
+
+    // Should immediately be authenticated with cached role without waiting for Firestore
+    expect(getStatus()).toBe("authenticated");
+    expect(getRole()).toBe("kitchen");
   });
 });

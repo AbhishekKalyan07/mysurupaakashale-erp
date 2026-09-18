@@ -10,7 +10,9 @@ import {
   X,
   Filter,
   MoreVertical,
+  Copy,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
@@ -33,6 +35,7 @@ import type {
   CustomerProfile,
   UserProfile,
   DeliveryPartnerProfile,
+  DeliveryZone,
   Order,
 } from "@/shared/types";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
@@ -222,9 +225,22 @@ function CustomerDetailDialog({
             <h2 className="text-2xl font-bold text-primary font-display">
               Customer Details
             </h2>
-            <p className="text-text-muted text-xs font-mono mt-1 bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
-              {customer.displayId || "Customer"}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-text-muted text-xs font-mono bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
+                {customer.displayId || "Customer"}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(customer.id);
+                  toast.success("Customer UID copied!");
+                }}
+                className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded border border-primary/10 flex items-center gap-1 transition-colors cursor-pointer"
+                title="Click to copy Firebase Auth UID for accounts/invoicing"
+              >
+                UID: {customer.id.substring(0, 8)}... <Copy size={12} />
+              </button>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -558,10 +574,12 @@ function CustomerCardView({
   customer,
   onSelect,
   deliveryPartners,
+  zones = [],
 }: {
   customer: CustomerProfile;
   onSelect: () => void;
   deliveryPartners: DeliveryPartnerProfile[];
+  zones?: DeliveryZone[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const defaultAddress =
@@ -698,35 +716,28 @@ function CustomerCardView({
 
         {/* Chips Row (Bottom) */}
         <div className="flex flex-wrap gap-1.5 items-center mt-auto pt-1">
-          <Badge
-            variant="default"
-            className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-text font-semibold shrink-0 whitespace-nowrap"
-          >
-            🍛 Basic Plan
-          </Badge>
-
           {partner ? (
             <Badge
               variant="info"
-              className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[120px]"
+              className="text-[10px] px-1.5 py-0.5 shadow-sm text-blue-800 bg-blue-100 border border-blue-200 shrink-0 whitespace-nowrap truncate max-w-[150px]"
             >
               🚚 {partner.fullName}
+            </Badge>
+          ) : customer.zoneId ? (
+            <Badge
+              variant="default"
+              className="text-[10px] px-1.5 py-0.5 shadow-sm bg-purple-50 text-purple-700 border border-purple-200 shrink-0 whitespace-nowrap"
+            >
+              📍 {zones.find((z) => z.id === customer.zoneId)?.name || "Assigned Zone"}
             </Badge>
           ) : (
             <Badge
               variant="warning"
               className="text-[10px] px-1.5 py-0.5 shadow-sm shrink-0 whitespace-nowrap"
             >
-              ⚠ Unassigned
+              ⚠ Auto (Pincode)
             </Badge>
           )}
-
-          <Badge
-            variant="default"
-            className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary font-bold shadow-sm shrink-0 whitespace-nowrap"
-          >
-            🟣 Ready
-          </Badge>
         </div>
       </div>
     </Card>
@@ -758,6 +769,7 @@ export function AdminCustomersPage() {
 
   const { data, isLoading, error, refetch } = useAdminCustomers(currentLastDoc);
   const { data: staffUsers } = useStaffUsers();
+  const { data: zones = [] } = useDeliveryZones();
 
   const customers = data?.rows ?? [];
   const deliveryPartners = (staffUsers || []).filter(
@@ -1018,6 +1030,7 @@ export function AdminCustomersPage() {
                   customer={row}
                   onSelect={() => setSelected(row)}
                   deliveryPartners={deliveryPartners}
+                  zones={zones}
                 />
               ))}
             </div>

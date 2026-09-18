@@ -68,6 +68,8 @@ export const queryKeys = {
       ["accounts", "payments", start, end] as const,
     invoices: (start: string, end: string) =>
       ["accounts", "invoices", start, end] as const,
+    invoicesByCustomer: (customerId: string) =>
+      ["accounts", "invoices", "customer", customerId] as const,
     orders: (start: string, end: string) =>
       ["accounts", "orders", start, end] as const,
   },

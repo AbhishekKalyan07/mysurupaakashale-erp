@@ -105,6 +105,36 @@ class PaymentService {
   ): Promise<ManualPayment> {
     let capturedPayment!: ManualPayment;
 
+    // Fetch payment snapshot beforehand to check purpose and any matching unpaid invoice
+    const { getDoc } = await import("firebase/firestore");
+    const prePaymentSnap = await getDoc(doc(db, "payments", paymentId));
+    if (!prePaymentSnap.exists()) throw new Error("Payment not found");
+    const prePayment = prePaymentSnap.data() as ManualPayment;
+
+    let matchingUnpaidInvoiceId: string | null = null;
+    if (prePayment.purpose !== "security_deposit") {
+      try {
+        const { accountsRepository } = await import(
+          "../firestore/accountsRepository"
+        );
+        const customerInvoices =
+          await accountsRepository.getInvoicesByCustomerId(prePayment.customerId);
+        const found = customerInvoices.find(
+          (inv) =>
+            inv.subscriptionId === prePayment.subscriptionId &&
+            (inv.status === "issued" || inv.status === "overdue"),
+        );
+        if (found) matchingUnpaidInvoiceId = found.id;
+      } catch (err) {
+        console.warn(
+          "[paymentService] Could not lookup matching unpaid invoice:",
+          err,
+        );
+      }
+    }
+
+    let isDepositPayment = false;
+
     await runTransaction(db, async (t) => {
       const paymentRef = doc(db, "payments", paymentId);
       const paymentSnap = await t.get(paymentRef);
@@ -122,16 +152,26 @@ class PaymentService {
       }
 
       const subscription = subSnap.data();
-      if (subscription.status !== "pending_payment") {
-        throw new Error("Subscription is not in a pending payment state.");
+      const isDeposit = payment.purpose === "security_deposit";
+      isDepositPayment = isDeposit;
+
+      if (isDeposit) {
+        if (subscription.status !== "pending_payment") {
+          throw new Error("Subscription is not in a pending payment state.");
+        }
+        if (payment.amount !== subscription.depositAmount) {
+          throw new Error(
+            "Payment amount does not match required security deposit.",
+          );
+        }
       }
 
-      if (payment.purpose !== "security_deposit") {
-        throw new Error("Activation requires a security deposit payment.");
-      }
-
-      if (payment.amount !== subscription.depositAmount) {
-        throw new Error("Payment amount does not match required security deposit.");
+      // Check matching unpaid invoice if applicable (read before write)
+      let matchingInvoiceSnap: any = null;
+      let matchingInvoiceRef: any = null;
+      if (matchingUnpaidInvoiceId) {
+        matchingInvoiceRef = doc(db, "invoices", matchingUnpaidInvoiceId);
+        matchingInvoiceSnap = await t.get(matchingInvoiceRef);
       }
 
       t.update(paymentRef, {
@@ -143,61 +183,105 @@ class PaymentService {
         verificationNotes: notes ?? null,
       });
 
-      t.update(subRef, {
-        status: "active",
+      const subUpdates: Record<string, any> = {
         latestPaymentId: paymentId,
         updatedAt:
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-      });
+      };
+      if (isDeposit) {
+        subUpdates.status = "active";
+      }
+      t.update(subRef, subUpdates);
 
-      const invoiceId = crypto.randomUUID();
-      const invoiceRef = doc(db, "invoices", invoiceId);
-      t.set(invoiceRef, {
-        id: invoiceId,
-        subscriptionId: payment.subscriptionId,
-        customerId: payment.customerId,
-        amount: payment.amount,
-        billingMonth: payment.billingMonth ?? getTodayInTimezone().slice(0, 7),
-        status: "paid",
-        issuedAt: serverTimestamp(),
-        paidAt: serverTimestamp(),
-        paymentId: payment.id,
-      });
+      const today = getTodayInTimezone();
+
+      if (
+        matchingInvoiceSnap?.exists() &&
+        (matchingInvoiceSnap.data().status === "issued" ||
+          matchingInvoiceSnap.data().status === "overdue")
+      ) {
+        const invData = matchingInvoiceSnap.data();
+        t.update(matchingInvoiceRef, {
+          status: "paid",
+          paidAt: serverTimestamp() as unknown as Timestamp,
+          paymentId: payment.id,
+          totalAmount: invData.totalAmount, // Ensure totalAmount present for rules
+          updatedAt:
+            serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+        });
+        (payment as any)._invoiceIdForLogging = matchingUnpaidInvoiceId;
+      } else {
+        const invoiceId = crypto.randomUUID();
+        const invoiceRef = doc(db, "invoices", invoiceId);
+        const invoiceNumber = `INV-${payment.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+
+        t.set(invoiceRef, {
+          id: invoiceId,
+          invoiceNumber,
+          customerId: payment.customerId,
+          subscriptionId: payment.subscriptionId,
+          lineItems: [
+            {
+              description: isDeposit
+                ? "Security Deposit"
+                : "Subscription Payment",
+              quantity: 1,
+              unitPrice: payment.amount,
+              amount: payment.amount,
+            },
+          ],
+          subtotal: payment.amount,
+          taxRate: 0,
+          taxAmount: 0,
+          totalAmount: payment.amount,
+          depositHeld: isDeposit ? payment.amount : 0,
+          currency: "INR",
+          status: "paid",
+          billingPeriodStart: subscription.startDate || today,
+          billingPeriodEnd: subscription.endDate || today,
+          dueDate: today,
+          paidAt: serverTimestamp() as unknown as Timestamp,
+          paymentId: payment.id,
+          createdAt: serverTimestamp() as unknown as Timestamp,
+        });
+        (payment as any)._invoiceIdForLogging = invoiceId;
+      }
 
       capturedPayment = payment;
-      (capturedPayment as any)._invoiceIdForLogging = invoiceId;
     });
 
-    // ── Auto-generate initial orders if subscription starts today or earlier ──
-    try {
-      const { subscriptionRepository } =
-        await import("../firestore/subscriptionRepository");
-      const { orderService } = await import("./orderService");
-      const subscription = await subscriptionRepository.getById(
-        capturedPayment.subscriptionId,
-      );
+    // ── Auto-generate initial orders if activating via security deposit ──
+    if (isDepositPayment) {
+      try {
+        const { subscriptionRepository } =
+          await import("../firestore/subscriptionRepository");
+        const { orderService } = await import("./orderService");
+        const subscription = await subscriptionRepository.getById(
+          capturedPayment.subscriptionId,
+        );
 
-      if (subscription) {
-        const today = getTodayInTimezone();
-        if (subscription.startDate <= today) {
-          const mealTypes = (subscription.mealPreferences || []).map(
-            (p) => p.mealType,
-          );
-          console.log(
-            `[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`,
-          );
-          await orderService.generateOrdersForSubscription(
-            subscription,
-            today,
-            mealTypes,
-          );
+        if (subscription) {
+          const today = getTodayInTimezone();
+          if (subscription.startDate <= today) {
+            const mealTypes = (subscription.mealPreferences || []).map(
+              (p) => p.mealType,
+            );
+            console.log(
+              `[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`,
+            );
+            await orderService.generateOrdersForSubscription(
+              subscription,
+              today,
+              mealTypes,
+            );
+          }
         }
+      } catch (err) {
+        console.error(
+          `[PaymentService] Failed to generate initial orders for subscription ${capturedPayment.subscriptionId}:`,
+          err,
+        );
       }
-    } catch (err) {
-      console.error(
-        `[PaymentService] Failed to generate initial orders for subscription ${capturedPayment.subscriptionId}:`,
-        err,
-      );
     }
 
     // ── PDF + Email (fire-and-forget, non-blocking) ──────────────────────────

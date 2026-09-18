@@ -11,7 +11,7 @@ import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 export function RootRedirect() {
   const { status, role } = useAuth();
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && !role)) {
     return <LoadingScreen />;
   }
 

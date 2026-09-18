@@ -41,7 +41,18 @@ export function useBusinessSettings() {
               lunch: { start: "12:30", end: "14:00" },
               dinner: { start: "19:30", end: "21:00" },
             },
+            cancellationCutoffTimes: {
+              breakfast: "05:00",
+              lunch: "10:30",
+              dinner: "16:00",
+            },
             businessHolidays: [],
+          },
+          payroll: {
+            standardWorkingDays: 22,
+            standardWorkingHours: 8,
+            taxPercentage: 0,
+            leaveDeductionMultiplier: 1,
           },
         } as unknown as BusinessSettings;
       }
@@ -56,7 +67,7 @@ export function useUpdateBusinessSettings() {
   return useMutation({
     mutationFn: async (data: Partial<BusinessSettings>) => {
       // Phase 1: Client-side settings update
-      await settingsRepository.update("business", data);
+      await settingsRepository.saveBusinessSettings(data);
 
       const user = getAuth().currentUser;
       if (user) {

@@ -2,7 +2,8 @@ name: Weekly Automation Tasks
 
 on:
   schedule:
-    - cron: '30 18 * * 0' # 00:00 IST every Sunday
+    # Runs at 18:30 UTC on Sunday (which is 00:00 IST Monday morning, capturing the completed week)
+    - cron: '30 18 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -37,4 +38,6 @@ jobs:
         with:
           name: firestore-backup-${{ github.run_id }}
           path: backup/
+          if-no-files-found: warn
           retention-days: 90
+

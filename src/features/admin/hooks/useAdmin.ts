@@ -381,7 +381,7 @@ export function useAssignCustomerZone() {
       zoneId,
     }: {
       customerId: string;
-      zoneId: string;
+      zoneId: string | null;
     }) => {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Not authenticated");

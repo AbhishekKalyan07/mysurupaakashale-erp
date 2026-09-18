@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, type Location } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
-import toast from "react-hot-toast";
 
 import {
   signUpCustomer,
@@ -13,8 +12,6 @@ import {
 } from "../services/authService";
 import { MobileAuthLayout } from "../components/MobileAuthLayout";
 import type { SignupFormValues } from "../types/auth.types";
-
-const INDIAN_MOBILE_REGEX = /^(?:\+91[-\s]?)?[6-9]\d{9}$/;
 
 interface ExtendedSignupFormValues extends SignupFormValues {
   agreed: boolean;
@@ -26,10 +23,16 @@ const signupSchema = z
     email: z
       .string()
       .min(1, "Email is required")
-      .email("Enter a valid email address"),
+      .trim()
+      .toLowerCase()
+      .pipe(z.string().email("Enter a valid email address")),
     phone: z
       .string()
-      .regex(INDIAN_MOBILE_REGEX, "Enter a valid 10-digit mobile number"),
+      .trim()
+      .transform((val) => val.replace(/\D/g, "").slice(-10))
+      .refine((val) => /^[6-9]\d{9}$/.test(val), {
+        message: "Enter a valid 10-digit mobile number",
+      }),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
     agreed: z
@@ -42,7 +45,7 @@ const signupSchema = z
   });
 
 export function MobileSignupPage() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -73,34 +76,31 @@ export function MobileSignupPage() {
         values.fullName,
         values.phone,
       );
-      navigate("/", { replace: true });
+      // GuestRoute wraps /signup and will automatically navigate
+      // once status is authenticated and role is resolved.
     } catch (err) {
       setFormError(mapAuthError(err));
     }
   };
 
   const handleGoogleSignUpClick = async () => {
+    if (googleLoading) return;
     setFormError(null);
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
-      toast.success("Logged in successfully!");
-      navigate("/", { replace: true });
-    } catch (err) {
-      const errorCode = (err as any)?.code;
-      if (errorCode === "auth/popup-blocked") {
-        setFormError(
-          "Popup was blocked. Please allow pop-ups for this site and try again.",
-        );
-      } else if (
-        errorCode === "auth/popup-closed-by-user" ||
-        errorCode === "auth/cancelled-popup-request"
-      ) {
-        setFormError("Sign-in cancelled.");
-      } else {
-        setFormError(mapAuthError(err));
+      const from = (location.state as { from?: Location } | null)?.from;
+      if (from) {
+        try {
+          sessionStorage.setItem(
+            "auth_redirect_from",
+            `${from.pathname}${from.search || ""}${from.hash || ""}`,
+          );
+        } catch {}
       }
-    } finally {
+      await signInWithGoogle();
+      // If mobile/PWA, browser redirects away. If desktop popup, GuestRoute redirects.
+    } catch (err) {
+      setFormError(mapAuthError(err));
       setGoogleLoading(false);
     }
   };
