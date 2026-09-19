@@ -128,12 +128,32 @@ class OrderService {
     }
 
     if (totalGenerated === 0) {
+      try {
+        const { orderDiagnosticService } = await import("./orderDiagnosticService");
+        const diag = await orderDiagnosticService.diagnoseAndRemediate(today);
+        if (diag.autoHealedCount > 0) {
+          totalGenerated += diag.autoHealedCount;
+          return {
+            success: true,
+            message: diag.summaryText,
+            ordersGenerated: totalGenerated,
+          };
+        }
+        return {
+          success: diag.status !== "fault_detected",
+          message: diag.summaryText,
+          ordersGenerated: 0,
+        };
+      } catch (diagErr) {
+        console.warn("[orderService] Diagnostic check error:", diagErr);
+      }
+
       console.log(
         `[orderService] 0 new orders generated for ${today}. Either all active subscriptions already have orders for this date, or no active subscriptions exist.`,
       );
       return {
         success: true,
-        message: `0 new orders generated. (Orders may have already been generated for today)`,
+        message: `0 new orders generated for ${today}.`,
         ordersGenerated: 0,
       };
     }
@@ -227,21 +247,34 @@ class OrderService {
       const [
         allSubscriptions,
         mealPlans,
-        allCustomers,
         allZones,
         allPartners,
         todaysOrders,
       ] = await Promise.all([
         subscriptionRepository.list(where("status", "==", "active")),
         mealPlanRepository.list(),
-        userRepository.list(where("role", "==", "customer")),
         deliveryZoneRepository.list(),
         userRepository.list(where("role", "==", "delivery_partner")),
         orderRepository.list(where("date", "==", today)),
       ]);
-      const customerMap = new Map<string, CustomerProfile>(
-        allCustomers.map((c) => [c.id, c as CustomerProfile]),
+
+      const subCustomerIds = Array.from(
+        new Set(allSubscriptions.map((s) => s.customerId).filter(Boolean)),
       );
+      let customerMap = new Map<string, CustomerProfile>();
+      try {
+        const fetchedCustomers = await userRepository.getByIds(subCustomerIds);
+        customerMap = new Map(
+          fetchedCustomers.map((c) => [c.id, c as CustomerProfile]),
+        );
+      } catch {
+        const allCustomers = await userRepository.list(
+          where("role", "==", "customer"),
+        );
+        customerMap = new Map(
+          allCustomers.map((c) => [c.id, c as CustomerProfile]),
+        );
+      }
       const activePartners = allPartners.filter(
         (p) => p.isActive,
       ) as DeliveryPartnerProfile[];
@@ -1183,14 +1216,16 @@ class OrderService {
 
     const addr =
       customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
+      customer?.addresses?.find((a: any) => a.isDefault) ||
       customer?.addresses?.[0];
 
     let zoneId: string | null = null;
     let kitchenId: string | null = null;
 
-    if (customer?.zoneId) {
+    const manualZoneId = sub.zoneId || customer?.zoneId;
+    if (manualZoneId) {
       const manualZone = allZones.find(
-        (z) => z.id === customer.zoneId && z.isActive !== false,
+        (z) => z.id === manualZoneId && z.isActive !== false,
       );
       if (manualZone?.kitchenId) {
         zoneId = manualZone.id;

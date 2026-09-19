@@ -262,19 +262,19 @@ class PaymentService {
 
         if (subscription) {
           const today = getTodayInTimezone();
-          if (subscription.startDate <= today) {
-            const mealTypes = (subscription.mealPreferences || []).map(
-              (p) => p.mealType,
-            );
-            console.log(
-              `[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for today (${today})...`,
-            );
-            await orderService.generateOrdersForSubscription(
-              subscription,
-              today,
-              mealTypes,
-            );
-          }
+          const targetDate =
+            subscription.startDate <= today ? today : subscription.startDate;
+          const mealTypes = (subscription.mealPreferences || []).map(
+            (p) => p.mealType,
+          );
+          console.log(
+            `[PaymentService] Subscription ${subscription.id} activated via payment. Generating orders for ${targetDate}...`,
+          );
+          await orderService.generateOrdersForSubscription(
+            subscription,
+            targetDate,
+            mealTypes,
+          );
         }
       } catch (err) {
         console.error(

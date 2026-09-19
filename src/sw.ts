@@ -10,7 +10,7 @@ import {
   registerRoute,
   setCatchHandler,
 } from "workbox-routing";
-import { StaleWhileRevalidate, NetworkOnly } from "workbox-strategies";
+import { StaleWhileRevalidate } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { initializeApp } from "firebase/app";
 import { getMessaging, onBackgroundMessage } from "firebase/messaging/sw";
@@ -65,6 +65,21 @@ registerRoute(
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
       }),
       {
+        // When the server returns HTML for a missing JS chunk (SPA fallback),
+        // return a clean 404 instead of letting the browser try to parse HTML as JS.
+        handlerWillRespond: async ({ request, response }) => {
+          if (
+            request.destination === "script" &&
+            response &&
+            response.headers.get("content-type")?.includes("text/html")
+          ) {
+            return new Response("Chunk not found", {
+              status: 404,
+              statusText: "Not Found",
+            });
+          }
+          return response;
+        },
         cacheWillUpdate: async ({ response }) => {
           // Do not cache SPA fallback (HTML) for static asset requests
           if (
@@ -80,22 +95,12 @@ registerRoute(
   }),
 );
 
-// Cross-origin requests (Google Fonts, reCAPTCHA, Google APIs, Analytics) must
-// go straight to the network. Without this, Workbox's default handler intercepts
-// the fetch event and CSP blocks the service worker's fetch() for these origins.
-registerRoute(
-  ({ url }) =>
-    url.origin !== self.location.origin &&
-    (url.hostname.endsWith(".gstatic.com") ||
-      url.hostname.endsWith(".googleapis.com") ||
-      url.hostname === "apis.google.com" ||
-      url.hostname === "www.google.com" ||
-      url.hostname === "www.recaptcha.net" ||
-      url.hostname === "www.googletagmanager.com" ||
-      url.hostname === "www.google-analytics.com" ||
-      url.hostname === "analytics.google.com"),
-  new NetworkOnly(),
-);
+// Cross-origin requests (Google Fonts, reCAPTCHA, Google APIs, Analytics, etc.)
+// are NOT registered with any Workbox route. When a fetch event has no matching
+// Workbox route, the service worker does NOT call event.respondWith(), which
+// lets the browser handle the request natively. This avoids the "cross-world
+// service worker resource mismatch" warning that occurs when a SW intercepts
+// cross-origin stylesheet/font requests via respondWith().
 
 // Gracefully handle any fetch failures that slip past the registered routes.
 // For document navigation requests while offline, fallback to precached SPA shell.

@@ -92,13 +92,29 @@ export function ResumeDeliveryModal({
           });
         }
 
-        // Generate remaining orders for today
+        // Safely restore remaining orders for today via unskipRequests queue and restoreOrdersForUnskipDay
         if (resumedMealsToday.length > 0) {
-          await orderService.generateOrdersForSubscription(
-            subscription,
-            today,
-            resumedMealsToday,
-          );
+          const requestId = `${subscription.id}_${today}_${[...resumedMealsToday].sort().join("_")}_${Date.now()}`;
+          await setDoc(doc(db, "unskipRequests", requestId), {
+            customerId: subscription.customerId,
+            subscriptionId: subscription.id,
+            date: today,
+            mealTypes: resumedMealsToday,
+            status: "pending",
+            createdAt: serverTimestamp(),
+          });
+
+          try {
+            await orderService.restoreOrdersForUnskipDay(
+              subscription.customerId,
+              subscription.id,
+              today,
+              resumedMealsToday as any,
+              false,
+            );
+          } catch (restoreErr) {
+            console.warn("[ResumeDeliveryModal] restore existing orders warning:", restoreErr);
+          }
         }
 
         // Resume subscription immediately

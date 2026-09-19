@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChefHat, Printer } from "lucide-react";
+import { ChefHat, Printer, RefreshCw } from "lucide-react";
 import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { APP_CONFIG } from "@/shared/config/appConfig";
@@ -10,6 +10,8 @@ import {
   getTodayIST,
 } from "@/features/kitchen/hooks/useProductionBoard";
 import { ProductionService } from "@/shared/services/business/productionService";
+import { useOrderAutoChecker } from "@/features/admin/hooks/useOrderAutoChecker";
+import { OrderDiagnosticCard } from "@/features/admin/components/OrderDiagnosticCard";
 
 // Sub-components
 import { KitchenSummaryCards } from "@/features/kitchen/components/KitchenSummaryCards";
@@ -29,6 +31,12 @@ export function ProductionBoardPage() {
     advanceStatus,
     advancingOrders,
   } = useProductionBoard();
+
+  const { diagnosticResult, isChecking, recheck } = useOrderAutoChecker(
+    today,
+    orders.length,
+    isLoading,
+  );
 
   const [activeTab, setActiveTab] = useState<
     "summary" | "production" | "packing"
@@ -103,19 +111,47 @@ export function ProductionBoardPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
+            onClick={() => recheck()}
+            disabled={isChecking}
+            className="flex items-center gap-2 min-h-[44px]"
+          >
+            <RefreshCw
+              size={16}
+              className={isChecking ? "animate-spin text-leaf-600" : ""}
+            />
+            <span>Re-check</span>
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => window.print()}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 min-h-[44px]"
           >
             <Printer size={16} /> Print Packing Sheet
           </Button>
         </div>
       </div>
 
-      {/* ── Top Summary Cards ── */}
-      <KitchenSummaryCards progress={progress} />
+      {/* ── Diagnostic Status Banner if orders is 0 or if there are pauses/skips/faults ── */}
+      {(orders.length === 0 ||
+        (diagnosticResult &&
+          (diagnosticResult.pausedCustomers.length > 0 ||
+            diagnosticResult.skippedCustomers.length > 0 ||
+            diagnosticResult.cancelledOrders.length > 0 ||
+            diagnosticResult.faultDetails.length > 0))) && (
+        <OrderDiagnosticCard
+          diagnostic={diagnosticResult}
+          isChecking={isChecking}
+          onRecheck={recheck}
+        />
+      )}
 
-      {/* ── Tabs ── */}
-      <div className="flex border-b border-rice-200 overflow-x-auto scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0">
+      {orders.length > 0 && (
+        <>
+          {/* ── Top Summary Cards ── */}
+          <KitchenSummaryCards progress={progress} />
+
+          {/* ── Tabs ── */}
+          <div className="flex border-b border-rice-200 overflow-x-auto scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveTab("summary")}
           className={`min-h-[44px] px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors shrink-0 ${
@@ -167,6 +203,8 @@ export function ProductionBoardPage() {
 
         {activeTab === "packing" && <PackingList areaGroups={areaGroups} />}
       </div>
+        </>
+      )}
     </div>
   );
 }
