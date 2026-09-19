@@ -22,8 +22,8 @@ import {
   notifySubscriptionRenewalReminder,
 } from "./notificationService";
 import type { DailySummary, ManualPayment } from "@/shared/types";
-import { addDays, subDays, format } from "date-fns";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { addDays, subDays } from "date-fns";
+import { getTodayInTimezone, getHourInTimezone } from "@/shared/lib/date";
 
 export interface DatabaseBackupResult {
   timestamp: string;
@@ -178,9 +178,10 @@ export class AutomationService {
         }
 
         if (o.createdAt) {
-          const hr = (o.createdAt as any).toDate
-            ? (o.createdAt as any).toDate().getHours()
-            : new Date((o.createdAt as any).seconds * 1000).getHours();
+          const orderDate = (o.createdAt as any).toDate
+            ? (o.createdAt as any).toDate()
+            : new Date((o.createdAt as any).seconds * 1000);
+          const hr = getHourInTimezone(orderDate);
           peakHourCount[hr.toString()] =
             (peakHourCount[hr.toString()] || 0) + 1;
         }
@@ -233,11 +234,14 @@ export class AutomationService {
   /**
    * Subscription Expiry Reminders
    */
-  async checkSubscriptionExpiry() {
-    const today = getTodayInTimezone();
-    const tomorrow = getTodayInTimezone("Asia/Kolkata", addDays(new Date(), 1));
-    const in3Days = getTodayInTimezone("Asia/Kolkata", addDays(new Date(), 3));
-    const in7Days = getTodayInTimezone("Asia/Kolkata", addDays(new Date(), 7));
+  async checkSubscriptionExpiry(dateOverride?: string) {
+    const baseDate = dateOverride
+      ? new Date(`${dateOverride}T00:00:00+05:30`)
+      : new Date();
+    const today = dateOverride || getTodayInTimezone();
+    const tomorrow = getTodayInTimezone("Asia/Kolkata", addDays(baseDate, 1));
+    const in3Days = getTodayInTimezone("Asia/Kolkata", addDays(baseDate, 3));
+    const in7Days = getTodayInTimezone("Asia/Kolkata", addDays(baseDate, 7));
 
     const allSubs = await subscriptionRepository.list(
       where("status", "==", "active"),
@@ -354,9 +358,9 @@ export class AutomationService {
   /**
    * Process Scheduled Pauses and Resumes
    */
-  async processScheduledPauses() {
+  async processScheduledPauses(dateOverride?: string) {
     console.log("Processing scheduled pauses and resumes...");
-    const today = getTodayInTimezone();
+    const today = dateOverride || getTodayInTimezone();
 
     const activeSubs = await subscriptionRepository.list(
       where("status", "==", "active"),

@@ -88,24 +88,29 @@ class OrderService {
 
     let totalGenerated = 0;
     let totalFailed = 0;
+    let totalUnassigned = 0;
     try {
       const bRes = await this.generateBreakfastOrders(today);
       totalGenerated += bRes.generated;
       totalFailed += bRes.failed;
+      totalUnassigned += bRes.unassigned || 0;
 
       const lRes = await this.generateLunchOrders(today);
       totalGenerated += lRes.generated;
       totalFailed += lRes.failed;
+      totalUnassigned += lRes.unassigned || 0;
 
       const dRes = await this.generateDinnerOrders(today);
       totalGenerated += dRes.generated;
       totalFailed += dRes.failed;
+      totalUnassigned += dRes.unassigned || 0;
 
       if (totalFailed > 0) {
         return {
           success: false,
           message: `Order generation completed with failures. Generated: ${totalGenerated}, Failed: ${totalFailed}.`,
           ordersGenerated: totalGenerated,
+          ...(totalUnassigned > 0 ? { unassignedOrders: totalUnassigned } : {}),
         };
       }
     } catch (err) {
@@ -117,6 +122,9 @@ class OrderService {
     }
 
     if (totalGenerated === 0) {
+      console.log(
+        `[orderService] 0 new orders generated for ${today}. Either all active subscriptions already have orders for this date, or no active subscriptions exist.`,
+      );
       return {
         success: true,
         message: `0 new orders generated. (Orders may have already been generated for today)`,
@@ -124,30 +132,37 @@ class OrderService {
       };
     }
 
+    if (totalUnassigned > 0) {
+      console.warn(
+        `[orderService] ${totalUnassigned} orders were generated without a delivery partner assigned for ${today}. Please assign drivers in the Admin Orders dashboard.`,
+      );
+    }
+
     return {
       success: true,
       message: `Successfully generated ${totalGenerated} new orders.`,
       ordersGenerated: totalGenerated,
+      ...(totalUnassigned > 0 ? { unassignedOrders: totalUnassigned } : {}),
     };
   }
 
   async generateBreakfastOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "breakfast");
   }
 
   async generateLunchOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "lunch");
   }
 
   async generateDinnerOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "dinner");
   }
@@ -155,7 +170,7 @@ class OrderService {
   private async generateMealOrders(
     today: string,
     mealType: "breakfast" | "lunch" | "dinner",
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     // ── Holiday Guard ─────────────────────────────────────────────────────────
     // Must be the first check before ANY batch is built, any data fetched,
     // or any run record created. This is the application-level defence.
@@ -184,6 +199,7 @@ class OrderService {
     let ordersSkipped = 0;
     let ordersCancelled = 0;
     let ordersFailed = 0;
+    let ordersUnassigned = 0;
 
     await orderGenerationRunRepository.create(
       {
@@ -332,6 +348,7 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
+              ordersUnassigned++;
               const actor = getSystemOrAdminActor();
               backgroundTasks.push(
                 import("@/shared/services/firestore/auditRepository")
@@ -522,7 +539,11 @@ class OrderService {
         }
       }
 
-      return { generated: ordersGenerated, failed: ordersFailed };
+      return {
+        generated: ordersGenerated,
+        failed: ordersFailed,
+        unassigned: ordersUnassigned,
+      };
     } catch (error: any) {
       const completedAt = serverTimestamp() as unknown as Timestamp;
       await orderGenerationRunRepository.update(runId, {
@@ -605,6 +626,21 @@ class OrderService {
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
+
+      // Idempotency guard: prevent overwriting active in-flight orders
+      const expectedId = `ord_${subscription.id}_${date}_${pref.mealType}`;
+      const alreadyExists = todaysOrders.some(
+        (o) =>
+          o.id === expectedId ||
+          (o.subscriptionId === subscription.id && o.mealType === pref.mealType),
+      );
+      if (alreadyExists) {
+        console.log(
+          `[orderService] Order ${expectedId} already exists for ${date} — preserving existing workflow status.`,
+        );
+        continue;
+      }
+
       const order = this.buildOrderSnapshot(
         subscription,
         pref,

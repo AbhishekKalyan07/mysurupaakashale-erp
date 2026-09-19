@@ -69,4 +69,15 @@ describe("generateInvoicePdf", () => {
     const doc = generateInvoicePdf({ ...mockData, billingMonth: {} as any });
     expect(doc).toBeDefined();
   });
+
+  it("applies custom companyProfile branding when provided", () => {
+    const doc = generateInvoicePdf(mockData, {
+      name: "Custom Paakashale",
+      tagline: "Finest Meals",
+      supportEmail: "custom@paakashale.in",
+      supportPhone: "+91 99999 88888",
+      address: "Jayalakshmipuram, Mysuru",
+    });
+    expect(doc).toBeDefined();
+  });
 });

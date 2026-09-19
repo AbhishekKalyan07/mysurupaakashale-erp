@@ -103,9 +103,9 @@ async function runDailyTasks() {
       });
     }
 
-    console.log('2. Processing scheduled pauses and resumes...');
+    console.log(`2. Processing scheduled pauses and resumes for ${todayStr}...`);
     try {
-      await automationService.processScheduledPauses();
+      await automationService.processScheduledPauses(todayStr);
       metrics.push({
         name: '⏸️ Pauses & Resumes',
         status: 'SUCCESS',
@@ -122,7 +122,7 @@ async function runDailyTasks() {
       });
     }
 
-    console.log('3. Processing pending unskip requests...');
+    console.log(`3. Processing pending unskip requests...`);
     try {
       await automationService.processUnskipRequests();
       metrics.push({
@@ -141,9 +141,9 @@ async function runDailyTasks() {
       });
     }
 
-    console.log('4. Generating Today\'s Orders...');
+    console.log(`4. Generating Orders for ${todayStr}...`);
     try {
-      const orderRes = await orderService.generateDailyOrders();
+      const orderRes = await orderService.generateDailyOrders(todayStr);
       console.log(orderRes.message);
       if (orderRes.success === false) {
         console.warn(
@@ -155,10 +155,22 @@ async function runDailyTasks() {
           details: orderRes.message,
         });
       } else {
+        const detailMsg =
+          orderRes.unassignedOrders && orderRes.unassignedOrders > 0
+            ? `${orderRes.message} ⚠️ (${orderRes.unassignedOrders} unassigned delivery partner)`
+            : orderRes.message;
+        if (orderRes.unassignedOrders && orderRes.unassignedOrders > 0) {
+          console.warn(
+            `[Daily Automation] ${orderRes.unassignedOrders} orders have no assigned delivery partner for ${todayStr}. Check Admin Orders page.`
+          );
+        }
         metrics.push({
           name: '🍳 Today\'s Orders',
-          status: 'SUCCESS',
-          details: orderRes.message,
+          status:
+            orderRes.unassignedOrders && orderRes.unassignedOrders > 0
+              ? 'WARNING'
+              : 'SUCCESS',
+          details: detailMsg,
         });
       }
     } catch (e) {
@@ -172,9 +184,9 @@ async function runDailyTasks() {
       });
     }
 
-    console.log('5. Generating Daily Summary (Sales, Kitchen, Delivery)...');
+    console.log(`5. Generating Daily Summary (Sales, Kitchen, Delivery) for ${todayStr}...`);
     try {
-      await automationService.generateDailySummary();
+      await automationService.generateDailySummary(todayStr);
       metrics.push({
         name: '📊 Daily Summary',
         status: 'SUCCESS',
@@ -191,9 +203,9 @@ async function runDailyTasks() {
       });
     }
 
-    console.log('6. Checking for expiring subscriptions...');
+    console.log(`6. Checking for expiring subscriptions for ${todayStr}...`);
     try {
-      await automationService.checkSubscriptionExpiry();
+      await automationService.checkSubscriptionExpiry(todayStr);
       metrics.push({
         name: '⏳ Subscription Expiry',
         status: 'SUCCESS',

@@ -150,6 +150,32 @@ describe("orderService", () => {
         ordersGenerated: 5,
       });
     });
+
+    it("reports unassigned delivery count when eligible drivers are not available", async () => {
+      vi.spyOn(orderService, "generateBreakfastOrders").mockResolvedValue({
+        generated: 4,
+        failed: 0,
+        unassigned: 2,
+      });
+      vi.spyOn(orderService, "generateLunchOrders").mockResolvedValue({
+        generated: 3,
+        failed: 0,
+        unassigned: 1,
+      });
+      vi.spyOn(orderService, "generateDinnerOrders").mockResolvedValue({
+        generated: 2,
+        failed: 0,
+        unassigned: 0,
+      });
+
+      const result = await orderService.generateDailyOrders("2026-08-01");
+      expect(result).toEqual({
+        success: true,
+        message: "Successfully generated 9 new orders.",
+        ordersGenerated: 9,
+        unassignedOrders: 3,
+      });
+    });
   });
 
   describe("generateMealOrders (internal logic via mock)", () => {

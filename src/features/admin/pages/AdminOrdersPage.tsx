@@ -9,6 +9,7 @@ import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { getTodayIST } from "@/features/kitchen/hooks/useKitchenDashboard";
+import { getHourInTimezone } from "@/shared/lib/date";
 import type { Order, OrderStatus, MealType } from "@/shared/types";
 import toast from "react-hot-toast";
 import { useCustomerNameMap as usePartnerNameMap } from "@/features/admin/hooks/useAdmin";
@@ -112,7 +113,7 @@ const STATUS_KPI_CHIPS: Array<{
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getDefaultMealType(): MealType | "all" {
-  const hour = new Date().getHours();
+  const hour = getHourInTimezone();
   if (hour >= 5 && hour < 11) return "breakfast";
   if (hour >= 11 && hour < 16) return "lunch";
   if (hour >= 16 && hour < 23) return "dinner";

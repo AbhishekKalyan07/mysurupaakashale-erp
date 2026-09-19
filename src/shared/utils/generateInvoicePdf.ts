@@ -17,15 +17,38 @@ export interface InvoiceData {
   approvedDate: string;
 }
 
+export interface InvoiceCompanyProfile {
+  name?: string;
+  tagline?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  address?: string;
+}
+
 /**
  * Generates a professional PDF invoice for a verified payment.
  * Returns the jsPDF instance (call .output('datauristring') for email,
  * or .save(filename) to download).
  */
-export function generateInvoicePdf(data: InvoiceData): jsPDF {
+export function generateInvoicePdf(
+  data: InvoiceData,
+  companyProfile?: InvoiceCompanyProfile,
+): jsPDF {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210; // A4 width mm
   const margin = 18;
+
+  const companyName = companyProfile?.name?.trim() || "Mysuru Paakashale";
+  const tagline =
+    companyProfile?.tagline?.trim() || "Daily Home-Style Meal Delivery Service";
+  const supportEmail =
+    companyProfile?.supportEmail?.trim() || "mysuru.paakashale@gmail.com";
+  const companyAddress =
+    companyProfile?.address?.trim() || "Mysuru Paakashale, Mysuru, Karnataka, India";
+  const supportPhone = companyProfile?.supportPhone?.trim();
+  const subline = supportPhone
+    ? `Mysuru, Karnataka | Tel: ${supportPhone}`
+    : "Mysuru, Karnataka | mysuru.paakashale@upi";
 
   // ── Header background ────────────────────────────────────────────────────────
   doc.setFillColor(42, 68, 34); // dark green
@@ -35,13 +58,13 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(255, 243, 220); // warm cream
-  doc.text("Mysuru Paakashale", margin, 17);
+  doc.text(companyName, margin, 17);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(200, 220, 190);
-  doc.text("Daily Home-Style Meal Delivery Service", margin, 24);
-  doc.text("Mysuru, Karnataka | mysuru.paakashale@upi", margin, 30);
+  doc.text(tagline, margin, 24);
+  doc.text(subline, margin, 30);
 
   // INVOICE label on top-right
   doc.setFont("helvetica", "bold");
@@ -213,17 +236,17 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 80, 40);
-  doc.text("Thank you for choosing Mysuru Paakashale!", W / 2, 278, {
+  doc.text(`Thank you for choosing ${companyName}!`, W / 2, 278, {
     align: "center",
   });
   doc.text(
-    "For support: mysuru.paakashale@gmail.com  |  This is a system-generated invoice.",
+    `For support: ${supportEmail}  |  This is a system-generated invoice.`,
     W / 2,
     284,
     { align: "center" },
   );
   doc.setTextColor(160, 140, 110);
-  doc.text("Mysuru Paakashale, Mysuru, Karnataka, India", W / 2, 290, {
+  doc.text(companyAddress, W / 2, 290, {
     align: "center",
   });
 

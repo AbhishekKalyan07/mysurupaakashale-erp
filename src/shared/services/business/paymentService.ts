@@ -308,7 +308,17 @@ class PaymentService {
           approvedDate: today,
         };
 
-        const pdf = generateInvoicePdf(invoiceData);
+        const { settingsRepository } = await import(
+          "../firestore/settingsRepository"
+        );
+        const businessSettings = await settingsRepository
+          .getBusinessSettings()
+          .catch(() => null);
+
+        const pdf = generateInvoicePdf(
+          invoiceData,
+          businessSettings?.companyProfile,
+        );
 
         // Auto-download the PDF in the admin's browser
         pdf.save(`Invoice-${invoiceNumber}.pdf`);
