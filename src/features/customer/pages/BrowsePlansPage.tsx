@@ -187,7 +187,7 @@ export function BrowsePlansPage() {
                       />
                       What's Included
                     </div>
-                    <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       <div>
                         <h4 className="font-semibold text-[15px] text-[#2D2323] flex items-center gap-1.5 mb-1">
                           <Coffee
@@ -270,7 +270,7 @@ export function BrowsePlansPage() {
                           state: { planId: plan.id },
                         })
                       }
-                      className={`w-full font-bold text-sm tracking-wide py-2.5 rounded-xl transition duration-200 ${
+                      className={`w-full min-h-[44px] flex items-center justify-center font-bold text-sm tracking-wide py-2.5 px-4 rounded-xl transition duration-200 ${
                         isRegular
                           ? "bg-[#C59A45] text-white hover:bg-yellow-600 shadow-md hover:shadow-lg"
                           : "border-2 border-[#893131] text-[#893131] hover:bg-[#893131] hover:text-white"

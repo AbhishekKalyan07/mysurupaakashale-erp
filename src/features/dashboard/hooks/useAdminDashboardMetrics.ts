@@ -157,6 +157,8 @@ export function useAdminDashboardMetrics() {
           unassigned = 0,
           failedDeliveries = 0;
         let revenue = 0;
+        const deliveredSubOrders = new Map<string, Order[]>();
+        let nonSubDeliveredRevenue = 0;
 
         let preparingCount = 0,
           packingCount = 0,
@@ -232,9 +234,55 @@ export function useAdminDashboardMetrics() {
           }
 
           if (data.status === "delivered") {
-            revenue += data.price || 0;
+            if (data.subscriptionId) {
+              const list = deliveredSubOrders.get(data.subscriptionId) || [];
+              list.push(data);
+              deliveredSubOrders.set(data.subscriptionId, list);
+            } else {
+              nonSubDeliveredRevenue += data.price || 0;
+            }
           }
         });
+
+        const MATRIX = {
+          basic: {
+            breakfast: 60,
+            lunch: 65,
+            dinner: 65,
+            breakfast_lunch: 115,
+            lunch_dinner: 115,
+            breakfast_dinner: 115,
+            breakfast_lunch_dinner: 159,
+          },
+          regular: {
+            breakfast: 60,
+            lunch: 85,
+            dinner: 85,
+            breakfast_lunch: 140,
+            lunch_dinner: 140,
+            breakfast_dinner: 140,
+            breakfast_lunch_dinner: 210,
+          },
+        };
+
+        for (const [_, orders] of Array.from(deliveredSubOrders.entries())) {
+          const first = orders[0];
+          const tier = (first.planTier || "regular") as "basic" | "regular";
+          const matrix = MATRIX[tier] || MATRIX.regular;
+          const meals = orders.map((o) => o.mealType);
+          const sortedMeals = [];
+          if (meals.includes("breakfast")) sortedMeals.push("breakfast");
+          if (meals.includes("lunch")) sortedMeals.push("lunch");
+          if (meals.includes("dinner")) sortedMeals.push("dinner");
+          const key = sortedMeals.join("_") as keyof typeof matrix;
+          const qty = first.mealQuantity || 1;
+          if (key && matrix[key] !== undefined) {
+            revenue += matrix[key] * qty;
+          } else {
+            revenue += orders.reduce((sum, o) => sum + (o.price || 0), 0);
+          }
+        }
+        revenue += nonSubDeliveredRevenue;
 
         const totalKitchenExpected =
           scheduled +

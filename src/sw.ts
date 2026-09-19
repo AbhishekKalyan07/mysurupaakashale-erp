@@ -1,6 +1,10 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from "workbox-core";
-import { createHandlerBoundToURL, precacheAndRoute } from "workbox-precaching";
+import {
+  createHandlerBoundToURL,
+  precacheAndRoute,
+  matchPrecache,
+} from "workbox-precaching";
 import {
   NavigationRoute,
   registerRoute,
@@ -93,10 +97,21 @@ registerRoute(
   new NetworkOnly(),
 );
 
-// Gracefully handle any fetch failures that slip past the registered routes,
-// preventing noisy "no-response" errors in the console.
-setCatchHandler(async ({ url }) => {
+// Gracefully handle any fetch failures that slip past the registered routes.
+// For document navigation requests while offline, fallback to precached SPA shell.
+setCatchHandler(async ({ request, url }) => {
   console.warn("[SW] Fetch failed for", url?.href);
+  if (
+    request &&
+    (request.destination === "document" || request.mode === "navigate")
+  ) {
+    const cachedShell =
+      (await matchPrecache("/index.html")) ||
+      (await matchPrecache("index.html"));
+    if (cachedShell) {
+      return cachedShell;
+    }
+  }
   return Response.error();
 });
 // Initialize Firebase Push Notifications safely
@@ -129,9 +144,15 @@ if (typeof indexedDB !== "undefined") {
         // If the backend sent a pure data payload that requires a custom notification:
         if (payload.data && payload.data.title) {
           const notificationTitle = payload.data.title;
-          const notificationOptions = {
+          const notificationOptions: NotificationOptions & {
+            vibrate?: number[];
+            badge?: string;
+          } = {
             body: payload.data.body,
-            icon: payload.data.icon || "/favicon.svg",
+            icon: payload.data.icon || "/pwa-192x192.png",
+            badge: "/favicon-32x32.png",
+            vibrate: [100, 50, 100],
+            tag: payload.data.tag || payload.data.id || undefined,
             data: payload.data, // preserve existing data for click handlers
           };
           self.registration.showNotification(

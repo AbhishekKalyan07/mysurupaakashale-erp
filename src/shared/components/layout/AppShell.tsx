@@ -31,7 +31,7 @@ export function AppShell() {
         <PremiumNavbar role={role} onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* Page content — bottom padding on mobile for bottom nav */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background px-4 py-5 lg:p-8 pb-[76px] lg:pb-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background px-4 py-5 lg:p-8 pb-[calc(60px+env(safe-area-inset-bottom,0px)+1.5rem)] lg:pb-8">
           <GlobalErrorBoundary>
             <div
               key={location.pathname}

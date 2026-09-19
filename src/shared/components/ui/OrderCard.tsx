@@ -193,6 +193,7 @@ function WorkflowTimeline({
             onClick={handleAction}
             isLoading={isAdvancing}
             disabled={isAdvancing}
+            className="min-h-[44px] text-xs sm:text-sm font-semibold"
           >
             {step.label}
           </PremiumButton>
@@ -202,6 +203,7 @@ function WorkflowTimeline({
             size="sm"
             variant="danger-tonal"
             onClick={() => setShowFail(!showFail)}
+            className="min-h-[44px] text-xs sm:text-sm font-semibold"
           >
             ✗ Failed
           </PremiumButton>
@@ -222,7 +224,7 @@ function WorkflowTimeline({
             <select
               value={failReason}
               onChange={(e) => setFailReason(e.target.value)}
-              className="w-full h-9 rounded-[10px] border border-danger/30 bg-white text-sm text-text px-3 focus:outline-none focus:ring-1 focus:ring-danger/40"
+              className="w-full h-11 rounded-[10px] border border-danger/30 bg-white text-sm text-text px-3 focus:outline-none focus:ring-1 focus:ring-danger/40"
             >
               <option value="customer_unavailable">Customer Unavailable</option>
               <option value="wrong_address">Wrong Address</option>
@@ -234,7 +236,7 @@ function WorkflowTimeline({
               placeholder="Notes (optional)"
               value={failNotes}
               onChange={(e) => setFailNotes(e.target.value)}
-              className="w-full h-16 rounded-[10px] border border-danger/30 bg-white text-sm text-text px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-danger/40"
+              className="w-full h-20 rounded-[10px] border border-danger/30 bg-white text-sm text-text px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-danger/40"
             />
             <div className="flex gap-2">
               <PremiumButton
@@ -242,6 +244,7 @@ function WorkflowTimeline({
                 variant="danger"
                 onClick={handleFail}
                 isLoading={isAdvancing}
+                className="min-h-[44px] flex-1 sm:flex-initial"
               >
                 Confirm Failure
               </PremiumButton>
@@ -249,6 +252,7 @@ function WorkflowTimeline({
                 size="sm"
                 variant="ghost"
                 onClick={() => setShowFail(false)}
+                className="min-h-[44px]"
               >
                 Cancel
               </PremiumButton>
@@ -521,15 +525,16 @@ export function OrderCard({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Delivery-specific quick actions */}
             {variant === "delivery" && customer?.phone && (
               <a
                 href={`tel:${customer.phone}`}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-success-subtle text-success hover:bg-success hover:text-white transition-colors"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-success-subtle text-success hover:bg-success hover:text-white transition-colors"
                 title="Call customer"
+                aria-label="Call customer"
               >
-                <Phone size={16} />
+                <Phone size={18} />
               </a>
             )}
             {variant === "delivery" && (addressCoords || address) && (
@@ -541,10 +546,11 @@ export function OrderCard({
                 }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-info-subtle text-info hover:bg-info hover:text-white transition-colors"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-info-subtle text-info hover:bg-info hover:text-white transition-colors"
                 title="Navigate"
+                aria-label="Navigate to address"
               >
-                <Navigation size={16} />
+                <Navigation size={18} />
               </a>
             )}
             {extraActions}
@@ -555,10 +561,10 @@ export function OrderCard({
                 expanded ? "Collapse order details" : "Expand order details"
               }
               onClick={() => setExpanded(!expanded)}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 transition-colors"
               title={expanded ? "Collapse" : "Expand"}
             >
-              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
           </div>
         </div>

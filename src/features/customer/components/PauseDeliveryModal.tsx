@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
-
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { toast } from "react-hot-toast";
+import { X } from "lucide-react";
 
 export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
   const todayStr = getTodayIST();
@@ -30,19 +31,29 @@ export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
         mealTypes: selectedMeals,
         reason: reason || "Customer requested pause",
       });
+      toast.success("Delivery pause scheduled successfully.");
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to pause delivery:", err);
-      alert("Failed to pause delivery.");
+      toast.error(err?.message || "Failed to pause delivery.");
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-background rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-primary/20">
-        <h2 className="text-2xl font-bold font-display text-primary mb-4">
-          Schedule Pause
-        </h2>
+      <div className="relative bg-background rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold font-display text-primary">
+            Schedule Pause
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <p className="text-sm font-sans text-text-muted mb-6 font-medium leading-relaxed bg-primary/5 p-4 rounded-xl border border-primary/10">
           Select a future date to pause deliveries. You can choose which
           specific meals to cancel for that day.
@@ -99,21 +110,59 @@ export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
               ))}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-primary/10">
-              <p className="text-xs font-sans text-text-muted">
-                {selectedMeals.length > 0 ? (
-                  <>
-                    You will only be billed for the meals that are actually
-                    delivered. These cancelled meals will not be included in
-                    your bill.
-                  </>
-                ) : (
-                  <span className="text-danger font-medium">
-                    Please select at least one meal to cancel.
-                  </span>
-                )}
-              </p>
-            </div>
+            {(() => {
+              const preferredMeals = (subscription?.mealPreferences || []).map(
+                (p: any) => p.mealType,
+              );
+              const remainingMeals = preferredMeals.filter(
+                (m: string) => !selectedMeals.includes(m),
+              );
+              const sortedRemaining = [];
+              if (remainingMeals.includes("breakfast"))
+                sortedRemaining.push("breakfast");
+              if (remainingMeals.includes("lunch"))
+                sortedRemaining.push("lunch");
+              if (remainingMeals.includes("dinner"))
+                sortedRemaining.push("dinner");
+              const remainingKey = sortedRemaining.join("_");
+              const matrix = subscription?.pricingMatrixSnapshot as
+                | Record<string, number>
+                | undefined;
+              const remainingPrice =
+                matrix && matrix[remainingKey] !== undefined
+                  ? matrix[remainingKey] * (subscription.quantity || 1)
+                  : sortedRemaining.length === 0
+                    ? 0
+                    : (subscription.pricePerDaySnapshot || 0) *
+                      (subscription.quantity || 1);
+
+              return (
+                <div className="mt-4 pt-3 border-t border-primary/10 space-y-2">
+                  {selectedMeals.length > 0 ? (
+                    <div className="bg-primary/10 p-3 rounded-lg flex items-center justify-between">
+                      <span className="text-xs font-sans text-primary font-medium">
+                        Updated bill for this date:
+                      </span>
+                      <span className="font-bold font-mono text-sm text-primary">
+                        ₹{remainingPrice}
+                      </span>
+                    </div>
+                  ) : null}
+                  <p className="text-xs font-sans text-text-muted">
+                    {selectedMeals.length > 0 ? (
+                      <>
+                        You will only be billed for delivered meals. Cancelled
+                        meals are not included.
+                      </>
+                    ) : (
+                      <span className="text-danger font-medium">
+                        Please select at least one meal to cancel.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -128,16 +177,16 @@ export function PauseDeliveryModal({ subscription, onClose, skipDay }: any) {
           className="w-full border border-primary/20 rounded-xl px-4 py-3 text-sm font-sans mb-8 bg-background text-primary focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold shadow-sm placeholder:text-text-muted/50"
         />
 
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Button
             variant="secondary"
-            className="flex-1 font-bold"
+            className="flex-1 font-bold min-h-[44px]"
             onClick={onClose}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 font-bold"
+            className="flex-1 font-bold min-h-[44px]"
             onClick={handlePause}
             isLoading={skipDay.isPending}
             disabled={!date || selectedMeals.length === 0}

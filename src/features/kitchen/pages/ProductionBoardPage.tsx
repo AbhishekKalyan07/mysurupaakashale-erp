@@ -115,10 +115,10 @@ export function ProductionBoardPage() {
       <KitchenSummaryCards progress={progress} />
 
       {/* ── Tabs ── */}
-      <div className="flex border-b border-rice-200">
+      <div className="flex border-b border-rice-200 overflow-x-auto scrollbar-none whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveTab("summary")}
-          className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
+          className={`min-h-[44px] px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors shrink-0 ${
             activeTab === "summary"
               ? "border-leaf-600 text-leaf-700"
               : "border-transparent text-ink-500 hover:text-ink-700"
@@ -128,7 +128,7 @@ export function ProductionBoardPage() {
         </button>
         <button
           onClick={() => setActiveTab("production")}
-          className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
+          className={`min-h-[44px] px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors shrink-0 ${
             activeTab === "production"
               ? "border-leaf-600 text-leaf-700"
               : "border-transparent text-ink-500 hover:text-ink-700"
@@ -138,7 +138,7 @@ export function ProductionBoardPage() {
         </button>
         <button
           onClick={() => setActiveTab("packing")}
-          className={`px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors ${
+          className={`min-h-[44px] px-4 py-2 font-display font-bold text-sm border-b-2 transition-colors shrink-0 ${
             activeTab === "packing"
               ? "border-turmeric-600 text-turmeric-700"
               : "border-transparent text-ink-500 hover:text-ink-700"

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { notificationRepository } from "../notificationRepository";
-import { getDocs } from "firebase/firestore";
+import { getDocs, writeBatch } from "firebase/firestore";
 
 describe("notificationRepository", () => {
   beforeEach(() => {
@@ -139,6 +139,46 @@ describe("notificationRepository", () => {
         id: "snap-1",
       } as any);
       expect(getDocs).toHaveBeenCalled();
+    });
+  });
+
+  describe("createBatch", () => {
+    it("returns 0 when payloads is empty", async () => {
+      const count = await notificationRepository.createBatch([]);
+      expect(count).toBe(0);
+    });
+
+    it("batches payloads and commits write batch", async () => {
+      const mockSet = vi.fn();
+      const mockCommit = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(writeBatch).mockReturnValue({
+        set: mockSet,
+        commit: mockCommit,
+      } as any);
+
+      const count = await notificationRepository.createBatch([
+        {
+          recipientId: "user-batch-1",
+          recipientRole: "customer",
+          channel: "in_app",
+          type: "system_alert",
+          title: "Batch Title",
+          message: "Batch Message",
+        },
+      ]);
+
+      expect(count).toBe(1);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          recipientId: "user-batch-1",
+          inAppStatus: "unread",
+          status: "pending",
+          channel: "in_app",
+          priority: "normal",
+        }),
+      );
+      expect(mockCommit).toHaveBeenCalled();
     });
   });
 });

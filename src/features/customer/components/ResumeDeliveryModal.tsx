@@ -118,11 +118,12 @@ export function ResumeDeliveryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <Card className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 relative max-h-[90dvh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-ink-500 hover:text-ink-600"
+          aria-label="Close dialog"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 text-ink-500 hover:text-ink-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <XCircle size={20} />
         </button>
@@ -212,13 +213,13 @@ export function ResumeDeliveryModal({
         <div className="flex gap-3">
           <Button
             variant="secondary"
-            className="flex-1 font-sans"
+            className="flex-1 font-sans min-h-[44px]"
             onClick={onClose}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 font-sans"
+            className="flex-1 font-sans min-h-[44px]"
             onClick={handleResume}
             isLoading={loading}
             disabled={

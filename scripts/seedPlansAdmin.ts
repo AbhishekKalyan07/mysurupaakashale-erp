@@ -21,7 +21,16 @@ const db = getFirestore();
 async function seedPlans() {
   console.log('Seeding Meal Plans via Admin SDK...');
 
-  const basicRef = db.collection('mealPlans').doc();
+  // Deactivate any existing legacy plans first
+  const existingSnap = await db.collection('mealPlans').get();
+  for (const doc of existingSnap.docs) {
+    if (doc.id !== 'basic-plan' && doc.id !== 'regular-plan') {
+      await doc.ref.update({ isActive: false });
+      console.log(`Deactivated legacy plan: ${doc.id}`);
+    }
+  }
+
+  const basicRef = db.collection('mealPlans').doc('basic-plan');
   await basicRef.set({
     tier: 'basic',
     name: 'Basic Plan',
@@ -50,7 +59,7 @@ async function seedPlans() {
   });
   console.log('Created Basic Plan (159/day)');
 
-  const regularRef = db.collection('mealPlans').doc();
+  const regularRef = db.collection('mealPlans').doc('regular-plan');
   await regularRef.set({
     tier: 'regular',
     name: 'Regular Plan',

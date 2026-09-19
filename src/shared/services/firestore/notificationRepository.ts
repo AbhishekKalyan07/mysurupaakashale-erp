@@ -18,6 +18,8 @@ import {
   query,
   collection,
   serverTimestamp,
+  writeBatch,
+  doc,
   type QueryConstraint,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -65,6 +67,52 @@ class NotificationRepository extends BaseRepository<Notification> {
       createdBy: data.createdBy ?? "system",
     };
     return this.create(notification as unknown as Notification, id);
+  }
+
+  /**
+   * Batch creates multiple notifications in chunks of 400.
+   */
+  async createBatch(payloads: CreateNotificationPayload[]): Promise<number> {
+    if (!payloads || payloads.length === 0) return 0;
+    const BATCH_SIZE = 400;
+    let count = 0;
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+
+      for (const data of chunk) {
+        const notifRef = doc(collection(db, "notifications"));
+        const id = notifRef.id;
+        const notification = {
+          ...data,
+          id,
+          inAppStatus: "unread" as const,
+          status: "pending" as const,
+          channel: data.channel ?? "in_app",
+          priority: data.priority ?? "normal",
+          retryCount: 0,
+          maxRetries: 3,
+          lastRetryAt: null,
+          errorMessage: null,
+          createdAt: serverTimestamp() as unknown as Timestamp,
+          sentAt: null,
+          readAt: null,
+          deliveredAt: null,
+          expiresAt: data.expiresAt ?? null,
+          relatedEntityType: data.relatedEntityType ?? null,
+          relatedEntityId: data.relatedEntityId ?? null,
+          metadata: data.metadata ?? {},
+          createdBy: data.createdBy ?? "system",
+        };
+        batch.set(notifRef, notification);
+        count++;
+      }
+
+      await batch.commit();
+    }
+
+    return count;
   }
 
   /** All in-app notifications for a user, newest first. */

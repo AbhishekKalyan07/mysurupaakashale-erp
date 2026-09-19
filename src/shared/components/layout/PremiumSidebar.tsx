@@ -30,7 +30,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
     }
   }, [isCollapsed]);
 
-  const desktopWidth = isCollapsed ? "w-[72px]" : "w-[260px]";
+  const desktopWidth = isCollapsed ? "lg:w-[72px]" : "lg:w-[260px]";
 
   return (
     <>
@@ -69,7 +69,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
             <div
               className={cn(
                 "leading-tight overflow-hidden whitespace-nowrap transition-all duration-300",
-                isCollapsed ? "opacity-0 w-0" : "opacity-100 w-auto",
+                isCollapsed ? "lg:opacity-0 lg:w-0" : "opacity-100 w-auto",
               )}
             >
               <p className="font-display text-[14px] font-bold text-primary tracking-wide leading-tight">
@@ -97,10 +97,10 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           {/* Mobile close button */}
           <button
             onClick={onClose}
-            className="lg:hidden flex w-7 h-7 items-center justify-center rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors shrink-0 ml-auto"
+            className="lg:hidden flex w-11 h-11 min-w-[44px] min-h-[44px] items-center justify-center rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors shrink-0 ml-auto"
             aria-label="Close Sidebar"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
@@ -115,7 +115,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                 <div
                   className={cn(
                     "px-3 text-[9px] font-bold uppercase tracking-[0.18em] text-primary/40 mb-1 overflow-hidden transition-all duration-300",
-                    isCollapsed ? "opacity-0 h-0" : "opacity-100 h-auto",
+                    isCollapsed ? "lg:opacity-0 lg:h-0" : "opacity-100 h-auto",
                   )}
                 >
                   {group.groupLabel}
@@ -136,7 +136,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                         isActive
                           ? "bg-primary/10 text-primary"
                           : "text-primary/60 hover:bg-primary/5 hover:text-primary",
-                        isCollapsed ? "justify-center" : "justify-start",
+                        isCollapsed ? "lg:justify-center" : "justify-start",
                       )
                     }
                   >
@@ -159,7 +159,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                           className={cn(
                             "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300",
                             isCollapsed
-                              ? "opacity-0 w-0"
+                              ? "lg:opacity-0 lg:w-0"
                               : "opacity-100 w-auto",
                           )}
                         >
@@ -179,7 +179,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           <div
             className={cn(
               "flex items-center gap-2 transition-opacity duration-300",
-              isCollapsed ? "opacity-0" : "opacity-100",
+              isCollapsed ? "lg:opacity-0" : "opacity-100",
             )}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse shrink-0" />

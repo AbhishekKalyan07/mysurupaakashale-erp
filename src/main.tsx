@@ -8,28 +8,47 @@ import { registerSW } from "virtual:pwa-register";
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
   if (!navigator.onLine) {
-    alert("You are offline and this section is not cached yet.");
-  } else {
-    if (
-      confirm(
-        "A required app component was updated. Please click OK to refresh.",
-      )
-    ) {
-      // Unregister service workers to break out of stale cache loop, then reload
-      if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
-        navigator.serviceWorker
-          .getRegistrations()
-          .then((registrations) => {
-            return Promise.all(registrations.map((r) => r.unregister()));
-          })
-          .catch(() => {})
-          .finally(() => {
-            window.location.reload();
-          });
-      } else {
-        window.location.reload();
-      }
+    import("react-hot-toast")
+      .then(({ default: toast }) => {
+        toast.error("You are offline. Connect to the internet to open this page.", {
+          id: "offline-preload-error",
+          duration: 5000,
+        });
+      })
+      .catch(() => {
+        console.warn("[Vite] Chunk preload failed: offline");
+      });
+    return;
+  }
+
+  // When online, chunk failed to load because a new release changed chunk hashes.
+  // Throttle reloads via sessionStorage to break out of stale cache loop without infinite cycling.
+  const lastReload = sessionStorage.getItem("pwa_last_preload_reload");
+  const now = Date.now();
+  if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+    sessionStorage.setItem("pwa_last_preload_reload", now.toString());
+    if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
+        .catch(() => {})
+        .finally(() => {
+          window.location.reload();
+        });
+    } else {
+      window.location.reload();
     }
+  } else {
+    import("react-hot-toast")
+      .then(({ default: toast }) => {
+        toast.error("A new update is available. Please refresh the page.", {
+          id: "chunk-update-error",
+          duration: 6000,
+        });
+      })
+      .catch(() => {
+        console.error("[Vite] Repeated chunk preload failure");
+      });
   }
 });
 

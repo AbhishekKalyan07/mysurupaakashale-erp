@@ -2,24 +2,52 @@ import { useState, useEffect } from "react";
 import { X, Smartphone, Download } from "lucide-react";
 import { PremiumButton } from "@/shared/components/ui/PremiumButton";
 
-// Global variable to catch the install prompt event
-let deferredPrompt: any = null;
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+}
 
-window.addEventListener("beforeinstallprompt" as any, (e: any) => {
-  // Prevent Chrome 67 and earlier from automatically showing the prompt
-  e.preventDefault();
-  // Stash the event so it can be triggered later.
-  deferredPrompt = e;
-});
+// Module-level prompt capture and reactive listeners
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+const promptListeners = new Set<(e: BeforeInstallPromptEvent | null) => void>();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: Event) => {
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    promptListeners.forEach((fn) => fn(globalDeferredPrompt));
+  });
+
+  window.addEventListener("appinstalled", () => {
+    globalDeferredPrompt = null;
+    promptListeners.forEach((fn) => fn(null));
+    try {
+      localStorage.setItem("pwa-installed", "true");
+    } catch {
+      // Ignore localStorage errors
+    }
+  });
+}
 
 export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-
-  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(
+    globalDeferredPrompt,
+  );
 
   useEffect(() => {
-    // Check if app is already installed
+    // 1. Check if already marked as installed
+    try {
+      if (localStorage.getItem("pwa-installed") === "true") {
+        return;
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+
+    // 2. Check if running in standalone mode
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
@@ -28,12 +56,12 @@ export function PWAInstallPrompt() {
       return;
     }
 
-    // Detect iOS
+    // 3. Detect iOS
     const ios =
       /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(ios);
 
-    // Check if dismissed recently
+    // 4. Check if dismissed recently (< 7 days)
     let dismissed: string | null = null;
     try {
       dismissed = localStorage.getItem("pwa-install-dismissed");
@@ -50,25 +78,57 @@ export function PWAInstallPrompt() {
       }
     }
 
-    // Logic to show prompt:
+    // 5. Timer to show prompt
     const timer = setTimeout(() => {
       setShowPrompt(true);
     }, 3000);
 
-    return () => clearTimeout(timer);
+    // 6. Listen to future beforeinstallprompt or appinstalled events
+    const handlePromptChange = (evt: BeforeInstallPromptEvent | null) => {
+      setPromptEvent(evt);
+      if (!evt) {
+        setShowPrompt(false);
+      }
+    };
+    promptListeners.add(handlePromptChange);
+
+    // 7. Listen for standalone media changes
+    const mql = window.matchMedia("(display-mode: standalone)");
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setShowPrompt(false);
+      }
+    };
+    if (mql && typeof mql.addEventListener === "function") {
+      mql.addEventListener("change", handleMediaChange);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      promptListeners.delete(handlePromptChange);
+      if (mql && typeof mql.removeEventListener === "function") {
+        mql.removeEventListener("change", handleMediaChange);
+      }
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+    if (promptEvent) {
+      promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
       if (outcome === "accepted") {
         setShowPrompt(false);
+        try {
+          localStorage.setItem("pwa-installed", "true");
+        } catch {
+          // Ignore localStorage errors
+        }
       }
-      deferredPrompt = null;
-    } else if (isIOS) {
-      // iOS doesn't support programmatic install, reveal instructions
-      setShowIOSInstructions(true);
+      globalDeferredPrompt = null;
+      setPromptEvent(null);
+    } else {
+      // iOS or browsers where beforeinstallprompt was not dispatched
+      setShowInstructions(true);
     }
   };
 
@@ -86,7 +146,7 @@ export function PWAInstallPrompt() {
   return (
     <aside
       aria-label="App Installation Prompt"
-      className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom duration-500 sm:bottom-4 sm:left-auto sm:right-4 sm:w-96"
+      className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] left-3 right-3 z-40 animate-in slide-in-from-bottom duration-500 sm:bottom-4 sm:left-auto sm:right-4 sm:w-96"
     >
       <div className="bg-background rounded-2xl shadow-2xl border border-primary/20 p-4 relative overflow-hidden">
         {/* Background accent */}
@@ -94,7 +154,7 @@ export function PWAInstallPrompt() {
 
         <button
           onClick={handleDismiss}
-          className="absolute top-2 right-2 p-2 text-text-muted hover:text-primary transition-colors"
+          className="absolute top-2 right-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-primary transition-colors"
           aria-label="Close install prompt"
         >
           <X className="w-5 h-5" />
@@ -115,22 +175,35 @@ export function PWAInstallPrompt() {
             </p>
 
             <div className="mt-4">
-              {isIOS && showIOSInstructions ? (
-                <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary animate-in fade-in slide-in-from-top-2">
-                  <span className="block font-bold mb-1">
-                    iOS Install Instructions:
-                  </span>
-                  Tap the{" "}
-                  <span className="inline-block px-1 bg-white rounded border shadow-sm">
-                    Share
-                  </span>{" "}
-                  icon at the bottom of Safari, then tap{" "}
-                  <strong>Add to Home Screen</strong>.
-                </div>
+              {showInstructions ? (
+                isIOS ? (
+                  <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary animate-in fade-in slide-in-from-top-2">
+                    <span className="block font-bold mb-1">
+                      iOS Install Instructions:
+                    </span>
+                    Tap the{" "}
+                    <span className="inline-block px-1 bg-white rounded border shadow-sm">
+                      Share
+                    </span>{" "}
+                    icon at the bottom of Safari, then tap{" "}
+                    <strong>Add to Home Screen</strong>.
+                  </div>
+                ) : (
+                  <div className="bg-primary/5 rounded-lg p-3 text-xs font-sans text-primary animate-in fade-in slide-in-from-top-2">
+                    <span className="block font-bold mb-1">
+                      How to Install:
+                    </span>
+                    Tap your browser menu (
+                    <span className="font-mono font-bold">⋮</span> or{" "}
+                    <span className="font-mono font-bold">⋯</span>) in the top
+                    bar, then select <strong>Install app</strong> or{" "}
+                    <strong>Add to Home screen</strong>.
+                  </div>
+                )
               ) : (
                 <PremiumButton
                   onClick={() => void handleInstallClick()}
-                  className="w-full font-bold"
+                  className="w-full min-h-[44px] font-bold"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Install App

@@ -247,9 +247,10 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
           <button
             type="button"
             onClick={() => setTempAddress(null)}
-            className="p-1 text-ink-500 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
+            aria-label="Close pin picker"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-500 hover:text-ink-700 hover:bg-rice-200 rounded-lg transition"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -262,14 +263,14 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
           <button
             type="button"
             onClick={() => setTempAddress(null)}
-            className="px-4 py-2 text-xs font-bold text-ink-600 hover:bg-rice-200 rounded-lg transition"
+            className="min-h-[44px] px-4 py-2 text-xs sm:text-sm font-bold text-ink-600 hover:bg-rice-200 rounded-lg transition flex items-center justify-center"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirmLocation}
-            className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition"
+            className="min-h-[44px] px-4 py-2 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition flex items-center justify-center"
           >
             Confirm Exact Location
           </button>
@@ -343,19 +344,20 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your street, landmark, area…"
-            className="w-full pl-9 pr-9 py-2.5 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-500 transition"
+            className="w-full h-11 pl-9 pr-10 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-500 transition"
           />
           {query && (
             <button
               type="button"
+              aria-label="Clear search"
               onClick={() => {
                 setQuery("");
                 setSuggestions([]);
                 setShowDropdown(false);
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-500 hover:text-ink-700"
+              className="absolute right-0 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-500 hover:text-ink-700"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           )}
         </div>

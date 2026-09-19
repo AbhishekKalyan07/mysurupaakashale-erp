@@ -71,13 +71,19 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/50 backdrop-blur-sm p-4">
-      <Card className="w-full max-w-md p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/50 backdrop-blur-sm p-3 sm:p-4">
+      <Card className="w-full max-w-md p-5 sm:p-6 max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2 text-ink-900">
             <MessageSquareWarning className="text-amber-500" /> Report an Issue
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
             <X size={20} />
           </Button>
         </div>
@@ -89,7 +95,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
             </label>
             <select
               {...register("category")}
-              className="w-full rounded-md border border-rice-300 bg-white px-3 py-2 text-sm focus:border-leaf-500 focus:outline-none focus:ring-1 focus:ring-leaf-500"
+              className="w-full h-11 rounded-md border border-rice-300 bg-white px-3 py-2 text-sm focus:border-leaf-500 focus:outline-none focus:ring-1 focus:ring-leaf-500"
             >
               <option value="food_quality">Food Quality</option>
               <option value="delivery_issue">Delivery Issue / Delay</option>
@@ -126,10 +132,15 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
               variant="ghost"
               onClick={onClose}
               disabled={isSubmitting}
+              className="min-h-[44px] flex-1 sm:flex-initial"
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              className="min-h-[44px] flex-1 sm:flex-initial"
+            >
               Submit Feedback
             </Button>
           </div>

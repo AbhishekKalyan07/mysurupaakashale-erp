@@ -104,4 +104,59 @@ describe("PWAInstallPrompt", () => {
 
     expect(container?.textContent).not.toContain("Get the App");
   });
+
+  it("does not render if already marked as installed", () => {
+    localStorage.setItem("pwa-installed", "true");
+
+    act(() => {
+      root?.render(<PWAInstallPrompt />);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(container?.textContent).not.toContain("Get the App");
+  });
+
+  it("shows fallback instructions when Install App is clicked without native prompt", () => {
+    act(() => {
+      root?.render(<PWAInstallPrompt />);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(container?.textContent).toContain("Get the App");
+
+    const installBtn = container?.querySelector("button.font-bold") as HTMLButtonElement;
+    expect(installBtn).not.toBeNull();
+
+    act(() => {
+      installBtn.click();
+    });
+
+    expect(container?.textContent).toContain("How to Install");
+    expect(container?.textContent).toContain("browser menu");
+  });
+
+  it("dismisses prompt when appinstalled event fires", () => {
+    act(() => {
+      root?.render(<PWAInstallPrompt />);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(container?.textContent).toContain("Get the App");
+
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+
+    expect(container?.textContent).not.toContain("Get the App");
+  });
 });
+

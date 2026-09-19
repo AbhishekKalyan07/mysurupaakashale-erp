@@ -487,23 +487,48 @@ export function CustomerDashboardPage() {
               {todayOrders && todayOrders.length > 0 && (
                 <span className="text-xs font-sans font-bold text-gold bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
                   Total: ₹
-                  {(subscription
-                    ? calculateAccruedBill(
-                        todayOrders.filter(
-                          (o) => o.subscriptionId === subscription.id,
-                        ),
-                        subscription,
-                      )
-                    : 0) +
-                    todayOrders
+                  {(() => {
+                    if (!subscription) {
+                      return todayOrders
+                        .filter(
+                          (o) =>
+                            o.status !== "cancelled" &&
+                            o.status !== "skipped",
+                        )
+                        .reduce((sum, order) => sum + (order.price || 0), 0);
+                    }
+                    const activeTodayOrders = todayOrders.filter(
+                      (o) =>
+                        o.subscriptionId === subscription.id &&
+                        o.status !== "cancelled" &&
+                        o.status !== "skipped",
+                    );
+                    const meals = activeTodayOrders.map((o) => o.mealType);
+                    const sortedMeals = [];
+                    if (meals.includes("breakfast")) sortedMeals.push("breakfast");
+                    if (meals.includes("lunch")) sortedMeals.push("lunch");
+                    if (meals.includes("dinner")) sortedMeals.push("dinner");
+                    const key = sortedMeals.join("_");
+                    const matrix = subscription.pricingMatrixSnapshot as
+                      | Record<string, number>
+                      | undefined;
+                    const subCost =
+                      matrix && matrix[key] !== undefined
+                        ? matrix[key] * (subscription.quantity || 1)
+                        : sortedMeals.length === 0
+                          ? 0
+                          : (subscription.pricePerDaySnapshot || 0) *
+                            (subscription.quantity || 1);
+                    const nonSubCost = todayOrders
                       .filter(
                         (o) =>
                           o.status !== "cancelled" &&
                           o.status !== "skipped" &&
-                          (!subscription ||
-                            o.subscriptionId !== subscription.id),
+                          o.subscriptionId !== subscription.id,
                       )
-                      .reduce((sum, order) => sum + (order.price || 0), 0)}
+                      .reduce((sum, order) => sum + (order.price || 0), 0);
+                    return subCost + nonSubCost;
+                  })()}
                 </span>
               )}
             </h3>

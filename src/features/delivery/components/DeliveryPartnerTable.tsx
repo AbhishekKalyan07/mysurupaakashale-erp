@@ -113,7 +113,7 @@ export function DeliveryPartnerTable({
           <Button
             variant="success"
             size="lg"
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto min-h-[48px] text-base font-bold"
             onClick={onCompleteRoute}
             isLoading={isCompletingRoute}
           >

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
-
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { toast } from "react-hot-toast";
+import { X } from "lucide-react";
 
 export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
   const now = new Date();
@@ -45,19 +46,29 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
         mealTypes: selectedMeals,
         reason: reason || "Customer requested same-day cancel",
       });
+      toast.success("Meal cancellation recorded for today.");
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to cancel today:", err);
-      alert("Failed to cancel today.");
+      toast.error(err?.message || "Failed to cancel today.");
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-background rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-primary/20">
-        <h2 className="text-2xl font-bold font-display text-danger mb-4">
-          Cancel Today's Meals
-        </h2>
+      <div className="relative bg-background rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold font-display text-danger">
+            Cancel Today's Meals
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         {eligibleMeals.length === 0 ? (
           <div className="mb-6">
@@ -95,21 +106,56 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
                 </label>
               ))}
             </div>
-            <div className="mt-4 pt-3 border-t border-primary/10">
-              <p className="text-xs font-sans text-text-muted">
-                {selectedMeals.length > 0 ? (
-                  <>
-                    You will only be billed for the meals that are actually
-                    delivered. These cancelled meals will not be included in
-                    your bill.
-                  </>
-                ) : (
-                  <span className="text-danger font-medium">
-                    Please select at least one meal to cancel.
-                  </span>
-                )}
-              </p>
-            </div>
+            {(() => {
+              const remainingMeals = preferredMeals.filter(
+                (m: string) => !selectedMeals.includes(m),
+              );
+              const sortedRemaining = [];
+              if (remainingMeals.includes("breakfast"))
+                sortedRemaining.push("breakfast");
+              if (remainingMeals.includes("lunch"))
+                sortedRemaining.push("lunch");
+              if (remainingMeals.includes("dinner"))
+                sortedRemaining.push("dinner");
+              const remainingKey = sortedRemaining.join("_");
+              const matrix = subscription?.pricingMatrixSnapshot as
+                | Record<string, number>
+                | undefined;
+              const remainingPrice =
+                matrix && matrix[remainingKey] !== undefined
+                  ? matrix[remainingKey] * (subscription.quantity || 1)
+                  : sortedRemaining.length === 0
+                    ? 0
+                    : (subscription.pricePerDaySnapshot || 0) *
+                      (subscription.quantity || 1);
+
+              return (
+                <div className="mt-4 pt-3 border-t border-primary/10 space-y-2">
+                  {selectedMeals.length > 0 ? (
+                    <div className="bg-primary/10 p-3 rounded-lg flex items-center justify-between">
+                      <span className="text-xs font-sans text-primary font-medium">
+                        Updated bill for today:
+                      </span>
+                      <span className="font-bold font-mono text-sm text-primary">
+                        ₹{remainingPrice}
+                      </span>
+                    </div>
+                  ) : null}
+                  <p className="text-xs font-sans text-text-muted">
+                    {selectedMeals.length > 0 ? (
+                      <>
+                        You will only be billed for delivered meals. Cancelled
+                        meals are not included.
+                      </>
+                    ) : (
+                      <span className="text-danger font-medium">
+                        Please select at least one meal to cancel.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -128,17 +174,17 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
           </>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Button
             variant="secondary"
-            className="flex-1 font-bold"
+            className="flex-1 font-bold min-h-[44px]"
             onClick={onClose}
           >
             Close
           </Button>
           {eligibleMeals.length > 0 && (
             <Button
-              className="flex-1 font-bold !bg-danger hover:!bg-danger-dark !text-white !border-danger-dark"
+              className="flex-1 font-bold min-h-[44px] !bg-danger hover:!bg-danger-dark !text-white !border-danger-dark"
               onClick={handleCancel}
               isLoading={skipDay.isPending}
               disabled={selectedMeals.length === 0}
