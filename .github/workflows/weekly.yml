@@ -2,8 +2,8 @@ name: Weekly Automation Tasks
 
 on:
   schedule:
-    # Runs at 18:30 UTC on Sunday (which is 00:00 IST Monday morning, capturing the completed week)
-    - cron: '30 18 * * 0'
+    # Runs at 18:35 UTC on Sunday (which is 00:05 IST Monday morning, capturing the completed week)
+    - cron: '35 18 * * 0'
   workflow_dispatch:
 
 jobs:

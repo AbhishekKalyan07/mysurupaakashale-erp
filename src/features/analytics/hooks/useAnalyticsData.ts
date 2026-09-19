@@ -15,7 +15,7 @@ import { paymentRepository } from "@/shared/services/firestore/paymentRepository
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, getHourInTimezone } from "@/shared/lib/date";
 import { analyticsRepository } from "@/shared/services/firestore/analyticsRepository";
 
 export type DateRangeFilter =
@@ -267,9 +267,10 @@ export function useAnalyticsData(
             }
 
             if (o.createdAt) {
-              const hr = (o.createdAt as any).toDate
-                ? (o.createdAt as any).toDate().getHours()
-                : new Date((o.createdAt as any).seconds * 1000).getHours();
+              const orderDate = (o.createdAt as any).toDate
+                ? (o.createdAt as any).toDate()
+                : new Date((o.createdAt as any).seconds * 1000);
+              const hr = getHourInTimezone(orderDate);
               hourCount[hr.toString()] = (hourCount[hr.toString()] || 0) + 1;
             }
           }

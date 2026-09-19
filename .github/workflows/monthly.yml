@@ -2,8 +2,8 @@ name: Monthly Automation Tasks
 
 on:
   schedule:
-    # 18:30 UTC is 00:00 IST. We run on the 28th-31st and conditionally execute if tomorrow is the 1st.
-    - cron: '30 18 28-31 * *'
+    # 18:35 UTC is 00:05 IST on 1st. We run on the 28th-31st and conditionally execute if tomorrow is the 1st in UTC.
+    - cron: '35 18 28-31 * *'
   workflow_dispatch:
     inputs:
       target_month:

@@ -249,7 +249,7 @@ export function useNotificationHistory(
   const cursorId = lastDocSnap?.id ?? "page-0";
 
   return useQuery({
-    queryKey: queryKeys.notifications.adminHistory(cursorId, filterKey),
+    queryKey: queryKeys.notifications.adminHistory(cursorId, filterKey, pageSize),
     queryFn: async (): Promise<{
       notifications: Notification[];
       lastDoc: QueryDocumentSnapshot<Notification> | null;

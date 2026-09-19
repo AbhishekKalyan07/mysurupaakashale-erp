@@ -42,7 +42,7 @@ export function parseFirestoreDate(ts: unknown): Date | null {
  * Returns today's date as YYYY-MM-DD in Asia/Kolkata timezone.
  * Guarantees frontend and backend business date string alignment.
  */
-export { getTodayInTimezone as getTodayIST } from "@/shared/lib/date";
+export { getTodayInTimezone as getTodayIST, getHourInTimezone } from "@/shared/lib/date";
 
 /**
  * Returns which meal types for a given date are still modifiable

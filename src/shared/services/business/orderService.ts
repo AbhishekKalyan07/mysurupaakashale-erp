@@ -2,6 +2,7 @@ import { Timestamp } from "firebase/firestore";
 import {
   getDoc,
   writeBatch,
+  runTransaction,
   serverTimestamp,
   where,
   doc,
@@ -71,7 +72,12 @@ class OrderService {
    */
   async generateDailyOrders(
     dateOverride?: string,
-  ): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    ordersGenerated: number;
+    unassignedOrders?: number;
+  }> {
     const today = dateOverride || getTodayInTimezone();
 
     const isSunday = new Date(`${today}T00:00:00Z`).getUTCDay() === 0;
@@ -88,24 +94,29 @@ class OrderService {
 
     let totalGenerated = 0;
     let totalFailed = 0;
+    let totalUnassigned = 0;
     try {
       const bRes = await this.generateBreakfastOrders(today);
       totalGenerated += bRes.generated;
       totalFailed += bRes.failed;
+      totalUnassigned += bRes.unassigned || 0;
 
       const lRes = await this.generateLunchOrders(today);
       totalGenerated += lRes.generated;
       totalFailed += lRes.failed;
+      totalUnassigned += lRes.unassigned || 0;
 
       const dRes = await this.generateDinnerOrders(today);
       totalGenerated += dRes.generated;
       totalFailed += dRes.failed;
+      totalUnassigned += dRes.unassigned || 0;
 
       if (totalFailed > 0) {
         return {
           success: false,
           message: `Order generation completed with failures. Generated: ${totalGenerated}, Failed: ${totalFailed}.`,
           ordersGenerated: totalGenerated,
+          ...(totalUnassigned > 0 ? { unassignedOrders: totalUnassigned } : {}),
         };
       }
     } catch (err) {
@@ -117,6 +128,9 @@ class OrderService {
     }
 
     if (totalGenerated === 0) {
+      console.log(
+        `[orderService] 0 new orders generated for ${today}. Either all active subscriptions already have orders for this date, or no active subscriptions exist.`,
+      );
       return {
         success: true,
         message: `0 new orders generated. (Orders may have already been generated for today)`,
@@ -124,30 +138,37 @@ class OrderService {
       };
     }
 
+    if (totalUnassigned > 0) {
+      console.warn(
+        `[orderService] ${totalUnassigned} orders were generated without a delivery partner assigned for ${today}. Please assign drivers in the Admin Orders dashboard.`,
+      );
+    }
+
     return {
       success: true,
       message: `Successfully generated ${totalGenerated} new orders.`,
       ordersGenerated: totalGenerated,
+      ...(totalUnassigned > 0 ? { unassignedOrders: totalUnassigned } : {}),
     };
   }
 
   async generateBreakfastOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "breakfast");
   }
 
   async generateLunchOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "lunch");
   }
 
   async generateDinnerOrders(
     dateOverride?: string,
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     const today = dateOverride || getTodayInTimezone();
     return this.generateMealOrders(today, "dinner");
   }
@@ -155,7 +176,7 @@ class OrderService {
   private async generateMealOrders(
     today: string,
     mealType: "breakfast" | "lunch" | "dinner",
-  ): Promise<{ generated: number; failed: number }> {
+  ): Promise<{ generated: number; failed: number; unassigned?: number }> {
     // ── Holiday Guard ─────────────────────────────────────────────────────────
     // Must be the first check before ANY batch is built, any data fetched,
     // or any run record created. This is the application-level defence.
@@ -184,6 +205,7 @@ class OrderService {
     let ordersSkipped = 0;
     let ordersCancelled = 0;
     let ordersFailed = 0;
+    let ordersUnassigned = 0;
 
     await orderGenerationRunRepository.create(
       {
@@ -332,6 +354,7 @@ class OrderService {
             success = true;
 
             if (!order.deliveryPartnerId) {
+              ordersUnassigned++;
               const actor = getSystemOrAdminActor();
               backgroundTasks.push(
                 import("@/shared/services/firestore/auditRepository")
@@ -522,7 +545,11 @@ class OrderService {
         }
       }
 
-      return { generated: ordersGenerated, failed: ordersFailed };
+      return {
+        generated: ordersGenerated,
+        failed: ordersFailed,
+        unassigned: ordersUnassigned,
+      };
     } catch (error: any) {
       const completedAt = serverTimestamp() as unknown as Timestamp;
       await orderGenerationRunRepository.update(runId, {
@@ -605,6 +632,21 @@ class OrderService {
 
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
+
+      // Idempotency guard: prevent overwriting active in-flight orders
+      const expectedId = `ord_${subscription.id}_${date}_${pref.mealType}`;
+      const alreadyExists = todaysOrders.some(
+        (o) =>
+          o.id === expectedId ||
+          (o.subscriptionId === subscription.id && o.mealType === pref.mealType),
+      );
+      if (alreadyExists) {
+        console.log(
+          `[orderService] Order ${expectedId} already exists for ${date} — preserving existing workflow status.`,
+        );
+        continue;
+      }
+
       const order = this.buildOrderSnapshot(
         subscription,
         pref,
@@ -665,21 +707,33 @@ class OrderService {
 
     if (ordersToCreate.length === 0) return;
 
-    const batch = writeBatch(db);
-    ordersToCreate.forEach((order) => {
-      const ref = doc(db, "orders", order.id!);
-      batch.set(
-        ref,
-        stripUndefined({
-          ...order,
-          createdAt: serverTimestamp() as unknown as Timestamp,
-          updatedAt: serverTimestamp() as unknown as Timestamp,
-        }),
-        { merge: true },
-      );
-    });
+    let actuallyCreatedCount = 0;
+    await runTransaction(db, async (txn) => {
+      const checks: { ref: ReturnType<typeof doc>; order: Partial<Order>; exists: boolean }[] = [];
+      for (const order of ordersToCreate) {
+        const ref = doc(db, "orders", order.id!);
+        const snap = await txn.get(ref);
+        checks.push({ ref, order, exists: snap.exists() });
+      }
 
-    await batch.commit();
+      for (const { ref, order, exists } of checks) {
+        if (exists) {
+          console.log(
+            `[orderService] Order ${order.id} already exists in Firestore — preserving existing workflow status.`,
+          );
+          continue;
+        }
+        actuallyCreatedCount++;
+        txn.set(
+          ref,
+          stripUndefined({
+            ...order,
+            createdAt: serverTimestamp() as unknown as Timestamp,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          }),
+        );
+      }
+    });
 
     try {
       const kitchenStaff = await userRepository.list(
@@ -687,8 +741,8 @@ class OrderService {
         where("isActive", "==", true),
       );
       const ids = kitchenStaff.map((s) => s.id);
-      if (ids.length > 0) {
-        await notifyDailyOrdersGenerated(ids, date, ordersToCreate.length);
+      if (ids.length > 0 && actuallyCreatedCount > 0) {
+        await notifyDailyOrdersGenerated(ids, date, actuallyCreatedCount);
       }
     } catch (err) {
       console.error(

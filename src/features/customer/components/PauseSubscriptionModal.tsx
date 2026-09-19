@@ -13,7 +13,7 @@ interface PauseSubscriptionModalProps {
   onClose: () => void;
 }
 
-import { getTodayIST } from "@/shared/utils/dateUtils";
+import { getTodayIST, getModifiableMeals } from "@/shared/utils/dateUtils";
 
 export function PauseSubscriptionModal({
   subscription,
@@ -22,34 +22,11 @@ export function PauseSubscriptionModal({
   const [updating, setUpdating] = useState(false);
   const queryClient = useQueryClient();
 
-  // Calculate India local date and cutoff
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const hours = parseInt(
-    parts.find((p) => p.type === "hour")?.value || "0",
-    10,
-  );
-  const minutes = parseInt(
-    parts.find((p) => p.type === "minute")?.value || "0",
-    10,
-  );
-  const timeInMinutes = hours * 60 + minutes;
-
-  const prefs = (subscription.mealPreferences || []).map((p) => p.mealType);
-  let canCancelToday = false;
-  if (prefs.includes("breakfast") && timeInMinutes < 7 * 60 + 30)
-    canCancelToday = true;
-  if (prefs.includes("lunch") && timeInMinutes < 10 * 60 + 30)
-    canCancelToday = true;
-  if (prefs.includes("dinner") && timeInMinutes < 16 * 60)
-    canCancelToday = true;
-
+  // Calculate India local date and check cancellation cutoffs via canonical getModifiableMeals
   const todayInIndia = getTodayIST();
+  const prefs = (subscription.mealPreferences || []).map((p) => p.mealType);
+  const canCancelToday = getModifiableMeals(todayInIndia, prefs).length > 0;
+
   const [todayYear, todayMonth, todayDay] = todayInIndia.split("-").map(Number);
   const minPauseDateObj = new Date(
     Date.UTC(todayYear, todayMonth - 1, todayDay + (canCancelToday ? 0 : 1)),

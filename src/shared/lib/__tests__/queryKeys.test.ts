@@ -65,7 +65,19 @@ describe("queryKeys factory", () => {
       "history",
       "all",
       "doc-1",
+      20,
     ]);
+    expect(queryKeys.notifications.adminHistory("doc-1", "all", 50)).toEqual([
+      "notifications",
+      "admin",
+      "history",
+      "all",
+      "doc-1",
+      50,
+    ]);
+    expect(queryKeys.notifications.adminHistory("doc-1", "all", 20)).not.toEqual(
+      queryKeys.notifications.adminHistory("doc-1", "all", 50),
+    );
     expect(queryKeys.notifications.detail("n1")).toEqual([
       "notifications",
       "detail",

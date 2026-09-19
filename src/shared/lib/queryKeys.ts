@@ -37,8 +37,8 @@ export const queryKeys = {
       ["notifications", "recipient", recipientId] as const,
     unreadCount: (recipientId: string) =>
       ["notifications", "unread", recipientId] as const,
-    adminHistory: (cursorId: string, filterKey: string = "all") =>
-      ["notifications", "admin", "history", filterKey, cursorId] as const,
+    adminHistory: (cursorId: string, filterKey: string = "all", pageSize: number = 20) =>
+      ["notifications", "admin", "history", filterKey, cursorId, pageSize] as const,
     detail: (id: string) => ["notifications", "detail", id] as const,
   },
   kitchen: {

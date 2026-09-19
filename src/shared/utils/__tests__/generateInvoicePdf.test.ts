@@ -69,4 +69,37 @@ describe("generateInvoicePdf", () => {
     const doc = generateInvoicePdf({ ...mockData, billingMonth: {} as any });
     expect(doc).toBeDefined();
   });
+
+  it("applies custom companyProfile branding when provided with phone", () => {
+    const doc = generateInvoicePdf(mockData, {
+      name: "Custom Paakashale",
+      tagline: "Finest Meals",
+      supportEmail: "custom@paakashale.in",
+      supportPhone: "+91 99999 88888",
+      address: "Jayalakshmipuram, Mysuru",
+    });
+    expect(doc).toBeDefined();
+    expect(doc.text).toHaveBeenCalledWith("Tel: +91 99999 88888", 18, 30);
+  });
+
+  it("applies custom companyProfile branding without phone using email directly", () => {
+    const doc = generateInvoicePdf(mockData, {
+      name: "Custom Paakashale",
+      tagline: "Finest Meals",
+      supportEmail: "custom@paakashale.in",
+      address: "Bengaluru, Karnataka",
+    });
+    expect(doc).toBeDefined();
+    expect(doc.text).toHaveBeenCalledWith("custom@paakashale.in", 18, 30);
+  });
+
+  it("uses default Mysuru branding subline when companyProfile is omitted", () => {
+    const doc = generateInvoicePdf(mockData);
+    expect(doc).toBeDefined();
+    expect(doc.text).toHaveBeenCalledWith(
+      "Mysuru, Karnataka | mysuru.paakashale@upi",
+      18,
+      30,
+    );
+  });
 });

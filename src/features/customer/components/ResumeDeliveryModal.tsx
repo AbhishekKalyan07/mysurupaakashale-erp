@@ -27,7 +27,18 @@ export function ResumeDeliveryModal({
 
   const today = getTodayInTimezone();
   const now = new Date();
-  const currentHour = now.getHours() + now.getMinutes() / 60; // e.g. 9.5 for 9:30 AM
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+  const minute = parseInt(
+    parts.find((p) => p.type === "minute")?.value || "0",
+    10,
+  );
+  const currentHour = hour + minute / 60; // e.g. 9.5 for 9:30 AM in IST
 
   // Calculate cutoffs for today
   // Before 9:00 AM -> All meals

@@ -2,7 +2,7 @@ name: Daily Automation Tasks
 
 on:
   schedule:
-    - cron: '30 18 * * *' # 00:00 IST (18:30 UTC)
+    - cron: '35 18 * * *' # 00:05 IST (18:35 UTC)
   workflow_dispatch:
     inputs:
       target_date:
