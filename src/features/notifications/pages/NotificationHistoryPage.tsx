@@ -120,7 +120,7 @@ function NotificationRow({ n }: { n: Notification }) {
           <span className="md:hidden font-semibold text-text-muted text-[10px] uppercase tracking-wider">
             Status
           </span>
-          <StatusBadge status={n.status} />
+          <StatusBadge status={n.inAppStatus ?? n.status} />
         </td>
         <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-4 md:py-3.5 text-xs text-text-muted font-sans">
           <span className="md:hidden font-semibold text-text-muted text-[10px] uppercase tracking-wider">
@@ -238,7 +238,7 @@ export function NotificationHistoryPage() {
     setCurrentPage(0);
   };
 
-  if (isLoading && !isFetching && currentPage === 0) return <LoadingScreen />;
+  if (isLoading && currentPage === 0) return <LoadingScreen />;
   if (error) {
     return (
       <ErrorState
@@ -302,7 +302,7 @@ export function NotificationHistoryPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by type, title, recipient, message..."
+            placeholder="Search current page (type, title, recipient, message)..."
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm font-sans focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors shadow-xs"
           />
         </div>
@@ -334,37 +334,47 @@ export function NotificationHistoryPage() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {(!notifications || notifications.length === 0) ? (
         <EmptyState
           icon={<Bell size={40} className="text-text-muted/40" />}
           title="No notifications found"
           description={
-            search || selectedType !== "all" || selectedStatus !== "all"
+            selectedType !== "all" || selectedStatus !== "all"
               ? "No notifications match the chosen filters."
               : "No notifications have been recorded yet."
           }
         />
       ) : (
         <Card className="border-border overflow-hidden shadow-sm">
-          <div className="overflow-x-auto md:overflow-visible">
-            <table className="w-full text-sm block md:table">
-              <thead className="hidden md:table-header-group bg-surface-2 border-b border-border text-text-muted text-xs font-semibold uppercase tracking-wider">
-                <tr>
-                  <th className="px-4 py-3 text-left">Type</th>
-                  <th className="px-4 py-3 text-left">Title / Recipient</th>
-                  <th className="px-4 py-3 text-left">Channel</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Created</th>
-                  <th className="px-4 py-3 text-center">Retries</th>
-                </tr>
-              </thead>
-              <tbody className="block md:table-row-group divide-y divide-border/60">
-                {filtered.map((n) => (
-                  <NotificationRow key={n.id} n={n} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {filtered.length === 0 ? (
+            <div className="py-12">
+              <EmptyState
+                icon={<Bell size={40} className="text-text-muted/40" />}
+                title="No matching notifications on this page"
+                description={`No notifications on page ${currentPage + 1} match "${search}". Use Next to check subsequent pages.`}
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto md:overflow-visible">
+              <table className="w-full text-sm block md:table">
+                <thead className="hidden md:table-header-group bg-surface-2 border-b border-border text-text-muted text-xs font-semibold uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-left">Title / Recipient</th>
+                    <th className="px-4 py-3 text-left">Channel</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Created</th>
+                    <th className="px-4 py-3 text-center">Retries</th>
+                  </tr>
+                </thead>
+                <tbody className="block md:table-row-group divide-y divide-border/60">
+                  {filtered.map((n) => (
+                    <NotificationRow key={n.id} n={n} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination Footer */}
           <div className="px-4 py-3 border-t border-border bg-surface-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text-muted font-sans font-medium">

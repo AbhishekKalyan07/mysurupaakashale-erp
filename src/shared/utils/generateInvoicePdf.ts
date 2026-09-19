@@ -46,9 +46,10 @@ export function generateInvoicePdf(
   const companyAddress =
     companyProfile?.address?.trim() || "Mysuru Paakashale, Mysuru, Karnataka, India";
   const supportPhone = companyProfile?.supportPhone?.trim();
-  const subline = supportPhone
-    ? `Mysuru, Karnataka | Tel: ${supportPhone}`
-    : "Mysuru, Karnataka | mysuru.paakashale@upi";
+  let subline = "Mysuru, Karnataka | mysuru.paakashale@upi";
+  if (companyProfile) {
+    subline = supportPhone ? `Tel: ${supportPhone}` : supportEmail;
+  }
 
   // ── Header background ────────────────────────────────────────────────────────
   doc.setFillColor(42, 68, 34); // dark green

@@ -13,6 +13,7 @@ import {
 } from "date-fns";
 import { paymentRepository } from "@/shared/services/firestore/paymentRepository";
 import { userRepository } from "@/shared/services/firestore/userRepository";
+import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { getTodayInTimezone, getHourInTimezone } from "@/shared/lib/date";
 import { analyticsRepository } from "@/shared/services/firestore/analyticsRepository";

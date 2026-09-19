@@ -36,9 +36,17 @@ vi.mock("firebase/firestore", async (importOriginal) => {
     getCountFromServer: vi.fn().mockResolvedValue({ data: () => ({ count: 0 }) }),
     writeBatch: vi.fn(() => ({
       set: vi.fn(),
-      update: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined),
     })),
+    runTransaction: vi.fn(async (_db, callback) => {
+      const mockTxn = {
+        get: vi.fn().mockResolvedValue({ exists: () => false, data: () => ({}) }),
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      };
+      return await callback(mockTxn);
+    }),
     serverTimestamp: vi.fn(() => "server-timestamp"),
     where: vi.fn((field, op, value) => ({ field, op, value })),
     doc: vi.fn((db, collection, id, sub, subId) => ({
@@ -843,6 +851,121 @@ describe("orderService", () => {
       expect(order.mealName).toBe("Veg Meal");
       expect(order.price).toBe(150); // Since 150 * 1 / 1
       expect(workloadMap.get("p1")).toBe(1);
+    });
+  });
+
+  describe("generateOrdersForSubscription", () => {
+    it("creates orders atomically via runTransaction when order does not exist", async () => {
+      const { mealPlanRepository } = await import("../../firestore/mealPlanRepository");
+      const { userRepository } = await import("../../firestore/userRepository");
+      const { deliveryZoneRepository } = await import("../../firestore/deliveryZoneRepository");
+      const { orderRepository } = await import("../../firestore/orderRepository");
+      const { runTransaction } = await import("firebase/firestore");
+
+      vi.spyOn(mealPlanRepository, "list").mockResolvedValue([
+        {
+          id: "plan1",
+          mealSlots: [{ mealType: "lunch", options: [{ id: "opt1", label: "Meal" }] }],
+        },
+      ] as any);
+      vi.spyOn(userRepository, "getById").mockResolvedValue({
+        id: "c1",
+        name: "Customer One",
+        addresses: [
+          { id: "a1", isDefault: true, pincode: "570001", line1: "Street", city: "Mysuru" },
+        ],
+        defaultAddressId: "a1",
+      } as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "z1", name: "Zone 1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        { id: "p1", role: "delivery_partner", isActive: true, zoneIds: ["z1"], shifts: ["lunch"] },
+      ] as any);
+      vi.spyOn(orderRepository, "list").mockResolvedValue([]);
+
+      const mockSet = vi.fn();
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => {
+        const mockTxn = {
+          get: vi.fn().mockResolvedValue({ exists: () => false }),
+          set: mockSet,
+          update: vi.fn(),
+          delete: vi.fn(),
+        };
+        return await callback(mockTxn as any);
+      });
+
+      const sub: any = {
+        id: "sub1",
+        customerId: "c1",
+        planId: "plan1",
+        mealPreferences: [{ mealType: "lunch", optionId: "opt1" }],
+      };
+
+      await orderService.generateOrdersForSubscription(sub, "2026-08-01", ["lunch"]);
+
+      expect(runTransaction).toHaveBeenCalled();
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "ord_sub1_2026-08-01_lunch" }),
+        expect.objectContaining({
+          id: "ord_sub1_2026-08-01_lunch",
+          customerId: "c1",
+          mealType: "lunch",
+        }),
+      );
+    });
+
+    it("skips creation and preserves existing document if order exists at write time", async () => {
+      const { mealPlanRepository } = await import("../../firestore/mealPlanRepository");
+      const { userRepository } = await import("../../firestore/userRepository");
+      const { deliveryZoneRepository } = await import("../../firestore/deliveryZoneRepository");
+      const { orderRepository } = await import("../../firestore/orderRepository");
+      const { runTransaction } = await import("firebase/firestore");
+
+      vi.spyOn(mealPlanRepository, "list").mockResolvedValue([
+        {
+          id: "plan1",
+          mealSlots: [{ mealType: "lunch", options: [{ id: "opt1", label: "Meal" }] }],
+        },
+      ] as any);
+      vi.spyOn(userRepository, "getById").mockResolvedValue({
+        id: "c1",
+        name: "Customer One",
+        addresses: [
+          { id: "a1", isDefault: true, pincode: "570001", line1: "Street", city: "Mysuru" },
+        ],
+        defaultAddressId: "a1",
+      } as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "z1", name: "Zone 1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        { id: "p1", role: "delivery_partner", isActive: true, zoneIds: ["z1"], shifts: ["lunch"] },
+      ] as any);
+      vi.spyOn(orderRepository, "list").mockResolvedValue([]);
+
+      const mockSet = vi.fn();
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => {
+        const mockTxn = {
+          get: vi.fn().mockResolvedValue({ exists: () => true }), // conflict!
+          set: mockSet,
+          update: vi.fn(),
+          delete: vi.fn(),
+        };
+        return await callback(mockTxn as any);
+      });
+
+      const sub: any = {
+        id: "sub1",
+        customerId: "c1",
+        planId: "plan1",
+        mealPreferences: [{ mealType: "lunch", optionId: "opt1" }],
+      };
+
+      await orderService.generateOrdersForSubscription(sub, "2026-08-01", ["lunch"]);
+
+      expect(runTransaction).toHaveBeenCalled();
+      expect(mockSet).not.toHaveBeenCalled();
     });
   });
 });

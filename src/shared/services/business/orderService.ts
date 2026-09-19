@@ -2,6 +2,7 @@ import { Timestamp } from "firebase/firestore";
 import {
   getDoc,
   writeBatch,
+  runTransaction,
   serverTimestamp,
   where,
   doc,
@@ -71,7 +72,12 @@ class OrderService {
    */
   async generateDailyOrders(
     dateOverride?: string,
-  ): Promise<{ success: boolean; message: string; ordersGenerated: number }> {
+  ): Promise<{
+    success: boolean;
+    message: string;
+    ordersGenerated: number;
+    unassignedOrders?: number;
+  }> {
     const today = dateOverride || getTodayInTimezone();
 
     const isSunday = new Date(`${today}T00:00:00Z`).getUTCDay() === 0;
@@ -701,21 +707,33 @@ class OrderService {
 
     if (ordersToCreate.length === 0) return;
 
-    const batch = writeBatch(db);
-    ordersToCreate.forEach((order) => {
-      const ref = doc(db, "orders", order.id!);
-      batch.set(
-        ref,
-        stripUndefined({
-          ...order,
-          createdAt: serverTimestamp() as unknown as Timestamp,
-          updatedAt: serverTimestamp() as unknown as Timestamp,
-        }),
-        { merge: true },
-      );
-    });
+    let actuallyCreatedCount = 0;
+    await runTransaction(db, async (txn) => {
+      const checks: { ref: ReturnType<typeof doc>; order: Partial<Order>; exists: boolean }[] = [];
+      for (const order of ordersToCreate) {
+        const ref = doc(db, "orders", order.id!);
+        const snap = await txn.get(ref);
+        checks.push({ ref, order, exists: snap.exists() });
+      }
 
-    await batch.commit();
+      for (const { ref, order, exists } of checks) {
+        if (exists) {
+          console.log(
+            `[orderService] Order ${order.id} already exists in Firestore — preserving existing workflow status.`,
+          );
+          continue;
+        }
+        actuallyCreatedCount++;
+        txn.set(
+          ref,
+          stripUndefined({
+            ...order,
+            createdAt: serverTimestamp() as unknown as Timestamp,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          }),
+        );
+      }
+    });
 
     try {
       const kitchenStaff = await userRepository.list(
@@ -723,8 +741,8 @@ class OrderService {
         where("isActive", "==", true),
       );
       const ids = kitchenStaff.map((s) => s.id);
-      if (ids.length > 0) {
-        await notifyDailyOrdersGenerated(ids, date, ordersToCreate.length);
+      if (ids.length > 0 && actuallyCreatedCount > 0) {
+        await notifyDailyOrdersGenerated(ids, date, actuallyCreatedCount);
       }
     } catch (err) {
       console.error(
