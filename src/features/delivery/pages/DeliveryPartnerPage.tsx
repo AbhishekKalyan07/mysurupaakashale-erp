@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { usePartnerBoard } from "../hooks/usePartnerBoard";
@@ -10,7 +11,7 @@ import { DeliveryPartnerTable } from "../components/DeliveryPartnerTable";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
 
 function getDefaultMealType(): string {
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  const formatter = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     hour12: false,

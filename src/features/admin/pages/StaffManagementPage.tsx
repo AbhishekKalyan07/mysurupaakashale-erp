@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useState } from "react";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
@@ -173,7 +174,7 @@ function StaffCardView({
           <div className="text-[10px] font-semibold text-text-muted shrink-0 ml-auto mr-1 truncate">
             Joined:{" "}
             {user.createdAt?.toDate
-              ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system).format(
+              ? getCachedDateTimeFormatter(APP_CONFIG.dateFormat.system).format(
                   user.createdAt.toDate(),
                 )
               : "N/A"}
@@ -318,7 +319,7 @@ export function StaffManagementPage() {
                     <td className="px-6 py-4 text-text-muted">
                       <span className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block text-xs font-medium text-primary">
                         {user.createdAt?.toDate
-                          ? new Intl.DateTimeFormat(
+                          ? getCachedDateTimeFormatter(
                               APP_CONFIG.dateFormat.system,
                             ).format(user.createdAt.toDate())
                           : "N/A"}
