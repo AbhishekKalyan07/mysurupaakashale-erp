@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, X, Smartphone } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
 import { NAV_ITEMS_BY_ROLE } from "./navConfig";

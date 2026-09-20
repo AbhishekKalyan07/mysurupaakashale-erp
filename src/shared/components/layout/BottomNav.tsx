@@ -24,7 +24,6 @@ import { ROLES } from "@/shared/constants/roles";
 import { openGetAppModal } from "@/shared/hooks/usePWAInstall";
 
 
-
 interface BottomNavTab {
   label: string;
   to: string;

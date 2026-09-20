@@ -5,11 +5,9 @@ import {
   Download,
   Share,
   CheckCircle2,
-  Bell,
-  Zap,
-  Wifi,
   MoreHorizontal,
   Plus,
+  Monitor,
 } from "lucide-react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { usePWAInstall } from "@/shared/hooks/usePWAInstall";
@@ -136,8 +134,73 @@ function AndroidInstructions() {
   );
 }
 
+const APP_URL = "https://app.mysurupaakashale.in";
+const QR_SRC = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1a1a2e&bgcolor=ffffff&qzone=1&data=${encodeURIComponent(APP_URL)}`;
+
+function DesktopInstructions() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-text-muted font-medium text-center">
+        Install via <strong className="text-primary">Chrome or Edge</strong> on this computer:
+      </p>
+
+      {/* Chrome / Edge steps */}
+      <div className="space-y-2">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-2 border border-border">
+          <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
+            1
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text">Click the install icon in the address bar</p>
+            <p className="text-xs text-text-muted mt-1">
+              Look for the <strong>⊕</strong> or computer icon on the right side of your URL bar
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-2 border border-border">
+          <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
+            2
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text">Click "Install" in the popup</p>
+            <p className="text-xs text-text-muted mt-1">
+              The app opens in its own window, like a native desktop app
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">or open on mobile</span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
+      {/* QR Code */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="p-3 bg-white rounded-[16px] border-2 border-border shadow-sm">
+          <img
+            src={QR_SRC}
+            alt="QR code to open Mysuru Paakashale app on mobile"
+            width={160}
+            height={160}
+            className="block"
+          />
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-text-muted">Scan with your phone camera to open</p>
+          <p className="text-[11px] font-mono text-primary/70 mt-0.5 select-all">{APP_URL}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GetAppModal() {
   const { isModalOpen, closeModal, isIOS, isAndroid, canPromptDirectly, triggerInstall, isInstalled } = usePWAInstall();
+  const isDesktop = !isIOS && !isAndroid;
   const [showInstructions, setShowInstructions] = useState(false);
   const [installDone, setInstallDone] = useState(false);
 
@@ -153,6 +216,14 @@ export function GetAppModal() {
       setShowInstructions(true);
     }
   };
+
+  const renderInstructions = () => {
+    if (isIOS) return <IOSInstructions />;
+    if (isAndroid) return <AndroidInstructions />;
+    return <DesktopInstructions />;
+  };
+
+  const headerIcon = isDesktop ? Monitor : Smartphone;
 
   if (!isModalOpen) return null;
 
@@ -178,7 +249,9 @@ export function GetAppModal() {
         <div className="flex items-start justify-between px-5 pt-5 pb-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-[14px] bg-primary/5 border border-primary/10">
-              <Smartphone size={22} className="text-gold" />
+              {isDesktop
+                ? <Monitor size={22} className="text-gold" />
+                : <Smartphone size={22} className="text-gold" />}
             </div>
             <div>
               <h2 className="text-lg font-display font-bold text-primary">
@@ -235,7 +308,7 @@ export function GetAppModal() {
               </Button>
             </div>
           ) : showInstructions ? (
-            /* Manual instructions */
+            /* Platform-specific instructions */
             <div className="space-y-4">
               <button
                 onClick={() => setShowInstructions(false)}
@@ -243,7 +316,7 @@ export function GetAppModal() {
               >
                 ← Back
               </button>
-              {isIOS ? <IOSInstructions /> : <AndroidInstructions />}
+              {renderInstructions()}
             </div>
           ) : (
             /* Default — benefits + install */
@@ -275,12 +348,13 @@ export function GetAppModal() {
                   {canPromptDirectly ? "Install App — 1 Tap" : "How to Install"}
                 </Button>
 
-                {(isIOS || (!canPromptDirectly && !isAndroid)) && !showInstructions && (
+                {/* Always show step-by-step link when native prompt unavailable */}
+                {!canPromptDirectly && (
                   <button
                     onClick={() => setShowInstructions(true)}
                     className="w-full text-xs text-text-muted hover:text-text text-center py-1 transition-colors"
                   >
-                    View step-by-step guide
+                    {isDesktop ? "View desktop install guide" : "View step-by-step guide"}
                   </button>
                 )}
               </div>
