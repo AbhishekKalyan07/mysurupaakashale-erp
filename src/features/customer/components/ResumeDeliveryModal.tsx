@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useState } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
@@ -27,7 +28,7 @@ export function ResumeDeliveryModal({
 
   const today = getTodayInTimezone();
   const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",
