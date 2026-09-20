@@ -11,6 +11,7 @@ import { PackageOpen, Clock, Calendar, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Order } from "@/shared/types";
 import { format } from "date-fns";
+import { GetAppInlineCard } from "../components/GetAppModal";
 
 export function CustomerOrderHistoryPage() {
   const { firebaseUser } = useAuth();
@@ -117,6 +118,9 @@ export function CustomerOrderHistoryPage() {
           </div>
         </div>
       )}
+
+      {/* Get App — always visible after stats / before order list */}
+      <GetAppInlineCard className="mb-6" />
 
       {groupKeys.length === 0 ? (
         <div className="py-12">

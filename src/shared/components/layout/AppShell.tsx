@@ -7,6 +7,7 @@ import { PremiumNavbar } from "./PremiumNavbar";
 import { BottomNav } from "./BottomNav";
 import { GlobalErrorBoundary } from "../feedback/GlobalErrorBoundary";
 import { PWAInstallPrompt } from "../feedback/PWAInstallPrompt";
+import { GetAppModal } from "@/features/customer/components/GetAppModal";
 
 export function AppShell() {
   const { status, role } = useAuth();
@@ -48,6 +49,9 @@ export function AppShell() {
 
       {/* PWA Install Prompt */}
       <PWAInstallPrompt />
+
+      {/* Get App Modal — globally mounted, driven by openGetAppModal() */}
+      <GetAppModal />
     </div>
   );
 }

@@ -16,10 +16,14 @@ import {
   Receipt,
   CalendarX,
   Bell,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { Role } from "@/shared/constants/roles";
 import { ROLES } from "@/shared/constants/roles";
+import { openGetAppModal } from "@/shared/hooks/usePWAInstall";
+
+
 
 interface BottomNavTab {
   label: string;
@@ -87,6 +91,7 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: "Notifications", to: "/customer/notifications", icon: Bell },
     { label: "Billing & Payments", to: "/customer/payments", icon: CreditCard },
     { label: "Order History", to: "/customer/orders", icon: Package },
+    { label: "Get App", to: "#get-app", icon: Smartphone },
   ],
   [ROLES.ACCOUNTS]: [],
 };
@@ -143,25 +148,32 @@ export function BottomNav({ role }: BottomNavProps) {
               </button>
             </div>
             <div className="px-4 pb-4 grid grid-cols-3 gap-2">
-              {moreItems.map((item) => (
-                <button
-                  aria-label={item.label}
-                  key={item.to}
-                  onClick={() => {
-                    navigate(item.to);
-                    setShowMore(false);
-                  }}
-                  className="flex flex-col items-center gap-1.5 p-3 rounded-[16px] bg-surface-2 hover:bg-pastel-lavender hover:text-secondary transition-colors group"
-                >
-                  <item.icon
-                    size={22}
-                    className="text-text-muted group-hover:text-secondary transition-colors"
-                  />
-                  <span className="text-xs font-semibold text-text-muted group-hover:text-secondary transition-colors leading-tight text-center">
-                    {item.label}
-                  </span>
-                </button>
-              ))}
+              {moreItems.map((item) => {
+                const isGetApp = item.to === "#get-app";
+                return (
+                  <button
+                    aria-label={item.label}
+                    key={item.to}
+                    onClick={() => {
+                      if (isGetApp) {
+                        openGetAppModal();
+                      } else {
+                        navigate(item.to);
+                      }
+                      setShowMore(false);
+                    }}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-[16px] bg-surface-2 hover:bg-pastel-lavender hover:text-secondary transition-colors group"
+                  >
+                    <item.icon
+                      size={22}
+                      className="text-text-muted group-hover:text-secondary transition-colors"
+                    />
+                    <span className="text-xs font-semibold text-text-muted group-hover:text-secondary transition-colors leading-tight text-center">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>

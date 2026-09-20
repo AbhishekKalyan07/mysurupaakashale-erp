@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, X, Smartphone } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
 import { NAV_ITEMS_BY_ROLE } from "./navConfig";
+import { openGetAppModal } from "@/shared/hooks/usePWAInstall";
 
 interface PremiumSidebarProps {
   role: Role;
@@ -122,53 +123,93 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                 </div>
               )}
               <div className="space-y-0.5">
-                {group.items.map(({ label, to, icon: Icon }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === "/dashboard"}
-                    onClick={onClose}
-                    title={isCollapsed ? label : undefined}
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-medium",
-                        "transition-all duration-150 group relative",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-primary/60 hover:bg-primary/5 hover:text-primary",
-                        isCollapsed ? "lg:justify-center" : "justify-start",
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full animate-in fade-in" />
+                {group.items.map(({ label, to, icon: Icon }) => {
+                  const isGetApp = to === "#get-app";
+
+                  if (isGetApp) {
+                    return (
+                      <button
+                        key={to}
+                        onClick={() => {
+                          openGetAppModal();
+                          onClose();
+                        }}
+                        title={isCollapsed ? label : undefined}
+                        className={cn(
+                          "w-full flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-medium",
+                          "transition-all duration-150 group relative",
+                          "text-primary/60 hover:bg-primary/5 hover:text-primary",
+                          isCollapsed ? "lg:justify-center" : "justify-start",
                         )}
+                      >
                         <Icon
                           size={18}
-                          strokeWidth={isActive ? 2.5 : 1.8}
-                          className={cn(
-                            "shrink-0 transition-colors",
-                            isActive
-                              ? "text-primary"
-                              : "text-primary/60 group-hover:text-primary",
-                          )}
+                          strokeWidth={1.8}
+                          className="shrink-0 text-primary/60 group-hover:text-primary transition-colors"
                         />
                         <span
                           className={cn(
-                            "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300",
-                            isCollapsed
-                              ? "lg:opacity-0 lg:w-0"
-                              : "opacity-100 w-auto",
+                            "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300 flex items-center gap-1.5",
+                            isCollapsed ? "lg:opacity-0 lg:w-0" : "opacity-100 w-auto",
                           )}
                         >
                           {label}
+                          <span className="text-[9px] font-bold uppercase tracking-wider bg-secondary/15 text-secondary px-1.5 py-0.5 rounded-full border border-secondary/20">
+                            Free
+                          </span>
                         </span>
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === "/dashboard"}
+                      onClick={onClose}
+                      title={isCollapsed ? label : undefined}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-medium",
+                          "transition-all duration-150 group relative",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-primary/60 hover:bg-primary/5 hover:text-primary",
+                          isCollapsed ? "lg:justify-center" : "justify-start",
+                        )
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {isActive && (
+                            <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full animate-in fade-in" />
+                          )}
+                          <Icon
+                            size={18}
+                            strokeWidth={isActive ? 2.5 : 1.8}
+                            className={cn(
+                              "shrink-0 transition-colors",
+                              isActive
+                                ? "text-primary"
+                                : "text-primary/60 group-hover:text-primary",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300",
+                              isCollapsed
+                                ? "lg:opacity-0 lg:w-0"
+                                : "opacity-100 w-auto",
+                            )}
+                          >
+                            {label}
+                          </span>
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             </div>
           ))}
