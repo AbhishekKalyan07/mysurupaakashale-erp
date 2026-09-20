@@ -150,13 +150,17 @@ export default defineConfig(({ mode }) => {
         ]
       }
     }),
-    sentryVitePlugin({
-      org: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      // Only upload source maps for production builds
-      telemetry: false,
-    }),
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            // Only upload source maps for production builds
+            telemetry: false,
+          }),
+        ]
+      : []),
     visualizer({
       filename: 'bundle-stats.html',
       gzipSize: true,

@@ -223,7 +223,7 @@ export function GetAppModal() {
     return <DesktopInstructions />;
   };
 
-  const headerIcon = isDesktop ? Monitor : Smartphone;
+  const HeaderIcon = isDesktop ? Monitor : Smartphone;
 
   if (!isModalOpen) return null;
 
@@ -249,9 +249,7 @@ export function GetAppModal() {
         <div className="flex items-start justify-between px-5 pt-5 pb-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-[14px] bg-primary/5 border border-primary/10">
-              {isDesktop
-                ? <Monitor size={22} className="text-gold" />
-                : <Smartphone size={22} className="text-gold" />}
+              <HeaderIcon size={22} className="text-gold" />
             </div>
             <div>
               <h2 className="text-lg font-display font-bold text-primary">
