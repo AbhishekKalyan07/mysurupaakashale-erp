@@ -5,7 +5,7 @@ import {
   usePWAInstall,
   openGetAppModal,
   closeGetAppModal,
-  BeforeInstallPromptEvent,
+  type BeforeInstallPromptEvent,
 } from "../usePWAInstall";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -48,7 +48,6 @@ describe("usePWAInstall", () => {
       })),
     });
 
-    // @ts-expect-error reset standalone
     delete (window.navigator as any).standalone;
   });
 

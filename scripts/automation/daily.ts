@@ -51,7 +51,7 @@ async function runDailyTasks() {
   const errors: Error[] = [];
   const metrics: TaskMetric[] = [];
   let todayStr = getTodayInTimezone();
-  if (process.env.TARGET_DATE) {
+  if (process.env.TARGET_DATE && process.env.TARGET_DATE.trim() !== '') {
     const rawTarget = process.env.TARGET_DATE.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(rawTarget)) {
       console.error(`[Daily Automation] Invalid TARGET_DATE format: "${rawTarget}". Expected YYYY-MM-DD.`);
