@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
 import { NAV_ITEMS_BY_ROLE } from "./navConfig";
-import { openGetAppModal } from "@/shared/hooks/usePWAInstall";
+import { usePWAInstall } from "@/shared/hooks/usePWAInstall";
 
 interface PremiumSidebarProps {
   role: Role;
@@ -14,6 +14,7 @@ interface PremiumSidebarProps {
 
 export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
   const items = NAV_ITEMS_BY_ROLE[role];
+  const { triggerInstall } = usePWAInstall();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
       return localStorage.getItem("sidebar_collapsed") === "true";
@@ -131,7 +132,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                       <button
                         key={to}
                         onClick={() => {
-                          openGetAppModal();
+                          triggerInstall();
                           onClose();
                         }}
                         title={isCollapsed ? label : undefined}

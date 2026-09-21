@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Smartphone,
@@ -8,7 +8,10 @@ import {
   MoreHorizontal,
   Plus,
   Monitor,
+  Copy,
+  ArrowDown,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { usePWAInstall } from "@/shared/hooks/usePWAInstall";
 import { cn } from "@/shared/lib/cn";
@@ -32,11 +35,39 @@ const BENEFITS = [
 ];
 
 function IOSInstructions() {
+  const isIOSChrome = typeof window !== "undefined" && /CriOS/i.test(navigator.userAgent);
+  const isIOSInApp =
+    typeof window !== "undefined" &&
+    /FBAN|FBAV|Instagram|Line|WhatsApp|Twitter|MicroMessenger/i.test(
+      navigator.userAgent,
+    );
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-text-muted font-medium text-center">
-        Open this page in <strong className="text-primary">Safari</strong> and follow these steps:
-      </p>
+      {isIOSChrome || isIOSInApp ? (
+        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+          <p className="font-semibold mb-1">Safari Required for iOS Installation</p>
+          <p className="mb-2">Apple only allows installing Progressive Web Apps from the Safari browser.</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="w-full text-xs font-bold gap-1.5"
+            onClick={() => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Link copied! Open Safari and paste to install.");
+              }
+            }}
+          >
+            <Copy size={13} /> Copy Link to open in Safari
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted font-medium text-center">
+          Follow these 3 quick steps in <strong className="text-primary">Safari</strong>:
+        </p>
+      )}
+
       <div className="space-y-2">
         <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-2 border border-border">
           <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
@@ -47,7 +78,7 @@ function IOSInstructions() {
             <div className="flex items-center gap-1.5 mt-1">
               <Share size={16} className="text-secondary" />
               <p className="text-xs text-text-muted">
-                Look for the share icon (□ with an arrow) at the bottom of Safari
+                Tap the Share icon (square with arrow pointing up) at the bottom of Safari
               </p>
             </div>
           </div>
@@ -62,7 +93,7 @@ function IOSInstructions() {
             <div className="flex items-center gap-1.5 mt-1">
               <Plus size={16} className="text-secondary" />
               <p className="text-xs text-text-muted">
-                Scroll down the share sheet and tap <strong>Add to Home Screen</strong>
+                Scroll down the share sheet and select <strong>Add to Home Screen</strong>
               </p>
             </div>
           </div>
@@ -75,11 +106,20 @@ function IOSInstructions() {
           <div>
             <p className="text-sm font-semibold text-text">Tap "Add" to confirm</p>
             <p className="text-xs text-text-muted mt-1">
-              The app icon will appear on your home screen like a native app
+              The Paakashale app icon will appear on your home screen
             </p>
           </div>
         </div>
       </div>
+
+      {!isIOSChrome && !isIOSInApp && (
+        <div className="pt-2 text-center">
+          <p className="text-xs text-secondary font-semibold flex items-center justify-center gap-1 animate-bounce">
+            <span>Look for the Share icon at the bottom of your screen</span>
+            <ArrowDown size={14} />
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -204,15 +244,19 @@ export function GetAppModal() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [installDone, setInstallDone] = useState(false);
 
+  useEffect(() => {
+    if (isModalOpen && isIOS) {
+      setShowInstructions(true);
+    } else if (isModalOpen) {
+      setShowInstructions(false);
+    }
+  }, [isModalOpen, isIOS]);
+
   const handleInstall = async () => {
-    if (canPromptDirectly) {
-      const result = await triggerInstall();
-      if (result === "accepted") {
-        setInstallDone(true);
-      } else if (result === "instructions_opened") {
-        setShowInstructions(true);
-      }
-    } else {
+    const result = await triggerInstall();
+    if (result === "accepted") {
+      setInstallDone(true);
+    } else if (result === "instructions_opened") {
       setShowInstructions(true);
     }
   };
@@ -253,7 +297,7 @@ export function GetAppModal() {
             </div>
             <div>
               <h2 className="text-lg font-display font-bold text-primary">
-                {isInstalled ? "App Already Installed" : "Get the App"}
+                {isInstalled ? "App Already Installed" : isIOS ? "Install on iPhone / iPad" : "Get the App"}
               </h2>
               <p className="text-[11px] text-text-muted font-medium mt-0.5">
                 Mysuru Paakashale · Free Forever
@@ -308,12 +352,14 @@ export function GetAppModal() {
           ) : showInstructions ? (
             /* Platform-specific instructions */
             <div className="space-y-4">
-              <button
-                onClick={() => setShowInstructions(false)}
-                className="text-xs text-text-muted hover:text-text flex items-center gap-1"
-              >
-                ← Back
-              </button>
+              {!isIOS && (
+                <button
+                  onClick={() => setShowInstructions(false)}
+                  className="text-xs text-text-muted hover:text-text flex items-center gap-1"
+                >
+                  ← Back to Overview
+                </button>
+              )}
               {renderInstructions()}
             </div>
           ) : (
@@ -343,10 +389,16 @@ export function GetAppModal() {
                   className="w-full font-bold gap-2"
                 >
                   <Download size={18} />
-                  {canPromptDirectly ? "Install App — 1 Tap" : "How to Install"}
+                  {canPromptDirectly
+                    ? "Install App — 1 Tap"
+                    : isIOS
+                      ? "Add to Home Screen"
+                      : isDesktop
+                        ? "Install on Desktop"
+                        : "Install App"}
                 </Button>
 
-                {/* Always show step-by-step link when native prompt unavailable */}
+                {/* Step-by-step guide link if native prompt not triggered */}
                 {!canPromptDirectly && (
                   <button
                     onClick={() => setShowInstructions(true)}
@@ -364,9 +416,9 @@ export function GetAppModal() {
   );
 }
 
-/** Inline trigger card for use inside pages (e.g. CustomerOrderHistoryPage) */
+/** Inline trigger card for use inside pages (e.g. CustomerOrderHistoryPage, CustomerDashboardPage) */
 export function GetAppInlineCard({ className }: { className?: string }) {
-  const { triggerInstall, isInstalled, canPromptDirectly } = usePWAInstall();
+  const { triggerInstall, isInstalled, canPromptDirectly, isIOS } = usePWAInstall();
 
   if (isInstalled) return null;
 
@@ -393,7 +445,7 @@ export function GetAppInlineCard({ className }: { className?: string }) {
         className="shrink-0 font-bold text-xs gap-1.5"
       >
         <Download size={13} />
-        {canPromptDirectly ? "Install" : "How to"}
+        {canPromptDirectly ? "Install (1-Tap)" : isIOS ? "Get App" : "Install"}
       </Button>
     </div>
   );

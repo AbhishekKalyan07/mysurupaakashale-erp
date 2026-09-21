@@ -6,12 +6,12 @@ rules_version = '2';
 // Division of responsibility: these rules decide WHO can read/write WHAT —
 // authorization, plus a few high-value data checks (price integrity,
 // state-machine transitions, "which fields actually changed"). This app
-// runs on the Blaze plan with two Cloud Functions (onOrderCancelled,
-// onHolidayDeclared) that perform privileged server-side writes via Admin
-// SDK. For all other write paths, these rules ARE the entire validation,
-// not a backstop. Full shape/format validation for anything not checked
-// here lives in Zod schemas on the client, which is necessarily advisory,
-// not enforced — treat any high-value field (price, status, amount) as
+// runs on the Firebase Spark plan using GitHub Actions for scheduled
+// backend automation (daily order generation, billing, backups) executing
+// as an authenticated admin. For all client write paths, these rules ARE
+// the entire validation, not a backstop. Full shape/format validation for
+// anything not checked here lives in Zod schemas on the client, which is
+// advisory — treat any high-value field (price, status, amount) as
 // something that belongs in this file, checked explicitly, not just
 // assumed from the client.
 //
@@ -711,7 +711,7 @@ service cloud.firestore {
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn() && settingId != 'userCounters';
+      allow read: if isSignedIn();
       allow write: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
     }
 
@@ -723,7 +723,8 @@ service cloud.firestore {
                        request.resource.data.performedBy == request.auth.uid &&
                        request.resource.data.performedByRole == role() &&
                        request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
-      allow update, delete: if false; // Audit logs must be immutable
+      allow update: if false; // Audit logs are immutable
+      allow delete: if isAdmin(); // Retention cleanup (monthly maintenance)
     }
 
     // ---------- failureQueue/{recordId} ----------

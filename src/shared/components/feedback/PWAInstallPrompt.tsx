@@ -8,15 +8,20 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 // Module-level prompt capture and reactive listeners
-let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+let globalDeferredPrompt: BeforeInstallPromptEvent | null =
+  (typeof window !== "undefined" && (window as any).__pwaInstallPrompt) || null;
 const promptListeners = new Set<(e: BeforeInstallPromptEvent | null) => void>();
 
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e: Event) => {
+  const handlePrompt = (e: Event) => {
     e.preventDefault();
-    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    const promptEvent = ((e as CustomEvent).detail || e) as BeforeInstallPromptEvent;
+    globalDeferredPrompt = promptEvent;
     promptListeners.forEach((fn) => fn(globalDeferredPrompt));
-  });
+  };
+
+  window.addEventListener("beforeinstallprompt", handlePrompt);
+  window.addEventListener("pwa-prompt-available", handlePrompt);
 
   window.addEventListener("appinstalled", () => {
     globalDeferredPrompt = null;

@@ -21,6 +21,7 @@ import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { getTodayIST } from "@/shared/utils/dateUtils";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
+import { GetAppInlineCard } from "@/features/customer/components/GetAppModal";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
@@ -243,6 +244,8 @@ export function CustomerDashboardPage() {
         userName="Customer"
         subtitle="Manage your daily meals, subscription plans, and delivery options here."
       />
+
+      <GetAppInlineCard className="mb-6" />
 
       <div className="grid md:grid-cols-3 gap-8">
         {/* Left 2 Columns: Subscription Status & Summary */}

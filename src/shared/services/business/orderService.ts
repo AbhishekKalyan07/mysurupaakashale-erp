@@ -24,7 +24,7 @@ import type {
   MealPlan,
   MealType,
 } from "@/shared/types";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, isSundayInTimezone } from "@/shared/lib/date";
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
@@ -80,7 +80,7 @@ class OrderService {
   }> {
     const today = dateOverride || getTodayInTimezone();
 
-    const isSunday = new Date(`${today}T00:00:00Z`).getUTCDay() === 0;
+    const isSunday = isSundayInTimezone(today);
     if (isSunday) {
       console.log(
         `[orderService] Today (${today}) is Sunday. Skipping order generation.`,
@@ -306,6 +306,15 @@ class OrderService {
           continue;
         }
         if (sub.startDate > today) {
+          ordersSkipped++;
+          continue;
+        }
+        // Exclude subscription if it is within a scheduled pause window for today
+        if (
+          sub.pauseStartDate &&
+          sub.pauseStartDate <= today &&
+          (!sub.pauseEndDate || sub.pauseEndDate >= today)
+        ) {
           ordersSkipped++;
           continue;
         }
@@ -602,13 +611,13 @@ class OrderService {
     subscription: import("@/shared/types").Subscription,
     date: string,
     mealTypesToGenerate: import("@/shared/types").MealType[],
-  ): Promise<void> {
-    const isSunday = new Date(`${date}T00:00:00Z`).getUTCDay() === 0;
+  ): Promise<number | void> {
+    const isSunday = isSundayInTimezone(date);
     if (isSunday) {
       console.log(
         `[orderService] Subscription ${subscription.id} skip generateOrdersForSubscription since ${date} is Sunday.`,
       );
-      return;
+      return 0;
     }
 
     // ── Holiday Guard ─────────────────────────────────────────────────────────
@@ -620,7 +629,7 @@ class OrderService {
       console.log(
         `[orderService] ${date} is an active holiday — skipping subscription ${subscription.id} order generation.`,
       );
-      return;
+      return 0;
     }
 
     const [
@@ -738,7 +747,7 @@ class OrderService {
       }
     }
 
-    if (ordersToCreate.length === 0) return;
+    if (ordersToCreate.length === 0) return 0;
 
     let actuallyCreatedCount = 0;
     await runTransaction(db, async (txn) => {
@@ -783,6 +792,8 @@ class OrderService {
         err,
       );
     }
+
+    return actuallyCreatedCount;
   }
 
   async updateOrderStatus(
@@ -1234,9 +1245,19 @@ class OrderService {
     }
 
     if (!zoneId || !kitchenId) {
-      const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
-      zoneId = resolved.zoneId;
-      kitchenId = resolved.kitchenId;
+      try {
+        const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
+        zoneId = resolved.zoneId;
+        kitchenId = resolved.kitchenId;
+      } catch {
+        // Handled below by missing kitchen configuration check
+      }
+    }
+
+    if (!kitchenId || !zoneId) {
+      throw new Error(
+        `Subscription ${sub.id}\nMeal: ${mealType.toUpperCase()}\nMissing kitchen configuration`,
+      );
     }
 
     let partnerId: string | null = null;
@@ -1344,6 +1365,24 @@ class OrderService {
         delete (orderObj as any)[key];
       }
     });
+
+    // Validate required operational fields
+    const requiredOperationalFields: Array<keyof Order> = [
+      "customerId",
+      "subscriptionId",
+      "date",
+      "mealType",
+      "status",
+      "kitchenId",
+      "zoneId",
+    ];
+    for (const field of requiredOperationalFields) {
+      if (!orderObj[field]) {
+        throw new Error(
+          `Subscription ${sub.id}\nMeal: ${mealType.toUpperCase()}\nMissing operational field: ${field}`,
+        );
+      }
+    }
 
     return orderObj;
   }

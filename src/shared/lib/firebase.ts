@@ -172,25 +172,27 @@ export const appCheck = (() => {
 
   const isNode = typeof globalThis.window === "undefined";
 
-  const isNodeEnv = isNode;
+  // Server-side / Node.js automation environments (GitHub Actions) are trusted backend runtimes.
+  // App Check is strictly for browser client verification; server environments must not
+  // require browser App Check tokens.
+  if (isNode) {
+    return null;
+  }
 
   // Production path: real reCAPTCHA v3
   // Only attempt ReCaptcha if we are in a browser environment (window is defined).
-  if (appCheckSiteKey && !isEmulatorMode && !isNodeEnv) {
+  if (appCheckSiteKey && !isEmulatorMode) {
     return initializeAppCheck(firebaseApp, {
       provider: new ReCaptchaV3Provider(appCheckSiteKey),
       isTokenAutoRefreshEnabled: true,
     });
   }
 
-  // Local / emulator path: use the official App Check debug provider.
-  // Also used for Node.js automation scripts that must authenticate with a debug token.
+  // Local / browser dev path: use the official App Check debug provider.
   // The SDK reads FIREBASE_APPCHECK_DEBUG_TOKEN if set, or auto-generates one
   // and logs it at startup. Whitelist the token in Firebase Console once.
-  if (isEmulatorMode || import.meta.env.DEV || isNodeEnv) {
+  if (import.meta.env.DEV) {
     // Setting the global before initializeAppCheck activates the debug provider.
-    // Using globalThis instead of self ensures compatibility with Node.js.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN =
       appCheckDebugToken ??
       (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN ??
@@ -210,7 +212,6 @@ export const appCheck = (() => {
   }
 
   // Fallback: no App Check in non-emulator, non-production environments
-  // (e.g., Vitest/Node). Log to alert developers.
   console.warn(
     "[firebase] App Check not initialised — set VITE_APPCHECK_SITE_KEY for production " +
       "or VITE_USE_FIREBASE_EMULATORS=true for local development.",
