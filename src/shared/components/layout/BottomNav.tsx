@@ -21,7 +21,7 @@ import {
 import { cn } from "@/shared/lib/cn";
 import type { Role } from "@/shared/constants/roles";
 import { ROLES } from "@/shared/constants/roles";
-import { openGetAppModal } from "@/shared/hooks/usePWAInstall";
+import { usePWAInstall } from "@/shared/hooks/usePWAInstall";
 
 
 interface BottomNavTab {
@@ -106,6 +106,7 @@ interface BottomNavProps {
 export function BottomNav({ role }: BottomNavProps) {
   const [showMore, setShowMore] = useState(false);
   const navigate = useNavigate();
+  const { triggerInstall } = usePWAInstall();
 
   const tabs = BOTTOM_TABS_BY_ROLE[role] ?? [];
   const moreItems = MORE_ITEMS_BY_ROLE[role] ?? [];
@@ -155,7 +156,7 @@ export function BottomNav({ role }: BottomNavProps) {
                     key={item.to}
                     onClick={() => {
                       if (isGetApp) {
-                        openGetAppModal();
+                        triggerInstall();
                       } else {
                         navigate(item.to);
                       }

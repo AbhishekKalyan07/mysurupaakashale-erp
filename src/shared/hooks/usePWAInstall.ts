@@ -5,7 +5,8 @@ export interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-let globalInstallPrompt: BeforeInstallPromptEvent | null = null;
+let globalInstallPrompt: BeforeInstallPromptEvent | null =
+  (typeof window !== "undefined" && (window as any).__pwaInstallPrompt) || null;
 const installListeners = new Set<() => void>();
 
 let globalIsModalOpen = false;
@@ -22,14 +23,20 @@ export function closeGetAppModal() {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e: Event) => {
+  const handlePrompt = (e: Event) => {
     e.preventDefault();
-    globalInstallPrompt = e as BeforeInstallPromptEvent;
+    const promptEvent = ((e as CustomEvent).detail || e) as BeforeInstallPromptEvent;
+    globalInstallPrompt = promptEvent;
+    (window as any).__pwaInstallPrompt = promptEvent;
     installListeners.forEach((fn) => fn());
-  });
+  };
+
+  window.addEventListener("beforeinstallprompt", handlePrompt);
+  window.addEventListener("pwa-prompt-available", handlePrompt);
 
   window.addEventListener("appinstalled", () => {
     globalInstallPrompt = null;
+    (window as any).__pwaInstallPrompt = null;
     try {
       localStorage.setItem("pwa-installed", "true");
     } catch {
@@ -76,13 +83,20 @@ export function usePWAInstall() {
 
   const isAndroid = typeof window !== "undefined" && /Android/i.test(navigator.userAgent);
 
-  const canPromptDirectly = Boolean(globalInstallPrompt);
+  const canPromptDirectly = Boolean(
+    globalInstallPrompt ||
+    (typeof window !== "undefined" && (window as any).__pwaInstallPrompt)
+  );
 
   const triggerInstall = useCallback(async () => {
-    if (globalInstallPrompt) {
+    const promptToUse =
+      globalInstallPrompt ||
+      (typeof window !== "undefined" ? (window as any).__pwaInstallPrompt : null);
+
+    if (promptToUse) {
       try {
-        await globalInstallPrompt.prompt();
-        const { outcome } = await globalInstallPrompt.userChoice;
+        await promptToUse.prompt();
+        const { outcome } = await promptToUse.userChoice;
         if (outcome === "accepted") {
           try {
             localStorage.setItem("pwa-installed", "true");
@@ -90,6 +104,9 @@ export function usePWAInstall() {
             // Ignore storage errors
           }
           globalInstallPrompt = null;
+          if (typeof window !== "undefined") {
+            (window as any).__pwaInstallPrompt = null;
+          }
           installListeners.forEach((fn) => fn());
           closeGetAppModal();
           return "accepted";

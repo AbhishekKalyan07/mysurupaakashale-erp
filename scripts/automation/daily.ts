@@ -4,6 +4,7 @@ import { getTodayInTimezone } from '@/shared/lib/date';
 import { authenticateForAutomation } from './auth';
 import { automationService } from '@/shared/services/firestore/automationService';
 import { orderService } from '@/shared/services/business/orderService';
+import { orderVerificationService } from '@/shared/services/business/orderVerificationService';
 import { billingService } from '@/shared/services/business/billingService';
 
 interface TaskMetric {
@@ -146,12 +147,14 @@ async function runDailyTasks() {
       const orderRes = await orderService.generateDailyOrders(todayStr);
       console.log(orderRes.message);
       if (orderRes.success === false) {
-        console.warn(
-          `[Daily Automation] Quarantined order generation failures: ${orderRes.message} (Logged in failureQueue for admin resolution)`
+        console.error(
+          `[Daily Automation] Order generation failed: ${orderRes.message}`
         );
+        errors.push(new Error(`Order generation failed: ${orderRes.message}`));
+        hasErrors = true;
         metrics.push({
           name: '🍳 Today\'s Orders',
-          status: 'WARNING',
+          status: 'FAILED',
           details: orderRes.message,
         });
       } else {
@@ -181,6 +184,45 @@ async function runDailyTasks() {
         name: '🍳 Today\'s Orders',
         status: 'FAILED',
         details: String((e as Error)?.message || e),
+      });
+    }
+
+    console.log(`4b. Verifying Order Generation for ${todayStr}...`);
+    try {
+      const verificationRes = await orderVerificationService.verifyDailyOrders(todayStr);
+      const formattedReport = orderVerificationService.formatReport(verificationRes);
+      console.log('\n' + formattedReport + '\n');
+
+      if (verificationRes.verification === 'FAIL') {
+        const failMsg =
+          verificationRes.failureReasons.join('; ') ||
+          'Order generation verification failed.';
+        console.error(`[Daily Automation] Verification FAILED: ${failMsg}`);
+        errors.push(new Error(failMsg));
+        hasErrors = true;
+        metrics.push({
+          name: '🔍 Order Verification',
+          status: 'FAILED',
+          details: failMsg,
+        });
+      } else {
+        const detailsMsg = verificationRes.isExpectedZero
+          ? `Expected zero orders (${verificationRes.calendar.reason}). SKIPPED / HEALTHY.`
+          : `Verified ${verificationRes.orders.actualTotal}/${verificationRes.orders.expectedTotal} orders. Missing: 0, Duplicates: 0.`;
+        metrics.push({
+          name: '🔍 Order Verification',
+          status: 'SUCCESS',
+          details: detailsMsg,
+        });
+      }
+    } catch (vErr) {
+      console.error('Error during Order Verification:', vErr);
+      errors.push(vErr as Error);
+      hasErrors = true;
+      metrics.push({
+        name: '🔍 Order Verification',
+        status: 'FAILED',
+        details: String((vErr as Error)?.message || vErr),
       });
     }
 

@@ -17,14 +17,15 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
  */
 function parseServiceAccount(raw: string): ServiceAccount {
   const trimmed = raw.trim();
+  let sa: any;
   // Attempt 1: plain JSON
   try {
-    return JSON.parse(trimmed) as ServiceAccount;
+    sa = JSON.parse(trimmed);
   } catch {
     // Attempt 2: base64-encoded JSON
     try {
       const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
-      return JSON.parse(decoded) as ServiceAccount;
+      sa = JSON.parse(decoded);
     } catch {
       throw new Error(
         'FIREBASE_SERVICE_ACCOUNT is neither valid JSON nor valid base64-encoded JSON. ' +
@@ -33,6 +34,13 @@ function parseServiceAccount(raw: string): ServiceAccount {
       );
     }
   }
+
+  // Normalize private key: in CI environments / GitHub secrets, newlines are often escaped as literal \n
+  if (sa && typeof sa.private_key === 'string') {
+    sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+  }
+
+  return sa as ServiceAccount;
 }
 
 export async function authenticateForAutomation() {
