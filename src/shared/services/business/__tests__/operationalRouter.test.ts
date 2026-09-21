@@ -75,4 +75,37 @@ describe("resolveOperationalZoneAndKitchen", () => {
       expect(e.message).toContain("No delivery zone serves pincode");
     }
   });
+
+  it("throws clear diagnostic error when allZones is empty", () => {
+    expect(() =>
+      resolveOperationalZoneAndKitchen({ pincode: "570001" }, [])
+    ).toThrow(
+      "Cannot route order: No delivery zones configured in the system. Please create at least one active delivery zone in Admin > Delivery Zones."
+    );
+  });
+
+  it("handles malformed zone records (null/undefined/number pincodes) without crashing", () => {
+    const malformedZones = [
+      { id: "z-bad-1", name: "Bad Zone 1", kitchenId: "k1", pincodes: null as any },
+      { id: "z-bad-2", name: "Bad Zone 2", kitchenId: "k1", pincodes: undefined as any },
+      { id: "z-num", name: "Num Zone", kitchenId: "k1", pincodes: [570001 as any] },
+    ];
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570001" },
+      malformedZones
+    );
+    expect(result).toEqual({ zoneId: "z-num", kitchenId: "k1" });
+  });
+
+  it("ignores inactive zones", () => {
+    const zonesWithInactive = [
+      { id: "z-inactive", name: "Inactive Zone", kitchenId: "k1", pincodes: ["570001"], isActive: false },
+      { id: "z-active", name: "Active Zone", kitchenId: "k2", pincodes: ["570001"], isActive: true },
+    ];
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570001" },
+      zonesWithInactive
+    );
+    expect(result).toEqual({ zoneId: "z-active", kitchenId: "k2" });
+  });
 });

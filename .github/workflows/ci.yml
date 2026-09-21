@@ -274,7 +274,11 @@ jobs:
             echo "::error::FIREBASE_SERVICE_ACCOUNT secret is empty or missing. Please add it to GitHub secrets."
             exit 1
           fi
-          echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ runner.temp }}/serviceAccount.json
+          if echo "$FIREBASE_SERVICE_ACCOUNT" | grep -q '^{' ; then
+            echo "$FIREBASE_SERVICE_ACCOUNT" > ${{ runner.temp }}/serviceAccount.json
+          else
+            echo "$FIREBASE_SERVICE_ACCOUNT" | base64 -d > ${{ runner.temp }}/serviceAccount.json
+          fi
       - name: Deploy to Firebase Hosting & Rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/serviceAccount.json

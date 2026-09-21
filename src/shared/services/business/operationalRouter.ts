@@ -30,9 +30,17 @@ export function resolveOperationalZoneAndKitchen(
     throw new Error("Cannot route order: Address pincode is empty.");
   }
 
-  const matchedZone = allZones.find((z) =>
-    z.pincodes.some((p) => p.trim() === normalizedPincode)
-  );
+  if (!allZones || allZones.length === 0) {
+    throw new Error(
+      "Cannot route order: No delivery zones configured in the system. Please create at least one active delivery zone in Admin > Delivery Zones."
+    );
+  }
+
+  const matchedZone = allZones.find((z) => {
+    if ((z as any).isActive === false) return false;
+    if (!Array.isArray(z.pincodes)) return false;
+    return z.pincodes.some((p) => String(p).trim() === normalizedPincode);
+  });
 
   if (!matchedZone) {
     throw new Error(

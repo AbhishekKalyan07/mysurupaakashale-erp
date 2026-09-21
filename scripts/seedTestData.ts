@@ -30,6 +30,41 @@ async function seedTestData() {
     
     const customerId = userRecord.uid;
 
+    // 1.1 Ensure default active Delivery Zone exists
+    const zoneSnap = await db.collection('delivery_zones').doc('zone-1').get();
+    if (!zoneSnap.exists) {
+      console.log('Creating default delivery zone...');
+      await db.collection('delivery_zones').doc('zone-1').set({
+        name: 'Gokulam & Saraswathipuram',
+        pincodes: ['570001', '570002', '570009'],
+        kitchenId: 'test-kitchen',
+        isActive: true,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    }
+
+    // 1.2 Ensure test customer user profile has zone and address
+    await db.collection('users').doc(customerId).set({
+      role: 'customer',
+      fullName: 'Test Customer',
+      phone: '9876543210',
+      displayId: 'MP-C001',
+      zoneId: 'zone-1',
+      defaultAddressId: 'addr-1',
+      addresses: [
+        {
+          id: 'addr-1',
+          line1: '123, 4th Main',
+          line2: 'Gokulam 2nd Stage',
+          city: 'Mysuru',
+          pincode: '570001',
+          isDefault: true,
+        }
+      ],
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+
     // 2. Create a Mock Plan if it doesn't exist
     const plansSnap = await db.collection('meal_plans').limit(1).get();
     let planId = 'test-plan-1';

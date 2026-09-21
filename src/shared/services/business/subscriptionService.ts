@@ -120,30 +120,30 @@ class SubscriptionService {
       });
     }
 
-    // Immediately generate orders for today if the subscription starts today or earlier
+    // Immediately generate initial orders for start date (or today if already started)
     const { orderService } = await import("./orderService");
     const today = getTodayInTimezone();
+    const targetDate =
+      subscription.startDate <= today ? today : subscription.startDate;
 
-    if (subscription.startDate <= today) {
-      const mealTypes = (subscription.mealPreferences || []).map(
-        (p) => p.mealType,
-      );
-      console.log(
-        `[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for today (${today})...`,
-      );
+    const mealTypes = (subscription.mealPreferences || []).map(
+      (p) => p.mealType,
+    );
+    console.log(
+      `[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for ${targetDate}...`,
+    );
 
-      try {
-        await orderService.generateOrdersForSubscription(
-          subscription,
-          today,
-          mealTypes,
-        );
-      } catch (err) {
-        console.error(
-          `[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`,
-          err,
-        );
-      }
+    try {
+      await orderService.generateOrdersForSubscription(
+        subscription,
+        targetDate,
+        mealTypes,
+      );
+    } catch (err) {
+      console.error(
+        `[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`,
+        err,
+      );
     }
 
     try {

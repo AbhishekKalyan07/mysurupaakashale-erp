@@ -225,6 +225,9 @@ export function useApproveSubscription() {
     },
     onSuccess: (subscription) => {
       invalidateSubscriptionLists(queryClient, subscription);
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
+      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
       toast.success("Subscription approved and activated.");
     },
     onError: (err: unknown) => {

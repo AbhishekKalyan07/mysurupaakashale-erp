@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, Loader2, Search, SlidersHorizontal, X } from "lucide-react";
+import { Package, Loader2, Search, SlidersHorizontal, X, RefreshCw } from "lucide-react";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
@@ -13,6 +13,8 @@ import { getHourInTimezone } from "@/shared/lib/date";
 import type { Order, OrderStatus, MealType } from "@/shared/types";
 import toast from "react-hot-toast";
 import { useCustomerNameMap as usePartnerNameMap } from "@/features/admin/hooks/useAdmin";
+import { useOrderAutoChecker } from "@/features/admin/hooks/useOrderAutoChecker";
+import { OrderDiagnosticCard } from "@/features/admin/components/OrderDiagnosticCard";
 import { cn } from "@/shared/lib/cn";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,6 +165,12 @@ export function AdminOrdersPage() {
     staleTime: 0,
   });
 
+  const { diagnosticResult, isChecking, recheck } = useOrderAutoChecker(
+    selectedDate,
+    orders.length,
+    isLoading,
+  );
+
   const allCustomerIds = useMemo(
     () => [...new Set(orders.map((o) => o.customerId))],
     [orders],
@@ -288,14 +296,38 @@ export function AdminOrdersPage() {
         userName="Orders"
         subtitle={`${selectedDate} · ${orders.length} total`}
         actions={
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-auto text-sm h-9 px-3"
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => recheck()}
+              disabled={isChecking}
+              className="flex items-center gap-1.5 h-9"
+            >
+              <RefreshCw
+                size={14}
+                className={cn(isChecking && "animate-spin text-secondary")}
+              />
+              <span className="hidden sm:inline">Diagnose</span>
+            </Button>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-auto text-sm h-9 px-3"
+            />
+          </div>
         }
       />
+
+      {/* When orders exist but there are pauses/skips/faults, show diagnostic banner */}
+      {orders.length > 0 && diagnosticResult && (
+        <OrderDiagnosticCard
+          diagnostic={diagnosticResult}
+          isChecking={isChecking}
+          onRecheck={recheck}
+        />
+      )}
 
       {/* Search + Filter toggle row */}
       <div className="flex gap-2">
@@ -404,6 +436,12 @@ export function AdminOrdersPage() {
         <div className="flex h-52 items-center justify-center rounded-[20px] border border-dashed border-secondary/30 bg-pastel-lavender/30">
           <Loader2 className="h-7 w-7 animate-spin text-secondary" />
         </div>
+      ) : orders.length === 0 ? (
+        <OrderDiagnosticCard
+          diagnostic={diagnosticResult}
+          isChecking={isChecking}
+          onRecheck={recheck}
+        />
       ) : filteredOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-border bg-surface-2 py-16 text-center">
           <Package className="mb-3 h-10 w-10 text-text-faint" />

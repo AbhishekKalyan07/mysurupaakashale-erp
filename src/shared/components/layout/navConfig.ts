@@ -18,6 +18,7 @@ import {
   MessageSquare,
   ClipboardList,
   Bell,
+  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { ROLES, type Role } from "@/shared/constants/roles";
@@ -95,6 +96,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
           icon: ReceiptText,
         },
         { label: "Order History", to: "/customer/orders", icon: Package },
+        { label: "Get App", to: "#get-app", icon: Smartphone },
       ],
     },
     {
