@@ -13,7 +13,8 @@ function writeGitHubStepSummary(
   fileSizeKb: string,
   totalDocuments: number,
   success: boolean,
-  errorMessage?: string
+  errorMessage?: string,
+  collections?: Record<string, number>
 ) {
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   if (!summaryPath) return;
@@ -29,6 +30,15 @@ function writeGitHubStepSummary(
     md += `| 📏 **File Size** | ${fileSizeKb} KB |\n`;
     md += `| 📄 **Total Documents** | ${totalDocuments.toLocaleString()} records |\n`;
     md += `| ⏳ **Retention Policy** | 90 Days (Stored in GitHub Artifacts) |\n`;
+
+    if (collections && Object.keys(collections).length > 0) {
+      md += `\n### 📊 Collections Summary\n\n`;
+      md += `| Collection | Document Count |\n`;
+      md += `| :--- | :--- |\n`;
+      for (const [colName, count] of Object.entries(collections)) {
+        md += `| \`${colName}\` | ${count.toLocaleString()} |\n`;
+      }
+    }
 
     if (!success && errorMessage) {
       md += `\n> ❌ **Failure Reason**: ${errorMessage}\n`;
@@ -66,10 +76,10 @@ async function runWeeklyTasks() {
     const stats = fs.statSync(filePath);
     fileSizeKb = (stats.size / 1024).toFixed(2);
     console.log(
-      `Weekly backup saved to ${filePath} (${fileSizeKb} KB, ${totalDocuments} total documents)`
+      `Weekly backup saved to ${filePath} (${fileSizeKb} KB, ${totalDocuments} total documents across ${Object.keys(result.collections).length} collections)`
     );
 
-    writeGitHubStepSummary(todayStr, backupFilename, fileSizeKb, totalDocuments, true);
+    writeGitHubStepSummary(todayStr, backupFilename, fileSizeKb, totalDocuments, true, undefined, result.collections);
 
     console.log('--- Weekly Automation Tasks Completed Successfully ---');
     process.exit(0);

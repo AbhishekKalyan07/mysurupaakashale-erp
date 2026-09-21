@@ -711,7 +711,7 @@ service cloud.firestore {
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn() && settingId != 'userCounters';
+      allow read: if isSignedIn();
       allow write: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
     }
 
@@ -723,7 +723,8 @@ service cloud.firestore {
                        request.resource.data.performedBy == request.auth.uid &&
                        request.resource.data.performedByRole == role() &&
                        request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
-      allow update, delete: if false; // Audit logs must be immutable
+      allow update: if false; // Audit logs are immutable
+      allow delete: if isAdmin(); // Retention cleanup (monthly maintenance)
     }
 
     // ---------- failureQueue/{recordId} ----------

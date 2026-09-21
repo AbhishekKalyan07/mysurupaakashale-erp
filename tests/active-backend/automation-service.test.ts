@@ -218,6 +218,16 @@ describe('active automation service', () => {
     expect(result.collections).toHaveProperty('users');
     expect(result.collections).toHaveProperty('orders');
     expect(result.collections).toHaveProperty('payments');
+    expect(result.collections).toHaveProperty('settings');
+  });
+
+  it('throws descriptive error identifying the failed collection if any collection read fails', async () => {
+    const { getDocs } = await import('firebase/firestore');
+    vi.mocked(getDocs).mockRejectedValueOnce(new Error('Missing or insufficient permissions'));
+
+    await expect(automationService.exportDatabaseBackup()).rejects.toThrow(
+      /Failed to export collection "users": Missing or insufficient permissions/
+    );
   });
 
   it('generates monthly excel', async () => {

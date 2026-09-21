@@ -437,14 +437,28 @@ export class AutomationService {
 
     let totalDocs = 0;
     for (const coll of collections) {
-      const snap = await getDocs(collection(db, coll));
-      const docs = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      backupData[coll] = docs;
-      counts[coll] = docs.length;
-      totalDocs += docs.length;
+      try {
+        console.log(`[automationService] Backing up collection "${coll}"...`);
+        const snap = await getDocs(collection(db, coll));
+        const docs = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        backupData[coll] = docs;
+        counts[coll] = docs.length;
+        totalDocs += docs.length;
+        console.log(
+          `[automationService] Backed up ${docs.length} documents from "${coll}".`,
+        );
+      } catch (collErr: any) {
+        console.error(
+          `[automationService] Failed to back up collection "${coll}":`,
+          collErr?.message || collErr,
+        );
+        throw new Error(
+          `Failed to export collection "${coll}": ${collErr?.message || collErr}`,
+        );
+      }
     }
 
     const jsonString = JSON.stringify(backupData, null, 2);
