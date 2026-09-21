@@ -18,6 +18,7 @@ import type { CustomerProfile } from "@/shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/shared/types";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { getTodayIST } from "@/shared/utils/dateUtils";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
@@ -642,7 +643,7 @@ export function CustomerDashboardPage() {
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
-                                        {new Intl.DateTimeFormat("en-IN", {
+                                        {getCachedDateTimeFormatter("en-IN", {
                                           hour: "numeric",
                                           minute: "numeric",
                                           hour12: true,
