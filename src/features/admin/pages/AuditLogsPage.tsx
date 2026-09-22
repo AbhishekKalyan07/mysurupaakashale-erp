@@ -300,7 +300,11 @@ export function AuditLogsPage() {
                       <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider block mb-1">
                         Details
                       </span>
-                      <SystemAuditReportView details={log.details} />
+                      <SystemAuditReportView
+                        details={log.details}
+                        action={log.action}
+                        reason={log.reason}
+                      />
                     </td>
                   </tr>
                 ))}

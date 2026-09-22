@@ -39,6 +39,7 @@ import type {
   Order,
 } from "@/shared/types";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 function formatDate(value: any): string {
   if (!value) return "—";
@@ -227,18 +228,24 @@ function CustomerDetailDialog({
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-text-muted text-xs font-mono bg-background-alt px-2 py-1 rounded inline-block border border-primary/10">
-                {customer.displayId || "Customer"}
+                {formatAllottedId(customer.displayId, customer.id, "customer")}
               </span>
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(customer.id);
-                  toast.success("Customer UID copied!");
+                  navigator.clipboard.writeText(
+                    formatAllottedId(
+                      customer.displayId,
+                      customer.id,
+                      "customer",
+                    ),
+                  );
+                  toast.success("Customer ID copied!");
                 }}
                 className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded border border-primary/10 flex items-center gap-1 transition-colors cursor-pointer"
-                title="Click to copy Firebase Auth UID for accounts/invoicing"
+                title="Copy Customer ID"
               >
-                UID: {customer.id.substring(0, 8)}... <Copy size={12} />
+                Copy ID <Copy size={12} />
               </button>
             </div>
           </div>
@@ -691,14 +698,12 @@ function CustomerCardView({
           <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors truncate">
             👤 {customer.fullName}
           </h3>
-          {customer.displayId && (
-            <Badge
-              variant="default"
-              className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10 shrink-0"
-            >
-              {customer.displayId}
-            </Badge>
-          )}
+          <Badge
+            variant="default"
+            className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10 shrink-0"
+          >
+            {formatAllottedId(customer.displayId, customer.id, "customer")}
+          </Badge>
         </div>
 
         {/* Contact Info Inline */}
@@ -812,12 +817,17 @@ export function AdminCustomersPage() {
     // 2. Filter by Search
     if (!search.trim()) return true;
     const q = search.toLowerCase();
+    const formattedId = formatAllottedId(
+      row.displayId,
+      row.id,
+      "customer",
+    ).toLowerCase();
     return (
       row.fullName.toLowerCase().includes(q) ||
       row.phone.toLowerCase().includes(q) ||
       row.email.toLowerCase().includes(q) ||
       row.id.toLowerCase().includes(q) ||
-      (row.displayId && row.displayId.toLowerCase().includes(q))
+      formattedId.includes(q)
     );
   });
 
@@ -951,11 +961,9 @@ export function AdminCustomersPage() {
                           <div className="font-bold text-primary group-hover:text-gold transition-colors text-base">
                             {row.fullName}
                           </div>
-                          {row.displayId && (
-                            <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
-                              {row.displayId}
-                            </div>
-                          )}
+                          <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
+                            {formatAllottedId(row.displayId, row.id, "customer")}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-data text-primary font-medium">

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { useQuery } from "@tanstack/react-query";
+import { formatAllottedId } from "@/shared/utils/displayId";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
 import { mealPlanRepository } from "@/shared/services/firestore/mealPlanRepository";
@@ -369,12 +370,15 @@ function PaymentDetailDialog({
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
                 Customer
               </div>
-              <div className="font-bold text-primary">
-                {payment.customerName}{" "}
-                {user?.displayId ? `(${user.displayId})` : ""}
+              <div className="font-bold text-primary text-base">
+                {payment.customerName}
               </div>
-              <div className="text-text-muted text-[10px] font-mono mt-1">
-                {user?.displayId ? user.displayId : payment.customerId}
+              <div className="text-primary font-mono font-bold text-xs mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20">
+                <span className="text-[10px] text-text-muted uppercase font-sans font-medium">ID:</span>
+                {formatAllottedId(
+                  user?.displayId || payment.customerDisplayId,
+                  payment.customerId,
+                )}
               </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
@@ -612,9 +616,11 @@ function PaymentDetailDialog({
 // ── Payment Row (Responsive) ───────────────────────────────────────────────────
 function PaymentRow({
   payment,
+  customerDisplayId,
   onSelect,
 }: {
   payment: ManualPayment;
+  customerDisplayId?: string | null;
   onSelect: () => void;
 }) {
   const parsedDate = parseFirestoreDate(payment.createdAt);
@@ -638,6 +644,11 @@ function PaymentRow({
       <Building2 size={14} />
     );
 
+  const displayId = formatAllottedId(
+    customerDisplayId || payment.customerDisplayId,
+    payment.customerId,
+  );
+
   return (
     <tr
       className="block md:table-row bg-background hover:bg-primary/5 p-4 md:p-0 space-y-3 md:space-y-0 cursor-pointer transition-colors border-b border-primary/10 last:border-0 group"
@@ -652,7 +663,7 @@ function PaymentRow({
             {payment.customerName}
           </div>
           <div className="text-text-muted text-[10px] font-mono truncate max-w-[140px] mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
-            {payment.customerId}
+            {displayId}
           </div>
         </div>
       </td>
@@ -771,6 +782,35 @@ export function PaymentVerificationPage() {
   );
   const payments = data?.payments;
 
+  // Batch-resolve customer profiles for all payments on the current page
+  const uniqueCustomerIds = useMemo(() => {
+    return Array.from(
+      new Set(payments?.map((p) => p.customerId).filter(Boolean) || []),
+    );
+  }, [payments]);
+
+  const { data: customerMap } = useQuery({
+    queryKey: ["payment-customers-map", uniqueCustomerIds],
+    queryFn: async () => {
+      const map = new Map<string, { displayId?: string; fullName?: string }>();
+      await Promise.all(
+        uniqueCustomerIds.map(async (cid) => {
+          try {
+            const u = await userRepository.getById(cid);
+            if (u) {
+              map.set(cid, { displayId: u.displayId, fullName: u.fullName });
+            }
+          } catch {
+            // Non-critical single user fetch error
+          }
+        }),
+      );
+      return map;
+    },
+    enabled: uniqueCustomerIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
   const handleNextPage = () => {
     if (data?.lastDoc) {
       setPageHistory((prev) => {
@@ -801,8 +841,14 @@ export function PaymentVerificationPage() {
   const filtered = (payments ?? []).filter((p) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
+    const custDisplay = (
+      customerMap?.get(p.customerId)?.displayId ||
+      p.customerDisplayId ||
+      ""
+    ).toLowerCase();
     return (
       p.customerName.toLowerCase().includes(q) ||
+      custDisplay.includes(q) ||
       p.customerId.toLowerCase().includes(q) ||
       (p.referenceNumber ?? "").toLowerCase().includes(q) ||
       p.subscriptionId.toLowerCase().includes(q)
@@ -940,6 +986,11 @@ export function PaymentVerificationPage() {
                   <PaymentRow
                     key={payment.id}
                     payment={payment}
+                    customerDisplayId={
+                      customerMap?.get(payment.customerId)?.displayId ??
+                      payment.customerDisplayId ??
+                      undefined
+                    }
                     onSelect={() => setSelectedPayment(payment)}
                   />
                 ))}

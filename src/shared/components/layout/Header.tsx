@@ -40,7 +40,16 @@ export function Header({ onMenuClick }: HeaderProps) {
           <p className="text-sm font-medium text-ink-900">
             {profile?.fullName || "Loading…"}
           </p>
-          {role && <p className="text-xs text-ink-500">{ROLE_LABELS[role]}</p>}
+          {role && (
+            <p className="text-xs text-ink-500 flex items-center justify-end gap-1.5">
+              <span>{ROLE_LABELS[role]}</span>
+              {profile?.displayId && (
+                <span className="font-mono text-[10px] bg-turmeric-100 text-ink-700 px-1.5 py-0.5 rounded font-bold">
+                  {profile.displayId}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-turmeric-400 font-display text-sm text-leaf-900">
           {initial}

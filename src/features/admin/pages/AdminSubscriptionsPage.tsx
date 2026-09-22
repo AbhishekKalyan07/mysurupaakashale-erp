@@ -40,6 +40,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/queryKeys";
 import { toast } from "react-hot-toast";
 import { userRepository } from "@/shared/services/firestore/userRepository";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 // ── Status → badge tone ──────────────────────────────────────────────────────
 const STATUS_TONE: Record<SubscriptionStatus, PremiumBadgeProps["variant"]> = {
@@ -84,7 +85,51 @@ function SubscriptionDetailDialog({
     "approve" | "reject" | "pause" | "resume" | null
   >(null);
 
+  const [isEditingDates, setIsEditingDates] = useState(false);
+  const [editStartDate, setEditStartDate] = useState(subscription.startDate || "");
+  const [editEndDate, setEditEndDate] = useState(subscription.endDate || "");
+  const [isSavingDates, setIsSavingDates] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
+
   const queryClient = useQueryClient();
+
+  const handleSaveDates = async () => {
+    if (!editStartDate) {
+      setDateError("Start date is required.");
+      return;
+    }
+    if (editEndDate && editEndDate < editStartDate) {
+      setDateError("End date must be on or after start date.");
+      return;
+    }
+    setIsSavingDates(true);
+    setDateError(null);
+    try {
+      const { subscriptionRepository } = await import(
+        "@/shared/services/firestore/subscriptionRepository"
+      );
+      await subscriptionRepository.update(subscription.id, {
+        startDate: editStartDate,
+        endDate: editEndDate || null,
+      });
+      subscription.startDate = editStartDate;
+      subscription.endDate = editEndDate || null;
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.detail(subscription.id),
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
+      toast.success("Subscription dates updated successfully.");
+      setIsEditingDates(false);
+    } catch (err: any) {
+      console.error("Failed to update subscription dates:", err);
+      setDateError(err.message || "Failed to update dates.");
+      toast.error(err.message || "Failed to update dates.");
+    } finally {
+      setIsSavingDates(false);
+    }
+  };
   const approve = useApproveSubscription();
   const reject = useRejectSubscription();
   const pause = usePauseSubscription();
@@ -150,11 +195,13 @@ function SubscriptionDetailDialog({
               <h2 className="text-xl font-bold text-primary font-display">
                 Subscription Details
               </h2>
-              {subscription.customerDisplayId && (
-                <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">
-                  {subscription.customerDisplayId}
-                </p>
-              )}
+              <p className="text-text-muted text-xs font-mono mt-1 bg-background px-2 py-1 rounded inline-block border border-primary/10">
+                {formatAllottedId(
+                  subscription.customerDisplayId,
+                  subscription.customerId,
+                  "customer",
+                )}
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -173,9 +220,15 @@ function SubscriptionDetailDialog({
               </div>
               <div className="font-bold text-primary text-lg">
                 {subscription.customerName}{" "}
-                {subscription.customerDisplayId
-                  ? `(${subscription.customerDisplayId})`
-                  : ""}
+                <span className="text-xs font-mono font-normal text-text-muted">
+                  (
+                  {formatAllottedId(
+                    subscription.customerDisplayId,
+                    subscription.customerId,
+                    "customer",
+                  )}
+                  )
+                </span>
               </div>
               <div className="text-text-muted text-xs font-medium">
                 {subscription.customerPhone}
@@ -183,11 +236,6 @@ function SubscriptionDetailDialog({
               {subscription.customerAddress && (
                 <div className="text-primary text-xs mt-2 p-2 bg-background rounded border border-primary/10">
                   {subscription.customerAddress}
-                </div>
-              )}
-              {!subscription.customerDisplayId && (
-                <div className="text-text-muted text-[10px] font-mono mt-2">
-                  {subscription.customerId}
                 </div>
               )}
             </div>
@@ -216,22 +264,83 @@ function SubscriptionDetailDialog({
               </div>
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
-              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
-                Start Date
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1 flex items-center justify-between">
+                <span>Start Date</span>
+                {!isEditingDates && (
+                  <button
+                    onClick={() => setIsEditingDates(true)}
+                    className="text-[10px] text-secondary font-semibold hover:underline"
+                  >
+                    Edit Dates
+                  </button>
+                )}
               </div>
-              <div className="font-bold text-primary">
-                {formatDate(subscription.startDate)}
-              </div>
+              {isEditingDates ? (
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => {
+                    setEditStartDate(e.target.value);
+                    setDateError(null);
+                  }}
+                  className="w-full text-sm font-data border border-border rounded-lg px-2 py-1 bg-card text-text mt-1"
+                />
+              ) : (
+                <div className="font-bold text-primary">
+                  {formatDate(editStartDate || subscription.startDate)}
+                </div>
+              )}
             </div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
                 End Date
               </div>
-              <div className="font-bold text-primary">
-                {subscription.endDate
-                  ? formatDate(subscription.endDate)
-                  : "Month-End (Rolling)"}
-              </div>
+              {isEditingDates ? (
+                <div className="space-y-1">
+                  <input
+                    type="date"
+                    value={editEndDate}
+                    onChange={(e) => {
+                      setEditEndDate(e.target.value);
+                      setDateError(null);
+                    }}
+                    className="w-full text-sm font-data border border-border rounded-lg px-2 py-1 bg-card text-text mt-1"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      size="sm"
+                      disabled={isSavingDates}
+                      onClick={handleSaveDates}
+                      className="h-7 text-xs px-2"
+                    >
+                      {isSavingDates ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={isSavingDates}
+                      onClick={() => {
+                        setEditStartDate(subscription.startDate || "");
+                        setEditEndDate(subscription.endDate || "");
+                        setIsEditingDates(false);
+                        setDateError(null);
+                      }}
+                      className="h-7 text-xs px-2"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  {dateError && (
+                    <p className="text-danger text-[10px] mt-1">{dateError}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="font-bold text-primary">
+                  {(editEndDate || subscription.endDate)
+                    ? formatDate(editEndDate || subscription.endDate)
+                    : "Month-End (Rolling)"}
+                </div>
+              )}
             </div>
 
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
@@ -611,14 +720,16 @@ function SubscriptionCardView({
           <h3 className="font-bold text-text text-[15px] leading-snug group-hover:text-primary transition-colors truncate">
             👤 {subscription.customerName}
           </h3>
-          {subscription.customerDisplayId && (
-            <Badge
-              variant="default"
-              className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10 shrink-0"
-            >
-              {subscription.customerDisplayId}
-            </Badge>
-          )}
+          <Badge
+            variant="default"
+            className="font-mono text-[11px] font-bold tracking-wider px-2 py-0.5 shadow-sm bg-primary/5 text-primary border border-primary/10 shrink-0"
+          >
+            {formatAllottedId(
+              subscription.customerDisplayId,
+              subscription.customerId,
+              "customer",
+            )}
+          </Badge>
         </div>
 
         {/* Contact Info Inline */}
@@ -797,11 +908,13 @@ export function AdminSubscriptionsPage() {
                         <span className="text-[13px] leading-none">📞</span>{" "}
                         {row.customerPhone}
                       </div>
-                      {row.customerDisplayId && (
-                        <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
-                          {row.customerDisplayId}
-                        </div>
-                      )}
+                      <div className="text-[10px] text-text-muted font-mono mt-1 bg-background-alt inline-block px-1.5 py-0.5 rounded border border-primary/5">
+                        {formatAllottedId(
+                          row.customerDisplayId,
+                          row.customerId,
+                          "customer",
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-primary font-medium">

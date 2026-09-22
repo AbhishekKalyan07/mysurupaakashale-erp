@@ -166,13 +166,24 @@ function formatResolvedEntity(colName: string, _id: string, data: any): string {
     }
     case "payments": {
       const payment = data as ManualPayment;
-      return payment.customerName ? `Payment from ${payment.customerName}` : `Payment (₹${payment.amount})`;
+      const amountStr = payment.amount !== undefined ? `₹${Number(payment.amount).toLocaleString("en-IN")}` : "";
+      const methodStr = payment.paymentMethod
+        ? payment.paymentMethod.toLowerCase() === "upi"
+          ? "UPI"
+          : payment.paymentMethod.replace(/_/g, " ")
+        : "";
+      const meta = [amountStr, methodStr].filter(Boolean).join(" - ");
+      const metaSuffix = meta ? ` (${meta})` : "";
+      return payment.customerName ? `Payment from ${payment.customerName}${metaSuffix}` : `Payment from Customer${metaSuffix}`;
     }
     case "invoices": {
       return `Invoice (${data.billingMonth || "Unknown Month"} - ₹${data.amount || 0})`;
     }
     case "subscriptions": {
-      return `Subscription`;
+      const tierStr = data.planTier ? String(data.planTier).toUpperCase() : "";
+      const statusStr = data.status ? String(data.status).charAt(0).toUpperCase() + String(data.status).slice(1) : "";
+      const meta = [tierStr, statusStr].filter(Boolean).join(" - ");
+      return meta ? `Subscription (${meta})` : "Subscription";
     }
     case "salaryAdvances": {
       return "Salary Advance";

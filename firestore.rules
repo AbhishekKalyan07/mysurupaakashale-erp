@@ -539,8 +539,12 @@ service cloud.firestore {
                         request.resource.data.screenshotUrl == null ||
                         (request.resource.data.screenshotUrl is string &&
                          request.resource.data.screenshotUrl.size() <= 150000)) &&
+                       (!('customerDisplayId' in request.resource.data) ||
+                        request.resource.data.customerDisplayId == null ||
+                        (request.resource.data.customerDisplayId is string &&
+                         request.resource.data.customerDisplayId.size() <= 50)) &&
                        request.resource.data.keys().hasOnly([
-                         'subscriptionId', 'customerId', 'customerName',
+                         'subscriptionId', 'customerId', 'customerName', 'customerDisplayId',
                          'amount', 'currency', 'purpose', 'paymentMethod', 'referenceNumber',
                          'paymentDate', 'screenshotUrl', 'billingMonth',
                          'status', 'verificationDate', 'verifiedBy',

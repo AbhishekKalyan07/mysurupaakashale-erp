@@ -370,7 +370,7 @@ class BillingService {
         subscriptionId: subscription.id,
         lineItems: [
           {
-            description: `${subscription.planTier.toUpperCase()} Plan (${subscription.billingCycle})`,
+            description: `${(subscription.planTier || "regular").toUpperCase()} Plan (${subscription.billingCycle})`,
             quantity: 1,
             unitPrice: totalAmount,
             amount: totalAmount,
@@ -407,18 +407,20 @@ class BillingService {
           const currentEnd = subscription.endDate || effectiveEndDate || today;
 
           if (subscription.billingCycle === "monthly") {
-            // Calendar month renewal: 1st of next month to last day of next month
-            const [yearStr, monthStr] = currentEnd.split("-");
+            // Continuous delivery: nextStart is the day immediately following currentEnd
+            const [yearStr, monthStr, dayStr] = currentEnd.split("-");
             const year = parseInt(yearStr, 10);
             const month = parseInt(monthStr, 10); // 1-12
+            const day = parseInt(dayStr, 10);
 
-            // Next month start: in UTC 0-indexed month, `month` is the following month
-            const nextStartDate = new Date(Date.UTC(year, month, 1));
+            // UTC-safe date addition: start the very next day with no gap
+            const nextStartDate = new Date(Date.UTC(year, month - 1, day + 1));
             const nextStartYear = nextStartDate.getUTCFullYear();
             const nextStartMonth = String(nextStartDate.getUTCMonth() + 1).padStart(2, "0");
-            nextStart = `${nextStartYear}-${nextStartMonth}-01`;
+            const nextStartDay = String(nextStartDate.getUTCDate()).padStart(2, "0");
+            nextStart = `${nextStartYear}-${nextStartMonth}-${nextStartDay}`;
 
-            // Next month end: day 0 of the month after next
+            // nextEnd: last calendar day of nextStart's month (day 0 of following month)
             const lastDayObj = new Date(Date.UTC(nextStartYear, nextStartDate.getUTCMonth() + 1, 0));
             const nextEndDay = String(lastDayObj.getUTCDate()).padStart(2, "0");
             nextEnd = `${nextStartYear}-${nextStartMonth}-${nextEndDay}`;

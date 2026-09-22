@@ -28,7 +28,8 @@ npm run test:coverage
 echo "=== STAGE: Security ==="
 export FIRESTORE_EMULATOR_HOST='127.0.0.1:8080'
 export FIREBASE_STORAGE_EMULATOR_HOST='127.0.0.1:9199'
-npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security"
+export FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9099'
+npx firebase emulators:exec --project demo-security-test --only firestore,storage,auth "npm run test:security"
 
 echo "=== STAGE: Playwright ==="
 export VITE_FIREBASE_API_KEY="mock-api-key"

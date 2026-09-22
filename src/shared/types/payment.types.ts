@@ -23,6 +23,8 @@ export interface ManualPayment {
   // ── Customer ────────────────────────────────────────────────────────────────
   customerId: ID;
   customerName: string;
+  /** Human-readable allotted ID (e.g. MP-A001). Optional for historical records. */
+  customerDisplayId?: string | null;
 
   // ── Subscription link ───────────────────────────────────────────────────────
   subscriptionId: ID;

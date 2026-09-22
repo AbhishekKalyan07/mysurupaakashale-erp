@@ -5,14 +5,48 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
+import type { ServiceAccount } from 'firebase-admin/app';
+
+function parseServiceAccount(raw: string): ServiceAccount {
+  const trimmed = raw.trim();
+  let sa: any;
+  try {
+    sa = JSON.parse(trimmed);
+  } catch {
+    try {
+      const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
+      sa = JSON.parse(decoded);
+    } catch {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT is neither valid JSON nor valid base64-encoded JSON.');
+    }
+  }
+  if (sa && typeof sa.private_key === 'string') {
+    sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+  }
+  return sa as ServiceAccount;
+}
+
 const serviceAccountPath = path.resolve(__dirname, '../serviceAccountKey.json');
 
 if (!getApps().length) {
-  try {
-    initializeApp({ credential: cert(serviceAccountPath) });
-  } catch {
-    console.log('No service account key found, initializing for local emulator only.');
-    initializeApp({ projectId: 'mysuru-paakashale-erp' });
+  const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountRaw) {
+    try {
+      const serviceAccount = parseServiceAccount(serviceAccountRaw);
+      initializeApp({ credential: cert(serviceAccount) });
+      console.log('Initialized Firebase Admin using FIREBASE_SERVICE_ACCOUNT.');
+    } catch (err: any) {
+      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT, falling back to local emulator:', err?.message || err);
+      initializeApp({ projectId: 'mysuru-paakashale-erp' });
+    }
+  } else {
+    try {
+      initializeApp({ credential: cert(serviceAccountPath) });
+      console.log('Initialized Firebase Admin using serviceAccountKey.json.');
+    } catch {
+      console.log('No service account key found, initializing for local emulator only.');
+      initializeApp({ projectId: 'mysuru-paakashale-erp' });
+    }
   }
 }
 

@@ -9,6 +9,7 @@ import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import { ChefHat, Search } from "lucide-react";
 import { OrderCard } from "@/shared/components/ui/OrderCard";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 interface Props {
   orders: Order[];
@@ -70,7 +71,8 @@ export function KitchenProductionTable({
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
           const customerName = (
-            customerMap.get(o.customerId) || o.customerId
+            customerMap.get(o.customerId) ||
+            formatAllottedId(o.customerCode || o.displayId, o.customerId, "customer")
           ).toLowerCase();
           const idMatch =
             o.displayId?.toLowerCase().includes(q) ||
@@ -196,13 +198,21 @@ export function KitchenProductionTable({
               const customerName =
                 order.customerName ||
                 customerMap.get(order.customerId) ||
-                order.customerId;
+                formatAllottedId(
+                  order.customerCode || order.displayId,
+                  order.customerId,
+                  "customer",
+                );
               const area = order.zoneId
                 ? zoneMap.get(order.zoneId) || order.zoneId
                 : undefined;
               const partner = order.deliveryPartnerId
                 ? partnerMap.get(order.deliveryPartnerId) ||
-                  order.deliveryPartnerId
+                  formatAllottedId(
+                    undefined,
+                    order.deliveryPartnerId,
+                    "delivery_partner",
+                  )
                 : undefined;
               const plan =
                 order.source === "subscription" ? order.planTier : "One-Time";

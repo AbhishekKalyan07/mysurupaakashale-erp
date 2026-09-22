@@ -9,6 +9,7 @@ import type { FeedbackStatus } from "@/shared/types/feedback.types";
 import toast from "react-hot-toast";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
 import { parseFirestoreDate } from "@/shared/utils/dateUtils";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 export function AdminComplaintsPage() {
   const queryClient = useQueryClient();
@@ -137,7 +138,11 @@ export function AdminComplaintsPage() {
                   <div className="text-sm text-text-muted mt-1">
                     Customer:{" "}
                     {customerMap.get(complaint.customerId) ||
-                      complaint.customerId}
+                      formatAllottedId(
+                        undefined,
+                        complaint.customerId,
+                        "customer",
+                      )}
                   </div>
                   {complaint.orderId && (
                     <div className="text-sm text-text-muted">
