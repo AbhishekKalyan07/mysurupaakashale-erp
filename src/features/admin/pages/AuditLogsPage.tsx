@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useState } from "react";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
@@ -230,7 +231,7 @@ export function AuditLogsPage() {
                       </span>
                       <span className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block text-primary">
                         {log.timestamp
-                          ? new Intl.DateTimeFormat(
+                          ? getCachedDateTimeFormatter(
                               APP_CONFIG.dateFormat.system,
                               {
                                 dateStyle: "medium",
