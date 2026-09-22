@@ -721,9 +721,16 @@ export class AutomationService {
       where("timestamp", "<", fbCutoffTimestamp),
     );
     let deletedAudit = 0;
-    for (const log of oldAuditLogs) {
-      await auditRepo.delete(log.id);
-      deletedAudit++;
+    try {
+      for (const log of oldAuditLogs) {
+        await auditRepo.delete(log.id);
+        deletedAudit++;
+      }
+    } catch (err) {
+      console.warn(
+        `[automationService] Audit logs are immutable in Firestore rules (skipped deletion):`,
+        err,
+      );
     }
 
     console.log(
