@@ -62,6 +62,30 @@ describe("automationService", () => {
         pauseEndDate: null,
       });
     });
+
+    it("clears stale open-ended pause schedule on an active subscription without auto-pausing it", async () => {
+      vi.mocked(subscriptionRepository.list).mockImplementation(async () => {
+        return [
+          {
+            id: "sub-stale",
+            customerId: "cust-stale",
+            status: "active",
+            pauseStartDate: "2026-08-01", // in the past relative to 2026-09-20
+            pauseEndDate: null,
+          },
+        ] as any;
+      });
+
+      await automationService.processScheduledPauses("2026-09-20");
+
+      expect(subscriptionRepository.update).toHaveBeenCalledWith("sub-stale", {
+        pauseStartDate: null,
+        pauseEndDate: null,
+      });
+      expect(subscriptionRepository.update).not.toHaveBeenCalledWith("sub-stale", {
+        status: "paused",
+      });
+    });
   });
 
   describe("checkSubscriptionExpiry", () => {

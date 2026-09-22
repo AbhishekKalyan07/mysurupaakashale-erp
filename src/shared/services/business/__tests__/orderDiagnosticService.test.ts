@@ -230,4 +230,100 @@ describe("OrderDiagnosticService", () => {
       expect.arrayContaining(["lunch", "dinner"]),
     );
   });
+
+  it("does not treat an active subscription with stale pauseStartDate and null pauseEndDate as paused, and auto-heals orders", async () => {
+    const monday = "2026-09-21";
+    vi.mocked(holidayRepository.isHoliday).mockResolvedValue(false);
+    vi.mocked(orderRepository.list).mockResolvedValue([]);
+
+    // Subscription status is "active", but has an old pauseStartDate with no pauseEndDate
+    vi.mocked(subscriptionRepository.list).mockImplementation(async (...args: any[]) => {
+      const q = args[0];
+      if (q.value === "active") {
+        return [
+          {
+            id: "sub_stale_pause",
+            customerId: "cust_stale",
+            status: "active",
+            startDate: "2026-08-01",
+            endDate: "2026-10-31",
+            pauseStartDate: "2026-08-10",
+            pauseEndDate: null,
+            mealPreferences: [{ mealType: "lunch" }],
+          } as any,
+        ];
+      }
+      return [];
+    });
+
+    vi.mocked(userRepository.getByIds).mockResolvedValue([
+      { id: "cust_stale", fullName: "Stale Pause Customer" } as any,
+    ]);
+
+    vi.mocked(orderService.generateOrdersForSubscription).mockResolvedValue(1 as any);
+
+    const result = await service.diagnoseAndRemediate(monday);
+
+    expect(result.status).toBe("auto_healed");
+    expect(result.pausedCustomers).toHaveLength(0);
+    expect(result.autoHealedCount).toBe(1);
+    expect(orderService.generateOrdersForSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sub_stale_pause" }),
+      monday,
+      ["lunch"],
+    );
+  });
+
+  it("auto-heals orders when an order exists in cancelled status and no customer skip record is found", async () => {
+    const monday = "2026-09-21";
+    vi.mocked(holidayRepository.isHoliday).mockResolvedValue(false);
+
+    // Existing order is cancelled, but no skip record exists in customerSkips
+    vi.mocked(orderRepository.list).mockResolvedValue([
+      {
+        id: "ord_sub_active_2026-09-21_lunch",
+        subscriptionId: "sub_active",
+        customerId: "cust_active",
+        customerName: "Active Customer",
+        status: "cancelled",
+        mealType: "lunch",
+        date: monday,
+      } as any,
+    ]);
+
+    vi.mocked(subscriptionRepository.list).mockImplementation(async (...args: any[]) => {
+      const q = args[0];
+      if (q.value === "active") {
+        return [
+          {
+            id: "sub_active",
+            customerId: "cust_active",
+            status: "active",
+            startDate: "2026-09-01",
+            endDate: "2026-09-30",
+            mealPreferences: [{ mealType: "lunch" }],
+          } as any,
+        ];
+      }
+      return [];
+    });
+
+    vi.mocked(userRepository.getByIds).mockResolvedValue([
+      { id: "cust_active", fullName: "Active Customer" } as any,
+    ]);
+
+    vi.mocked(orderService.generateOrdersForSubscription).mockResolvedValue(1 as any);
+
+    const result = await service.diagnoseAndRemediate(monday);
+
+    // Should NOT be stuck in all_paused_or_skipped; should be auto-healed!
+    expect(result.status).toBe("auto_healed");
+    expect(result.autoHealedCount).toBe(1);
+    expect(result.cancelledOrders).toHaveLength(0); // Healed order filtered from cancelled
+    expect(orderService.generateOrdersForSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sub_active" }),
+      monday,
+      ["lunch"],
+    );
+  });
 });

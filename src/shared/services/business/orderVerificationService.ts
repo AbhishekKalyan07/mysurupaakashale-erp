@@ -103,9 +103,13 @@ export class OrderVerificationService {
       const isStarted = sub.startDate <= businessDate;
       const isNotEnded = !sub.endDate || sub.endDate >= businessDate;
       const isPausedForDate = Boolean(
-        sub.pauseStartDate &&
-          sub.pauseStartDate <= businessDate &&
-          (!sub.pauseEndDate || sub.pauseEndDate >= businessDate),
+        sub.status === "paused" ||
+          (sub.pauseStartDate &&
+            sub.pauseEndDate &&
+            sub.pauseStartDate <= businessDate &&
+            sub.pauseEndDate >= businessDate) ||
+          (sub.pauseStartDate === businessDate &&
+            (!sub.pauseEndDate || sub.pauseEndDate >= businessDate)),
       );
 
       if (isStatusActive && isStarted && isNotEnded && !isPausedForDate) {

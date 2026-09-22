@@ -183,10 +183,12 @@ export class OrderDiagnosticService {
       // A. Explicit Pause Status or Pause Window
       const isPausedStatus = sub.status === "paused";
       const isWithinPauseWindow = Boolean(
-        sub.pauseStartDate &&
+        (sub.pauseStartDate &&
           sub.pauseEndDate &&
           sub.pauseStartDate <= date &&
-          sub.pauseEndDate >= date,
+          sub.pauseEndDate >= date) ||
+          (sub.pauseStartDate === date &&
+            (!sub.pauseEndDate || sub.pauseEndDate >= date)),
       );
 
       if (isPausedStatus || isWithinPauseWindow) {
@@ -241,7 +243,7 @@ export class OrderDiagnosticService {
         });
       }
 
-      // E. Check which subscribed meal types are missing an order
+      // E. Check which subscribed meal types are missing an active order
       const subscribedMeals = (sub.mealPreferences || []).map((p) => p.mealType);
       const missingMeals: MealType[] = [];
 
@@ -251,13 +253,15 @@ export class OrderDiagnosticService {
           continue;
         }
 
-        const orderAlreadyExists = existingOrders.some(
+        const activeOrderAlreadyExists = existingOrders.some(
           (o) =>
             (o.id === `ord_${sub.id}_${date}_${mealType}` ||
-              (o.subscriptionId === sub.id && o.mealType === mealType)),
+              (o.subscriptionId === sub.id && o.mealType === mealType)) &&
+            o.status !== "cancelled" &&
+            o.status !== "skipped",
         );
 
-        if (!orderAlreadyExists) {
+        if (!activeOrderAlreadyExists) {
           missingMeals.push(mealType as MealType);
         }
       }
@@ -364,6 +368,20 @@ export class OrderDiagnosticService {
     let status: OrderDiagnosticResult["status"] = "healthy";
     let summaryText = "";
 
+    const healedMealKeys = new Set(
+      autoHealedCount > 0
+        ? missingPlans.flatMap((p) =>
+            p.missingMeals.map((m) => `${p.subscription.customerId}_${m}`),
+          )
+        : [],
+    );
+    const activeCancelledOrders =
+      healedMealKeys.size > 0
+        ? cancelledOrdersList.filter(
+            (c) => !healedMealKeys.has(`${c.customerId}_${c.mealType}`),
+          )
+        : cancelledOrdersList;
+
     if (faultDetails.length > 0) {
       status = "fault_detected";
       summaryText = `${faultDetails.length} subscriber(s) failed routing: ${faultDetails[0].reason}`;
@@ -383,13 +401,13 @@ export class OrderDiagnosticService {
     } else if (
       pausedCustomers.length > 0 ||
       skippedCustomers.length > 0 ||
-      cancelledOrdersList.length > 0
+      activeCancelledOrders.length > 0
     ) {
       status = "all_paused_or_skipped";
       const parts = [];
       if (pausedCustomers.length > 0) parts.push(`${pausedCustomers.length} paused`);
       if (skippedCustomers.length > 0) parts.push(`${skippedCustomers.length} skipped`);
-      if (cancelledOrdersList.length > 0) parts.push(`${cancelledOrdersList.length} cancelled`);
+      if (activeCancelledOrders.length > 0) parts.push(`${activeCancelledOrders.length} cancelled`);
       summaryText = `All orders inactive for ${date}: ${parts.join(", ")}.`;
     } else {
       status = "healthy";
@@ -403,7 +421,7 @@ export class OrderDiagnosticService {
       existingOrdersCount: existingOrders.length + autoHealedCount,
       pausedCustomers,
       skippedCustomers,
-      cancelledOrders: cancelledOrdersList,
+      cancelledOrders: activeCancelledOrders,
       futureSubscribers,
       autoHealedCount,
       faultDetails,

@@ -101,6 +101,12 @@ class SubscriptionService {
       );
     }
     await subscriptionRepository.updateStatus(subscription.id, "active");
+    if (subscription.pauseStartDate || subscription.pauseEndDate) {
+      await subscriptionRepository.update(subscription.id, {
+        pauseStartDate: null,
+        pauseEndDate: null,
+      });
+    }
 
     // Verify any pending payments associated with this subscription
     const { paymentRepository } =
@@ -327,6 +333,59 @@ class SubscriptionService {
       pauseStartDate: null,
       pauseEndDate: null,
     });
+
+    // When resuming, if today falls within subscription validity, restore today's cancelled orders and generate missing ones
+    const today = getTodayInTimezone();
+    const isStarted = subscription.startDate <= today;
+    const isNotEnded = !subscription.endDate || subscription.endDate >= today;
+
+    if (isStarted && isNotEnded) {
+      let eligibleMealTypes = (subscription.mealPreferences || []).map(
+        (p) => p.mealType,
+      );
+
+      try {
+        const { doc, getDoc } = await import("firebase/firestore");
+        const { db } = await import("@/shared/lib/firebase");
+        const skipRef = doc(db, "subscriptions", subscription.id, "skips", today);
+        const skipSnap = await getDoc(skipRef);
+        if (
+          skipSnap &&
+          typeof skipSnap.exists === "function" &&
+          skipSnap.exists()
+        ) {
+          const skipData =
+            typeof skipSnap.data === "function" ? skipSnap.data() : undefined;
+          const skippedMeals = (skipData?.mealTypes || []) as string[];
+          eligibleMealTypes = eligibleMealTypes.filter(
+            (m) => !skippedMeals.includes(m),
+          );
+        }
+      } catch (skipErr) {
+        console.warn(
+          `[SubscriptionService] Could not check skips on resume for subscription ${subscription.id}:`,
+          skipErr,
+        );
+      }
+
+      if (eligibleMealTypes.length > 0) {
+        try {
+          const { orderService } = await import("./orderService");
+          await orderService.restoreOrdersForUnskipDay(
+            subscription.customerId,
+            subscription.id,
+            today,
+            eligibleMealTypes,
+            true, // generateMissing: true
+          );
+        } catch (restoreErr) {
+          console.warn(
+            `[SubscriptionService] Order restoration warning on resume for subscription ${subscription.id}:`,
+            restoreErr,
+          );
+        }
+      }
+    }
   }
 }
 
