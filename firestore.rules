@@ -723,8 +723,7 @@ service cloud.firestore {
                        request.resource.data.performedBy == request.auth.uid &&
                        request.resource.data.performedByRole == role() &&
                        request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
-      allow update: if false; // Audit logs are immutable
-      allow delete: if isAdmin(); // Retention cleanup (monthly maintenance)
+      allow update, delete: if false; // Audit logs must be immutable
     }
 
     // ---------- failureQueue/{recordId} ----------
