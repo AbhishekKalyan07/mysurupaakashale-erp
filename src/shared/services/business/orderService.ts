@@ -92,6 +92,18 @@ class OrderService {
       };
     }
 
+    const isHoliday = await holidayRepository.isHoliday(today);
+    if (isHoliday) {
+      console.log(
+        `[orderService] Today (${today}) is an active holiday. Skipping order generation.`,
+      );
+      return {
+        success: true,
+        message: "Today is an active holiday. Skipping order generation.",
+        ordersGenerated: 0,
+      };
+    }
+
     let totalGenerated = 0;
     let totalFailed = 0;
     let totalUnassigned = 0;

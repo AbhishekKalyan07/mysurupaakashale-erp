@@ -383,6 +383,11 @@ describe("Order Generation & Verification Comprehensive Test Suite", () => {
     expect(bRes.generated).toBe(0);
     expect(lRes.generated).toBe(0);
     expect(dRes.generated).toBe(0);
+
+    const dailyRes = await orderService.generateDailyOrders(TEST_DATE);
+    expect(dailyRes.success).toBe(true);
+    expect(dailyRes.message).toContain("holiday");
+    expect(dailyRes.ordersGenerated).toBe(0);
   });
 
   // ── 12. Sunday Weekly Holiday ─────────────────────────────────────────────

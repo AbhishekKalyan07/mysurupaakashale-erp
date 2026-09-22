@@ -13,6 +13,7 @@ import { DriverBadge } from "./DriverBadge";
 import { MealBadge } from "./MealBadge";
 import { PremiumButton } from "./PremiumButton";
 import type { Order, OrderStatus } from "@/shared/types";
+import { formatAllottedId, isFormattedDisplayId } from "@/shared/utils/displayId";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Workflow Timeline — next valid action per status
@@ -314,7 +315,13 @@ export function OrderCard({
 
   const isTerminal = TERMINAL_STATUSES.includes(order.status);
   const customerName = customer?.fullName || "Unknown Customer";
-  const displayId = customer?.displayId;
+  const formattedCustomerDisplayId = formatAllottedId(
+    customer?.displayId,
+    order.customerId,
+    "customer",
+  );
+  const showCustomerDisplayId =
+    formattedCustomerDisplayId && formattedCustomerDisplayId !== "N/A";
   const address = customer?.address;
   const addressCoords = customer?.addressCoords;
 
@@ -364,29 +371,21 @@ export function OrderCard({
               />
             )}
             <div className="min-w-0">
-              {displayId &&
-                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                  displayId,
-                ) && (
-                  <div className="font-mono text-[13px] font-bold text-primary leading-tight tracking-wide">
-                    {displayId}
-                  </div>
-                )}
+              {showCustomerDisplayId && (
+                <div className="font-mono text-[13px] font-bold text-primary leading-tight tracking-wide">
+                  {formattedCustomerDisplayId}
+                </div>
+              )}
               <div
                 className={cn(
                   "font-semibold text-text leading-tight truncate",
-                  displayId &&
-                    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                      displayId,
-                    )
-                    ? "text-sm"
-                    : "text-base",
+                  showCustomerDisplayId ? "text-sm" : "text-base",
                 )}
               >
                 {customerName}
               </div>
 
-              {order.displayId && (
+              {order.displayId && isFormattedDisplayId(order.displayId) && (
                 <div className="font-mono text-xs text-text-muted mt-0.5 opacity-70">
                   {order.displayId}
                 </div>

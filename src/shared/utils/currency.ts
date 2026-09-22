@@ -19,3 +19,21 @@ export function formatCurrency(rupees: number): string {
   if (!rupees || isNaN(rupees)) return "₹0";
   return currencyFormatter.format(rupees);
 }
+
+const inrDecimalsFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Formats a monetary value consistently as INR with 2 decimal places (e.g. ₹1,500.00).
+ * Handles numbers, numeric strings, and gracefully returns "N/A" for missing/invalid amounts (never ₹NaN).
+ */
+export function formatINR(amount: unknown): string {
+  if (amount === undefined || amount === null || amount === "") return "N/A";
+  const num = typeof amount === "number" ? amount : Number(amount);
+  if (isNaN(num)) return "N/A";
+  return inrDecimalsFormatter.format(num);
+}

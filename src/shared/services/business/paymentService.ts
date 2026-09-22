@@ -35,10 +35,21 @@ class PaymentService {
   ): Promise<string> {
     const billingMonth = input.billingMonth ?? getTodayInTimezone().slice(0, 7); // fallback: "YYYY-MM"
 
+    let customerDisplayId: string | undefined;
+    try {
+      const customerSnap = await userRepository.getById(customerId);
+      if (customerSnap?.displayId) {
+        customerDisplayId = customerSnap.displayId;
+      }
+    } catch {
+      // Non-blocking lookup
+    }
+
     const paymentId = await paymentRepository.create({
       subscriptionId: input.subscriptionId,
       customerId,
       customerName,
+      customerDisplayId: customerDisplayId ?? null,
       amount: input.amount,
       currency: "INR",
       purpose: input.purpose || "usage",
@@ -61,9 +72,8 @@ class PaymentService {
       const admins = await userRepository.list(where("role", "==", "admin"));
       const adminIds = admins.map((a) => a.id);
 
-      const customerSnap = await userRepository.getById(customerId);
-      const displayName = customerSnap?.displayId
-        ? `${customerName} (${customerSnap.displayId})`
+      const displayName = customerDisplayId
+        ? `${customerName} (${customerDisplayId})`
         : customerName;
 
       await notifyPaymentSubmitted(
@@ -75,6 +85,28 @@ class PaymentService {
       );
     } catch (err) {
       console.error("Failed to send payment submitted notification", err);
+    }
+
+    try {
+      await auditRepository.logAction(
+        "payment_submitted",
+        customerId,
+        "customer",
+        customerName,
+        paymentId,
+        "payment",
+        {
+          amount: input.amount,
+          paymentMethod: input.paymentMethod,
+          referenceNumber: input.referenceNumber,
+          purpose: input.purpose || "usage",
+          subscriptionId: input.subscriptionId,
+          customerId,
+          billingMonth,
+        },
+      );
+    } catch (err) {
+      console.warn("[PaymentService] Failed to log audit for payment submission:", err);
     }
 
     return paymentId;
@@ -93,16 +125,24 @@ class PaymentService {
     adminUid: string,
     notes?: string,
     /** Extra data needed for the PDF / email — pass from the admin UI */
-    meta?: {
-      customerEmail: string;
-      customerName: string;
-      planName: string;
-      planTier: string;
-      deliveryAddress: string;
-      pricePerDay: number;
-      quantity?: number;
-    },
+    meta?:
+      | {
+          customerEmail: string;
+          customerName: string;
+          planName: string;
+          planTier: string;
+          deliveryAddress: string;
+          pricePerDay: number;
+          quantity?: number;
+        }
+      | string,
+    adminName?: string,
   ): Promise<ManualPayment> {
+    const resolvedAdminName =
+      typeof meta === "string" ? meta : adminName || "Admin";
+    const resolvedMeta =
+      typeof meta === "object" && meta !== null ? meta : undefined;
+
     let capturedPayment!: ManualPayment;
 
     // Fetch payment snapshot beforehand to check purpose and any matching unpaid invoice
@@ -164,6 +204,8 @@ class PaymentService {
             "Payment amount does not match required security deposit.",
           );
         }
+      } else if (subscription.status === "pending_payment") {
+        throw new Error("Activation requires a security deposit payment.");
       }
 
       // Check matching unpaid invoice if applicable (read before write)
@@ -285,7 +327,7 @@ class PaymentService {
     }
 
     // ── PDF + Email (fire-and-forget, non-blocking) ──────────────────────────
-    if (meta) {
+    if (resolvedMeta) {
       try {
         const invoiceNumber = `INV-${Date.now()}`;
         const today = getTodayInTimezone();
@@ -294,13 +336,13 @@ class PaymentService {
         const invoiceData: InvoiceData = {
           invoiceNumber,
           billingMonth,
-          customerName: meta.customerName || capturedPayment.customerName,
-          customerEmail: meta.customerEmail,
-          deliveryAddress: meta.deliveryAddress,
-          planName: meta.planName,
-          planTier: meta.planTier,
-          pricePerDay: meta.pricePerDay,
-          quantity: meta.quantity || 1,
+          customerName: resolvedMeta.customerName || capturedPayment.customerName,
+          customerEmail: resolvedMeta.customerEmail,
+          deliveryAddress: resolvedMeta.deliveryAddress,
+          planName: resolvedMeta.planName,
+          planTier: resolvedMeta.planTier,
+          pricePerDay: resolvedMeta.pricePerDay,
+          quantity: resolvedMeta.quantity || 1,
           totalAmount: capturedPayment.amount,
           paymentMethod: capturedPayment.paymentMethod,
           referenceNumber: capturedPayment.referenceNumber,
@@ -325,9 +367,9 @@ class PaymentService {
 
         // Send email to customer (gracefully skips if EmailJS not configured)
         sendInvoiceEmail({
-          toEmail: meta.customerEmail,
-          toName: meta.customerName || capturedPayment.customerName,
-          planName: meta.planName,
+          toEmail: resolvedMeta.customerEmail,
+          toName: resolvedMeta.customerName || capturedPayment.customerName,
+          planName: resolvedMeta.planName,
           billingMonth: formatBillingMonthLong(billingMonth),
           totalAmount: capturedPayment.amount,
           invoiceNumber,
@@ -353,12 +395,18 @@ class PaymentService {
         "payment_received",
         adminUid,
         "admin",
-        "Admin",
+        resolvedAdminName,
         paymentId,
         "payment",
         {
           amount: capturedPayment.amount,
-          method: capturedPayment.paymentMethod,
+          paymentMethod: capturedPayment.paymentMethod,
+          referenceNumber: capturedPayment.referenceNumber,
+          purpose: capturedPayment.purpose,
+          customerId: capturedPayment.customerId,
+          subscriptionId: capturedPayment.subscriptionId,
+          notes: notes || undefined,
+          invoiceId: (capturedPayment as any)._invoiceIdForLogging || undefined,
         },
       );
 
@@ -374,7 +422,7 @@ class PaymentService {
           "invoice_generated",
           adminUid,
           "admin",
-          "Admin",
+          resolvedAdminName,
           invoiceId,
           "invoice",
           { amount: capturedPayment.amount },
@@ -397,6 +445,7 @@ class PaymentService {
     paymentId: string,
     adminUid: string,
     notes?: string,
+    adminName?: string,
   ): Promise<ManualPayment> {
     let capturedPayment!: ManualPayment;
 
@@ -418,6 +467,28 @@ class PaymentService {
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
     });
+
+    try {
+      await auditRepository.logAction(
+        "payment_rejected",
+        adminUid,
+        "admin",
+        adminName || "Admin",
+        paymentId,
+        "payment",
+        {
+          amount: capturedPayment.amount,
+          paymentMethod: capturedPayment.paymentMethod,
+          referenceNumber: capturedPayment.referenceNumber,
+          purpose: capturedPayment.purpose,
+          customerId: capturedPayment.customerId,
+          subscriptionId: capturedPayment.subscriptionId,
+          reason: notes || undefined,
+        },
+      );
+    } catch (err) {
+      console.warn("[PaymentService] Failed to log audit for payment rejection:", err);
+    }
 
     return capturedPayment;
   }

@@ -16,6 +16,7 @@ import { useCustomerNameMap as usePartnerNameMap } from "@/features/admin/hooks/
 import { useOrderAutoChecker } from "@/features/admin/hooks/useOrderAutoChecker";
 import { OrderDiagnosticCard } from "@/features/admin/components/OrderDiagnosticCard";
 import { cn } from "@/shared/lib/cn";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer detail fetcher (for OrderCard customer prop)
@@ -483,7 +484,12 @@ export function AdminOrdersPage() {
                       }
                     : {
                         fullName:
-                          order.customerName || order.customerId,
+                          order.customerName ||
+                          formatAllottedId(
+                            order.customerCode,
+                            order.customerId,
+                            "customer",
+                          ),
                         displayId: order.customerCode,
                         phone: order.customerPhone,
                         address: order.address,
@@ -492,7 +498,12 @@ export function AdminOrdersPage() {
                 planName={planName}
                 partnerName={
                   order.deliveryPartnerId
-                    ? partnerNameMap.get(order.deliveryPartnerId)
+                    ? partnerNameMap.get(order.deliveryPartnerId) ||
+                      formatAllottedId(
+                        undefined,
+                        order.deliveryPartnerId,
+                        "delivery_partner",
+                      )
                     : null
                 }
                 onStatusChange={handleStatusChange}

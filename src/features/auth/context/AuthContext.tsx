@@ -54,6 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [role, setRole] = useState<Role | null>(init.role);
   const [error, setError] = useState<string | null>(null);
   const preservedErrorRef = useRef<boolean>(false);
+  const backfillingDisplayIdRef = useRef<Set<string>>(new Set());
 
   // 0. Handle Google Sign-In Redirects (PWA/Mobile)
   useEffect(() => {
@@ -185,6 +186,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProfile(data);
 
         if (data) {
+          // Automatic backfill: if the user document lacks a displayId, generate and persist it
+          if (
+            !data.displayId &&
+            data.role &&
+            typeof userRepository.generateNextDisplayId === "function" &&
+            typeof userRepository.update === "function" &&
+            !backfillingDisplayIdRef.current.has(uid)
+          ) {
+            backfillingDisplayIdRef.current.add(uid);
+            userRepository
+              .generateNextDisplayId(data.role, data.fullName)
+              .then(async (newDisplayId) => {
+                await userRepository.update(uid, {
+                  displayId: newDisplayId,
+                } as any);
+              })
+              .catch((err) => {
+                backfillingDisplayIdRef.current.delete(uid);
+                console.error("[auth] Failed to backfill displayId for user:", err);
+              });
+          }
+
           if (!isRole(data.role)) {
             clearTimeout(timeoutId);
             preservedErrorRef.current = true;

@@ -197,9 +197,17 @@ export function ProfilePage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-            <User className="text-leaf-600" /> Personal Details
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <User className="text-leaf-600" /> Personal Details
+            </h2>
+            {profile?.displayId && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold font-mono bg-leaf-50 text-leaf-700 border border-leaf-200 shadow-2xs">
+                <span className="text-[10px] uppercase font-sans font-semibold tracking-wider text-ink-500">ID:</span>
+                {profile.displayId}
+              </span>
+            )}
+          </div>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-ink-700 mb-1">

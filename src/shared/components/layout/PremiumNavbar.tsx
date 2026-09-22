@@ -74,8 +74,13 @@ export function PremiumNavbar({ onMenuClick, role }: PremiumNavbarProps) {
               {profile?.fullName || "Loading…"}
             </p>
             {role && (
-              <p className="text-[11px] text-text-muted font-medium leading-tight">
-                {ROLE_LABELS[role]}
+              <p className="text-[11px] text-text-muted font-medium leading-tight flex items-center justify-end gap-1.5">
+                <span>{ROLE_LABELS[role]}</span>
+                {profile?.displayId && (
+                  <span className="font-mono text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
+                    {profile.displayId}
+                  </span>
+                )}
               </p>
             )}
           </div>

@@ -119,11 +119,21 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
       } as Omit<UserProfile, "id">,
       user.uid,
     );
-  } else if (!profile.googleConnected) {
-    await userRepository.update(user.uid, {
-      googleConnected: true,
-      updatedAt: serverTimestamp() as unknown as Timestamp,
-    } as any);
+  } else {
+    const updates: Record<string, any> = {};
+    if (!profile.displayId) {
+      updates.displayId = await userRepository.generateNextDisplayId(
+        profile.role || "customer",
+        profile.fullName || user.displayName || "Google User",
+      );
+    }
+    if (!profile.googleConnected) {
+      updates.googleConnected = true;
+    }
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = serverTimestamp() as unknown as Timestamp;
+      await userRepository.update(user.uid, updates as any);
+    }
   }
 }
 

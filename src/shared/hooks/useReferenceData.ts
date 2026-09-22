@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { deliveryZoneRepository } from "@/shared/services/firestore/deliveryZoneRepository";
 import { where, documentId } from "firebase/firestore";
+import { formatAllottedId } from "@/shared/utils/displayId";
 /**
  * A shared reference-data hook for fetching and mapping Zones, Partners, and Customers.
  * Highly reusable across Kitchen and Delivery modules to resolve IDs to display names.
@@ -40,7 +41,11 @@ export function useReferenceData(customerIds: string[] = []) {
     const map = new Map<string, string>();
     if (partnersQuery.data) {
       for (const p of partnersQuery.data) {
-        map.set(p.id, p.fullName || p.id);
+        map.set(
+          p.id,
+          p.fullName ||
+            formatAllottedId(p.displayId, p.id, "delivery_partner"),
+        );
       }
     }
     return map;
@@ -73,7 +78,9 @@ export function useReferenceData(customerIds: string[] = []) {
               where(documentId(), "in", chunk),
             );
             for (const profile of profiles) {
-              map[profile.id] = profile.fullName || profile.id;
+              map[profile.id] =
+                profile.fullName ||
+                formatAllottedId(profile.displayId, profile.id, "customer");
             }
           } catch (err) {
             console.error(
@@ -88,7 +95,7 @@ export function useReferenceData(customerIds: string[] = []) {
       // Fallback for missing/deleted profiles
       uniqueCustomerIds.forEach((uid) => {
         if (!map[uid]) {
-          map[uid] = uid;
+          map[uid] = formatAllottedId(undefined, uid, "customer");
         }
       });
 

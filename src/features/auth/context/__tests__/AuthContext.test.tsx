@@ -19,6 +19,8 @@ vi.mock("firebase/auth", () => ({
 vi.mock("@/shared/services/firestore/userRepository", () => ({
   userRepository: {
     subscribeToDoc: vi.fn(),
+    generateNextDisplayId: vi.fn().mockResolvedValue("MP-A001"),
+    update: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

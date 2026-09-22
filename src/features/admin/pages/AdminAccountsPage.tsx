@@ -335,16 +335,16 @@ export function AdminAccountsPage() {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
               <div className="flex-1 space-y-1.5 w-full">
                 <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
-                  Customer (Display ID, Phone, or UID)
+                  Customer (Display ID, Phone, or Email)
                 </label>
                 <Input
-                  placeholder="e.g. MP-A001, phone, or Firebase UID"
+                  placeholder="e.g. MP-A001, phone, or email"
                   value={invoiceCustomerId}
                   onChange={(e) => setInvoiceCustomerId(e.target.value)}
                   className="w-full bg-background"
                 />
                 <p className="text-[11px] text-text-muted">
-                  Enter Display ID (e.g. MP-A001), phone, email, or UID. Automatically resolved.
+                  Enter Display ID (e.g. MP-A001), phone, or email. Automatically resolved.
                 </p>
               </div>
               <div className="w-full sm:w-32 space-y-1.5">

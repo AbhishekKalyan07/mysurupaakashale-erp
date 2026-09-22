@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency } from "../currency";
+import { formatCurrency, formatINR } from "../currency";
 
 describe("formatCurrency", () => {
   it("formats standard amounts correctly", () => {
@@ -27,5 +27,33 @@ describe("formatCurrency", () => {
   it("formats fractions correctly", () => {
     const result = formatCurrency(150.5);
     expect(result).toMatch(/150\.50?/);
+  });
+});
+
+describe("formatINR", () => {
+  it("formats integer amounts with 2 decimal places", () => {
+    const res = formatINR(1500);
+    expect(res).toMatch(/1,500\.00/);
+    expect(res).toContain("₹");
+  });
+
+  it("formats float amounts with 2 decimal places", () => {
+    const res = formatINR(1500.5);
+    expect(res).toMatch(/1,500\.50/);
+    expect(res).toContain("₹");
+  });
+
+  it("handles numeric string inputs", () => {
+    const res = formatINR("2500");
+    expect(res).toMatch(/2,500\.00/);
+    expect(res).toContain("₹");
+  });
+
+  it("handles missing or invalid values gracefully without returning NaN", () => {
+    expect(formatINR(undefined)).toBe("N/A");
+    expect(formatINR(null)).toBe("N/A");
+    expect(formatINR("")).toBe("N/A");
+    expect(formatINR("invalid")).toBe("N/A");
+    expect(formatINR(NaN)).toBe("N/A");
   });
 });

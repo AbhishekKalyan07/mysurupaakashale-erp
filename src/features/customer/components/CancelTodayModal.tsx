@@ -1,38 +1,16 @@
 import { useState } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
-import { getTodayIST } from "@/shared/utils/dateUtils";
+import { getTodayIST, getModifiableMeals } from "@/shared/utils/dateUtils";
 import { toast } from "react-hot-toast";
 import { X } from "lucide-react";
 
 export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const currentHour = parseInt(
-    parts.find((p) => p.type === "hour")?.value || "0",
-    10,
-  );
-  const currentMinute = parseInt(
-    parts.find((p) => p.type === "minute")?.value || "0",
-    10,
-  );
-  const timeInMinutes = currentHour * 60 + currentMinute;
-
   const todayStr = getTodayIST();
 
   const preferredMeals = (subscription.mealPreferences || []).map(
     (p: any) => p.mealType,
   );
-  const eligibleMeals = preferredMeals.filter((meal: string) => {
-    if (meal === "breakfast") return timeInMinutes < 5 * 60;
-    if (meal === "lunch") return timeInMinutes < 10 * 60 + 30;
-    if (meal === "dinner") return timeInMinutes < 16 * 60;
-    return true;
-  });
+  const eligibleMeals = getModifiableMeals(todayStr, preferredMeals);
 
   const [selectedMeals, setSelectedMeals] = useState<string[]>(eligibleMeals);
   const [reason, setReason] = useState("");

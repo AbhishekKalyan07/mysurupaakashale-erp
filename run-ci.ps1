@@ -55,8 +55,8 @@ Run-Stage "Unit Tests + Coverage" {
 }
 
 Run-Stage "Security Tests (Firebase Emulator)" {
-    Write-Host "Running: firebase emulators:exec --project demo-security-test --only firestore,storage `"npm run test:security`""
-    Invoke-Checked { npx firebase emulators:exec --project demo-security-test --only firestore,storage "npm run test:security" }
+    Write-Host "Running: firebase emulators:exec --project demo-security-test --only firestore,storage,auth `"npm run test:security`""
+    Invoke-Checked { npx firebase emulators:exec --project demo-security-test --only firestore,storage,auth "npm run test:security" }
 }
 
 Run-Stage "E2E Tests (Playwright)" {

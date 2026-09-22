@@ -13,7 +13,6 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "react-hot-toast";
 import { getAuth } from "firebase/auth";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
-import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import {
   notifyPaymentVerified,
   notifySubscriptionActivated,
@@ -143,26 +142,14 @@ export function useApprovePayment() {
         quantity?: number;
       };
     }) => {
-      // Phase 5 & 6: Client-side payment approval and subscription activation
+      const currentUser = getAuth().currentUser;
       const capturedPayment = await paymentService.approvePayment(
         input.paymentId,
-        getAuth().currentUser?.uid ?? "admin",
+        currentUser?.uid ?? "admin",
         input.notes,
         input.meta,
+        currentUser?.displayName || "Admin",
       );
-
-      const currentUser = getAuth().currentUser;
-      if (currentUser) {
-        await auditRepository.logAction(
-          "payment_approved",
-          currentUser.uid,
-          "admin",
-          currentUser.displayName || "Admin",
-          input.paymentId,
-          "payment",
-          { notes: input.notes },
-        );
-      }
 
       // Notify customer — fire-and-forget so a notification failure never reverts the approval.
       // `payment` captured above inside the transaction closure is safe to reference here.
@@ -208,24 +195,13 @@ export function useRejectPayment() {
 
   return useMutation({
     mutationFn: async (input: { paymentId: string; notes?: string }) => {
+      const user = getAuth().currentUser;
       const capturedPayment = await paymentService.rejectPayment(
         input.paymentId,
-        getAuth().currentUser?.uid ?? "admin",
+        user?.uid ?? "admin",
         input.notes,
+        user?.displayName || "Admin",
       );
-
-      const user = getAuth().currentUser;
-      if (user) {
-        await auditRepository.logAction(
-          "payment_rejected",
-          user.uid,
-          "admin",
-          user.displayName || "Admin",
-          input.paymentId,
-          "payment",
-          { notes: input.notes },
-        );
-      }
 
       // Notify the customer — fire-and-forget.
       notifyPaymentRejected(

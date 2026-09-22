@@ -188,6 +188,119 @@ describe("billingService.processDailyBilling - Pricing Matrix Snapshot", () => {
     expect(updatePayload.endDate).toBe("2026-08-31");
   });
 
+  it("auto-renews middle-of-month subscription continuously to end of month", async () => {
+    const mockSub = {
+      id: "sub-mid-month",
+      customerId: "cust3",
+      planTier: "regular",
+      status: "active",
+      startDate: "2026-08-15",
+      endDate: "2026-09-15",
+      quantity: 1,
+      autoRenew: true,
+      billingCycle: "monthly",
+    };
+
+    const mockOrders = [
+      {
+        id: "ord-mid",
+        subscriptionId: "sub-mid-month",
+        status: "delivered",
+        date: "2026-08-20",
+        mealType: "lunch",
+      },
+    ];
+
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue(
+      mockOrders as any,
+    );
+
+    const { runTransaction } = await import("firebase/firestore");
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, "2026-09-16");
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+
+    expect(mockTxn.update).toHaveBeenCalled();
+    const updatePayload = mockTxn.update.mock.calls[0][1] as any;
+    expect(updatePayload.status).toBe("active");
+    expect(updatePayload.startDate).toBe("2026-09-16");
+    expect(updatePayload.endDate).toBe("2026-09-30");
+  });
+
+  it("auto-renews subscription ending on 2026-09-20 to 2026-09-21..2026-09-30", async () => {
+    const mockSub = {
+      id: "sub-mid-20",
+      customerId: "cust20",
+      planTier: "regular",
+      status: "active",
+      startDate: "2026-08-21",
+      endDate: "2026-09-20",
+      quantity: 1,
+      autoRenew: true,
+      billingCycle: "monthly",
+    };
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue([]);
+    const { runTransaction } = await import("firebase/firestore");
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, "2026-09-21");
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    const payload = mockTxn.update.mock.calls[0][1] as any;
+    expect(payload.startDate).toBe("2026-09-21");
+    expect(payload.endDate).toBe("2026-09-30");
+  });
+
+  it("auto-renews month-end subscription 2026-09-30 to full next month 2026-10-01..2026-10-31", async () => {
+    const mockSub = {
+      id: "sub-end-30",
+      customerId: "cust30",
+      planTier: "regular",
+      status: "active",
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      quantity: 1,
+      autoRenew: true,
+      billingCycle: "monthly",
+    };
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue([]);
+    const { runTransaction } = await import("firebase/firestore");
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, "2026-10-01");
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    const payload = mockTxn.update.mock.calls[0][1] as any;
+    expect(payload.startDate).toBe("2026-10-01");
+    expect(payload.endDate).toBe("2026-10-31");
+  });
+
+  it("auto-renews leap year subscription 2028-02-15 to 2028-02-16..2028-02-29", async () => {
+    const mockSub = {
+      id: "sub-leap-year",
+      customerId: "custLeap",
+      planTier: "regular",
+      status: "active",
+      startDate: "2028-01-16",
+      endDate: "2028-02-15",
+      quantity: 1,
+      autoRenew: true,
+      billingCycle: "monthly",
+    };
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([mockSub as any]);
+    vi.mocked(orderRepository.getCustomerOrdersInRange).mockResolvedValue([]);
+    const { runTransaction } = await import("firebase/firestore");
+    vi.mocked(runTransaction).mockClear();
+
+    await billingService.processSubscriptionEnd(mockSub as any, "2028-02-16");
+    const mockTxn = await vi.mocked(runTransaction).mock.results[0].value;
+    const payload = mockTxn.update.mock.calls[0][1] as any;
+    expect(payload.startDate).toBe("2028-02-16");
+    expect(payload.endDate).toBe("2028-02-29");
+  });
+
   it("expires subscription when autoRenew is false", async () => {
     const mockSub = {
       id: "sub-no-renew",
