@@ -22,6 +22,7 @@ import { getTodayIST } from "@/shared/utils/dateUtils";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { GetAppInlineCard } from "@/features/customer/components/GetAppModal";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
@@ -645,7 +646,7 @@ export function CustomerDashboardPage() {
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
-                                        {new Intl.DateTimeFormat("en-IN", {
+                                        {getCachedDateTimeFormatter("en-IN", {
                                           hour: "numeric",
                                           minute: "numeric",
                                           hour12: true,
