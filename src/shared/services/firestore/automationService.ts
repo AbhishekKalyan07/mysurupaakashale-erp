@@ -385,9 +385,20 @@ export class AutomationService {
             console.log(
               `[automationService] Cleared outdated pause schedule for subscription ${sub.id}`,
             );
-          } else {
+          } else if (
+            (sub.pauseEndDate && sub.pauseEndDate >= today) ||
+            sub.pauseStartDate === today
+          ) {
             await subscriptionRepository.update(sub.id, { status: "paused" });
             console.log(`[automationService] Auto-paused subscription ${sub.id}`);
+          } else {
+            await subscriptionRepository.update(sub.id, {
+              pauseStartDate: null,
+              pauseEndDate: null,
+            });
+            console.log(
+              `[automationService] Cleared stale open-ended pause schedule for active subscription ${sub.id}`,
+            );
           }
         } else if (
           sub.status === "paused" &&

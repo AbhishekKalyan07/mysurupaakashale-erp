@@ -156,18 +156,17 @@ export function SubscriptionDetailsPage() {
         );
         await subscriptionService.rejectSubscription(subscription);
         toast.success("Subscription cancelled and final usage settled.");
+      } else if (action === "resume") {
+        const { subscriptionService } = await import(
+          "@/shared/services/business/subscriptionService"
+        );
+        await subscriptionService.resumeSubscription(subscription);
+        toast.success("Subscription resumed successfully.");
       } else {
         await subscriptionRepository.update(subscription.id, {
-          status: action === "renew" ? "pending_payment" : "active",
-          ...(action === "resume"
-            ? { pauseStartDate: null, pauseEndDate: null }
-            : {}),
+          status: "pending_payment",
         });
-        toast.success(
-          action === "renew"
-            ? "Subscription set to renew. Please proceed to payment."
-            : "Subscription resumed successfully.",
-        );
+        toast.success("Subscription set to renew. Please proceed to payment.");
       }
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscriptions.active(subscription.customerId),

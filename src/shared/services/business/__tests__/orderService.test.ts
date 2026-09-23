@@ -554,6 +554,134 @@ describe("orderService", () => {
       const createdOrder = batchSet.mock.calls[0][1];
       expect(createdOrder.subscriptionId).toBe('sub_resumed_yesterday'); console.log('Finished assertions');
     }, 25000);
+
+    it("generates orders for active subscription having stale pauseStartDate with null pauseEndDate", async () => {
+      const { subscriptionRepository } = await import("../../firestore/subscriptionRepository");
+      const { orderRepository } = await import("../../firestore/orderRepository");
+      const { orderGenerationRunRepository } = await import("../../firestore/analyticsRepository");
+      const { mealPlanRepository } = await import("../../firestore/mealPlanRepository");
+      const { userRepository } = await import("../../firestore/userRepository");
+      const { deliveryZoneRepository } = await import("../../firestore/deliveryZoneRepository");
+      const { kitchenRepository } = await import("../../firestore/kitchenRepository");
+      const { writeBatch } = await import("firebase/firestore");
+
+      vi.spyOn(orderGenerationRunRepository, "getById").mockResolvedValue(null);
+      vi.spyOn(orderGenerationRunRepository, "create").mockResolvedValue("run1");
+      vi.spyOn(orderGenerationRunRepository, "update").mockResolvedValue();
+      vi.spyOn(mealPlanRepository, "list").mockResolvedValue([]);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        {
+          id: "c1",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+      ] as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "zone1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
+      vi.spyOn(kitchenRepository, "list").mockResolvedValue([]);
+      vi.spyOn(orderRepository, "list").mockResolvedValue([]);
+
+      // Subscription is active, but pauseStartDate is in the past and pauseEndDate is null
+      vi.spyOn(subscriptionRepository, "list").mockResolvedValue([
+        {
+          id: "sub_stale_pause",
+          customerId: "c1",
+          status: "active",
+          startDate: "2026-08-01",
+          pauseStartDate: "2026-07-15",
+          pauseEndDate: null,
+          mealPreferences: [{ mealType: "breakfast" }],
+        },
+      ] as any);
+
+      const batchSet = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        set: batchSet,
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn(),
+      } as any);
+
+      const count = await orderService.generateBreakfastOrders("2026-08-03");
+
+      expect(count.generated).toBe(1);
+      expect(count.failed).toBe(0);
+      expect(batchSet).toHaveBeenCalledTimes(1);
+    });
+
+    it("restores cancelled order to scheduled when no customer skip document exists", async () => {
+      const { subscriptionRepository } = await import("../../firestore/subscriptionRepository");
+      const { orderRepository } = await import("../../firestore/orderRepository");
+      const { orderGenerationRunRepository } = await import("../../firestore/analyticsRepository");
+      const { mealPlanRepository } = await import("../../firestore/mealPlanRepository");
+      const { userRepository } = await import("../../firestore/userRepository");
+      const { deliveryZoneRepository } = await import("../../firestore/deliveryZoneRepository");
+      const { kitchenRepository } = await import("../../firestore/kitchenRepository");
+      const { writeBatch } = await import("firebase/firestore");
+
+      vi.spyOn(orderGenerationRunRepository, "getById").mockResolvedValue(null);
+      vi.spyOn(orderGenerationRunRepository, "create").mockResolvedValue("run1");
+      vi.spyOn(orderGenerationRunRepository, "update").mockResolvedValue();
+      vi.spyOn(mealPlanRepository, "list").mockResolvedValue([]);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        {
+          id: "c1",
+          role: "customer",
+          defaultAddressId: "addr1",
+          addresses: [{ id: "addr1", pincode: "570001" }],
+        },
+      ] as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "zone1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
+      vi.spyOn(kitchenRepository, "list").mockResolvedValue([]);
+
+      vi.spyOn(subscriptionRepository, "list").mockResolvedValue([
+        {
+          id: "sub_cancelled_order",
+          customerId: "c1",
+          status: "active",
+          startDate: "2026-08-01",
+          mealPreferences: [{ mealType: "breakfast" }],
+        },
+      ] as any);
+
+      // Existing order in DB is cancelled
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord_sub_cancelled_order_2026-08-03_breakfast",
+          subscriptionId: "sub_cancelled_order",
+          customerId: "c1",
+          mealType: "breakfast",
+          date: "2026-08-03",
+          status: "cancelled",
+        },
+      ] as any);
+
+      const batchSet = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        set: batchSet,
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn(),
+      } as any);
+
+      const count = await orderService.generateBreakfastOrders("2026-08-03");
+
+      expect(count.generated).toBe(1);
+      expect(count.failed).toBe(0);
+      expect(batchSet).toHaveBeenCalledTimes(1);
+      expect(batchSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          id: "ord_sub_cancelled_order_2026-08-03_breakfast",
+          status: "scheduled",
+        }),
+        { merge: true },
+      );
+    });
   });
 
   describe("updateOrderStatus", () => {
@@ -966,6 +1094,68 @@ describe("orderService", () => {
 
       expect(runTransaction).toHaveBeenCalled();
       expect(mockSet).not.toHaveBeenCalled();
+    });
+
+    it("restores and overwrites existing order if document exists with cancelled or skipped status", async () => {
+      const { mealPlanRepository } = await import("../../firestore/mealPlanRepository");
+      const { userRepository } = await import("../../firestore/userRepository");
+      const { deliveryZoneRepository } = await import("../../firestore/deliveryZoneRepository");
+      const { orderRepository } = await import("../../firestore/orderRepository");
+      const { runTransaction } = await import("firebase/firestore");
+
+      vi.spyOn(mealPlanRepository, "list").mockResolvedValue([
+        {
+          id: "plan1",
+          mealSlots: [{ mealType: "lunch", options: [{ id: "opt1", label: "Meal" }] }],
+        },
+      ] as any);
+      vi.spyOn(userRepository, "getById").mockResolvedValue({
+        id: "c1",
+        name: "Customer One",
+        addresses: [
+          { id: "a1", isDefault: true, pincode: "570001", line1: "Street", city: "Mysuru" },
+        ],
+        defaultAddressId: "a1",
+      } as any);
+      vi.spyOn(deliveryZoneRepository, "list").mockResolvedValue([
+        { id: "z1", name: "Zone 1", pincodes: ["570001"], kitchenId: "k1" },
+      ] as any);
+      vi.spyOn(userRepository, "list").mockResolvedValue([
+        { id: "p1", role: "delivery_partner", isActive: true, zoneIds: ["z1"], shifts: ["lunch"] },
+      ] as any);
+      vi.spyOn(orderRepository, "list").mockResolvedValue([]);
+
+      const mockSet = vi.fn();
+      vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => {
+        const mockTxn = {
+          get: vi.fn().mockResolvedValue({
+            exists: () => true,
+            data: () => ({ status: "cancelled" }),
+          }),
+          set: mockSet,
+          update: vi.fn(),
+          delete: vi.fn(),
+        };
+        return await callback(mockTxn as any);
+      });
+
+      const sub: any = {
+        id: "sub1",
+        customerId: "c1",
+        planId: "plan1",
+        mealPreferences: [{ mealType: "lunch", optionId: "opt1" }],
+      };
+
+      await orderService.generateOrdersForSubscription(sub, "2026-08-01", ["lunch"]);
+
+      expect(runTransaction).toHaveBeenCalled();
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "ord_sub1_2026-08-01_lunch" }),
+        expect.objectContaining({
+          id: "ord_sub1_2026-08-01_lunch",
+          status: "scheduled",
+        }),
+      );
     });
   });
 });

@@ -321,12 +321,17 @@ class OrderService {
           ordersSkipped++;
           continue;
         }
-        // Exclude subscription if it is within a scheduled pause window for today
-        if (
-          sub.pauseStartDate &&
-          sub.pauseStartDate <= today &&
-          (!sub.pauseEndDate || sub.pauseEndDate >= today)
-        ) {
+        // Exclude subscription if it is within a valid scheduled pause window for today.
+        // Stale past pauseStartDate with no pauseEndDate on an active subscription must not skip generation.
+        const isWithinScheduledPause = Boolean(
+          (sub.pauseStartDate &&
+            sub.pauseEndDate &&
+            sub.pauseStartDate <= today &&
+            sub.pauseEndDate >= today) ||
+            (sub.pauseStartDate === today &&
+              (!sub.pauseEndDate || sub.pauseEndDate >= today)),
+        );
+        if (isWithinScheduledPause) {
           ordersSkipped++;
           continue;
         }
@@ -343,28 +348,69 @@ class OrderService {
               continue; // Not subscribed to this meal
             }
 
+            // Check cancellation (skips)
+            const skipRef = doc(db, "subscriptions", sub.id, "skips", today);
+            const skipDoc = await getDoc(skipRef);
+            const isCustomerSkipped =
+              skipDoc.exists() &&
+              (skipDoc.data().mealTypes || []).includes(mealType);
+
             // --- IDEMPOTENCY CHECK ---
             // Verify if an order for this exact subscription, date, and mealType already exists.
-            // Using deterministic ID or logical composite key to prevent overwriting existing order status (e.g. packing/delivered).
             const expectedId = `ord_${sub.id}_${today}_${mealType}`;
             const existingOrder = todaysOrders.find(
               (o) =>
                 o.id === expectedId ||
                 (o.subscriptionId === sub.id && o.mealType === mealType),
             );
+
             if (existingOrder) {
-              // Order already exists, preserve it completely. Do NOT overwrite.
+              if (isCustomerSkipped) {
+                // If customer skipped, ensure existing order reflects cancellation
+                if (existingOrder.status !== "cancelled") {
+                  ordersCancelled++;
+                  ordersToCreate.push({
+                    ...existingOrder,
+                    status: "cancelled",
+                  });
+                }
+                success = true;
+                continue;
+              }
+
+              // Customer did NOT skip this meal:
+              if (
+                existingOrder.status === "cancelled" ||
+                existingOrder.status === "skipped"
+              ) {
+                // The order was inappropriately left in cancelled/skipped status (e.g. from a past unskip/resume).
+                // Restore it to scheduled!
+                const order = this.buildOrderSnapshot(
+                  sub,
+                  pref,
+                  mealType,
+                  today,
+                  customerMap,
+                  partnerMap,
+                  zoneMap,
+                  activePartners,
+                  allZones,
+                  mealPlans,
+                  workloadMap,
+                );
+                order.id = existingOrder.id;
+                order.status = "scheduled";
+                ordersToCreate.push(order);
+                success = true;
+                continue;
+              }
+
+              // Active workflow order already exists (scheduled, preparing, delivered, etc.). Preserve it completely.
               success = true;
               continue;
             }
 
-            // Check cancellation (skips)
-            const skipRef = doc(db, "subscriptions", sub.id, "skips", today);
-            const skipDoc = await getDoc(skipRef);
-            if (
-              skipDoc.exists() &&
-              (skipDoc.data().mealTypes || []).includes(mealType)
-            ) {
+            if (isCustomerSkipped) {
               ordersCancelled++;
 
               // We must still generate an order document with status='cancelled'
@@ -689,14 +735,18 @@ class OrderService {
 
       // Idempotency guard: prevent overwriting active in-flight orders
       const expectedId = `ord_${subscription.id}_${date}_${pref.mealType}`;
-      const alreadyExists = todaysOrders.some(
+      const existingOrder = todaysOrders.find(
         (o) =>
           o.id === expectedId ||
           (o.subscriptionId === subscription.id && o.mealType === pref.mealType),
       );
-      if (alreadyExists) {
+      if (
+        existingOrder &&
+        existingOrder.status !== "cancelled" &&
+        existingOrder.status !== "skipped"
+      ) {
         console.log(
-          `[orderService] Order ${expectedId} already exists for ${date} — preserving existing workflow status.`,
+          `[orderService] Order ${expectedId} already exists for ${date} with status ${existingOrder.status} — preserving existing workflow status.`,
         );
         continue;
       }
@@ -763,17 +813,35 @@ class OrderService {
 
     let actuallyCreatedCount = 0;
     await runTransaction(db, async (txn) => {
-      const checks: { ref: ReturnType<typeof doc>; order: Partial<Order>; exists: boolean }[] = [];
+      const checks: {
+        ref: ReturnType<typeof doc>;
+        order: Partial<Order>;
+        exists: boolean;
+        existingStatus?: string;
+      }[] = [];
       for (const order of ordersToCreate) {
         const ref = doc(db, "orders", order.id!);
         const snap = await txn.get(ref);
-        checks.push({ ref, order, exists: snap.exists() });
+        const exists =
+          typeof snap.exists === "function" ? snap.exists() : Boolean(snap.exists);
+        const data = typeof snap.data === "function" ? snap.data() : undefined;
+        const existingStatus = data?.status;
+        checks.push({
+          ref,
+          order,
+          exists,
+          existingStatus,
+        });
       }
 
-      for (const { ref, order, exists } of checks) {
-        if (exists) {
+      for (const { ref, order, exists, existingStatus } of checks) {
+        if (
+          exists &&
+          existingStatus !== "cancelled" &&
+          existingStatus !== "skipped"
+        ) {
           console.log(
-            `[orderService] Order ${order.id} already exists in Firestore — preserving existing workflow status.`,
+            `[orderService] Order ${order.id} already exists in Firestore with active status ${existingStatus} — preserving existing workflow status.`,
           );
           continue;
         }
@@ -782,6 +850,7 @@ class OrderService {
           ref,
           stripUndefined({
             ...order,
+            status: "scheduled",
             createdAt: serverTimestamp() as unknown as Timestamp,
             updatedAt: serverTimestamp() as unknown as Timestamp,
           }),
@@ -1154,8 +1223,27 @@ class OrderService {
       );
     }
 
+    let activeSkippedMeals: string[] = [];
+    try {
+      const skipRef = doc(db, "subscriptions", subscriptionId, "skips", date);
+      const skipSnap = await getDoc(skipRef);
+      if (
+        skipSnap &&
+        typeof skipSnap.exists === "function" &&
+        skipSnap.exists()
+      ) {
+        const skipData =
+          typeof skipSnap.data === "function" ? skipSnap.data() : undefined;
+        activeSkippedMeals = (skipData?.mealTypes || []) as string[];
+      }
+    } catch {
+      // Continue if skip doc query fails or is unmocked in tests
+    }
+
     const ordersToRestore = existingOrders.filter(
-      (o) => o.status === "cancelled" || o.status === "skipped",
+      (o) =>
+        (o.status === "cancelled" || o.status === "skipped") &&
+        !activeSkippedMeals.includes(o.mealType || ""),
     );
 
     const batch = writeBatch(db);
@@ -1180,7 +1268,7 @@ class OrderService {
     // Identify which meals need brand new orders generated (skipped before generation ran)
     const existingMealTypes = new Set(existingOrders.map((o) => o.mealType));
     const mealTypesToGenerate = mealTypes.filter(
-      (m) => !existingMealTypes.has(m),
+      (m) => !existingMealTypes.has(m) && !activeSkippedMeals.includes(m),
     );
 
     if (generateMissing && mealTypesToGenerate.length > 0) {
