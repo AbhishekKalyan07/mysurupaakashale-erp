@@ -1,3 +1,6 @@
 ## 2024-09-15 - Caching Intl API Instantiations
 **Learning:** Instantiating `Intl.NumberFormat` (and likely other `Intl.*` APIs like `Intl.DateTimeFormat`) is an expensive operation in JavaScript, taking roughly 100x longer per call than using a cached instance (e.g. ~6.8ms vs ~0.06ms for 100k calls). In a React application, calling this frequently inside render loops or loops over data (like mapping lists of orders, invoices, or payments for a dashboard or table) can introduce noticeable main-thread overhead.
 **Action:** Always instantiate `Intl.NumberFormat` and `Intl.DateTimeFormat` once outside of functions/components (at module scope) or wrap them in a singleton pattern, and reuse the instance for formatting.
+## 2024-09-24 - [Intl.DateTimeFormat Optimization]
+**Learning:** Instantiating `Intl.DateTimeFormat` is an expensive operation that can cause performance overhead and main-thread blocking, particularly when done repeatedly inside React render loops or highly trafficked utility functions. In this codebase, it was being called continuously on every render cycle for multiple items in dashboard and list components.
+**Action:** Use the `getCachedDateTimeFormatter` from `src/shared/lib/date.ts` to cache and reuse formatter instances. Apply this globally wherever dates need formatting instead of creating new instances of `Intl.DateTimeFormat`.

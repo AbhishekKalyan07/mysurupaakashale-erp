@@ -1,11 +1,28 @@
 /**
+ * Cache for Intl.DateTimeFormat instances to prevent performance overhead
+ * of repeatedly creating them, especially in render loops.
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+export const getCachedDateTimeFormatter = (
+  locales: string | string[],
+  options?: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat => {
+  const cacheKey = `${Array.isArray(locales) ? locales.join(",") : locales}-${JSON.stringify(options)}`;
+  if (!formatterCache.has(cacheKey)) {
+    formatterCache.set(cacheKey, new Intl.DateTimeFormat(locales, options));
+  }
+  return formatterCache.get(cacheKey)!;
+};
+
+/**
  * Returns the current date string (YYYY-MM-DD) in the specified IANA timezone.
  */
 export const getTodayInTimezone = (
   timezone: string = "Asia/Kolkata",
   date: Date = new Date(),
 ): string => {
-  return new Intl.DateTimeFormat("en-CA", {
+  return getCachedDateTimeFormatter("en-CA", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
@@ -20,7 +37,7 @@ export const getHourInTimezone = (
   date: Date = new Date(),
   timezone: string = "Asia/Kolkata",
 ): number => {
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: timezone,
     hour: "numeric",
     hourCycle: "h23",
@@ -39,7 +56,7 @@ export const getDayOfWeekInTimezone = (
   const [year, month, day] = dateStr.split("-").map(Number);
   // Noon in IST (06:30 UTC) avoids day-boundary offset issues
   const d = new Date(Date.UTC(year, month - 1, day, 6, 30));
-  return new Intl.DateTimeFormat("en-US", {
+  return getCachedDateTimeFormatter("en-US", {
     timeZone: timezone,
     weekday: "long",
   }).format(d);
