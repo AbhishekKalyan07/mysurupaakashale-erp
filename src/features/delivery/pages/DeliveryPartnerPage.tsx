@@ -8,9 +8,10 @@ import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoa
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
 import { DeliveryPartnerTable } from "../components/DeliveryPartnerTable";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 function getDefaultMealType(): string {
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  const formatter = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     hour12: false,

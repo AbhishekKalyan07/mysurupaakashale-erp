@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useState, useMemo } from "react";
 import { ChefHat, Printer, RefreshCw } from "lucide-react";
 import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoader";
@@ -81,7 +82,7 @@ export function ProductionBoardPage() {
     );
   }
 
-  const displayDate = new Intl.DateTimeFormat("en-IN", {
+  const displayDate = getCachedDateTimeFormatter("en-IN", {
     weekday: "long",
     year: "numeric",
     month: "long",
