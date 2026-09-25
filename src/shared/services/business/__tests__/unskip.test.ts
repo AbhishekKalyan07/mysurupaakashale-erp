@@ -1,3 +1,4 @@
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { orderService } from "../orderService";
 import { subscriptionRepository } from "../../firestore/subscriptionRepository";
@@ -65,7 +66,7 @@ describe("Unskip Meal Feature", () => {
       // Mock date to 1 AM, so breakfast cutoff is open
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-01T01:00:00+05:30"));
-      const today = new Intl.DateTimeFormat("en-CA", {
+      const today = getCachedDateTimeFormatter("en-CA", {
         timeZone: "Asia/Kolkata",
       }).format(new Date());
 
@@ -86,7 +87,7 @@ describe("Unskip Meal Feature", () => {
     it("6. Unskip after cutoff fails", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-01T12:00:00+05:30")); // 12 PM IST
-      const today = new Intl.DateTimeFormat("en-CA", {
+      const today = getCachedDateTimeFormatter("en-CA", {
         timeZone: "Asia/Kolkata",
       }).format(new Date());
 
@@ -107,7 +108,7 @@ describe("Unskip Meal Feature", () => {
 
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-01T01:00:00+05:30"));
-      const today = new Intl.DateTimeFormat("en-CA", {
+      const today = getCachedDateTimeFormatter("en-CA", {
         timeZone: "Asia/Kolkata",
       }).format(new Date());
 
