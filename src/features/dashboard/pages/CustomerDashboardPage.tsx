@@ -16,6 +16,7 @@ import { useCustomerAddresses } from "@/features/customer/hooks/useCustomerAddre
 import { useDeliveryPartnerProfile } from "@/features/delivery/hooks/useDeliveryPartnerProfile";
 import type { CustomerProfile } from "@/shared/types";
 import { useQueryClient } from "@tanstack/react-query";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import type { Order } from "@/shared/types";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { getTodayIST } from "@/shared/utils/dateUtils";
@@ -645,7 +646,7 @@ export function CustomerDashboardPage() {
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
-                                        {new Intl.DateTimeFormat("en-IN", {
+                                        {getCachedDateTimeFormatter("en-IN", {
                                           hour: "numeric",
                                           minute: "numeric",
                                           hour12: true,
