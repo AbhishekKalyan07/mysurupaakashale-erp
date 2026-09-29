@@ -13,6 +13,7 @@ import {
   useArchiveDailyMenu,
 } from "../hooks/useDailyMenu";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import type { DailyMenu } from "@/shared/types";
 
 export function DailyMenuListPage() {
@@ -133,7 +134,7 @@ function MenuCard({
     <Card className="flex flex-col h-full overflow-hidden transition-shadow hover:shadow-card-hover">
       <div className="p-4 border-b border-rice-200 bg-rice-25 flex items-center justify-between">
         <h3 className="font-display font-bold text-ink-900 text-lg">
-          {new Intl.DateTimeFormat("en-IN", {
+          {getCachedDateTimeFormatter("en-IN", {
             weekday: "short",
             month: "short",
             day: "numeric",

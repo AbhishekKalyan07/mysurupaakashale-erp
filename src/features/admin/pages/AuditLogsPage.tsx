@@ -17,6 +17,7 @@ import {
   Info,
 } from "lucide-react";
 import { APP_CONFIG } from "@/shared/config/appConfig";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { AuditLog } from "@/shared/types";
 import { SystemAuditReportView } from "../components/SystemAuditReportView";
@@ -230,7 +231,7 @@ export function AuditLogsPage() {
                       </span>
                       <span className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block text-primary">
                         {log.timestamp
-                          ? new Intl.DateTimeFormat(
+                          ? getCachedDateTimeFormatter(
                               APP_CONFIG.dateFormat.system,
                               {
                                 dateStyle: "medium",
