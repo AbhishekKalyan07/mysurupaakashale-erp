@@ -614,13 +614,14 @@ service cloud.firestore {
                        request.resource.data.amount is number &&
                        request.resource.data.amount > 0 &&
                        ('createdAt' in request.resource.data) &&
+                       ('subscriptionId' in request.resource.data) &&
                        exists(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)) &&
                        get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid &&
                        (get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.status == 'pending_payment' 
-                         ? (request.resource.data.purpose == 'security_deposit' && 
+                         ? (request.resource.data.get('purpose', '') == 'security_deposit' && 
                             (get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.get('depositAmount', null) == null ||
                              request.resource.data.amount == get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.depositAmount))
-                         : (request.resource.data.purpose in ['usage', 'security_deposit'])) &&
+                         : (request.resource.data.get('purpose', 'usage') in ['usage', 'security_deposit'])) &&
                        (!('id' in request.resource.data) || request.resource.data.id == paymentId) &&
                        (!('screenshotUrl' in request.resource.data) ||
                         request.resource.data.screenshotUrl == null ||

@@ -1003,13 +1003,18 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
-    it('DENY: Customer cannot bypass by omitting purpose on pending subscription', async () => {
+    it('DENY: Customer cannot bypass by omitting purpose or setting purpose usage on pending subscription', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(setDoc(doc(db, 'payments', 'pay-no-purpose'), {
         ...validPayment,
         subscriptionId: 'sub-pending',
         amount: 1000,
         purpose: 'usage' // MUST be security_deposit
+      }));
+      await assertFails(setDoc(doc(db, 'payments', 'pay-omitted-purpose'), {
+        ...validPayment,
+        subscriptionId: 'sub-pending',
+        amount: 1000
       }));
     });
 
