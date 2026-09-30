@@ -4,17 +4,44 @@ import {
   writeBatch,
   doc,
 } from "firebase/firestore";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import {
+  getTodayInTimezone,
+  getTodayIST,
+  calculateSubscriptionEndDate,
+} from "@/shared/lib/date";
 import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { db } from "@/shared/lib/firebase";
 import { settingsRepository } from "../firestore/settingsRepository";
 import { orderService } from "./orderService";
+import { pricingService } from "./pricingService";
 import type {
   MealPreference,
   PlanTier,
   Subscription,
+  SubscriptionStatus,
   MealPlanPricing,
 } from "@/shared/types";
+
+export interface AdminActor {
+  uid: string;
+  role: string;
+  fullName?: string;
+}
+
+export interface AdminCreateSubscriptionInput {
+  customerId: string;
+  planId: string;
+  startDate: string; // YYYY-MM-DD
+  mealPreferences: MealPreference[];
+  deliveryAddressId: string;
+  billingCycle?: "weekly" | "monthly";
+  quantity?: number;
+  autoRenew?: boolean;
+  status?: SubscriptionStatus;
+  pricePerDaySnapshot?: number;
+  pricingMatrixSnapshot?: MealPlanPricing;
+  endDate?: string | null;
+}
 
 class SubscriptionService {
   /**
@@ -33,6 +60,10 @@ class SubscriptionService {
     billingCycle: "weekly" | "monthly",
     endDate: string | null,
     autoRenew: boolean = true,
+    options?: {
+      status?: SubscriptionStatus;
+      adminActor?: AdminActor;
+    },
   ): Promise<string> {
     if (
       !customerId ||
@@ -54,15 +85,25 @@ class SubscriptionService {
     const settings = await settingsRepository.getBusinessSettings();
     const depositAmount = settings?.pricing.securityDepositAmount || 1000;
 
+    let finalPricingMatrix = pricingMatrixSnapshot;
+    if (!finalPricingMatrix || Object.keys(finalPricingMatrix).length === 0) {
+      finalPricingMatrix = await pricingService.getEffectivePricing(
+        startDate,
+        planTier,
+      );
+    }
+
+    const initialStatus = options?.status || "pending_payment";
+
     await subscriptionRepository.create(
       {
         customerId,
         planId,
-        status: "pending_payment",
+        status: initialStatus,
         planTier,
         quantity,
         pricePerDaySnapshot,
-        pricingMatrixSnapshot,
+        pricingMatrixSnapshot: finalPricingMatrix,
         zoneId: null,
         mealPreferences,
         startDate,
@@ -77,6 +118,213 @@ class SubscriptionService {
       },
       subscriptionId,
     );
+
+    return subscriptionId;
+  }
+
+  /**
+   * Admin-assisted customer subscription creation (Phase E3).
+   * Authoritatively validates customer, plan, dates, preferences, duplicates, and E2 pricing.
+   */
+  async createSubscriptionByAdmin(
+    adminActor: AdminActor,
+    input: AdminCreateSubscriptionInput,
+  ): Promise<string> {
+    // 1. Authorization: Only admin can execute this flow
+    if (!adminActor || adminActor.role !== "admin") {
+      throw new Error(
+        "Unauthorized: Only Admin can create customer subscriptions.",
+      );
+    }
+
+    // 2. Validate customer exists
+    if (!input.customerId) {
+      throw new Error("Customer ID is required.");
+    }
+    const { userRepository } = await import("../firestore/userRepository");
+    const customer = await userRepository.getById(input.customerId);
+    if (!customer || customer.role !== "customer") {
+      throw new Error("Customer does not exist.");
+    }
+
+    // 3. Validate plan exists and is active
+    if (!input.planId) {
+      throw new Error("Plan ID is required.");
+    }
+    const { mealPlanRepository } = await import("../firestore/mealPlanRepository");
+    const plan = await mealPlanRepository.getById(input.planId);
+    if (!plan || !plan.isActive) {
+      throw new Error("Invalid or inactive meal plan.");
+    }
+
+    // 4. Validate start date format and future/today constraint
+    if (!input.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.startDate)) {
+      throw new Error("Invalid start date format. Expected YYYY-MM-DD.");
+    }
+    const todayIST = getTodayIST();
+    if (input.startDate < todayIST) {
+      throw new Error("Subscription start date cannot be in the past.");
+    }
+
+    // 5. Validate meal preferences
+    if (!input.mealPreferences || input.mealPreferences.length === 0) {
+      throw new Error("At least one meal preference is required.");
+    }
+    if (plan.mealSlots && plan.mealSlots.length > 0) {
+      const planSlotTypes = new Set(plan.mealSlots.map((s) => s.mealType));
+      for (const pref of input.mealPreferences) {
+        if (!planSlotTypes.has(pref.mealType)) {
+          throw new Error(
+            `Meal type '${pref.mealType}' is not offered by plan '${plan.name}'.`,
+          );
+        }
+      }
+    }
+
+    // 6. Validate duplicate / conflicting active subscription
+    const existingActive =
+      await subscriptionRepository.getActiveSubscriptionByCustomerId(
+        input.customerId,
+      );
+    if (
+      existingActive &&
+      (existingActive.status === "active" ||
+        existingActive.status === "paused")
+    ) {
+      throw new Error(
+        "Customer already has an active subscription. Conflicting active subscriptions are not permitted.",
+      );
+    }
+
+    // 7. Validate delivery address
+    if (!input.deliveryAddressId) {
+      throw new Error("Delivery address is required.");
+    }
+
+    // 8. Pricing resolution (E2 authoritative)
+    const quantity = input.quantity && input.quantity > 0 ? input.quantity : 1;
+    const pricingSnapshot =
+      input.pricingMatrixSnapshot ||
+      (await pricingService.getEffectivePricing(input.startDate, plan.tier));
+
+    const pricePerDay =
+      input.pricePerDaySnapshot !== undefined
+        ? input.pricePerDaySnapshot
+        : await pricingService.calculateSubscriptionPrice(
+            input.mealPreferences,
+            input.startDate,
+            plan.tier,
+          );
+
+    // 9. Calculate end date if not provided
+    const billingCycle = input.billingCycle || "monthly";
+    const endDate =
+      input.endDate !== undefined
+        ? input.endDate
+        : calculateSubscriptionEndDate(input.startDate, billingCycle);
+
+    const initialStatus = input.status || "active";
+
+    // 10. Persist subscription via createSubscription
+    const subscriptionId = await this.createSubscription(
+      input.customerId,
+      plan.id,
+      plan.tier,
+      quantity,
+      pricePerDay,
+      pricingSnapshot,
+      input.mealPreferences,
+      input.startDate,
+      input.deliveryAddressId,
+      billingCycle,
+      endDate,
+      input.autoRenew ?? true,
+      { status: initialStatus, adminActor },
+    );
+
+    // 11. Lifecycle initializations for active subscription
+    if (initialStatus === "active") {
+      if (input.startDate <= todayIST) {
+        try {
+          const { orderService } = await import("./orderService");
+          const createdSub = await subscriptionRepository.getById(subscriptionId);
+          if (createdSub) {
+            const mealTypes = (input.mealPreferences || []).map((p) => p.mealType);
+            await orderService.generateOrdersForSubscription(
+              createdSub,
+              todayIST,
+              mealTypes,
+            );
+          }
+        } catch (err) {
+          console.error(
+            `[SubscriptionService] Failed to generate initial orders for subscription ${subscriptionId}:`,
+            err,
+          );
+        }
+      }
+
+      // Notifications
+      try {
+        const { notifySubscriptionApproved } = await import(
+          "../firestore/notificationService"
+        );
+        notifySubscriptionApproved(
+          input.customerId,
+          subscriptionId,
+          plan.tier,
+          input.startDate,
+        ).catch(() => {});
+      } catch (err) {
+        console.error(
+          "[SubscriptionService] Failed to send activation notification:",
+          err,
+        );
+      }
+    } else {
+      try {
+        const { notifySubscriptionCreated } = await import(
+          "../firestore/notificationService"
+        );
+        notifySubscriptionCreated(
+          input.customerId,
+          subscriptionId,
+          plan.tier,
+        ).catch(() => {});
+      } catch (err) {
+        console.error(
+          "[SubscriptionService] Failed to send creation notification:",
+          err,
+        );
+      }
+    }
+
+    // 12. Audit Logging
+    try {
+      const { auditRepository } = await import("../firestore/auditRepository");
+      await auditRepository.logAction(
+        "admin_subscription_created",
+        adminActor.uid,
+        adminActor.role || "admin",
+        adminActor.fullName || "Admin",
+        subscriptionId,
+        "subscription",
+        {
+          actorId: adminActor.uid,
+          actorRole: adminActor.role,
+          customerId: input.customerId,
+          subscriptionId,
+          selectedPlan: plan.name,
+          planId: plan.id,
+          planTier: plan.tier,
+          startDate: input.startDate,
+          status: initialStatus,
+          action: "admin_subscription_created",
+        },
+      );
+    } catch (err) {
+      console.error("[SubscriptionService] Failed to log audit event:", err);
+    }
 
     return subscriptionId;
   }

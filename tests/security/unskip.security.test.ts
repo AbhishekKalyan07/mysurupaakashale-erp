@@ -30,8 +30,8 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
       projectId: PROJECT_ID,
       firestore: {
         rules: fs.readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8'),
-        host: '127.0.0.1',
-        port: 8080,
+
+
       },
     });
   });
@@ -239,6 +239,34 @@ withEmulator('🔐 Unskip and Kitchen Security Rules', () => {
     it('8. Customer A cancels scheduled order after cutoff → DENY', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(updateDoc(doc(db, 'orders', 'order-past-scheduled'), {
+        status: 'cancelled',
+        updatedAt: new Date()
+      }));
+    });
+
+    // Test 8b: Customer B cannot cancel Customer A scheduled order → DENY
+    it('8b. Customer B cannot cancel Customer A scheduled order → DENY', async () => {
+      const db = env.authenticatedContext(CUSTOMER_B_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-scheduled-a'), {
+        status: 'cancelled',
+        updatedAt: new Date()
+      }));
+    });
+
+    // Test 8c: Customer A cannot forge price while cancelling order → DENY
+    it('8c. Customer A cannot forge price while cancelling order → DENY', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-scheduled-a'), {
+        status: 'cancelled',
+        price: 0,
+        updatedAt: new Date()
+      }));
+    });
+
+    // Test 8d: Admin can cancel customer order before cutoff → ALLOW
+    it('8d. Admin can cancel customer order before cutoff → ALLOW', async () => {
+      const db = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(updateDoc(doc(db, 'orders', 'order-scheduled-a'), {
         status: 'cancelled',
         updatedAt: new Date()
       }));

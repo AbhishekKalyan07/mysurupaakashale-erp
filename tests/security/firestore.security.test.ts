@@ -54,8 +54,8 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
           path.resolve(__dirname, '../../firestore.rules'),
           'utf8',
         ),
-        host: '127.0.0.1',
-        port: 8080,
+
+
       },
     });
   });
@@ -252,6 +252,38 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
     it('DENY: Customer A cannot cancel Customer B order', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(updateDoc(doc(db, 'orders', 'order-b'), { status: 'cancelled', updatedAt: new Date() }));
+    });
+
+    it('DENY: Customer A cannot change meal option on Customer B order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-b'), {
+        selectedOptionId: 'lunch-opt-b',
+        mealName: 'South Indian Meals',
+        itemsLabel: 'Subscription - lunch (South Indian Meals)',
+        updatedAt: new Date(),
+      }));
+    });
+
+    it('DENY: Customer cannot change price when modifying meal option', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-a'), {
+        selectedOptionId: 'lunch-opt-b',
+        mealName: 'South Indian Meals',
+        itemsLabel: 'Subscription - lunch (South Indian Meals)',
+        price: 0,
+        updatedAt: new Date(),
+      }));
+    });
+
+    it('DENY: Customer cannot change status when modifying meal option', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-a'), {
+        selectedOptionId: 'lunch-opt-b',
+        mealName: 'South Indian Meals',
+        itemsLabel: 'Subscription - lunch (South Indian Meals)',
+        status: 'delivered',
+        updatedAt: new Date(),
+      }));
     });
 
     it('ALLOW: Customer A can read their own order', async () => {

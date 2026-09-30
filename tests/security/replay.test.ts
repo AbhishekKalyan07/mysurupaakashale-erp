@@ -37,8 +37,8 @@ withEmulator('🔄 Replay Attack Tests', () => {
           path.resolve(__dirname, '../../firestore.rules'),
           'utf8',
         ),
-        host: '127.0.0.1',
-        port: 8080,
+
+
       },
     });
   });

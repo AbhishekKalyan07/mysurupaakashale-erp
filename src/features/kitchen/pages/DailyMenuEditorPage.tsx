@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Save, ArrowLeft, Trash2, Plus } from "lucide-react";
+import { Save, ArrowLeft, Trash2, Plus, AlertTriangle, Info } from "lucide-react";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { FormSkeleton } from "@/shared/components/feedback/SkeletonLoader";
@@ -14,6 +14,7 @@ import {
   useDailyMenu,
   useCreateDailyMenu,
   useUpdateDailyMenu,
+  useHasOrdersForDate,
 } from "../hooks/useDailyMenu";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
@@ -44,6 +45,7 @@ export function DailyMenuEditorPage() {
   const basePath = `/${role}/menus`;
 
   const { data: menu, isLoading, isError, error } = useDailyMenu(id ?? null);
+  const { data: hasOrders } = useHasOrdersForDate(menu?.date);
   const createMutation = useCreateDailyMenu();
   const updateMutation = useUpdateDailyMenu();
 
@@ -144,6 +146,7 @@ export function DailyMenuEditorPage() {
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const isPublished = isEditing && menu?.status === "published";
+  const isLocked = isPublished && Boolean(hasOrders);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -156,6 +159,30 @@ export function DailyMenuEditorPage() {
           {isEditing ? "Edit Menu" : "Create Menu"}
         </h1>
       </div>
+
+      {isLocked && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-800 dark:text-amber-200 text-sm flex items-center gap-3">
+          <AlertTriangle size={20} className="shrink-0 text-amber-500" />
+          <div>
+            <p className="font-semibold">Menu Locked</p>
+            <p>
+              Orders have already been generated for this date ({menu?.date}). This menu is locked to protect historical order snapshot integrity.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isPublished && !isLocked && (
+        <div className="bg-leaf-500/10 border border-leaf-500/30 rounded-xl p-4 text-leaf-800 dark:text-leaf-200 text-sm flex items-center gap-3">
+          <Info size={20} className="shrink-0 text-leaf-600" />
+          <div>
+            <p className="font-semibold">Published Menu (Revisions Allowed)</p>
+            <p>
+              No orders have been generated for {menu?.date} yet. You can edit and save dish revisions; they will be applied when orders are generated.
+            </p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card className="p-6">
@@ -170,8 +197,8 @@ export function DailyMenuEditorPage() {
               <input
                 type="date"
                 {...form.register("date")}
-                disabled={isPublished}
-                className="w-full h-10 px-3 rounded-lg border border-rice-200 bg-rice-25 focus:ring-2 focus:ring-turmeric-400"
+                disabled={isEditing || isLocked}
+                className="w-full h-10 px-3 rounded-lg border border-rice-200 bg-rice-25 focus:ring-2 focus:ring-turmeric-400 disabled:opacity-60"
               />
               {form.formState.errors.date && (
                 <p className="text-danger text-sm mt-1">
@@ -186,19 +213,19 @@ export function DailyMenuEditorPage() {
           form={form}
           name="breakfast"
           title="Breakfast"
-          disabled={isPublished}
+          disabled={isLocked}
         />
         <MealEditor
           form={form}
           name="lunch"
           title="Lunch"
-          disabled={isPublished}
+          disabled={isLocked}
         />
         <MealEditor
           form={form}
           name="dinner"
           title="Dinner"
-          disabled={isPublished}
+          disabled={isLocked}
         />
 
         <div className="flex justify-end gap-3">
@@ -210,9 +237,15 @@ export function DailyMenuEditorPage() {
           >
             Cancel
           </Button>
-          <Button type="submit" isLoading={isSaving} disabled={isSaving}>
+          <Button type="submit" isLoading={isSaving} disabled={isSaving || isLocked}>
             <Save size={16} />
-            {isEditing ? "Save Changes" : "Create Draft"}
+            {isLocked
+              ? "Locked (Orders Exist)"
+              : isEditing
+                ? isPublished
+                  ? "Save Revision"
+                  : "Save Changes"
+                : "Create Draft"}
           </Button>
         </div>
       </form>

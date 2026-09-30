@@ -9,9 +9,13 @@ class SettingsRepository extends BaseRepository<BusinessSettings> {
   }
 
   async getBusinessSettings(): Promise<BusinessSettings | null> {
-    const docRef = doc(db, "settings", "business");
-    const snap = await getDoc(docRef);
-    return snap.exists() ? (snap.data() as BusinessSettings) : null;
+    try {
+      const docRef = doc(db, "settings", "business");
+      const snap = await getDoc(docRef);
+      return snap?.exists?.() ? (snap.data() as BusinessSettings) : null;
+    } catch {
+      return null;
+    }
   }
 
   async saveBusinessSettings(data: Partial<BusinessSettings>): Promise<void> {

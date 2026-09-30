@@ -110,6 +110,18 @@ service cloud.firestore {
              ((m0 == 'lunch' && m1 == 'dinner') || (m0 == 'dinner' && m1 == 'lunch') ? 'lunch_dinner' : 'breakfast_dinner'));
     }
 
+    function isValidAddonPrice(addonId, unitPrice) {
+      let addonPath = /databases/$(database)/documents/addons/$(addonId);
+      return exists(addonPath) ?
+             (get(addonPath).data.price == unitPrice && get(addonPath).data.get('isActive', true) == true) :
+             ((addonId == 'addon_paneer' && unitPrice == 40) ||
+              (addonId == 'addon_curd' && unitPrice == 20) ||
+              (addonId == 'addon_sweet' && unitPrice == 35) ||
+              (addonId == 'addon_vada' && unitPrice == 25) ||
+              (addonId == 'addon_kesaribath' && unitPrice == 30) ||
+              (addonId == 'addon_chapati' && unitPrice == 25));
+    }
+
 
     // ---------- users/{userId} ----------
     match /users/{userId} {
@@ -139,7 +151,7 @@ service cloud.firestore {
       allow delete: if false;
 
       match /addresses/{addressId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
     }
 
@@ -161,6 +173,12 @@ service cloud.firestore {
       allow write: if isAdmin() &&
                       request.resource.data.pricePerDay is number &&
                       request.resource.data.pricePerDay > 0;
+    }
+
+    // ---------- addons/{addonId} — authoritative add-on catalog ----------
+    match /addons/{addonId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // ---------- dailyMenus/{menuId} ----------
@@ -293,12 +311,12 @@ service cloud.firestore {
                        (parentSubscription().customerId == request.auth.uid || isAdmin() || isKitchen());
         // Skip creation: before cutoff → ALLOW; after cutoff → DENY.
         // request.time is server-authoritative — the client cannot spoof it.
-        allow create: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, request.resource.data.get('mealTypes', []));
-        allow update: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])).concat(request.resource.data.get('mealTypes', []).removeAll(resource.data.get('mealTypes', []))));
-        allow delete: if isSignedIn() && parentSubscription().customerId == request.auth.uid &&
-                         checkMealsCutoff(date, resource.data.get('mealTypes', []));
+        allow create: if isAdmin() || (isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, request.resource.data.get('mealTypes', [])));
+        allow update: if isAdmin() || (isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, resource.data.get('mealTypes', []).removeAll(request.resource.data.get('mealTypes', [])).concat(request.resource.data.get('mealTypes', []).removeAll(resource.data.get('mealTypes', [])))));
+        allow delete: if isAdmin() || (isSignedIn() && parentSubscription().customerId == request.auth.uid &&
+                         checkMealsCutoff(date, resource.data.get('mealTypes', [])));
       }
     }
 
@@ -337,9 +355,22 @@ service cloud.firestore {
                (oldStatus == 'packed' && newStatus == 'ready_for_pickup');
       }
 
+      function isValidAddonInvoiceMutation(orderData) {
+        let invPath = /databases/$(database)/documents/invoices/$(orderData.invoiceId);
+        let hasInv = existsAfter(invPath);
+        let invAfter = getAfter(invPath).data;
+        let isNewInv = !exists(invPath) && invAfter.totalAmount == orderData.price;
+        let isUpdatedInv = exists(invPath) && invAfter.totalAmount == get(invPath).data.totalAmount + orderData.price;
+        return hasInv &&
+               invAfter.customerId == orderData.customerId &&
+               invAfter.subscriptionId == orderData.subscriptionId &&
+               (isNewInv || isUpdatedInv);
+      }
+
 
       allow read: if isSignedIn() &&
-                      (resource.data.customerId == request.auth.uid ||
+                      (resource == null ||
+                       resource.data.customerId == request.auth.uid ||
                        resource.data.deliveryPartnerId == request.auth.uid ||
                       isAdmin() || isAccounts() || isAuthorizedKitchen(resource.data.kitchenId));
 
@@ -360,7 +391,13 @@ service cloud.firestore {
         return exists(hPath) && get(hPath).data.status == 'active';
       }
 
-      allow create: if (isAdmin() && !isActiveholidayForDate(request.resource.data.date)) ||
+      allow create: if (isAdmin() && !isActiveholidayForDate(request.resource.data.date) &&
+                        (!request.resource.data.get('isAddon', false) ||
+                         (('invoiceId' in request.resource.data) &&
+                          request.resource.data.invoiceId is string &&
+                          isValidAddonInvoiceMutation(request.resource.data) &&
+                          isValidAddonPrice(request.resource.data.addonId, request.resource.data.addonUnitPrice) &&
+                          request.resource.data.price == request.resource.data.addonUnitPrice * request.resource.data.addonQuantity))) ||
                       (isSignedIn() &&
                        request.resource.data.customerId == request.auth.uid &&
                        request.resource.data.source == 'one_time' &&
@@ -396,12 +433,45 @@ service cloud.firestore {
                        checkMealsCutoff(request.resource.data.date, [request.resource.data.mealType]) &&
                        // Strict field allowlist — no unauthorized operational fields
                        request.resource.data.keys().hasOnly([
-                         'id', 'displayId', 'source', 'customerId', 'customerName',
-                         'customerCode', 'customerPhone', 'address', 'planId',
-                         'subscriptionId', 'planTier', 'mealType', 'date',
-                         'itemsLabel', 'selectedOptionId', 'price', 'currency',
-                         'status', 'deliveryAddressId', 'zoneId', 'kitchenId',
-                         'deliveryPartnerId', 'deliveryWindow', 'paymentId',
+                          'id', 'displayId', 'source', 'customerId', 'customerName',
+                          'customerCode', 'customerPhone', 'address', 'planId',
+                          'subscriptionId', 'planTier', 'mealType', 'date',
+                          'itemsLabel', 'selectedOptionId', 'price', 'currency',
+                          'status', 'deliveryAddressId', 'zoneId', 'kitchenId',
+                          'deliveryPartnerId', 'deliveryWindow', 'paymentId',
+                          'createdAt', 'updatedAt'
+                        ])) ||
+                      (isSignedIn() &&
+                       request.resource.data.customerId == request.auth.uid &&
+                       request.resource.data.source == 'subscription' &&
+                       request.resource.data.get('isAddon', false) == true &&
+                       request.resource.data.status == 'scheduled' &&
+                       request.resource.data.subscriptionId is string &&
+                       exists(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)) &&
+                       get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid &&
+                       request.resource.data.date is string &&
+                       request.resource.data.date.size() == 10 &&
+                       request.resource.data.mealType in ['breakfast', 'lunch', 'dinner'] &&
+                       checkMealsCutoff(request.resource.data.date, [request.resource.data.mealType]) &&
+                       !isActiveholidayForDate(request.resource.data.date) &&
+                       isValidAddonPrice(request.resource.data.addonId, request.resource.data.addonUnitPrice) &&
+                       request.resource.data.addonQuantity is int &&
+                       request.resource.data.addonQuantity >= 1 &&
+                       request.resource.data.addonQuantity <= 10 &&
+                       request.resource.data.price is number &&
+                       request.resource.data.price == request.resource.data.addonUnitPrice * request.resource.data.addonQuantity &&
+                       request.resource.data.currency == 'INR' &&
+                       ('createdAt' in request.resource.data) &&
+                       ('invoiceId' in request.resource.data) &&
+                       request.resource.data.invoiceId is string &&
+                       isValidAddonInvoiceMutation(request.resource.data) &&
+                       request.resource.data.keys().hasOnly([
+                         'id', 'source', 'customerId', 'subscriptionId', 'planTier',
+                         'mealType', 'date', 'mealName', 'itemsLabel', 'mealQuantity',
+                         'price', 'currency', 'isAddon', 'addonId', 'addonName',
+                         'addonQuantity', 'addonUnitPrice', 'status', 'kitchenStatus',
+                         'deliveryAddressId', 'zoneId', 'kitchenId', 'deliveryPartnerId',
+                         'deliveryWindow', 'paymentId', 'selectedOptionId', 'invoiceId',
                          'createdAt', 'updatedAt'
                        ]));
 
@@ -430,6 +500,18 @@ service cloud.firestore {
                        resource.data.status == 'cancelled' && request.resource.data.status == 'scheduled' &&
                        onlyChangedFields(['status', 'updatedAt']) &&
                        getDayStatus(resource.data.date) == 'open' &&
+                       checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')])) ||
+                      (isSignedIn() && resource.data.customerId == request.auth.uid &&
+                       resource.data.status == 'scheduled' && request.resource.data.status == 'scheduled' &&
+                       resource.data.mealType in ['lunch', 'dinner'] &&
+                       unchanged('mealType') &&
+                       unchanged('price') &&
+                       unchanged('customerId') &&
+                       unchanged('subscriptionId') &&
+                       resource.data.get('kitchenStatus', 'scheduled') == 'scheduled' &&
+                       onlyChangedFields(['selectedOptionId', 'mealName', 'itemsLabel', 'updatedAt']) &&
+                       request.resource.data.selectedOptionId is string &&
+                       getDayStatus(resource.data.date) == 'open' &&
                        checkMealsCutoff(resource.data.date, [resource.data.get('mealType', '')]));
 
       allow delete: if false;
@@ -441,7 +523,8 @@ service cloud.firestore {
                         isAdmin() || isAccounts() || isKitchen());
         allow create: if isSignedIn() && request.resource.data.changedBy == request.auth.uid &&
                          (isAdmin() || isKitchen() || isDeliveryPartner() ||
-                          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid);
+                          (exists(/databases/$(database)/documents/orders/$(orderId)) && get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid) ||
+                          (existsAfter(/databases/$(database)/documents/orders/$(orderId)) && getAfter(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid));
         allow update, delete: if false; // append-only history
       }
     }
@@ -521,7 +604,7 @@ service cloud.firestore {
 
     // ---------- payments/{paymentId} ----------
     match /payments/{paymentId} {
-      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow read: if isSignedIn() && (resource == null || resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
       // Security hardening: require createdAt (queries use orderBy('createdAt'))
       // and enforce a strict field allowlist to prevent unauthorized fields.
       allow create: if isAdmin() ||
@@ -554,25 +637,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /invoices/{invoiceId} {
-      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
-      allow create: if (isAdmin() || isAccounts()) &&
-                       ('customerId' in request.resource.data) &&
-                       request.resource.data.customerId is string &&
-                       request.resource.data.customerId.size() > 0 &&
-                       ('totalAmount' in request.resource.data) &&
-                       request.resource.data.totalAmount is number &&
-                       request.resource.data.totalAmount >= 0 &&
-                       request.resource.data.totalAmount <= 1000000 &&
-                       ('status' in request.resource.data) &&
-                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
-      allow update: if (isAdmin() || isAccounts()) &&
-                       request.resource.data.customerId == resource.data.customerId &&
-                       ('totalAmount' in request.resource.data) &&
-                       request.resource.data.totalAmount is number &&
-                       request.resource.data.totalAmount >= 0 &&
-                       request.resource.data.totalAmount <= 1000000 &&
-                       ('status' in request.resource.data) &&
-                       request.resource.data.status in ['draft', 'issued', 'paid', 'overdue', 'void'];
+      allow read: if isSignedIn() && (resource == null || resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow create: if ((isAdmin() || isAccounts()) && request.resource.data.totalAmount is number && request.resource.data.totalAmount >= 0) ||
+                       (isSignedIn() &&
+                        request.resource.data.customerId == request.auth.uid &&
+                        request.resource.data.status in ['draft', 'issued'] &&
+                        request.resource.data.subscriptionId is string &&
+                        exists(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)) &&
+                        get(/databases/$(database)/documents/subscriptions/$(request.resource.data.subscriptionId)).data.customerId == request.auth.uid &&
+                        request.resource.data.totalAmount is number &&
+                        request.resource.data.totalAmount > 0 &&
+                        request.resource.data.totalAmount <= 1000000 &&
+                        request.resource.data.currency == 'INR' &&
+                        ('lineItems' in request.resource.data) &&
+                        request.resource.data.lineItems.size() > 0 &&
+                        request.resource.data.totalAmount == request.resource.data.subtotal);
+      allow update: if ((isAdmin() || isAccounts()) && request.resource.data.totalAmount is number && request.resource.data.totalAmount >= 0) ||
+                       (isSignedIn() &&
+                        resource.data.customerId == request.auth.uid &&
+                        request.resource.data.customerId == request.auth.uid &&
+                        resource.data.subscriptionId == request.resource.data.subscriptionId &&
+                        resource.data.status in ['draft', 'issued', 'overdue'] &&
+                        request.resource.data.status == resource.data.status &&
+                        request.resource.data.totalAmount is number &&
+                        request.resource.data.totalAmount >= resource.data.totalAmount &&
+                        request.resource.data.lineItems.size() > resource.data.lineItems.size() &&
+                        request.resource.data.totalAmount == resource.data.totalAmount + (request.resource.data.subtotal - resource.data.subtotal));
       allow delete: if isAdmin();
     }
 
@@ -716,7 +806,8 @@ service cloud.firestore {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
       allow read: if isSignedIn();
-      allow write: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
+      allow create, update: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
+      allow delete: if false; // Settings cannot be deleted
     }
 
     match /auditLogs/{logId} {
@@ -814,6 +905,45 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+
+    // ---------- pricingConfigurations/{configId} (Phase E2) ----------
+    match /pricingConfigurations/{configId} {
+      function isValidMeals(meals) {
+        return meals is map &&
+               meals.get('breakfast', -1) is number && meals.get('breakfast', -1) >= 0 &&
+               meals.get('lunch', -1) is number && meals.get('lunch', -1) >= 0 &&
+               meals.get('dinner', -1) is number && meals.get('dinner', -1) >= 0;
+      }
+
+      function isValidCombos(combos) {
+        return combos is map &&
+               combos.get('lunch_dinner', -1) is number && combos.get('lunch_dinner', -1) >= 0 &&
+               combos.get('all_three', -1) is number && combos.get('all_three', -1) >= 0;
+      }
+
+      function isValidPricingConfig() {
+        let d = request.resource.data;
+        return d.get('effectiveFrom', '') is string &&
+               d.get('effectiveFrom', '').size() == 10 &&
+               d.get('pricing', null) is map &&
+               d.pricing.get('standard', null) is map &&
+               isValidMeals(d.pricing.standard.get('meals', null)) &&
+               isValidCombos(d.pricing.standard.get('combos', null)) &&
+               d.get('status', '') in ['active', 'scheduled', 'archived'];
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidPricingConfig();
+      // Only scheduled future configurations can have prices edited freely.
+      // Active configurations may only have status updated (e.g. to 'archived') or effectiveTo set to prevent historical distortion.
+      allow update: if isAdmin() && isValidPricingConfig() &&
+                       (resource.data.get('status', '') == 'scheduled' ||
+                        (onlyChangedFields(['status', 'effectiveTo', 'updatedAt', 'updatedBy', 'note']) &&
+                         request.resource.data.get('status', '') in ['active', 'archived'] &&
+                         unchanged('pricing') && unchanged('effectiveFrom')));
+      // Only scheduled records may be deleted; active/archived history is protected.
+      allow delete: if isAdmin() && resource.data.get('status', '') == 'scheduled';
+    }
 
     // No catch-all rule: anything not matched above is denied by default.
   }

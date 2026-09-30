@@ -147,6 +147,76 @@ export function useSkipDay() {
   });
 }
 
+export function useRemoveTodayMeal() {
+  const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      subscriptionId,
+      mealType,
+    }: {
+      subscriptionId: string;
+      mealType: import("@/shared/types").MealType;
+    }) => {
+      if (!firebaseUser?.uid) throw new Error("Not authenticated");
+      return orderService.removeTodayMeal(subscriptionId, mealType);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ""),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["orderHistory", firebaseUser?.uid],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["todaysOrders"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+    },
+  });
+}
+
+export function useChangeTodayMealOption() {
+  const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      subscriptionId,
+      mealType,
+      newOptionId,
+    }: {
+      subscriptionId: string;
+      mealType: import("@/shared/types").MealType;
+      newOptionId: string;
+    }) => {
+      if (!firebaseUser?.uid) throw new Error("Not authenticated");
+      return orderService.changeTodayMealOption(
+        subscriptionId,
+        mealType,
+        newOptionId,
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.active(firebaseUser?.uid || ""),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["orderHistory", firebaseUser?.uid],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["todaysOrders"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+    },
+  });
+}
+
 export function useUnskipDay() {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();

@@ -27,16 +27,16 @@ export function AppShell() {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0 w-full">
         {/* Top Navbar — kept on both mobile and desktop, hamburger menu on mobile */}
         <PremiumNavbar role={role} onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* Page content — bottom padding on mobile for bottom nav */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background px-4 py-5 lg:p-8 pb-[calc(60px+env(safe-area-inset-bottom,0px)+1.5rem)] lg:pb-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background px-3 sm:px-4 py-4 sm:py-5 lg:p-8 pb-[calc(60px+env(safe-area-inset-bottom,0px)+1.5rem)] lg:pb-8 min-w-0">
           <GlobalErrorBoundary>
             <div
               key={location.pathname}
-              className="mx-auto max-w-7xl h-full animate-in fade-in duration-300"
+              className="mx-auto max-w-7xl h-full animate-in fade-in duration-300 min-w-0"
             >
               <Outlet />
             </div>

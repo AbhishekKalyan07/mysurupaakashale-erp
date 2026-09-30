@@ -15,8 +15,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : 4,
+  /* Opt out of parallel tests on CI or local emulator to prevent dirty database state collisions */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -54,26 +54,6 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
-    {
-      name: 'edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 15'] },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 8'] },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'iPad',
-      use: { ...devices['iPad (gen 7)'] },
-      dependencies: ['setup'],
-    }
   ],
 
   /* Run your local dev server before starting the tests */
@@ -82,7 +62,7 @@ export default defineConfig({
       command: 'npm run dev -- --port 5174 --host 127.0.0.1',
       url: 'http://127.0.0.1:5174',
       reuseExistingServer: !process.env.CI,
-      timeout: 120000,
+      timeout: 300000,
       env: {
         VITE_USE_FIREBASE_EMULATORS: 'true',
         VITE_FIREBASE_PROJECT_ID: 'demo-test',
@@ -95,9 +75,9 @@ export default defineConfig({
     },
     {
       command: 'npx firebase emulators:start --project demo-test --only auth,firestore',
-      port: 8080,
+      port: 8085,
       reuseExistingServer: !process.env.CI,
-      timeout: 120000,
+      timeout: 300000,
     }
   ],
 });

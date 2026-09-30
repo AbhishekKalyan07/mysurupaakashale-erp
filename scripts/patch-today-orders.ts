@@ -1,3 +1,6 @@
+// ⚠️  PRODUCTION MIGRATION SCRIPT — targets real Firestore via serviceAccountKey.json
+// This script is intentionally exempt from the emulator guard.
+// Do NOT run unless you are performing a deliberate, one-time production migration.
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as dotenv from 'dotenv';

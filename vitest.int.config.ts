@@ -15,6 +15,10 @@ export default defineConfig(async (env) => {
       testTimeout: 30000,
       hookTimeout: 30000,
       fileParallelism: false,
+      pool: 'forks',
+      poolOptions: {
+        timeout: 120000,
+      },
     }
   });
 

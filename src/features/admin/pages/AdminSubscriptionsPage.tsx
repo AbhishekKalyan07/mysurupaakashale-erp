@@ -34,6 +34,7 @@ import {
   type AdminStatusFilter,
   type SubscriptionRow,
 } from "../hooks/useAdminSubscriptions";
+import { NegotiatedPricingEditor } from "@/features/admin/components/NegotiatedPricingEditor";
 import { useSubscriptionStats } from "@/features/customer/hooks/useMySubscription";
 import { usePaymentDetail } from "@/features/customer/hooks/usePayments";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,6 +91,7 @@ function SubscriptionDetailDialog({
   const [editEndDate, setEditEndDate] = useState(subscription.endDate || "");
   const [isSavingDates, setIsSavingDates] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -108,10 +110,34 @@ function SubscriptionDetailDialog({
       const { subscriptionRepository } = await import(
         "@/shared/services/firestore/subscriptionRepository"
       );
+      const { auditRepository } = await import(
+        "@/shared/services/firestore/auditRepository"
+      );
+      const { getAuth } = await import("firebase/auth");
+
       await subscriptionRepository.update(subscription.id, {
         startDate: editStartDate,
         endDate: editEndDate || null,
       });
+
+      const admin = getAuth().currentUser;
+      if (admin) {
+        await auditRepository.logAction(
+          "subscription_dates_updated",
+          admin.uid,
+          "admin",
+          admin.displayName || "Admin",
+          subscription.id,
+          "subscription",
+          {
+            previousStartDate: subscription.startDate,
+            previousEndDate: subscription.endDate,
+            newStartDate: editStartDate,
+            newEndDate: editEndDate || null,
+          },
+        );
+      }
+
       subscription.startDate = editStartDate;
       subscription.endDate = editEndDate || null;
       queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
@@ -187,9 +213,9 @@ function SubscriptionDetailDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-primary/10">
-        <div className="p-6 border-b border-primary/10 bg-primary/5">
+    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90dvh] my-auto overflow-y-auto border border-primary/10 flex flex-col">
+        <div className="p-4 sm:p-6 border-b border-primary/10 bg-primary/5 shrink-0">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-bold text-primary font-display">
@@ -205,16 +231,17 @@ function SubscriptionDetailDialog({
             </div>
             <button
               onClick={onClose}
-              className="text-text-muted hover:text-red-500 transition-colors p-1 bg-background rounded-full border border-primary/10"
+              aria-label="Close"
+              className="text-text-muted hover:text-red-500 transition-colors p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-background rounded-full border border-primary/10"
             >
               <XCircle size={20} />
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-sm font-sans">
-            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-2 shadow-sm">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm font-sans">
+            <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 col-span-1 sm:col-span-2 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1">
                 Customer
               </div>
@@ -263,6 +290,18 @@ function SubscriptionDetailDialog({
                 ₹{subscription.pricePerDaySnapshot.toLocaleString("en-IN")}
               </div>
             </div>
+{/* Negotiated Pricing */}
+<div className="flex justify-between items-center mt-2 col-span-1 sm:col-span-2 bg-primary/5 border border-primary/10 rounded-xl p-3.5 shadow-sm">
+  <div>
+    <span className="text-text-muted text-[10px] uppercase tracking-wider font-bold block">Negotiated Pricing</span>
+    <span className="text-xs text-text-muted">
+      {subscription.negotiatedPricing ? "Custom rate overrides active" : "Using standard catalog pricing"}
+    </span>
+  </div>
+  <Button variant="secondary" size="xs" onClick={() => setShowNegotiatedEditor(true)} className="text-xs min-h-[36px]">
+    {subscription.negotiatedPricing ? "Edit Pricing" : "+ Override"}
+  </Button>
+</div>
             <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 shadow-sm">
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-bold mb-1 flex items-center justify-between">
                 <span>Start Date</span>
@@ -644,7 +683,14 @@ function SubscriptionDetailDialog({
           )}
         </div>
       </div>
-    </div>
+    {showNegotiatedEditor && (
+  <NegotiatedPricingEditor
+    subscriptionId={subscription.id}
+    existingPricing={subscription.negotiatedPricing}
+    onClose={() => setShowNegotiatedEditor(false)}
+  />
+)}
+</div>
   );
 }
 

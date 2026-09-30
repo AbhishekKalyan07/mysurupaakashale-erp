@@ -7,6 +7,9 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  addonId?: string;
+  mealType?: import("./mealPlan.types").MealType;
+  orderId?: string;
 }
 
 /**

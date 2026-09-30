@@ -12,8 +12,13 @@ export class CustomerPage {
   }
 
   async navigateToSubscriptions() {
-    // Navigate directly — the nav link href is /customer/subscription (no trailing 's')
-    await this.page.goto('/customer/subscription');
+    const subLink = this.page.locator('a[href="/customer/subscription"]').first();
+    if (await subLink.isVisible()) {
+      await subLink.click();
+    } else {
+      await this.page.goto('/customer/subscription');
+    }
+    await expect(this.page).toHaveURL(/\/customer\/subscription$/);
   }
 
   async verifyActiveSubscription() {

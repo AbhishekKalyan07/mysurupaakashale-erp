@@ -42,17 +42,20 @@ export function parseFirestoreDate(ts: unknown): Date | null {
  * Returns today's date as YYYY-MM-DD in Asia/Kolkata timezone.
  * Guarantees frontend and backend business date string alignment.
  */
+import { operationalSettingsService } from "@/shared/services/business/operationalSettingsService";
+
 export { getTodayInTimezone as getTodayIST, getHourInTimezone } from "@/shared/lib/date";
 
 /**
  * Returns which meal types for a given date are still modifiable
- * based on the Asia/Kolkata cutoff times (05:00 for breakfast, 10:30 for lunch, 16:00 for dinner).
+ * based on the authoritative Asia/Kolkata operational cutoff times.
  */
 export function getModifiableMeals(
   date: string,
   mealTypes: string[],
+  nowOverride?: Date,
 ): string[] {
-  const now = new Date();
+  const now = nowOverride || new Date();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
   }).format(now);
@@ -64,19 +67,24 @@ export function getModifiableMeals(
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",
+    second: "numeric",
     hourCycle: "h23",
   }).formatToParts(now);
+
   const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
-  const minute = parseInt(
-    parts.find((p) => p.type === "minute")?.value || "0",
-    10,
-  );
-  const currentTimeMinutes = hour * 60 + minute;
+  const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+  const second = parseInt(parts.find((p) => p.type === "second")?.value || "0", 10);
+  const nowSeconds = hour * 3600 + minute * 60 + second;
+
+  const cutoffs = operationalSettingsService.getOperationalSettingsSync().cutoffs;
 
   return mealTypes.filter((meal) => {
-    if (meal === "breakfast" && currentTimeMinutes < 5 * 60) return true;
-    if (meal === "lunch" && currentTimeMinutes < 10 * 60 + 30) return true;
-    if (meal === "dinner" && currentTimeMinutes < 16 * 60) return true;
-    return false;
+    const cutoffStr = (cutoffs as any)[meal];
+    if (!cutoffStr) return false;
+    const [cH, cM] = cutoffStr.split(":").map((v: string) => parseInt(v, 10));
+    const cutoffSeconds = cH * 3600 + cM * 60;
+
+    // before cutoff (<) is allowed, exact or after (>=) is rejected
+    return nowSeconds < cutoffSeconds;
   });
 }

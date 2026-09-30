@@ -2,7 +2,6 @@ import {
   Timestamp,
   doc,
   getDoc,
-  updateDoc,
   serverTimestamp,
   runTransaction,
 } from "firebase/firestore";
@@ -12,7 +11,7 @@ import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { orderRepository } from "../firestore/orderRepository";
 import { paymentRepository } from "../firestore/paymentRepository";
 import type { Subscription } from "@/shared/types";
-
+import { pricingService } from "./pricingService";
 class BillingService {
   /**
    * Process daily billing and auto-renewals.
@@ -191,19 +190,97 @@ class BillingService {
     const invoiceId = `inv_${subscription.id}_${effectiveEndDate}`;
     const invoiceRef = doc(db, "invoices", invoiceId);
 
-    // Check if invoice already exists for this cycle to avoid redundant order fetching
-    const existingInvCheck = await getDoc(invoiceRef);
-    if (existingInvCheck.exists()) {
-      if (
-        subscription.status === "expired" &&
-        (subscription as any).lastBilledDate !== effectiveEndDate
-      ) {
-        try {
-          const subRef = doc(db, "subscriptions", subscription.id);
-          await updateDoc(subRef, { lastBilledDate: effectiveEndDate });
-        } catch {}
+    // Helper to compute next period dates (same logic as original)
+    const computeNextPeriod = () => {
+      let nextStart: string;
+      let nextEnd: string;
+      const currentEnd = subscription.endDate || effectiveEndDate || today;
+      if (subscription.billingCycle === "monthly") {
+        const [yearStr, monthStr, dayStr] = currentEnd.split("-");
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10);
+        const day = parseInt(dayStr, 10);
+        const nextStartDate = new Date(Date.UTC(year, month - 1, day + 1));
+        const nextStartYear = nextStartDate.getUTCFullYear();
+        const nextStartMonth = String(nextStartDate.getUTCMonth() + 1).padStart(2, "0");
+        const nextStartDay = String(nextStartDate.getUTCDate()).padStart(2, "0");
+        nextStart = `${nextStartYear}-${nextStartMonth}-${nextStartDay}`;
+        const lastDayObj = new Date(Date.UTC(nextStartYear, nextStartDate.getUTCMonth() + 1, 0));
+        const nextEndDay = String(lastDayObj.getUTCDate()).padStart(2, "0");
+        nextEnd = `${nextStartYear}-${nextStartMonth}-${nextEndDay}`;
+      } else {
+        // Weekly: 7 active delivery days (skip Sundays)
+        const [sy, sm, sd] = currentEnd.split("-").map(Number);
+        const d = new Date(Date.UTC(sy, sm - 1, sd));
+        let foundStart = false;
+        while (!foundStart) {
+          d.setUTCDate(d.getUTCDate() + 1);
+          if (d.getUTCDay() !== 0) foundStart = true;
+        }
+        nextStart = d.toISOString().split("T")[0];
+        let durationDays = 6;
+        let daysAdded = 0;
+        const e = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        while (daysAdded < durationDays) {
+          e.setUTCDate(e.getUTCDate() + 1);
+          if (e.getUTCDay() !== 0) daysAdded++;
+        }
+        nextEnd = e.toISOString().split("T")[0];
       }
-      return false;
+      return { nextStart, nextEnd };
+    };
+
+
+    // Check if an invoice already exists for this cycle
+    const existingInvSnap = await getDoc(invoiceRef);
+    if (existingInvSnap.exists()) {
+      const invData = existingInvSnap.data() as any;
+      const invStatus = invData.status as string;
+      // If renewal already processed for this invoice, skip further work
+      if ((subscription as any).lastInvoiceId === invoiceId) {
+        console.log(`[BillingService] Renewal already processed for subscription ${subscription.id} with invoice ${invoiceId}`);
+        return true;
+      }
+
+      // If subscription was cancelled, record billing settlement metadata and do not renew
+      if (reason === "cancelled") {
+        await runTransaction(db, async (txn) => {
+          const subRef = doc(db, "subscriptions", subscription.id);
+          txn.update(subRef, {
+            lastBilledDate: effectiveEndDate,
+            lastInvoiceId: invoiceId,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          });
+        });
+        return true;
+      }
+
+      // Perform renewal (or expiry) irrespective of invoice payment status
+      await runTransaction(db, async (txn) => {
+        const subRef = doc(db, "subscriptions", subscription.id);
+        if (subscription.autoRenew !== false) {
+          const { nextStart, nextEnd } = computeNextPeriod();
+          txn.update(subRef, {
+            startDate: nextStart,
+            endDate: nextEnd,
+            status: "active",
+            lastBilledDate: effectiveEndDate,
+            lastInvoiceId: invoiceId,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          });
+          console.log(`[BillingService] Auto-renewed (existing ${invStatus} invoice) subscription ${subscription.id}: ${nextStart} to ${nextEnd}`);
+        } else {
+          txn.update(subRef, {
+            status: "expired",
+            lastBilledDate: effectiveEndDate,
+            lastInvoiceId: invoiceId,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          });
+          console.log(`[BillingService] Expired (existing ${invStatus} invoice) subscription ${subscription.id}`);
+        }
+      });
+      // Invoice already exists, no need to create a new one
+      return true;
     }
 
     const customerOrders = await this.getOrdersForSubscription(
@@ -227,26 +304,8 @@ class BillingService {
         o.date <= effectiveEndDate,
     );
 
-    const PRICING_MATRIX = {
-      basic: {
-        breakfast: 60,
-        lunch: 65,
-        dinner: 65,
-        breakfast_lunch: 115,
-        lunch_dinner: 115,
-        breakfast_dinner: 115,
-        breakfast_lunch_dinner: 159,
-      },
-      regular: {
-        breakfast: 60,
-        lunch: 85,
-        dinner: 85,
-        breakfast_lunch: 140,
-        lunch_dinner: 140,
-        breakfast_dinner: 140,
-        breakfast_lunch_dinner: 210,
-      },
-    };
+    // Legacy PRICING_MATRIX removed; pricing now resolved via PricingService
+
 
     // Group by date
     const ordersByDate = new Map<string, typeof billableOrders>();
@@ -255,11 +314,20 @@ class BillingService {
       ordersByDate.get(o.date)!.push(o);
     });
 
-    let totalAmount = 0;
-    const tier = subscription.planTier as "basic" | "regular";
+    let standardTotal = 0;
+    let addonTotal = 0;
+    const allAddonOrders: typeof billableOrders = [];
 
     for (const [_, dailyOrders] of Array.from(ordersByDate.entries())) {
-      const meals = dailyOrders.map((o) => o.mealType);
+      const standardOrders = dailyOrders.filter((o) => !o.isAddon);
+      const addonOrders = dailyOrders.filter((o) => o.isAddon);
+
+      addonOrders.forEach((ao) => {
+        addonTotal += ao.price || 0;
+        allAddonOrders.push(ao);
+      });
+
+      const meals = standardOrders.map((o) => o.mealType);
       let key = "";
       if (
         meals.includes("breakfast") &&
@@ -282,35 +350,15 @@ class BillingService {
       }
 
       if (key) {
-        if (subscription.pricingMatrixSnapshot) {
-          totalAmount +=
-            (subscription.pricingMatrixSnapshot as any)[key] *
-            (subscription.quantity || 1);
-        } else {
-          // Legacy calculation
-          const fullMeals = (subscription.mealPreferences || []).map(
-            (m: any) => m.mealType,
-          );
-          let fullKey = "";
-          if (fullMeals.includes("breakfast")) fullKey += "breakfast";
-          if (fullMeals.includes("lunch"))
-            fullKey += (fullKey ? "_" : "") + "lunch";
-          if (fullMeals.includes("dinner"))
-            fullKey += (fullKey ? "_" : "") + "dinner";
-
-          if (key === fullKey) {
-            totalAmount +=
-              (subscription.pricePerDaySnapshot || 0) *
-              (subscription.quantity || 1);
-          } else {
-            totalAmount +=
-              ((PRICING_MATRIX[tier] as any)[key] ||
-                subscription.pricePerDaySnapshot ||
-                0) * (subscription.quantity || 1);
-          }
-        }
+        standardTotal += pricingService.calculateAggregatedAmount(
+          subscription,
+          key,
+          subscription.quantity || 1,
+        );
       }
     }
+
+    const totalAmount = standardTotal + addonTotal;
 
     // 1b. Calculate verified payments
     const payments = await paymentRepository.getByCustomerId(
@@ -372,9 +420,18 @@ class BillingService {
           {
             description: `${(subscription.planTier || "regular").toUpperCase()} Plan (${subscription.billingCycle})`,
             quantity: 1,
-            unitPrice: totalAmount,
-            amount: totalAmount,
+            unitPrice: standardTotal,
+            amount: standardTotal,
           },
+          ...allAddonOrders.map((ao) => ({
+            description: `Add-on: ${ao.mealName || ao.itemsLabel} (${ao.date})`,
+            quantity: ao.addonQuantity || 1,
+            unitPrice: ao.addonUnitPrice || ao.price,
+            amount: ao.price,
+            addonId: ao.addonId,
+            mealType: ao.mealType,
+            orderId: ao.id,
+          })),
           {
             description: "Less: Verified Payments Received",
             quantity: 1,
@@ -397,10 +454,18 @@ class BillingService {
         createdAt: serverTimestamp() as unknown as Timestamp,
       });
 
-      // 2. Auto-renew or Expire (skip if manually cancelled)
-      if (reason !== "cancelled") {
-        const subRef = doc(db, "subscriptions", subscription.id);
-        if (subscription.autoRenew !== false) {
+      // 2. Auto-renew or Expire (record billing metadata if cancelled)
+      const subRef = doc(db, "subscriptions", subscription.id);
+      if (reason === "cancelled") {
+        txn.update(subRef, {
+          lastBilledDate: effectiveEndDate,
+          lastInvoiceId: invoiceId,
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        });
+        console.log(
+          `[BillingService] Settled cancelled subscription ${subscription.id} with invoice ${invoiceId}`,
+        );
+      } else if (subscription.autoRenew !== false) {
           let nextStart: string;
           let nextEnd: string;
 
@@ -468,7 +533,6 @@ class BillingService {
             `[BillingService] Expired subscription ${subscription.id}`,
           );
         }
-      }
     });
 
     return true;

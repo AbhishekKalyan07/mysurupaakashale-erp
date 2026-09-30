@@ -42,8 +42,9 @@ import { EditSubscriptionModal } from "../components/EditSubscriptionModal";
 import { PauseSubscriptionModal } from "../components/PauseSubscriptionModal";
 import { PauseDeliveryModal } from "../components/PauseDeliveryModal";
 import { CancelTodayModal } from "../components/CancelTodayModal";
+import { AddTodayAddonModal } from "../components/AddTodayAddonModal";
 import { calculateDailyPrice } from "@/shared/utils/pricing";
-import { Edit2 } from "lucide-react";
+import { Edit2, PlusCircle } from "lucide-react";
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 import { getModifiableMeals } from "@/shared/utils/dateUtils";
@@ -73,6 +74,7 @@ export function SubscriptionDetailsPage() {
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
+  const [showAddAddonModal, setShowAddAddonModal] = useState(false);
   const [showSkipDayModal, setShowSkipDayModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -638,6 +640,15 @@ export function SubscriptionDetailsPage() {
                       <Edit2 size={16} /> Edit Preferences
                     </Button>
                     <Button
+                      data-testid="add-addon-button-sub-details"
+                      onClick={() => setShowAddAddonModal(true)}
+                      disabled={updating}
+                      variant="secondary"
+                      className="w-full justify-start gap-2.5 text-gold-dark border-gold/30 hover:bg-gold/10 font-sans font-semibold min-h-[44px] py-2.5"
+                    >
+                      <PlusCircle size={16} /> Add Today's Add-on
+                    </Button>
+                    <Button
                       onClick={() => setShowCancelTodayModal(true)}
                       disabled={updating}
                       variant="secondary"
@@ -712,6 +723,13 @@ export function SubscriptionDetailsPage() {
           subscription={subscription}
           onClose={() => setShowCancelTodayModal(false)}
           skipDay={skipDay}
+        />
+      )}
+
+      {showAddAddonModal && (
+        <AddTodayAddonModal
+          subscription={subscription}
+          onClose={() => setShowAddAddonModal(false)}
         />
       )}
 

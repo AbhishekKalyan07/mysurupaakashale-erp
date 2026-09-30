@@ -462,6 +462,11 @@ export function OrderCard({
               compact={variant !== "kitchen"}
             />
           )}
+          {order.isAddon && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              ✨ Add-on: {order.addonName || "Extra"} {order.addonQuantity && order.addonQuantity > 1 ? `× ${order.addonQuantity}` : ""}
+            </span>
+          )}
           {planName && (
             <span
               className={cn(
@@ -581,6 +586,21 @@ export function OrderCard({
         <div className="overflow-hidden">
           <div className="px-4 pb-4 pt-1 space-y-2 border-t border-border bg-surface-2">
             <div className="grid grid-cols-2 gap-2 text-xs">
+              {order.isAddon && (
+                <div className="col-span-2 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 text-xs">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                    Add-on Order Details
+                  </p>
+                  <p className="text-text font-medium mt-0.5">
+                    {order.addonName} — Qty: {order.addonQuantity || 1} @ ₹{order.addonUnitPrice || order.price}
+                  </p>
+                  {order.invoiceId && (
+                    <p className="text-[10px] font-mono text-text-muted mt-1">
+                      Invoice: {order.invoiceId}
+                    </p>
+                  )}
+                </div>
+              )}
               {order.itemsLabel && (
                 <div>
                   <p className="text-text-faint font-semibold uppercase tracking-wider text-[10px] mb-0.5">

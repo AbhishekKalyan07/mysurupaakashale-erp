@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useMealPlans } from "../hooks/useMealPlans";
 import { useCustomerAddresses } from "../hooks/useCustomerAddresses";
 import { subscriptionService } from "@/shared/services/business/subscriptionService";
+import { pricingService } from "@/shared/services/business/pricingService";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMySubscription } from "../hooks/useMySubscription";
 import { notifySubscriptionCreated } from "@/shared/services/firestore/notificationService";
@@ -244,13 +245,19 @@ export function SubscriptionWizardPage() {
     setSelectedPlanId(id);
     const newPlan = plans?.find((p) => p.id === id);
     if (newPlan) {
-      // Default to first option of the new plan
+      // Default to first active & customer-selectable option of the new plan
       const lunchSlot = newPlan.mealSlots?.find((s) => s.mealType === "lunch");
       const dinnerSlot = newPlan.mealSlots?.find(
         (s) => s.mealType === "dinner",
       );
-      if (lunchSlot?.options?.[0]) setLunchOptionId(lunchSlot.options[0].id);
-      if (dinnerSlot?.options?.[0]) setDinnerOptionId(dinnerSlot.options[0].id);
+      const activeLunchOptions = (lunchSlot?.options || []).filter(
+        (o) => o.isActive !== false && o.isCustomerSelectable !== false,
+      );
+      const activeDinnerOptions = (dinnerSlot?.options || []).filter(
+        (o) => o.isActive !== false && o.isCustomerSelectable !== false,
+      );
+      if (activeLunchOptions[0]) setLunchOptionId(activeLunchOptions[0].id);
+      if (activeDinnerOptions[0]) setDinnerOptionId(activeDinnerOptions[0].id);
     }
   };
 
@@ -258,8 +265,14 @@ export function SubscriptionWizardPage() {
   if (plan && !lunchOptionId && !dinnerOptionId) {
     const lunchSlot = plan?.mealSlots?.find((s) => s.mealType === "lunch");
     const dinnerSlot = plan?.mealSlots?.find((s) => s.mealType === "dinner");
-    if (lunchSlot?.options?.[0]) setLunchOptionId(lunchSlot.options[0].id);
-    if (dinnerSlot?.options?.[0]) setDinnerOptionId(dinnerSlot.options[0].id);
+    const activeLunchOptions = (lunchSlot?.options || []).filter(
+      (o) => o.isActive !== false && o.isCustomerSelectable !== false,
+    );
+    const activeDinnerOptions = (dinnerSlot?.options || []).filter(
+      (o) => o.isActive !== false && o.isCustomerSelectable !== false,
+    );
+    if (activeLunchOptions[0]) setLunchOptionId(activeLunchOptions[0].id);
+    if (activeDinnerOptions[0]) setDinnerOptionId(activeDinnerOptions[0].id);
   }
 
   // Set default selected address once addresses loaded
@@ -368,25 +381,7 @@ export function SubscriptionWizardPage() {
         quantity,
         calculatedDailyPrice,
         plan.pricingMatrix ||
-          (plan.tier === "regular"
-            ? {
-                breakfast: 60,
-                lunch: 85,
-                dinner: 85,
-                breakfast_lunch: 140,
-                lunch_dinner: 140,
-                breakfast_dinner: 140,
-                breakfast_lunch_dinner: 210,
-              }
-            : {
-                breakfast: 60,
-                lunch: 65,
-                dinner: 65,
-                breakfast_lunch: 115,
-                lunch_dinner: 115,
-                breakfast_dinner: 115,
-                breakfast_lunch_dinner: 159,
-              }),
+          (await pricingService.getEffectivePricing(startDate, plan.tier)),
         mealPreferences,
         startDate,
         selectedAddressId,
@@ -572,7 +567,8 @@ export function SubscriptionWizardPage() {
               <div className="pl-8 space-y-3">
                 {plan?.mealSlots
                   ?.find((s) => s.mealType === "lunch")
-                  ?.options?.map((option) => (
+                  ?.options?.filter((o) => o.isActive !== false && o.isCustomerSelectable !== false)
+                  ?.map((option) => (
                     <label
                       key={option.id}
                       className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -622,7 +618,8 @@ export function SubscriptionWizardPage() {
               <div className="pl-8 space-y-3">
                 {plan?.mealSlots
                   ?.find((s) => s.mealType === "dinner")
-                  ?.options?.map((option) => (
+                  ?.options?.filter((o) => o.isActive !== false && o.isCustomerSelectable !== false)
+                  ?.map((option) => (
                     <label
                       key={option.id}
                       className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${

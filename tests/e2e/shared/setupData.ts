@@ -17,7 +17,7 @@ export async function clearEmulatorData() {
   while (retries > 0) {
     try {
       console.log('Clearing Firestore emulator...');
-      await axios.delete(`http://127.0.0.1:8080/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`);
+      await axios.delete(`http://127.0.0.1:8085/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`);
       
       console.log('Clearing Auth emulator...');
       await axios.delete(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT_ID}/accounts`);

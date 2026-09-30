@@ -109,6 +109,27 @@ export function AdminAccountsPage() {
         amount,
         description: invoiceDesc.trim(),
       });
+
+      const { auditRepository } = await import(
+        "@/shared/services/firestore/auditRepository"
+      );
+      const { getAuth } = await import("firebase/auth");
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        await auditRepository.logAction(
+          "manual_invoice_created",
+          currentUser.uid,
+          "admin",
+          currentUser.displayName || "Admin",
+          targetUid,
+          "invoice",
+          {
+            customerId: targetUid,
+            amount,
+            description: invoiceDesc.trim(),
+          },
+        );
+      }
     },
     onSuccess: () => {
       toast.success("Manual invoice created successfully!");
@@ -258,7 +279,7 @@ export function AdminAccountsPage() {
 
         {/* Tools Column */}
         <div className="md:col-span-2 space-y-6">
-          <Card hoverLift className="p-6">
+          <Card hoverLift className="p-4 sm:p-6">
             <div className="mb-6">
               <h3 className="font-display font-bold text-xl text-primary">
                 Financial Reports
@@ -268,39 +289,39 @@ export function AdminAccountsPage() {
               </p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="border border-gold/20 rounded-xl p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                    <FileSpreadsheet className="text-primary" size={24} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="border border-gold/20 rounded-xl p-3.5 sm:p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="bg-primary/5 p-2.5 sm:p-3 rounded-xl border border-primary/10 shrink-0">
+                    <FileSpreadsheet className="text-primary" size={22} />
                   </div>
-                  <div>
-                    <h4 className="font-display font-bold text-primary">
+                  <div className="min-w-0">
+                    <h4 className="font-display font-bold text-primary truncate">
                       Daily Report
                     </h4>
-                    <p className="text-xs text-text-muted">For {today}</p>
+                    <p className="text-xs text-text-muted truncate">For {today}</p>
                   </div>
                 </div>
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={handleDownloadDaily}
-                  className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm"
+                  className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm min-w-[36px] min-h-[36px]"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="border border-gold/20 rounded-xl p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/5 p-3 rounded-xl border border-primary/10">
-                    <FileSpreadsheet className="text-primary" size={24} />
+              <div className="border border-gold/20 rounded-xl p-3.5 sm:p-5 flex items-center justify-between bg-gradient-to-br from-background to-primary/5 transition-all hover:border-gold/40">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="bg-primary/5 p-2.5 sm:p-3 rounded-xl border border-primary/10 shrink-0">
+                    <FileSpreadsheet className="text-primary" size={22} />
                   </div>
-                  <div>
-                    <h4 className="font-display font-bold text-primary">
+                  <div className="min-w-0">
+                    <h4 className="font-display font-bold text-primary truncate">
                       Monthly Report
                     </h4>
-                    <p className="text-xs text-text-muted">
+                    <p className="text-xs text-text-muted truncate">
                       For {today.substring(0, 7)}
                     </p>
                   </div>
@@ -309,7 +330,7 @@ export function AdminAccountsPage() {
                   variant="secondary"
                   size="sm"
                   onClick={handleDownloadMonthly}
-                  className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm"
+                  className="bg-white hover:bg-gold/10 hover:text-gold border-gold/20 shadow-sm min-w-[36px] min-h-[36px]"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -317,7 +338,7 @@ export function AdminAccountsPage() {
             </div>
           </Card>
 
-          <Card hoverLift className="p-6">
+          <Card hoverLift className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-primary/5 p-2.5 rounded-xl border border-primary/10">
                 <ReceiptText className="text-primary" size={22} />
@@ -373,7 +394,7 @@ export function AdminAccountsPage() {
               <Button
                 onClick={() => createInvoiceMutation.mutate()}
                 disabled={createInvoiceMutation.isPending}
-                className="w-full sm:w-32 h-[42px]"
+                className="w-full sm:w-32 min-h-[44px]"
               >
                 {createInvoiceMutation.isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin mx-auto" />

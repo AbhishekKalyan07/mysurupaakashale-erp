@@ -18,7 +18,7 @@ import {
   notifySubscriptionPaused,
   notifySubscriptionResumed,
 } from "@/shared/services/firestore/notificationService";
-import type { Subscription, SubscriptionStatus } from "@/shared/types";
+import type { Subscription, SubscriptionStatus, MealPreference } from "@/shared/types";
 import { queryKeys } from "@/shared/lib/queryKeys";
 
 export type AdminStatusFilter = SubscriptionStatus | "all";
@@ -189,6 +189,10 @@ function invalidateSubscriptionLists(
     queryKey: queryKeys.subscriptions.active(subscription.customerId),
   });
   queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+  queryClient.invalidateQueries({ queryKey: ["invoices"] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.base });
+  queryClient.invalidateQueries({ queryKey: ["orders"] });
+  queryClient.invalidateQueries({ queryKey: ["customer-today-orders"] });
 }
 
 // ── Admin: approve a pending/draft subscription ─────────────────────────────────
@@ -451,6 +455,150 @@ export function useUpdateDeliveryPartner() {
     onError: (err: unknown) => {
       toast.error(
         (err as Error).message || "Failed to update delivery partner.",
+      );
+    },
+  });
+}
+
+// ── Admin: set negotiated pricing for a subscription ────────────────────────
+export function useSetNegotiatedPricing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      subscriptionId,
+      negotiatedPricing,
+    }: {
+      subscriptionId: string;
+      negotiatedPricing: any;
+    }) => {
+      // Validate pricing matrix shape before writing
+      const requiredKeys = [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "breakfast_lunch",
+        "lunch_dinner",
+        "breakfast_dinner",
+        "breakfast_lunch_dinner",
+      ];
+      for (const key of requiredKeys) {
+        const val = (negotiatedPricing as any)[key];
+        if (
+          val === undefined ||
+          typeof val !== "number" ||
+          !Number.isFinite(val) ||
+          val < 0
+        ) {
+          throw new Error(`Invalid negotiated price for ${key}: ${val}`);
+        }
+      }
+
+      await subscriptionRepository.setNegotiatedPricing(
+        subscriptionId,
+        negotiatedPricing,
+      );
+
+      const admin = getAuth().currentUser;
+      if (admin) {
+        await auditRepository.logAction(
+          "negotiated_pricing_set",
+          admin.uid,
+          "admin",
+          admin.displayName || "Admin",
+          subscriptionId,
+          "subscription",
+          { negotiatedPricing },
+        );
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.detail(variables.subscriptionId),
+      });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      toast.success("Negotiated pricing saved.");
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || "Failed to save negotiated pricing.");
+    },
+  });
+}
+
+// ── Admin: remove negotiated pricing override ───────────────────────────────
+export function useRemoveNegotiatedPricing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (subscriptionId: string) => {
+      await subscriptionRepository.removeNegotiatedPricing(subscriptionId);
+
+      const admin = getAuth().currentUser;
+      if (admin) {
+        await auditRepository.logAction(
+          "negotiated_pricing_removed",
+          admin.uid,
+          "admin",
+          admin.displayName || "Admin",
+          subscriptionId,
+          "subscription",
+        );
+      }
+    },
+    onSuccess: (_, subscriptionId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.detail(subscriptionId),
+      });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      toast.success("Negotiated pricing removed.");
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        (err as Error).message || "Failed to remove negotiated pricing.",
+      );
+    },
+  });
+}
+
+// ── Admin: create subscription for customer (Phase E3) ───────────────────────
+export function useAdminCreateSubscription() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      customerId: string;
+      planId: string;
+      startDate: string;
+      mealPreferences: MealPreference[];
+      deliveryAddressId: string;
+      billingCycle?: "weekly" | "monthly";
+      quantity?: number;
+      autoRenew?: boolean;
+      status?: SubscriptionStatus;
+    }) => {
+      const user = getAuth().currentUser;
+      const adminActor = {
+        uid: user?.uid || "admin",
+        role: "admin",
+        fullName: user?.displayName || "Admin User",
+      };
+      return subscriptionService.createSubscriptionByAdmin(adminActor, params);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["subscriptions", "customer", variables.customerId],
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions", "admin"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "customers"] });
+      toast.success("Subscription created successfully.");
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        (err as Error).message || "Failed to create subscription for customer.",
       );
     },
   });

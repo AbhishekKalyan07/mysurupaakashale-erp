@@ -6,6 +6,7 @@ import type { BusinessSettings } from "@/shared/types";
 import toast from "react-hot-toast";
 import { getAuth } from "firebase/auth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
+import { operationalSettingsService } from "@/shared/services/business/operationalSettingsService";
 
 export function useBusinessSettings() {
   return useQuery({
@@ -17,11 +18,11 @@ export function useBusinessSettings() {
         return {
           id: "business",
           companyProfile: {
-            name: "",
-            tagline: "",
-            supportEmail: "",
-            supportPhone: "",
-            address: "",
+            name: "Mysuru Paakashale",
+            tagline: "Authentic South Indian Meals",
+            supportEmail: "support@mysurupaakashale.com",
+            supportPhone: "9876543210",
+            address: "Mysuru, Karnataka",
           },
           financials: {
             gstPercentage: 0,
@@ -66,10 +67,37 @@ export function useUpdateBusinessSettings() {
 
   return useMutation({
     mutationFn: async (data: Partial<BusinessSettings>) => {
-      // Phase 1: Client-side settings update
+      const user = getAuth().currentUser;
+      const beforeSettings = operationalSettingsService.getOperationalSettingsSync();
+
+      // Client-side settings update
       await settingsRepository.saveBusinessSettings(data);
 
-      const user = getAuth().currentUser;
+      const hasOperationalChanges =
+        Boolean(data.operations?.cancellationCutoffTimes) ||
+        Boolean(data.operations?.deliveryWindows);
+
+      if (hasOperationalChanges) {
+        const afterSettings = await operationalSettingsService.getOperationalSettings(true);
+        if (user) {
+          await auditRepository.logAction(
+            "operational_settings_updated",
+            user.uid,
+            "admin",
+            user.displayName || "Admin",
+            "business",
+            "settings",
+            {
+              previousValue: beforeSettings,
+              newValue: afterSettings,
+              before: beforeSettings,
+              after: afterSettings,
+              timestamp: new Date().toISOString(),
+            },
+          );
+        }
+      }
+
       if (user) {
         await auditRepository.logAction(
           "settings_changed",

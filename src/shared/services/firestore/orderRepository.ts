@@ -107,6 +107,15 @@ class OrderRepository extends BaseRepository<Order> {
   }
 
   /**
+   * Check if any orders exist for a given date.
+   * Used to protect published Daily Menus from being mutated after orders are generated.
+   */
+  async hasOrdersForDate(date: string): Promise<boolean> {
+    const orders = await this.list(where("date", "==", date), limit(1));
+    return orders.length > 0;
+  }
+
+  /**
    * Retrieves all orders for a specific customer.
    * Used to check if a customer has past orders (e.g., for trial eligibility).
    */

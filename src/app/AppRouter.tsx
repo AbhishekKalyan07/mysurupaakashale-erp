@@ -81,6 +81,21 @@ const AdminHolidayPage = lazy(() =>
     default: m.AdminHolidayPage,
   })),
 );
+const AdminPricingPage = lazy(() =>
+  import("@/features/admin/pages/AdminPricingPage").then((m) => ({
+    default: m.AdminPricingPage,
+  })),
+);
+const AdminAddonsPage = lazy(() =>
+  import("@/features/admin/pages/AdminAddonsPage").then((m) => ({
+    default: m.AdminAddonsPage,
+  })),
+);
+const AdminMealPlansPage = lazy(() =>
+  import("@/features/admin/pages/AdminMealPlansPage").then((m) => ({
+    default: m.AdminMealPlansPage,
+  })),
+);
 const NotificationCenter = lazy(() =>
   import("@/features/notifications/pages/NotificationCenter").then((m) => ({
     default: m.NotificationCenter,
@@ -276,6 +291,13 @@ const router = createBrowserRouter([
             path: "/admin/settings",
             element: withSuspense(BusinessSettingsPage),
           },
+          {
+            path: "/admin/business-settings",
+            element: withSuspense(BusinessSettingsPage),
+          },
+          { path: "/admin/pricing", element: withSuspense(AdminPricingPage) },
+          { path: "/admin/addons", element: withSuspense(AdminAddonsPage) },
+          { path: "/admin/meal-plans", element: withSuspense(AdminMealPlansPage) },
           { path: "/admin/zones", element: withSuspense(AdminZonesPage) },
           { path: "/admin/audit", element: withSuspense(AuditLogsPage) },
           { path: "/admin/menus", element: withSuspense(DailyMenuListPage) },

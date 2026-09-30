@@ -17,7 +17,7 @@ export function KitchenProductionSummary({ orders }: Props) {
       dinner: {},
     };
 
-    orders.forEach((order) => {
+    (orders || []).forEach((order) => {
       // Only count active orders (exclude cancelled/skipped, maybe delivered?)
       // We'll count anything that is scheduled, packing, packed, ready_for_pickup
       if (["cancelled", "skipped"].includes(order.status)) return;
@@ -26,10 +26,11 @@ export function KitchenProductionSummary({ orders }: Props) {
       // We rely on the denormalized snapshot field 'mealName' or fallback to itemsLabel
       const mealName =
         order.mealName ||
-        order.itemsLabel
+        (order.itemsLabel || "")
           .replace(`Subscription - ${mealType}`, "")
           .trim()
           .replace(/^[()]+|[()]+$/g, "") ||
+        order.addonName ||
         "Standard Meal";
       const qty = order.mealQuantity || 1;
 

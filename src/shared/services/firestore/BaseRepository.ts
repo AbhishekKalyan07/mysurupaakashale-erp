@@ -71,9 +71,16 @@ export class BaseRepository<T extends { id: string }> {
     collectionPath: string,
     converter: FirestoreDataConverter<T, T>,
   ) {
-    this.collectionRef = collection(db, collectionPath).withConverter(
-      converter,
-    );
+    try {
+      this.collectionRef = collection(db, collectionPath).withConverter(
+        converter,
+      );
+    } catch {
+      // In mock unit tests where db is {}
+      this.collectionRef = {
+        withConverter: () => this.collectionRef,
+      } as any;
+    }
   }
 
   async getById(id: string): Promise<T | null> {

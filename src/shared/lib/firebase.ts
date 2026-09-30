@@ -367,7 +367,7 @@ export async function initRemoteConfig(): Promise<any | null> {
 if (useEmulators) {
   // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectFirestoreEmulator(db, "127.0.0.1", 8085);
   if (storage) {
     connectStorageEmulator(storage, "127.0.0.1", 9199);
   }

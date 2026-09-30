@@ -1,6 +1,8 @@
 import { mealPlanRepository } from '../src/shared/services/firestore/mealPlanRepository';
-
 import './automation/env'; // to load .env variables for firebase
+import { enforceEmulatorGuard } from '../src/shared/lib/environmentGuard.node';
+
+enforceEmulatorGuard();
 
 async function seedPlans() {
   console.log('Seeding Meal Plans...');

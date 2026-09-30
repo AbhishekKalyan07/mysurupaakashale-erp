@@ -1,11 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   MapPin,
-  Navigation,
   Search,
   Loader2,
   X,
-  CheckCircle2,
   Map,
 } from "lucide-react";
 import { MapPinPicker } from "./MapPinPicker";
@@ -44,25 +42,10 @@ interface AddressPickerProps {
   onPick: (address: PickedAddress) => void;
 }
 
-// Reverse geocode lat/lng → address via Nominatim
-async function reverseGeocode(
-  lat: number,
-  lng: number,
-): Promise<NominatimResult | null> {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&email=admin@mysurupaakashale.in`;
-  try {
-    const res = await fetch(url, {
-      headers: { "Accept-Language": "en" },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch (error) {
-    console.error("Nominatim reverse geocode error:", error);
-    return null;
-  }
-}
-
-// Forward geocode query → suggestions
+/**
+ * Forward geocode query → address suggestions via Nominatim (text search only).
+ * No browser/device geolocation is used here.
+ */
 async function searchAddress(query: string): Promise<NominatimResult[]> {
   if (query.length < 3) return [];
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + " Mysuru India")}&addressdetails=1&limit=6&countrycodes=in&email=admin@mysurupaakashale.in`;
@@ -97,24 +80,27 @@ function parseNominatim(result: NominatimResult): PickedAddress {
   };
 }
 
+/**
+ * AddressPicker — allows the customer to find and confirm a delivery address
+ * entirely through manual text search + map pin adjustment.
+ *
+ * D7 NOTE: Browser device-location API ("Use My Current Location") has been
+ * intentionally removed. No automatic location detection occurs.
+ * Customers must use the search field to locate their address.
+ */
 export function AddressPicker({ onPick }: AddressPickerProps) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
-  const [locationStatus, setLocationStatus] = useState<
-    "idle" | "success" | "error"
-  >("idle");
-  const [locationMessage, setLocationMessage] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // New state to hold the address before confirmation
+  // Holds a candidate address while the customer adjusts the map pin
   const [tempAddress, setTempAddress] = useState<PickedAddress | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Debounced search
+  // Debounced Nominatim text search
   useEffect(() => {
     let currentRequestId = Date.now();
 
@@ -130,7 +116,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       setIsSearching(true);
       const results = await searchAddress(query);
 
-      // If a newer request was started, discard these results
+      // Discard stale results if a newer request was started
       if (currentRequestId !== requestId) return;
 
       setSuggestions(results);
@@ -138,7 +124,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       setIsSearching(false);
     }, 500);
     return () => {
-      currentRequestId = -1; // invalidate any pending requests on unmount/re-render
+      currentRequestId = -1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
@@ -157,63 +143,12 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleUseLiveLocation = useCallback(async () => {
-    if (!navigator.geolocation) {
-      setLocationStatus("error");
-      setLocationMessage("Geolocation is not supported by your browser.");
-      return;
-    }
-    setIsLocating(true);
-    setLocationStatus("idle");
-    setLocationMessage("");
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const result = await reverseGeocode(latitude, longitude);
-          if (!result) throw new Error("Could not resolve address");
-          const picked = parseNominatim(result);
-          setLocationStatus("success");
-          setLocationMessage(
-            "Location detected! Please review and adjust the pin below.",
-          );
-          setTempAddress(picked);
-          // Don't call onPick yet, let them adjust the map
-        } catch {
-          setLocationStatus("error");
-          setLocationMessage(
-            "Could not get address for your location. Please search manually.",
-          );
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      (err) => {
-        setIsLocating(false);
-        setLocationStatus("error");
-        if (err.code === 1) {
-          setLocationMessage(
-            "Location access denied. Please allow location permission and try again.",
-          );
-        } else {
-          setLocationMessage(
-            "Could not detect location. Please search manually.",
-          );
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  }, []);
-
   const handleSelectSuggestion = (result: NominatimResult) => {
     const picked = parseNominatim(result);
     setQuery(result.display_name.split(",").slice(0, 2).join(","));
     setShowDropdown(false);
     setSuggestions([]);
     setTempAddress(picked);
-    setLocationStatus("idle");
-    setLocationMessage("");
   };
 
   const handleConfirmLocation = () => {
@@ -221,7 +156,6 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
       onPick(tempAddress);
       setTempAddress(null);
       setQuery("");
-      setLocationStatus("idle");
     }
   };
 
@@ -231,7 +165,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
     }
   };
 
-  // If we have a temp address, show the map instead of the search box
+  // If we have a candidate address, show the map pin-adjustment view
   if (tempAddress) {
     return (
       <div className="space-y-4 animate-fade-in bg-rice-50 p-4 rounded-xl border border-emerald-200">
@@ -281,52 +215,7 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
 
   return (
     <div className="space-y-3">
-      {/* Live Location Button */}
-      <button
-        type="button"
-        onClick={handleUseLiveLocation}
-        disabled={isLocating}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-700 font-sans font-semibold text-sm transition-all hover:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed group"
-      >
-        {isLocating ? (
-          <Loader2 size={18} className="animate-spin shrink-0" />
-        ) : (
-          <Navigation
-            size={18}
-            className="shrink-0 group-hover:scale-110 transition-transform"
-          />
-        )}
-        <span>
-          {isLocating ? "Detecting your location…" : "Use My Current Location"}
-        </span>
-      </button>
-
-      {/* Location status feedback */}
-      {locationStatus !== "idle" && (
-        <div
-          className={`flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs font-sans ${
-            locationStatus === "success"
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-          }`}
-        >
-          {locationStatus === "success" ? (
-            <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
-          ) : (
-            <X size={14} className="shrink-0 mt-0.5" />
-          )}
-          <span>{locationMessage}</span>
-        </div>
-      )}
-
-      {/* Divider */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-rice-200" />
-        <span className="text-xs text-ink-500 font-sans">or search</span>
-        <div className="flex-1 h-px bg-rice-200" />
-      </div>
-
-      {/* Search Box */}
+      {/* Manual Address Search Box — no geolocation permission is requested */}
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
           <Search
@@ -340,10 +229,12 @@ export function AddressPicker({ onPick }: AddressPickerProps) {
             />
           )}
           <input
+            id="address-search-input"
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your street, landmark, area…"
+            aria-label="Search address"
             className="w-full h-11 pl-9 pr-10 text-sm font-sans border border-rice-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white text-ink-900 placeholder:text-ink-500 transition"
           />
           {query && (
