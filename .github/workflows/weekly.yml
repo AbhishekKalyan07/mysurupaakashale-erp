@@ -34,7 +34,7 @@ jobs:
         run: npx vite-node --config vite.config.ts scripts/automation/weekly.ts
 
       - name: Upload Backup Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firestore-backup-${{ github.run_id }}
           path: backup/

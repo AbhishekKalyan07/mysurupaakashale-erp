@@ -63,7 +63,7 @@ jobs:
         run: npx vite-node --config vite.config.ts scripts/automation/monthly.ts
 
       - name: Upload Monthly Reports and Backups
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: monthly-maintenance-${{ github.run_id }}
           path: |
