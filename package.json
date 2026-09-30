@@ -26,7 +26,7 @@
     "@emailjs/browser": "^4.4.1",
     "@hookform/resolvers": "^5.9.1",
     "@reduxjs/toolkit": "^2.12.0",
-    "@sentry/react": "^10.71.0",
+    "@sentry/react": "^11.0.0",
     "@tanstack/react-query": "^5.102.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
