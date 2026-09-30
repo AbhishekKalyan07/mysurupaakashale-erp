@@ -9,7 +9,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Kolkata"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     reviewers:
       - "AbhishekKalyan07"
     labels:
@@ -28,6 +28,23 @@ updates:
           - "minor"
           - "patch"
     ignore:
+      # Major framework/runtime bumps break automated CI and require manual migration
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/jsdom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "firebase"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
       # These require manual review due to breaking changes:
       # react-router 7.12+ has CSRF vulnerability but downgrade is breaking.
       # uuid 11+ breaks exceljs compatibility. Document and accept risk.
@@ -42,3 +59,4 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    open-pull-requests-limit: 3

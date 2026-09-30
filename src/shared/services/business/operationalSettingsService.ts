@@ -1,6 +1,6 @@
 import { doc } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import type { MealType, TimeWindow, BusinessSettings } from "@/shared/types";
 
@@ -322,7 +322,7 @@ export class OperationalSettingsService {
     const cutoffTotalSeconds = cutoffH * 3600 + cutoffM * 60;
 
     // Get current time in Asia/Kolkata
-    const parts = new Intl.DateTimeFormat("en-US", {
+    const parts = getCachedDateTimeFormatter("en-US", {
       timeZone: "Asia/Kolkata",
       hour: "numeric",
       minute: "numeric",

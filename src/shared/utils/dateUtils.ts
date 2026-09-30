@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 /**
  * Safely parses a Firestore timestamp, JS Date, or ISO string into a valid Date object.
@@ -56,14 +57,14 @@ export function getModifiableMeals(
   nowOverride?: Date,
 ): string[] {
   const now = nowOverride || new Date();
-  const today = new Intl.DateTimeFormat("en-CA", {
+  const today = getCachedDateTimeFormatter("en-CA", {
     timeZone: "Asia/Kolkata",
   }).format(now);
 
   if (date > today) return mealTypes;
   if (date < today) return [];
 
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",

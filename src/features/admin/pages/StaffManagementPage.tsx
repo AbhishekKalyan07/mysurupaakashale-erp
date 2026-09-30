@@ -18,6 +18,7 @@ import {
 import { CreateStaffModal } from "../components/CreateStaffModal";
 import { EditStaffModal } from "../components/EditStaffModal";
 import { APP_CONFIG } from "@/shared/config/appConfig";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import type { UserProfile } from "@/shared/types";
 
 function StaffCardView({
@@ -173,7 +174,7 @@ function StaffCardView({
           <div className="text-[10px] font-semibold text-text-muted shrink-0 ml-auto mr-1 truncate">
             Joined:{" "}
             {user.createdAt?.toDate
-              ? new Intl.DateTimeFormat(APP_CONFIG.dateFormat.system).format(
+              ? getCachedDateTimeFormatter(APP_CONFIG.dateFormat.system).format(
                   user.createdAt.toDate(),
                 )
               : "N/A"}
@@ -318,7 +319,7 @@ export function StaffManagementPage() {
                     <td className="px-6 py-4 text-text-muted">
                       <span className="bg-background-alt px-2 py-1 rounded border border-primary/5 inline-block text-xs font-medium text-primary">
                         {user.createdAt?.toDate
-                          ? new Intl.DateTimeFormat(
+                          ? getCachedDateTimeFormatter(
                               APP_CONFIG.dateFormat.system,
                             ).format(user.createdAt.toDate())
                           : "N/A"}

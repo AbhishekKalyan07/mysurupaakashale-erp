@@ -15,6 +15,7 @@ import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { APP_CONFIG } from "@/shared/config/appConfig";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
@@ -286,7 +287,7 @@ export function KitchenDashboardPage() {
       <p className="text-center text-xs font-bold text-text-muted font-sans pb-4 uppercase tracking-wider">
         Live data · Last refreshed{" "}
         <time dateTime={dashboard.asOf}>
-          {new Intl.DateTimeFormat("en-IN", {
+          {getCachedDateTimeFormatter("en-IN", {
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
@@ -495,7 +496,7 @@ const TONE_BAR: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDisplayDate(isoDate: string): string {
-  return new Intl.DateTimeFormat("en-IN", {
+  return getCachedDateTimeFormatter("en-IN", {
     weekday: "long",
     year: "numeric",
     month: "long",
