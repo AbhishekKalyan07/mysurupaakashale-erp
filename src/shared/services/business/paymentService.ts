@@ -68,23 +68,38 @@ class PaymentService {
         serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
     });
 
+    const displayName = customerDisplayId
+      ? `${customerName} (${customerDisplayId})`
+      : customerName;
+
+    // Notify customer (always permitted by security rules)
     try {
-      const admins = await userRepository.list(where("role", "==", "admin"));
-      const adminIds = admins.map((a) => a.id);
-
-      const displayName = customerDisplayId
-        ? `${customerName} (${customerDisplayId})`
-        : customerName;
-
       await notifyPaymentSubmitted(
         customerId,
         displayName,
         paymentId,
         input.amount,
-        adminIds,
+        [],
       );
     } catch (err) {
-      console.error("Failed to send payment submitted notification", err);
+      console.error("Failed to send customer payment submitted notification", err);
+    }
+
+    // Best-effort notify admins
+    try {
+      const admins = await userRepository.list(where("role", "==", "admin"));
+      const adminIds = admins.map((a) => a.id);
+      if (adminIds.length > 0) {
+        await notifyPaymentSubmitted(
+          customerId,
+          displayName,
+          paymentId,
+          input.amount,
+          adminIds,
+        );
+      }
+    } catch {
+      // Non-blocking: customers cannot list other users under privacy security rules.
     }
 
     try {

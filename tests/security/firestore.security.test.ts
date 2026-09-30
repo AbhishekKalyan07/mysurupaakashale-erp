@@ -992,6 +992,17 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       }));
     });
 
+    it('ALLOW: Payment including id matching doc ID is allowed', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'payments', 'pay-with-id'), {
+        ...validPayment,
+        id: 'pay-with-id',
+        subscriptionId: 'sub-pending',
+        amount: 1000,
+        purpose: 'security_deposit'
+      }));
+    });
+
     it('DENY: Customer cannot bypass by omitting purpose on pending subscription', async () => {
       const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
       await assertFails(setDoc(doc(db, 'payments', 'pay-no-purpose'), {

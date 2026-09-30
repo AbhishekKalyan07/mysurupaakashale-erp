@@ -295,6 +295,11 @@ export function SubscriptionDetailsPage() {
             <ManualPaymentPanel
               subscriptionId={subscription.id}
               amount={securityDeposit}
+              purpose={
+                subscription.status === "pending_payment"
+                  ? "security_deposit"
+                  : "usage"
+              }
               onClose={() => setShowPaymentPanel(false)}
             />
           )}

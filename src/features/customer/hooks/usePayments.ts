@@ -85,11 +85,6 @@ export function useSubmitPayment() {
       });
       toast.success("Payment details submitted. Awaiting admin verification.");
     },
-    onError: (err: unknown) => {
-      toast.error(
-        (err as Error).message || "Failed to submit payment. Please try again.",
-      );
-    },
   });
 }
 

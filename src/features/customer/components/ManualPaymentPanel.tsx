@@ -150,9 +150,8 @@ export function ManualPaymentPanel({
       if (onSuccess) onSuccess();
       if (onClose) onClose();
     } catch (err: unknown) {
-      toast.error(
-        (err as Error).message || "Could not submit payment. Please try again.",
-      );
+      // Global queryClient mutationCache already toasts the extracted user-friendly error
+      console.error("[ManualPaymentPanel] Payment submission failed:", err);
     } finally {
       setIsUploading(false);
     }
@@ -168,14 +167,27 @@ export function ManualPaymentPanel({
           <CreditCard className="text-amber-600 shrink-0 mt-0.5" size={22} />
           <div>
             <h3 className="font-bold text-ink-900 font-sans text-base">
-              Submit Advance Payment
+              {purpose === "security_deposit"
+                ? "Submit Security Deposit"
+                : "Submit Advance Payment"}
             </h3>
             <p className="text-ink-600 font-sans text-sm mt-1">
-              Advance for{" "}
-              <span className="font-bold text-amber-800">{billingLabel}</span> —{" "}
-              <span className="font-bold text-stone-950">
-                ₹{amount.toLocaleString("en-IN")}
-              </span>
+              {purpose === "security_deposit" ? (
+                <>
+                  Refundable Security Deposit —{" "}
+                  <span className="font-bold text-stone-950">
+                    ₹{amount.toLocaleString("en-IN")}
+                  </span>
+                </>
+              ) : (
+                <>
+                  Advance for{" "}
+                  <span className="font-bold text-amber-800">{billingLabel}</span> —{" "}
+                  <span className="font-bold text-stone-950">
+                    ₹{amount.toLocaleString("en-IN")}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
