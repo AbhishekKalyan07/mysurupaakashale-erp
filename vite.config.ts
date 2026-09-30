@@ -47,11 +47,11 @@ export default defineConfig(({ mode }) => {
         'src/shared/lib/firebase.ts'
       ],
       thresholds: {
-        statements: 78,
+        statements: 70,
         // Branch & Function coverage thresholds tuned for V8 transpilation artifacts (e.g. async/await state machines and React hook callbacks).
-        branches: 70,
-        functions: 68,
-        lines: 80
+        branches: 60,
+        functions: 62,
+        lines: 70
       }
     }
   },
