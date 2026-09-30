@@ -237,4 +237,48 @@ describe("calculateAccruedBill", () => {
     // Deduplicated to B+L = 115
     expect(calculateAccruedBill(orders, sub)).toBe(115);
   });
+
+  it("accurately includes add-on orders in accrued bill without conflating with standard meals", () => {
+    const sub = createSub(basicPricing);
+    const standardLunch = createOrder("lunch", "2026-08-17", "delivered");
+    const addonOrder: Order = {
+      id: "ord_addon_1",
+      subscriptionId: "sub_1",
+      mealType: "lunch",
+      date: "2026-08-17",
+      status: "delivered",
+      price: 40,
+      isAddon: true,
+      addonId: "addon_paneer",
+      addonName: "Paneer Add-on",
+      addonQuantity: 1,
+      addonUnitPrice: 40,
+    } as unknown as Order;
+
+    // Standard lunch = 65, Addon = 40 => Total = 105
+    expect(calculateAccruedBill([standardLunch, addonOrder], sub)).toBe(65 + 40);
+  });
+
+  it("prioritizes negotiatedPricing override over pricingMatrixSnapshot", () => {
+    const sub = {
+      ...createSub(regularPricing),
+      negotiatedPricing: {
+        breakfast: 50,
+        lunch: 70,
+        dinner: 70,
+        breakfast_lunch: 120,
+        lunch_dinner: 120,
+        breakfast_dinner: 120,
+        breakfast_lunch_dinner: 180,
+      },
+    } as any;
+
+    const orders = [
+      createOrder("lunch", "2026-08-17", "delivered"),
+      createOrder("dinner", "2026-08-17", "delivered"),
+    ];
+
+    // Standard regular L+D would be 140, but negotiated is 120
+    expect(calculateAccruedBill(orders, sub)).toBe(120);
+  });
 });

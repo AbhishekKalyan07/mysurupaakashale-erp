@@ -41,6 +41,8 @@ export interface Subscription {
   latestPaymentId: ID | null;
   /** Pricing matrix captured at subscription time for accurate post-paid daily billing calculations */
   pricingMatrixSnapshot?: MealPlanPricing;
+  /** Negotiated/custom pricing matrix for this subscription, set by admin. Overrides pricingMatrixSnapshot when present. */
+  negotiatedPricing?: MealPlanPricing;
   /** Initial security deposit paid during signup. Refunded on cancellation. */
   depositAmount: number;
   /** Permanently assigned delivery partner. Copied to every generated order. */

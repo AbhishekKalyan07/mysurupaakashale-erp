@@ -5,6 +5,9 @@ import type {
   SubscriptionStatus,
 } from "@/shared/types/subscription.types";
 import { BaseRepository, createConverter } from "./BaseRepository";
+import type { MealPlanPricing } from "@/shared/types/mealPlan.types";
+import { operationalSettingsService } from "../business/operationalSettingsService";
+import { deleteField } from "firebase/firestore";
 import {
   where,
   orderBy,
@@ -56,44 +59,10 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   validateSkipWindow(
     date: string,
     mealTypes: ("breakfast" | "lunch" | "dinner")[],
+    nowOverride?: Date,
   ) {
-    const now = new Date();
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-    }).format(now);
-
-    if (date < today) {
-      throw new Error("Cannot modify skips for past dates.");
-    }
-
-    if (date === today) {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Kolkata",
-        hour: "numeric",
-        minute: "numeric",
-        hourCycle: "h23",
-      }).formatToParts(now);
-      const hour = parseInt(
-        parts.find((p) => p.type === "hour")?.value || "0",
-        10,
-      );
-      const minute = parseInt(
-        parts.find((p) => p.type === "minute")?.value || "0",
-        10,
-      );
-      const currentTimeMinutes = hour * 60 + minute;
-
-      for (const meal of mealTypes) {
-        if (meal === "breakfast" && currentTimeMinutes >= 5 * 60) {
-          throw new Error("Cancellation window has closed for breakfast.");
-        }
-        if (meal === "lunch" && currentTimeMinutes >= 10 * 60 + 30) {
-          throw new Error("Cancellation window has closed for lunch.");
-        }
-        if (meal === "dinner" && currentTimeMinutes >= 16 * 60) {
-          throw new Error("Cancellation window has closed for dinner.");
-        }
-      }
+    for (const meal of mealTypes) {
+      operationalSettingsService.validateMealCutoff(meal, date, nowOverride);
     }
   }
 
@@ -104,6 +73,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     reason: string,
     uid: string,
   ) {
+    await operationalSettingsService.getOperationalSettings();
     this.validateSkipWindow(date, mealTypes);
 
     // Create the skip subcollection document
@@ -140,6 +110,7 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
     mealTypesToRemove: ("breakfast" | "lunch" | "dinner")[],
     uid: string,
   ) {
+    await operationalSettingsService.getOperationalSettings();
     this.validateSkipWindow(date, mealTypesToRemove);
 
     const { deleteDoc } = await import("firebase/firestore");
@@ -231,6 +202,25 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
   ): Promise<void> {
     await updateDoc(doc(db, "subscriptions", subscriptionId), {
       status,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+  }
+
+  /** Set negotiated/custom pricing matrix for a subscription. */
+  async setNegotiatedPricing(
+    subscriptionId: string,
+    negotiatedPricing: MealPlanPricing,
+  ): Promise<void> {
+    await updateDoc(doc(db, "subscriptions", subscriptionId), {
+      negotiatedPricing,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+  }
+
+  /** Remove negotiated pricing override, reverting to default pricing matrix. */
+  async removeNegotiatedPricing(subscriptionId: string): Promise<void> {
+    await updateDoc(doc(db, "subscriptions", subscriptionId), {
+      negotiatedPricing: deleteField(),
       updatedAt: serverTimestamp() as unknown as Timestamp,
     });
   }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   XCircle,
@@ -11,6 +12,9 @@ import {
   Filter,
   MoreVertical,
   Copy,
+  Receipt,
+  CalendarDays,
+  CreditCard,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
@@ -28,9 +32,20 @@ import {
 } from "@/features/admin/hooks/useAdmin";
 import { useCustomerOrderHistory } from "@/features/customer/hooks/useMySubscription";
 import { useDeliveryZones } from "@/features/admin/hooks/useDeliveryZones";
+import {
+  usePauseSubscription,
+  useResumeSubscription,
+  useRejectSubscription,
+} from "@/features/admin/hooks/useAdminSubscriptions";
 import { StatusChip } from "@/shared/components/ui/StatusChip";
 import { MealBadge } from "@/shared/components/ui/MealBadge";
-import { PackageOpen, Clock, Calendar } from "lucide-react";
+import { PackageOpen, Clock, Calendar, Utensils } from "lucide-react";
+import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
+import { accountsRepository } from "@/shared/services/firestore/accountsRepository";
+import { paymentRepository } from "@/shared/services/firestore/paymentRepository";
+import { NegotiatedPricingEditor } from "@/features/admin/components/NegotiatedPricingEditor";
+import { CustomerTodayMealsTab } from "@/features/admin/components/CustomerTodayMealsTab";
+import { AdminCreateSubscriptionModal } from "@/features/admin/components/AdminCreateSubscriptionModal";
 import type {
   CustomerProfile,
   UserProfile,
@@ -181,6 +196,435 @@ function CustomerOrderHistoryTab({ customerId }: { customerId: string }) {
   );
 }
 
+// ── Customer Subscriptions Tab ────────────────────────────────────────────────
+function CustomerSubscriptionsTab({
+  customerId,
+  onCreateSub,
+}: {
+  customerId: string;
+  onCreateSub?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const pauseMutation = usePauseSubscription();
+  const resumeMutation = useResumeSubscription();
+  const rejectMutation = useRejectSubscription();
+  const [editingNegotiatedSub, setEditingNegotiatedSub] = useState<any | null>(null);
+  const { data: subs = [], isLoading, error } = useQuery({
+    queryKey: ["subscriptions", "customer", customerId],
+    queryFn: () => subscriptionRepository.getByCustomerId(customerId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-center text-sm font-medium text-text-muted">
+        Loading subscriptions...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="p-6 text-center text-sm font-medium text-danger">
+        Failed to load subscriptions.
+      </div>
+    );
+  }
+
+  if (subs.length === 0) {
+    return (
+      <div className="p-8 text-center text-text-muted space-y-3">
+        <CalendarDays size={32} className="mx-auto mb-1 opacity-20" />
+        <p className="text-sm font-medium">No subscriptions on record for this customer.</p>
+        {onCreateSub && (
+          <Button variant="primary" size="sm" onClick={onCreateSub} className="text-xs">
+            + Create Subscription
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {onCreateSub && (
+        <div className="flex items-center justify-between pb-1">
+          <span className="text-xs font-bold text-text-muted uppercase tracking-wider">
+            Active Records ({subs.length})
+          </span>
+          <Button variant="primary" size="xs" onClick={onCreateSub} className="text-xs">
+            + Create Subscription
+          </Button>
+        </div>
+      )}
+      {subs.map((sub) => {
+        const hasNegotiated = !!sub.negotiatedPricing;
+        return (
+          <div
+            key={sub.id}
+            className="bg-background rounded-xl p-4 border border-primary/10 shadow-xs space-y-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-primary text-base">
+                    {sub.planTier ? sub.planTier.toUpperCase() : "CUSTOM"} PLAN
+                  </span>
+                  <StatusChip status={sub.status as any} size="sm" />
+                  {hasNegotiated && (
+                    <Badge variant="warning" className="text-[9px] uppercase tracking-wider font-bold">
+                      Negotiated
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-text-muted mt-1 font-mono">
+                  ID: {sub.id.slice(0, 10)}... • Cycle: {sub.billingCycle || "monthly"}
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm font-bold text-primary">
+                  ₹{sub.pricePerDaySnapshot || 0} / day
+                </div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">
+                  Auto-Renew: {sub.autoRenew ? "Enabled" : "Off"}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-primary/5">
+              <div>
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">
+                  Duration
+                </span>
+                <span className="text-text font-medium">
+                  {formatDate(sub.startDate)} — {sub.endDate ? formatDate(sub.endDate) : "Ongoing"}
+                </span>
+              </div>
+              {sub.pauseStartDate && (
+                <div>
+                  <span className="text-[10px] text-warning font-bold uppercase tracking-wider block">
+                    Paused Schedule
+                  </span>
+                  <span className="text-text font-medium">
+                    {formatDate(sub.pauseStartDate)} — {sub.pauseEndDate ? formatDate(sub.pauseEndDate) : "Open-ended"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {sub.mealPreferences && sub.mealPreferences.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider mr-1">
+                  Meals:
+                </span>
+                {sub.mealPreferences.map((p) => (
+                  <MealBadge key={p.mealType} mealType={p.mealType} compact />
+                ))}
+              </div>
+            )}
+
+            {/* Negotiated Pricing Section */}
+            <div className="pt-2 border-t border-primary/5">
+              {hasNegotiated && sub.negotiatedPricing ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-800 text-[11px] uppercase tracking-wider">
+                      Negotiated Pricing Overrides
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setEditingNegotiatedSub(sub)}
+                      className="text-xs text-primary underline h-auto p-1"
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-text-muted">
+                    {Object.entries(sub.negotiatedPricing).map(([k, v]) => (
+                      <span key={k} className="capitalize">
+                        {k.replace(/_/g, " ")}:{" "}
+                        <strong className="text-text font-mono">₹{v as any}</strong>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setEditingNegotiatedSub(sub)}
+                    className="text-xs text-text-muted hover:text-primary"
+                  >
+                    + Override Pricing
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Subscription Lifecycle Controls */}
+            {(sub.status === "active" || sub.status === "paused") && (
+              <div className="pt-3 border-t border-primary/5 space-y-2">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">
+                  Subscription Controls
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Control 1: Auto-Renew Toggle */}
+                  <div className="bg-surface-1/50 p-2.5 rounded-xl border border-border flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-xs text-text">Auto-Renew</div>
+                      <div className="text-[10px] text-text-muted mt-0.5">
+                        {sub.autoRenew
+                          ? "Current period continues until end date."
+                          : "Will not renew at cycle end."}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={async () => {
+                        try {
+                          await subscriptionRepository.update(sub.id, {
+                            autoRenew: !sub.autoRenew,
+                          });
+                          queryClient.invalidateQueries({
+                            queryKey: ["subscriptions", "customer", customerId],
+                          });
+                          toast.success(
+                            sub.autoRenew
+                              ? "Auto-renew disabled (period continues until end date)."
+                              : "Auto-renew enabled.",
+                          );
+                        } catch (err: any) {
+                          toast.error(err?.message || "Failed to update auto-renew.");
+                        }
+                      }}
+                      className="mt-2 text-xs border border-border hover:bg-surface-2 justify-center"
+                    >
+                      {sub.autoRenew ? "Disable Auto-Renew" : "Enable Auto-Renew"}
+                    </Button>
+                  </div>
+
+                  {/* Control 2: Pause / Resume */}
+                  <div className="bg-surface-1/50 p-2.5 rounded-xl border border-border flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-xs text-text">
+                        {sub.status === "paused" ? "Resume" : "Pause"}
+                      </div>
+                      <div className="text-[10px] text-text-muted mt-0.5">
+                        Temporary delivery hold without ending subscription.
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={pauseMutation.isPending || resumeMutation.isPending}
+                      onClick={async () => {
+                        try {
+                          if (sub.status === "paused") {
+                            await resumeMutation.mutateAsync(sub);
+                          } else {
+                            await pauseMutation.mutateAsync({
+                              subscription: sub,
+                              shouldPauseNow: true,
+                            });
+                          }
+                          queryClient.invalidateQueries({
+                            queryKey: ["subscriptions", "customer", customerId],
+                          });
+                        } catch (err: any) {
+                          toast.error(err?.message || "Failed to update pause state.");
+                        }
+                      }}
+                      className="mt-2 text-xs border border-gold/40 text-gold hover:bg-gold/10 justify-center"
+                    >
+                      {sub.status === "paused" ? "Resume Subscription" : "Pause Subscription"}
+                    </Button>
+                  </div>
+
+                  {/* Control 3: Cancel / Stop */}
+                  <div className="bg-surface-1/50 p-2.5 rounded-xl border border-border flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-xs text-danger">Stop / Cancel</div>
+                      <div className="text-[10px] text-text-muted mt-0.5">
+                        Immediate lifecycle termination according to policy.
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={rejectMutation.isPending}
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          `Are you sure you want to stop/cancel subscription ${sub.id.slice(0, 8)}? This immediately terminates deliveries.`,
+                        );
+                        if (!confirmed) return;
+                        try {
+                          await rejectMutation.mutateAsync({
+                            subscription: sub,
+                            reason: "Cancelled by Admin via Customer Profile",
+                          });
+                          queryClient.invalidateQueries({
+                            queryKey: ["subscriptions", "customer", customerId],
+                          });
+                        } catch {
+                          // useRejectSubscription handles toast.error on failure
+                        }
+                      }}
+                      className="mt-2 text-xs border border-danger/40 text-danger hover:bg-danger/10 justify-center"
+                    >
+                      Stop Subscription
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {editingNegotiatedSub && (
+        <NegotiatedPricingEditor
+          subscriptionId={editingNegotiatedSub.id}
+          existingPricing={editingNegotiatedSub.negotiatedPricing}
+          onClose={() => setEditingNegotiatedSub(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Customer Account & Billing Tab ────────────────────────────────────────────
+function CustomerAccountTab({ customerId }: { customerId: string }) {
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useQuery({
+    queryKey: ["invoices", "customer", customerId],
+    queryFn: () => accountsRepository.getInvoicesByCustomerId(customerId),
+  });
+
+  const { data: payments = [], isLoading: isLoadingPayments } = useQuery({
+    queryKey: ["payments", "customer", customerId],
+    queryFn: () => paymentRepository.getByCustomerId(customerId),
+  });
+
+  if (isLoadingInvoices || isLoadingPayments) {
+    return (
+      <div className="p-6 text-center text-sm font-medium text-text-muted">
+        Loading financial data...
+      </div>
+    );
+  }
+
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalPaid = payments
+    .filter((p) => p.status === "verified")
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const balance = Math.max(0, totalInvoiced - totalPaid);
+
+  return (
+    <div className="space-y-6">
+      {/* Financial KPIs */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-surface-1 rounded-xl p-3 border border-border text-center">
+          <div className="text-lg font-bold text-text">₹{totalInvoiced.toLocaleString()}</div>
+          <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mt-0.5">
+            Total Invoiced
+          </div>
+        </div>
+        <div className="bg-success/10 rounded-xl p-3 border border-success/20 text-center">
+          <div className="text-lg font-bold text-success">₹{totalPaid.toLocaleString()}</div>
+          <div className="text-[10px] font-medium text-success/80 uppercase tracking-wider mt-0.5">
+            Total Paid
+          </div>
+        </div>
+        <div className={`rounded-xl p-3 border text-center ${balance > 0 ? "bg-danger/10 border-danger/20 text-danger" : "bg-surface-1 border-border text-text"}`}>
+          <div className="text-lg font-bold">₹{balance.toLocaleString()}</div>
+          <div className="text-[10px] font-medium uppercase tracking-wider mt-0.5 opacity-80">
+            Due Balance
+          </div>
+        </div>
+      </div>
+
+      {/* Invoices List */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <Receipt size={14} /> Invoices ({invoices.length})
+        </h4>
+        {invoices.length === 0 ? (
+          <div className="p-4 text-center text-text-muted text-xs bg-primary/5 rounded-lg">
+            No invoices generated yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {invoices.map((inv) => (
+              <div
+                key={inv.id}
+                className="bg-background rounded-xl p-3 border border-primary/10 flex items-center justify-between gap-3 text-xs"
+              >
+                <div>
+                  <div className="font-bold text-primary">
+                    {inv.invoiceNumber || `INV-${inv.id.slice(0, 8)}`}
+                  </div>
+                  <div className="text-[10px] text-text-muted mt-0.5">
+                    {inv.billingPeriodStart ? `${inv.billingPeriodStart} — ${inv.billingPeriodEnd}` : formatDate(inv.createdAt)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="font-bold text-primary">₹{inv.totalAmount}</div>
+                    <div className="text-[10px] uppercase font-semibold text-text-muted">
+                      {inv.status}
+                    </div>
+                  </div>
+                  <Badge
+                    variant={inv.status === "paid" ? "success" : inv.status === "overdue" ? "danger" : "default"}
+                    className="text-[9px] uppercase tracking-wider"
+                  >
+                    {inv.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Payment History List */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <CreditCard size={14} /> Payments ({payments.length})
+        </h4>
+        {payments.length === 0 ? (
+          <div className="p-4 text-center text-text-muted text-xs bg-primary/5 rounded-lg">
+            No payments submitted yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {payments.map((p) => (
+              <div
+                key={p.id}
+                className="bg-background rounded-xl p-3 border border-primary/10 flex items-center justify-between gap-3 text-xs"
+              >
+                <div>
+                  <div className="font-bold text-primary">₹{p.amount}</div>
+                  <div className="text-[10px] text-text-muted mt-0.5">
+                    {formatDate(p.paymentDate || p.createdAt)} • {p.paymentMethod?.toUpperCase()} {p.referenceNumber ? `• Ref: ${p.referenceNumber}` : ""}
+                  </div>
+                </div>
+                <Badge
+                  variant={p.status === "verified" ? "success" : p.status === "rejected" ? "danger" : "warning"}
+                  className="text-[9px] uppercase tracking-wider font-bold"
+                >
+                  {p.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Detail Dialog ────────────────────────────────────────────────────────────
 function CustomerDetailDialog({
   customer,
@@ -210,7 +654,10 @@ function CustomerDetailDialog({
   const [isEditingZone, setIsEditingZone] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState(customer.zoneId || "");
 
-  const [activeTab, setActiveTab] = useState<"profile" | "orders">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "today" | "subscriptions" | "orders" | "account"
+  >("today");
+  const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
 
   // Find current partner object if exists
   const currentPartner = deliveryPartners.find(
@@ -219,11 +666,11 @@ function CustomerDetailDialog({
   const currentZone = zones.find((z) => z.id === customer.zoneId);
 
   return (
-    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-primary/20">
-        <div className="p-6 border-b border-primary/10 flex justify-between items-start bg-primary/5">
+    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-background rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90dvh] my-auto overflow-y-auto border border-primary/20 flex flex-col">
+        <div className="p-4 sm:p-6 border-b border-primary/10 flex justify-between items-start bg-primary/5 shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-primary font-display">
+            <h2 className="text-xl sm:text-2xl font-bold text-primary font-display">
               Customer Details
             </h2>
             <div className="flex items-center gap-2 mt-1">
@@ -242,27 +689,38 @@ function CustomerDetailDialog({
                   );
                   toast.success("Customer ID copied!");
                 }}
-                className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded border border-primary/10 flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 rounded border border-primary/10 flex items-center gap-1 transition-colors cursor-pointer min-h-[28px]"
                 title="Copy Customer ID"
               >
                 Copy ID <Copy size={12} />
               </button>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-primary hover:text-gold p-1 transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateSubOpen(true)}
+              className="text-xs shrink-0"
+            >
+              + Create Subscription
+            </Button>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="text-primary hover:text-gold p-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors rounded-full"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex border-b border-primary/10 px-6" role="tablist">
+        <div className="flex border-b border-primary/10 px-4 sm:px-6 overflow-x-auto shrink-0" role="tablist">
           <button
             role="tab"
             aria-selected={activeTab === "profile"}
             onClick={() => setActiveTab("profile")}
-            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === "profile"
                 ? "border-primary text-primary"
                 : "border-transparent text-text-muted hover:text-primary"
@@ -272,9 +730,33 @@ function CustomerDetailDialog({
           </button>
           <button
             role="tab"
+            aria-selected={activeTab === "today"}
+            onClick={() => setActiveTab("today")}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "today"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-muted hover:text-primary"
+            }`}
+          >
+            <Utensils size={14} /> Today's Meals
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "subscriptions"}
+            onClick={() => setActiveTab("subscriptions")}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === "subscriptions"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-muted hover:text-primary"
+            }`}
+          >
+            Subscriptions
+          </button>
+          <button
+            role="tab"
             aria-selected={activeTab === "orders"}
             onClick={() => setActiveTab("orders")}
-            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === "orders"
                 ? "border-primary text-primary"
                 : "border-transparent text-text-muted hover:text-primary"
@@ -282,11 +764,23 @@ function CustomerDetailDialog({
           >
             Order History
           </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "account"}
+            onClick={() => setActiveTab("account")}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === "account"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-muted hover:text-primary"
+            }`}
+          >
+            Account & Billing
+          </button>
         </div>
 
-        <div className="p-6 space-y-4" role="tabpanel">
-          {activeTab === "profile" ? (
-            <div className="grid grid-cols-2 gap-4 text-sm font-sans">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto" role="tabpanel">
+          {activeTab === "profile" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm font-sans">
               <div className="bg-primary/5 rounded-xl p-4 col-span-2 border border-primary/10">
                 <div className="text-text-muted text-[10px] font-bold uppercase tracking-wider mb-2">
                   Profile
@@ -375,7 +869,7 @@ function CustomerDetailDialog({
 
                 {isEditingZone ? (
                   <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <select
                         value={selectedZoneId}
                         onChange={(e) => setSelectedZoneId(e.target.value)}
@@ -497,36 +991,40 @@ function CustomerDetailDialog({
                           );
                         })}
                       </select>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={assignPartner.isPending}
-                        onClick={() => {
-                          assignPartner.mutate(
-                            {
-                              customerId: customer.id,
-                              partnerId: selectedPartnerId || null,
-                              mealType: selectedMealType,
-                            },
-                            { onSuccess: () => setIsEditingPartner(false) },
-                          );
-                        }}
-                      >
-                        {assignPartner.isPending ? "Saving..." : "Save"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsEditingPartner(false);
-                          setSelectedPartnerId(
-                            customer.deliveryPartnerId || "",
-                          );
-                          setSelectedMealType("all");
-                        }}
-                      >
-                        Cancel
-                      </Button>
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={assignPartner.isPending}
+                          className="flex-1 sm:flex-none min-h-[38px]"
+                          onClick={() => {
+                            assignPartner.mutate(
+                              {
+                                customerId: customer.id,
+                                partnerId: selectedPartnerId || null,
+                                mealType: selectedMealType,
+                              },
+                              { onSuccess: () => setIsEditingPartner(false) },
+                            );
+                          }}
+                        >
+                          {assignPartner.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 sm:flex-none min-h-[38px]"
+                          onClick={() => {
+                            setIsEditingPartner(false);
+                            setSelectedPartnerId(
+                              customer.deliveryPartnerId || "",
+                            );
+                            setSelectedMealType("all");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -567,11 +1065,35 @@ function CustomerDetailDialog({
                 )}
               </div>
             </div>
-          ) : (
+          )}
+          {activeTab === "today" && (
+            <CustomerTodayMealsTab customer={customer} />
+          )}
+          {activeTab === "subscriptions" && (
+            <CustomerSubscriptionsTab
+              customerId={customer.id}
+              onCreateSub={() => setIsCreateSubOpen(true)}
+            />
+          )}
+          {activeTab === "orders" && (
             <CustomerOrderHistoryTab customerId={customer.id} />
+          )}
+          {activeTab === "account" && (
+            <CustomerAccountTab customerId={customer.id} />
           )}
         </div>
       </div>
+
+      {isCreateSubOpen && (
+        <AdminCreateSubscriptionModal
+          customer={customer}
+          isOpen={isCreateSubOpen}
+          onClose={() => setIsCreateSubOpen(false)}
+          onSuccess={() => {
+            setActiveTab("subscriptions");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -658,6 +1180,16 @@ function CustomerCardView({
               }}
             >
               View Details
+            </button>
+            <button
+              className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-primary font-bold transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onSelect();
+              }}
+            >
+              + Create Subscription
             </button>
             <button
               className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors"
@@ -863,12 +1395,12 @@ export function AdminCustomersPage() {
       <div className="flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           {/* Tab bar */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => handleTabChange(tab.value)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-all border ${
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-full transition-all border shrink-0 ${
                   activeTab === tab.value
                     ? "bg-primary text-white border-primary shadow-sm"
                     : "bg-surface-2 text-text-muted border-border hover:border-secondary/40"
@@ -879,7 +1411,7 @@ export function AdminCustomersPage() {
             ))}
           </div>
 
-          <div className="relative min-w-[300px] flex-1 max-w-md">
+          <div className="relative w-full sm:min-w-[300px] flex-1 max-w-md">
             <Search
               size={16}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"

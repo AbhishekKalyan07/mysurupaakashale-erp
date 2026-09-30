@@ -1,53 +1,32 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+// scripts/seedPlansAdmin.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Seeds mealPlans via the Admin SDK.
+// ONLY runs against the local Firebase Emulator (blocked by enforceEmulatorGuard).
+// ─────────────────────────────────────────────────────────────────────────────
+
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
+// 1. Load .env.local so VITE_FIREBASE_PROJECT_ID etc. are available to the guard
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
-import type { ServiceAccount } from 'firebase-admin/app';
+// 2. Point at local emulators BEFORE the guard check
+process.env.FIRESTORE_EMULATOR_HOST =
+  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST =
+  process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
 
-function parseServiceAccount(raw: string): ServiceAccount {
-  const trimmed = raw.trim();
-  let sa: any;
-  try {
-    sa = JSON.parse(trimmed);
-  } catch {
-    try {
-      const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
-      sa = JSON.parse(decoded);
-    } catch {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT is neither valid JSON nor valid base64-encoded JSON.');
-    }
-  }
-  if (sa && typeof sa.private_key === 'string') {
-    sa.private_key = sa.private_key.replace(/\\n/g, '\n');
-  }
-  return sa as ServiceAccount;
-}
+// 3. Guard – blocks immediately if not targeting a safe emulator environment
+import { enforceEmulatorGuard } from '../src/shared/lib/environmentGuard.node';
+enforceEmulatorGuard();
 
-const serviceAccountPath = path.resolve(__dirname, '../serviceAccountKey.json');
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 if (!getApps().length) {
-  const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (serviceAccountRaw) {
-    try {
-      const serviceAccount = parseServiceAccount(serviceAccountRaw);
-      initializeApp({ credential: cert(serviceAccount) });
-      console.log('Initialized Firebase Admin using FIREBASE_SERVICE_ACCOUNT.');
-    } catch (err: any) {
-      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT, falling back to local emulator:', err?.message || err);
-      initializeApp({ projectId: 'mysuru-paakashale-erp' });
-    }
-  } else {
-    try {
-      initializeApp({ credential: cert(serviceAccountPath) });
-      console.log('Initialized Firebase Admin using serviceAccountKey.json.');
-    } catch {
-      console.log('No service account key found, initializing for local emulator only.');
-      initializeApp({ projectId: 'mysuru-paakashale-erp' });
-    }
-  }
+  initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-test',
+  });
 }
 
 const db = getFirestore();
@@ -77,7 +56,7 @@ async function seedPlans() {
       breakfast_lunch: 115,
       lunch_dinner: 115,
       breakfast_dinner: 115,
-      breakfast_lunch_dinner: 159
+      breakfast_lunch_dinner: 159,
     },
     currency: 'INR',
     deliveryIncluded: true,
@@ -86,10 +65,30 @@ async function seedPlans() {
     createdAt: new Date(),
     updatedAt: new Date(),
     mealSlots: [
-      { mealType: 'breakfast', isCustomerSelectable: false, options: [ { id: 'basic-breakfast-1', label: 'As Per Breakfast Menu', items: ['Breakfast Menu Item'] } ] },
-      { mealType: 'lunch', isCustomerSelectable: true, options: [ { id: 'basic-lunch-1', label: 'Rice & Sambar', items: ['Pickle', 'Rice', 'Sambar'] }, { id: 'basic-lunch-2', label: 'Ragi Ball', items: ['1 Ragi Ball', 'Sambar', 'Buttermilk'] }, { id: 'basic-lunch-3', label: 'Chapati & Sagu', items: ['3 Chapati', 'Sagu', 'Buttermilk'] } ] },
-      { mealType: 'dinner', isCustomerSelectable: true, options: [ { id: 'basic-dinner-1', label: 'Rice & Sambar', items: ['Rice', 'Sambar', 'Palya'] }, { id: 'basic-dinner-2', label: 'Ragi Ball', items: ['1 Ragi Ball', 'Sambar', 'Palya'] }, { id: 'basic-dinner-3', label: 'Chapati & Palya', items: ['3 Chapati', 'Palya'] } ] }
-    ]
+      {
+        mealType: 'breakfast',
+        isCustomerSelectable: false,
+        options: [{ id: 'basic-breakfast-1', label: 'As Per Breakfast Menu', items: ['Breakfast Menu Item'] }],
+      },
+      {
+        mealType: 'lunch',
+        isCustomerSelectable: true,
+        options: [
+          { id: 'basic-lunch-1', label: 'Rice & Sambar', items: ['Pickle', 'Rice', 'Sambar'] },
+          { id: 'basic-lunch-2', label: 'Ragi Ball', items: ['1 Ragi Ball', 'Sambar', 'Buttermilk'] },
+          { id: 'basic-lunch-3', label: 'Chapati & Sagu', items: ['3 Chapati', 'Sagu', 'Buttermilk'] },
+        ],
+      },
+      {
+        mealType: 'dinner',
+        isCustomerSelectable: true,
+        options: [
+          { id: 'basic-dinner-1', label: 'Rice & Sambar', items: ['Rice', 'Sambar', 'Palya'] },
+          { id: 'basic-dinner-2', label: 'Ragi Ball', items: ['1 Ragi Ball', 'Sambar', 'Palya'] },
+          { id: 'basic-dinner-3', label: 'Chapati & Palya', items: ['3 Chapati', 'Palya'] },
+        ],
+      },
+    ],
   });
   console.log('Created Basic Plan (159/day)');
 
@@ -106,7 +105,7 @@ async function seedPlans() {
       breakfast_lunch: 140,
       lunch_dinner: 140,
       breakfast_dinner: 140,
-      breakfast_lunch_dinner: 210
+      breakfast_lunch_dinner: 210,
     },
     currency: 'INR',
     deliveryIncluded: true,
@@ -115,10 +114,28 @@ async function seedPlans() {
     createdAt: new Date(),
     updatedAt: new Date(),
     mealSlots: [
-      { mealType: 'breakfast', isCustomerSelectable: false, options: [ { id: 'regular-breakfast-1', label: 'As Per Breakfast Menu', items: ['Breakfast Menu Item'] } ] },
-      { mealType: 'lunch', isCustomerSelectable: true, options: [ { id: 'regular-lunch-1', label: 'Ragi Ball Meal', items: ['Pickle', 'Rice', 'Sambar', '1 Ragi Ball', 'Buttermilk'] }, { id: 'regular-lunch-2', label: 'Chapati Meal', items: ['Pickle', 'Rice', 'Sambar', '1 Chapati', 'Sagu/Palya', 'Buttermilk'] } ] },
-      { mealType: 'dinner', isCustomerSelectable: true, options: [ { id: 'regular-dinner-1', label: 'Chapati Meal', items: ['Rice', 'Sambar', '1 Chapati', 'Palya', 'Curd'] }, { id: 'regular-dinner-2', label: 'Ragi Ball Meal', items: ['Rice', 'Sambar', '1 Ragi Ball', 'Curd'] } ] }
-    ]
+      {
+        mealType: 'breakfast',
+        isCustomerSelectable: false,
+        options: [{ id: 'regular-breakfast-1', label: 'As Per Breakfast Menu', items: ['Breakfast Menu Item'] }],
+      },
+      {
+        mealType: 'lunch',
+        isCustomerSelectable: true,
+        options: [
+          { id: 'regular-lunch-1', label: 'Ragi Ball Meal', items: ['Pickle', 'Rice', 'Sambar', '1 Ragi Ball', 'Buttermilk'] },
+          { id: 'regular-lunch-2', label: 'Chapati Meal', items: ['Pickle', 'Rice', 'Sambar', '1 Chapati', 'Sagu/Palya', 'Buttermilk'] },
+        ],
+      },
+      {
+        mealType: 'dinner',
+        isCustomerSelectable: true,
+        options: [
+          { id: 'regular-dinner-1', label: 'Chapati Meal', items: ['Rice', 'Sambar', '1 Chapati', 'Palya', 'Curd'] },
+          { id: 'regular-dinner-2', label: 'Ragi Ball Meal', items: ['Rice', 'Sambar', '1 Ragi Ball', 'Curd'] },
+        ],
+      },
+    ],
   });
   console.log('Created Regular Plan (210/day)');
 

@@ -21,16 +21,25 @@ export function calculateAccruedBill(
       !excludedStatuses.includes(o.status),
   );
 
-  // Group by date, and prevent duplicate charging for the same meal/date
+  // Separate standard subscription orders from add-on orders
+  const standardOrders = subOrders.filter((o) => !o.isAddon);
+  const addonOrders = subOrders.filter((o) => o.isAddon);
+
+  let addonTotal = 0;
+  for (const ao of addonOrders) {
+    addonTotal += ao.price || 0;
+  }
+
+  // Group standard orders by date, and prevent duplicate charging for the same meal/date
   const groupedOrders: Record<string, Set<string>> = {};
-  for (const order of subOrders) {
+  for (const order of standardOrders) {
     if (!groupedOrders[order.date]) {
       groupedOrders[order.date] = new Set<string>();
     }
     groupedOrders[order.date].add(order.mealType);
   }
 
-  let totalBill = 0;
+  let standardTotal = 0;
 
   for (const date in groupedOrders) {
     const mealTypes = Array.from(groupedOrders[date]);
@@ -43,17 +52,19 @@ export function calculateAccruedBill(
 
     const key = sortedMeals.join("_") as keyof MealPlanPricing;
 
+    const negotiated = (subscription as any).negotiatedPricing;
     const matrix = subscription.pricingMatrixSnapshot;
 
     let dailyCharge = 0;
-    if (matrix && matrix[key] !== undefined) {
+    if (negotiated && negotiated[key] !== undefined) {
+      dailyCharge = negotiated[key];
+    } else if (matrix && matrix[key] !== undefined) {
       dailyCharge = matrix[key];
     } else {
       // Legacy fallback: sum up the individual order prices
-      // Since we deduped by mealType, we just get the original order objects for the deduped meals
       const uniqueOrders = [];
       const seenMeals = new Set<string>();
-      for (const order of subOrders) {
+      for (const order of standardOrders) {
         if (order.date === date && !seenMeals.has(order.mealType)) {
           seenMeals.add(order.mealType);
           uniqueOrders.push(order);
@@ -65,8 +76,8 @@ export function calculateAccruedBill(
       );
     }
 
-    totalBill += dailyCharge * (subscription.quantity || 1);
+    standardTotal += dailyCharge * (subscription.quantity || 1);
   }
 
-  return totalBill;
+  return standardTotal + addonTotal;
 }

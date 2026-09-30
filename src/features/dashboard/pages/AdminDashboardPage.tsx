@@ -51,7 +51,7 @@ export function AdminDashboardPage() {
           <Activity className="text-gold" size={24} />
           Real-time Business Metrics
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 mb-8">
           <MetricCard
             title="System Status"
             value={metrics?.systemStatus === "healthy" ? "Healthy" : "Degraded"}
@@ -149,7 +149,7 @@ export function AdminDashboardPage() {
             <Activity className="text-gold" size={24} />
             Kitchen SLA Metrics
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-4">
             <MetricCard
               title="Avg Prep Time"
               value={`${metrics.kitchenSLAStats.avgPrepTimeMins}m`}
@@ -190,7 +190,7 @@ export function AdminDashboardPage() {
             <Truck className="text-gold" size={24} />
             Driver Utilization
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
             <MetricCard
               title="Utilization"
               value={`${metrics.driverStats.utilizationPercent}%`}
@@ -229,28 +229,28 @@ export function AdminDashboardPage() {
             <ChefHat className="text-gold" size={24} />
             Kitchen Stages
           </h2>
-          <div className="grid md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
             <div className="bg-white border-2 border-dashed border-primary/20 rounded-2xl p-4 text-center">
               <p className="text-sm font-bold text-text-muted">Preparing</p>
-              <p className="text-3xl font-display font-bold text-primary">
+              <p className="text-2xl sm:text-3xl font-display font-bold text-primary">
                 {metrics.kitchenSLAStats.preparingCount}
               </p>
             </div>
             <div className="bg-white border-2 border-dashed border-primary/20 rounded-2xl p-4 text-center">
               <p className="text-sm font-bold text-text-muted">Packing</p>
-              <p className="text-3xl font-display font-bold text-primary">
+              <p className="text-2xl sm:text-3xl font-display font-bold text-primary">
                 {metrics.kitchenSLAStats.packingCount}
               </p>
             </div>
             <div className="bg-white border-2 border-dashed border-primary/20 rounded-2xl p-4 text-center">
               <p className="text-sm font-bold text-text-muted">Packed</p>
-              <p className="text-3xl font-display font-bold text-primary">
+              <p className="text-2xl sm:text-3xl font-display font-bold text-primary">
                 {metrics.kitchenSLAStats.packedCount}
               </p>
             </div>
             <div className="bg-white border-2 border-solid border-success/30 bg-success/5 rounded-2xl p-4 text-center">
               <p className="text-sm font-bold text-success">Ready</p>
-              <p className="text-3xl font-display font-bold text-success">
+              <p className="text-2xl sm:text-3xl font-display font-bold text-success">
                 {metrics.kitchenSLAStats.readyCount}
               </p>
             </div>
@@ -363,7 +363,7 @@ export function AdminDashboardPage() {
           <Settings className="text-text-muted" size={24} />
           Quick Actions &amp; Configuration
         </h2>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           <PremiumCard
             hoverLift
             className="p-6 cursor-pointer"

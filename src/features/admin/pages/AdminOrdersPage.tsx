@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, Loader2, Search, SlidersHorizontal, X, RefreshCw } from "lucide-react";
+import { Package, Loader2, Search, SlidersHorizontal, X, RefreshCw, Copy, MapPin } from "lucide-react";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { OrderCard } from "@/shared/components/ui/OrderCard";
+import { StatusChip } from "@/shared/components/ui/StatusChip";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { userRepository } from "@/shared/services/firestore/userRepository";
@@ -124,6 +125,290 @@ function getDefaultMealType(): MealType | "all" {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Admin Order Detail Dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AdminOrderDetailDialog({
+  order,
+  customer,
+  partnerName,
+  onClose,
+  onRefresh,
+}: {
+  order: Order;
+  customer?: any;
+  partnerName?: string | null;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelMeal = async () => {
+    if (!order.subscriptionId) return;
+    if (
+      !confirm(
+        `Cancel ${order.mealType} meal for today? This will apply canonical cancellation credit to the customer's invoice according to business rules.`,
+      )
+    ) {
+      return;
+    }
+    setIsCancelling(true);
+    try {
+      const { orderService } = await import(
+        "@/shared/services/business/orderService"
+      );
+      const result = await orderService.removeTodayMeal(
+        order.subscriptionId,
+        order.mealType,
+      );
+      toast.success(
+        `Meal cancelled. ₹${result.cancellationAmount} credit applied to invoice.`,
+      );
+      onRefresh();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel meal.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90dvh] my-auto overflow-y-auto border border-primary/20 flex flex-col">
+        <div className="p-4 sm:p-6 border-b border-primary/10 flex justify-between items-start bg-primary/5 shrink-0">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-primary font-display">
+                Order Details
+              </h2>
+              <StatusChip status={order.status} size="sm" />
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-text-muted text-xs font-mono bg-background-alt px-2 py-0.5 rounded border border-primary/10">
+                {order.displayId || order.id}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(order.displayId || order.id);
+                  toast.success("Order ID copied!");
+                }}
+                className="text-[11px] font-mono text-primary/70 hover:text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 flex items-center gap-1 cursor-pointer min-h-[28px]"
+                title="Copy Order ID"
+              >
+                Copy <Copy size={11} />
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-primary hover:text-gold p-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors rounded-full"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto">
+          {/* Add-on banner if add-on */}
+          {order.isAddon && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-800 uppercase tracking-wider text-[11px]">
+                  ✨ Add-on Order
+                </span>
+                <span className="font-bold text-amber-900 text-sm">
+                  ₹{order.price}
+                </span>
+              </div>
+              <p className="text-text font-medium">
+                {order.addonName} (Qty: {order.addonQuantity || 1} @ ₹
+                {order.addonUnitPrice || order.price}/ea)
+              </p>
+              {order.invoiceId && (
+                <p className="text-[10px] font-mono text-text-muted">
+                  Linked Invoice: {order.invoiceId}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Customer section */}
+          <div className="bg-surface-2 rounded-xl p-3.5 border border-border space-y-1.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Customer Information
+            </div>
+            <div className="font-bold text-text text-sm">
+              {customer?.fullName || order.customerName || "Customer"}
+            </div>
+            {(customer?.phone || order.customerPhone) && (
+              <div className="text-text-muted">
+                Phone: {customer?.phone || order.customerPhone}
+              </div>
+            )}
+            {(customer?.address || order.address) && (
+              <div className="text-text-muted flex items-start gap-1 mt-1">
+                <MapPin size={12} className="shrink-0 mt-0.5 text-secondary" />
+                <span>{customer?.address || order.address}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Meal & Delivery Details */}
+          <div className="bg-surface-2 rounded-xl p-3.5 border border-border space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Delivery & Fulfillment
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-text-muted block text-[10px]">
+                  Meal Type
+                </span>
+                <span className="font-semibold text-text capitalize">
+                  {order.mealType}
+                </span>
+              </div>
+              <div>
+                <span className="text-text-muted block text-[10px]">
+                  Delivery Date
+                </span>
+                <span className="font-semibold text-text">{order.date}</span>
+              </div>
+              {order.mealName && (
+                <div className="col-span-2">
+                  <span className="text-text-muted block text-[10px]">
+                    Meal / Dish Name
+                  </span>
+                  <span className="font-semibold text-text" data-testid="order-meal-name">
+                    {order.mealName}
+                  </span>
+                </div>
+              )}
+              {order.itemsLabel && (
+                <div className="col-span-2">
+                  <span className="text-text-muted block text-[10px]">
+                    Items Included
+                  </span>
+                  <span className="font-semibold text-text" data-testid="order-items-label">
+                    {order.itemsLabel}
+                  </span>
+                </div>
+              )}
+              {order.deliveryWindow && (
+                <div>
+                  <span className="text-text-muted block text-[10px]">
+                    Delivery Window
+                  </span>
+                  <span className="font-semibold text-text">
+                    {order.deliveryWindow.start} – {order.deliveryWindow.end}
+                  </span>
+                </div>
+              )}
+              <div>
+                <span className="text-text-muted block text-[10px]">
+                  Delivery Partner
+                </span>
+                <span className="font-semibold text-text">
+                  {partnerName ||
+                    (order.deliveryPartnerId ? "Assigned" : "Unassigned")}
+                </span>
+              </div>
+              {order.kitchenStatus && (
+                <div>
+                  <span className="text-text-muted block text-[10px]">
+                    Kitchen Status
+                  </span>
+                  <span className="font-semibold text-text capitalize">
+                    {order.kitchenStatus}
+                  </span>
+                </div>
+              )}
+              <div>
+                <span className="text-text-muted block text-[10px]">
+                  Source
+                </span>
+                <span className="font-semibold text-text capitalize">
+                  {order.source === "subscription"
+                    ? "Subscription"
+                    : "One-Time"}
+                </span>
+              </div>
+            </div>
+
+            {order.specialInstructions && (
+              <div className="pt-2 border-t border-border">
+                <span className="text-[10px] font-bold text-warning uppercase tracking-wider block">
+                  Special Instructions
+                </span>
+                <span className="text-text font-medium">
+                  {order.specialInstructions}
+                </span>
+              </div>
+            )}
+            {order.packingNotes && (
+              <div className="pt-2 border-t border-border">
+                <span className="text-[10px] font-bold text-info uppercase tracking-wider block">
+                  Packing Notes
+                </span>
+                <span className="text-text font-medium">
+                  {order.packingNotes}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Financial details */}
+          <div className="bg-surface-2 rounded-xl p-3.5 border border-border flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                Order Amount
+              </span>
+              <span className="text-base font-bold text-primary">
+                ₹{order.price || 0} {order.currency || "INR"}
+              </span>
+            </div>
+            {order.subscriptionId && (
+              <div className="text-right">
+                <span className="text-[10px] text-text-muted block">
+                  Subscription ID
+                </span>
+                <span className="font-mono text-[11px] text-text-muted">
+                  {order.subscriptionId.slice(0, 12)}...
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Cancellation button if eligible today order */}
+          {order.status === "scheduled" &&
+            order.source === "subscription" &&
+            order.subscriptionId && (
+              <div className="pt-2">
+                <Button
+                  variant="danger-tonal"
+                  size="sm"
+                  onClick={handleCancelMeal}
+                  disabled={isCancelling}
+                  className="w-full text-xs font-semibold py-2.5 min-h-[44px] h-auto whitespace-normal break-words"
+                >
+                  {isCancelling
+                    ? "Cancelling Meal..."
+                    : "Cancel Today Meal (Apply Credit to Invoice)"}
+                </Button>
+                <p className="text-[10px] text-text-muted text-center mt-1">
+                  Enforces business cutoffs and applies canonical subscription meal
+                  credit.
+                </p>
+              </div>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Page
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -140,6 +425,9 @@ export function AdminOrdersPage() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(
+    null,
+  );
 
   const queryKey = useMemo(
     () => ["admin", "orders", selectedDate],
@@ -511,10 +799,41 @@ export function AdminOrdersPage() {
                   updateStatusMutation.isPending &&
                   updateStatusMutation.variables?.orderId === order.id
                 }
+                extraActions={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedDetailOrder(order)}
+                    className="h-8 px-2 text-xs"
+                  >
+                    Details
+                  </Button>
+                }
               />
             );
           })}
         </div>
+      )}
+
+      {selectedDetailOrder && (
+        <AdminOrderDetailDialog
+          order={selectedDetailOrder}
+          customer={customerMap.get(selectedDetailOrder.customerId)}
+          partnerName={
+            selectedDetailOrder.deliveryPartnerId
+              ? partnerNameMap.get(selectedDetailOrder.deliveryPartnerId) ||
+                formatAllottedId(
+                  undefined,
+                  selectedDetailOrder.deliveryPartnerId,
+                  "delivery_partner",
+                )
+              : null
+          }
+          onClose={() => setSelectedDetailOrder(null)}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey });
+          }}
+        />
       )}
     </div>
   );

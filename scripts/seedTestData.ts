@@ -1,17 +1,33 @@
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+// scripts/seedTestData.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Seeds Firestore with a test subscription, order, delivery zone and plan.
+// ONLY runs against the local Firebase Emulator (blocked by enforceEmulatorGuard).
+// ─────────────────────────────────────────────────────────────────────────────
+
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { getAuth } from 'firebase-admin/auth';
 
-// Ensure emulator env vars are set
-process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
-
+// 1. Load .env.local so VITE_FIREBASE_PROJECT_ID etc. are available to the guard
 dotenv.config({ path: path.resolve(import.meta.dirname, '../.env.local') });
 
+// 2. Point Firebase Admin at the local emulators BEFORE the guard check
+process.env.FIRESTORE_EMULATOR_HOST =
+  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST =
+  process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
+
+// 3. Guard – exits immediately if not targeting a safe emulator environment
+import { enforceEmulatorGuard } from '../src/shared/lib/environmentGuard.node';
+enforceEmulatorGuard();
+
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+
 if (!getApps().length) {
-  initializeApp({ projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'mysuru-paakashale-erp' });
+  initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-test',
+  });
 }
 
 const db = getFirestore();
@@ -27,7 +43,7 @@ async function seedTestData() {
       console.log('Test customer not found. Please run seedTestUsers.ts first.');
       process.exit(1);
     }
-    
+
     const customerId = userRecord.uid;
 
     // 1.1 Ensure default active Delivery Zone exists
@@ -45,25 +61,28 @@ async function seedTestData() {
     }
 
     // 1.2 Ensure test customer user profile has zone and address
-    await db.collection('users').doc(customerId).set({
-      role: 'customer',
-      fullName: 'Test Customer',
-      phone: '9876543210',
-      displayId: 'MP-C001',
-      zoneId: 'zone-1',
-      defaultAddressId: 'addr-1',
-      addresses: [
-        {
-          id: 'addr-1',
-          line1: '123, 4th Main',
-          line2: 'Gokulam 2nd Stage',
-          city: 'Mysuru',
-          pincode: '570001',
-          isDefault: true,
-        }
-      ],
-      updatedAt: Timestamp.now(),
-    }, { merge: true });
+    await db.collection('users').doc(customerId).set(
+      {
+        role: 'customer',
+        fullName: 'Test Customer',
+        phone: '9876543210',
+        displayId: 'MP-C001',
+        zoneId: 'zone-1',
+        defaultAddressId: 'addr-1',
+        addresses: [
+          {
+            id: 'addr-1',
+            line1: '123, 4th Main',
+            line2: 'Gokulam 2nd Stage',
+            city: 'Mysuru',
+            pincode: '570001',
+            isDefault: true,
+          },
+        ],
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true }
+    );
 
     // 2. Create a Mock Plan if it doesn't exist
     const plansSnap = await db.collection('meal_plans').limit(1).get();
@@ -96,18 +115,18 @@ async function seedTestData() {
     // 3. Create an active Subscription for the test customer
     const subscriptionId = 'test-sub-1';
     const subRef = db.collection('subscriptions').doc(subscriptionId);
-    
+
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 2); // Started 2 days ago
-    
+
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 28); // Ends in 28 days
 
     await subRef.set({
-      customerId: customerId,
+      customerId,
       customerName: 'Test Customer',
-      planId: planId,
-      planTier: planTier,
+      planId,
+      planTier,
       quantity: 1,
       pricePerDaySnapshot: 159,
       pricingMatrixSnapshot: {
@@ -139,8 +158,8 @@ async function seedTestData() {
     // 4. Create an active Order for today
     const orderId = `ord_${subscriptionId}_${new Date().toISOString().split('T')[0]}_lunch`;
     await db.collection('orders').doc(orderId).set({
-      subscriptionId: subscriptionId,
-      customerId: customerId,
+      subscriptionId,
+      customerId,
       customerName: 'Test Customer',
       customerPhone: '9876543210',
       displayId: 'MP-T001',
@@ -158,7 +177,6 @@ async function seedTestData() {
     });
 
     console.log(`Created test order for today: ${orderId}`);
-    
     console.log('Done seeding test data!');
     process.exit(0);
   } catch (error) {

@@ -12,12 +12,17 @@ class DailyMenuRepository extends BaseRepository<DailyMenu> {
    * Get the published menu for a given date.
    */
   async getPublishedByDate(date: string): Promise<DailyMenu | null> {
-    const menus = await this.list(
-      where("date", "==", date),
-      where("status", "==", "published"),
-      limit(1),
-    );
-    return menus[0] || null;
+    try {
+      const menus = await this.list(
+        where("date", "==", date),
+        where("status", "==", "published"),
+        limit(1),
+      );
+      return menus[0] || null;
+    } catch {
+      const menus = await this.list(where("date", "==", date));
+      return menus.find((m) => m.status === "published") || null;
+    }
   }
 
   /**

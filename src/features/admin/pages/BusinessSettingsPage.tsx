@@ -7,13 +7,32 @@ import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { FormSkeleton } from "@/shared/components/feedback/SkeletonLoader";
+import { Link } from "react-router-dom";
 import {
   useBusinessSettings,
   useUpdateBusinessSettings,
 } from "../hooks/useSettings";
-import { Save, Store, IndianRupee, Clock, Truck, Play } from "lucide-react";
+import { Save, Store, IndianRupee, Clock, Truck, Play, ArrowRight } from "lucide-react";
 import { useSeedData } from "../hooks/useSeedData";
 import toast from "react-hot-toast";
+
+const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+const deliveryWindowSchema = z
+  .object({
+    start: z.string().regex(TIME_REGEX, "Must be in HH:mm 24h format"),
+    end: z.string().regex(TIME_REGEX, "Must be in HH:mm 24h format"),
+  })
+  .refine((data) => data.start < data.end, {
+    message: "Start time must be before end time",
+    path: ["start"],
+  });
+
+const cancellationCutoffsSchema = z.object({
+  breakfast: z.string().regex(TIME_REGEX, "Must be in HH:mm 24h format"),
+  lunch: z.string().regex(TIME_REGEX, "Must be in HH:mm 24h format"),
+  dinner: z.string().regex(TIME_REGEX, "Must be in HH:mm 24h format"),
+});
 
 const settingsSchema = z.object({
   companyProfile: z.object({
@@ -29,11 +48,13 @@ const settingsSchema = z.object({
     invoicePrefix: z.string().default("INV"),
   }),
   pricing: z.object({
-    mealPrices: z.object({
-      breakfast: z.coerce.number().min(0),
-      lunch: z.coerce.number().min(0),
-      dinner: z.coerce.number().min(0),
-    }),
+    mealPrices: z
+      .object({
+        breakfast: z.coerce.number().min(0).optional(),
+        lunch: z.coerce.number().min(0).optional(),
+        dinner: z.coerce.number().min(0).optional(),
+      })
+      .optional(),
     deliveryCharges: z.object({
       standard: z.coerce.number().min(0),
     }),
@@ -43,15 +64,11 @@ const settingsSchema = z.object({
     orderCutoffTime: z.string(),
     kitchenTimings: z.object({ start: z.string(), end: z.string() }),
     deliveryWindows: z.object({
-      breakfast: z.object({ start: z.string(), end: z.string() }),
-      lunch: z.object({ start: z.string(), end: z.string() }),
-      dinner: z.object({ start: z.string(), end: z.string() }),
+      breakfast: deliveryWindowSchema,
+      lunch: deliveryWindowSchema,
+      dinner: deliveryWindowSchema,
     }),
-    cancellationCutoffTimes: z.object({
-      breakfast: z.string(),
-      lunch: z.string(),
-      dinner: z.string(),
-    }),
+    cancellationCutoffTimes: cancellationCutoffsSchema,
     businessHolidays: z.string(), // We'll handle array conversion back and forth
   }),
   payroll: z.object({
@@ -69,14 +86,25 @@ export function BusinessSettingsPage() {
   const updateMutation = useUpdateBusinessSettings();
   const { seedData, isSeeding } = useSeedData();
 
-  const { register, handleSubmit, reset } = useForm<any>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<SettingsForm>({
     resolver: zodResolver(settingsSchema),
   });
 
   useEffect(() => {
     if (settings) {
       reset({
-        companyProfile: settings.companyProfile,
+        companyProfile: {
+          name: settings.companyProfile?.name || "Mysuru Paakashale",
+          tagline: settings.companyProfile?.tagline || "",
+          supportEmail: settings.companyProfile?.supportEmail || "support@mysurupaakashale.com",
+          supportPhone: settings.companyProfile?.supportPhone || "9876543210",
+          address: settings.companyProfile?.address || "",
+        },
         financials: {
           gstPercentage: settings.financials?.gstPercentage ?? 0,
           currency: settings.financials?.currency || "INR",
@@ -103,22 +131,42 @@ export function BusinessSettingsPage() {
     }
   }, [settings, reset]);
 
-  const onError = (errors: any) => {
-    console.warn("[BusinessSettingsPage] Validation errors:", errors);
-    const firstKey = Object.keys(errors)[0];
-    const firstVal = errors[firstKey];
-    const msg =
-      firstVal?.message ||
-      (firstVal ? (Object.values(firstVal)[0] as any) : null)?.message ||
-      "Please fill in all required settings correctly.";
-    toast.error(
-      typeof msg === "string" ? msg : "Validation error in settings form.",
-    );
+  const onError = (formErrors: any) => {
+    console.warn("[BusinessSettingsPage] Validation errors:", formErrors);
+    let msg = "Please fill in all required settings correctly.";
+    if (formErrors.operations?.cancellationCutoffTimes) {
+      const cutoffs = formErrors.operations.cancellationCutoffTimes;
+      const first = cutoffs.breakfast || cutoffs.lunch || cutoffs.dinner;
+      if (first?.message) msg = `Cutoff error: ${first.message}`;
+    } else if (formErrors.operations?.deliveryWindows) {
+      const wins = formErrors.operations.deliveryWindows;
+      const first = wins.breakfast || wins.lunch || wins.dinner;
+      const errMsg = first?.start?.message || first?.end?.message || first?.message;
+      if (errMsg) msg = `Delivery window error: ${errMsg}`;
+    } else {
+      const firstKey = Object.keys(formErrors)[0];
+      const firstVal = formErrors[firstKey];
+      const fallbackMsg =
+        firstVal?.message ||
+        (firstVal ? (Object.values(firstVal)[0] as any) : null)?.message;
+      if (fallbackMsg) msg = fallbackMsg;
+    }
+    toast.error(typeof msg === "string" ? msg : "Validation error in settings form.");
   };
 
   const onSubmit = async (data: SettingsForm) => {
     const payload = {
       ...data,
+      pricing: {
+        ...settings?.pricing,
+        deliveryCharges: data.pricing.deliveryCharges,
+        securityDepositAmount: data.pricing.securityDepositAmount,
+        mealPrices: settings?.pricing?.mealPrices || {
+          breakfast: 0,
+          lunch: 0,
+          dinner: 0,
+        },
+      },
       operations: {
         ...data.operations,
         businessHolidays: (data.operations?.businessHolidays || "")
@@ -194,22 +242,26 @@ export function BusinessSettingsPage() {
           <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
             <IndianRupee size={24} className="text-gold" /> Pricing & Financials
           </h2>
+          <div className="rounded-xl border border-gold/30 bg-gold/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-primary text-sm flex items-center gap-2">
+                <IndianRupee className="w-4 h-4 text-gold" />
+                Base Meal Pricing & Effective Dating
+              </h3>
+              <p className="text-xs text-text-muted mt-0.5">
+                Authoritative base pricing (Breakfast, Lunch, Dinner, Combos) is managed under Pricing Configuration with deterministic effective-date scheduling.
+              </p>
+            </div>
+            <Link
+              to="/admin/pricing"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-secondary px-4 py-2 text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0 shadow-sm"
+            >
+              Manage Base Pricing
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
           <div className="grid md:grid-cols-3 gap-6">
-            <Input
-              label="Breakfast Price (₹)"
-              type="number"
-              {...register("pricing.mealPrices.breakfast")}
-            />
-            <Input
-              label="Lunch Price (₹)"
-              type="number"
-              {...register("pricing.mealPrices.lunch")}
-            />
-            <Input
-              label="Dinner Price (₹)"
-              type="number"
-              {...register("pricing.mealPrices.dinner")}
-            />
             <Input
               label="Standard Delivery (₹)"
               type="number"
@@ -242,24 +294,153 @@ export function BusinessSettingsPage() {
           </div>
         </Card>
 
-        {/* Operations */}
+        {/* OPERATIONAL SETTINGS */}
+        <Card className="p-6 space-y-6 shadow-sm border-primary/20 bg-primary/5" data-testid="operational-settings-card">
+          <div className="border-b border-primary/10 pb-4">
+            <h2 className="text-xl font-bold text-primary flex items-center gap-3 font-display">
+              <Clock size={24} className="text-gold" /> OPERATIONAL SETTINGS
+            </h2>
+            <p className="text-xs text-text-muted mt-1">
+              Authoritative meal cutoff times and delivery windows. Enforced at runtime for customer actions and snapshotted into generated orders.
+            </p>
+          </div>
+
+          {/* Cutoff Times */}
+          <div>
+            <h3 className="text-sm font-bold text-primary mb-1 flex items-center gap-2">
+              <Clock size={16} className="text-rose-500" /> Cutoff Times (24h)
+            </h3>
+            <p className="text-xs text-text-muted mb-4">
+              Modifications, cancellations, and add-on requests for today must occur strictly before these times.
+            </p>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <Input
+                  id="cutoff-breakfast"
+                  label="Breakfast Cutoff"
+                  type="time"
+                  error={errors.operations?.cancellationCutoffTimes?.breakfast?.message}
+                  {...register("operations.cancellationCutoffTimes.breakfast")}
+                />
+              </div>
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <Input
+                  id="cutoff-lunch"
+                  label="Lunch Cutoff"
+                  type="time"
+                  error={errors.operations?.cancellationCutoffTimes?.lunch?.message}
+                  {...register("operations.cancellationCutoffTimes.lunch")}
+                />
+              </div>
+              <div className="bg-background p-4 rounded-xl border border-primary/10">
+                <Input
+                  id="cutoff-dinner"
+                  label="Dinner Cutoff"
+                  type="time"
+                  error={errors.operations?.cancellationCutoffTimes?.dinner?.message}
+                  {...register("operations.cancellationCutoffTimes.dinner")}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Windows */}
+          <div>
+            <h3 className="text-sm font-bold text-primary mb-1 flex items-center gap-2">
+              <Truck size={16} className="text-gold" /> Delivery Windows (24h)
+            </h3>
+            <p className="text-xs text-text-muted mb-4">
+              Delivery timeframe windows snapshotted into daily generated orders at order creation.
+            </p>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+                <h4 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
+                  Breakfast
+                </h4>
+                <div className="space-y-3">
+                  <Input
+                    id="delivery-breakfast-start"
+                    label="Start Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.breakfast?.start?.message || (errors.operations?.deliveryWindows?.breakfast as any)?.message}
+                    {...register("operations.deliveryWindows.breakfast.start")}
+                  />
+                  <Input
+                    id="delivery-breakfast-end"
+                    label="End Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.breakfast?.end?.message}
+                    {...register("operations.deliveryWindows.breakfast.end")}
+                  />
+                </div>
+              </div>
+              <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+                <h4 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
+                  Lunch
+                </h4>
+                <div className="space-y-3">
+                  <Input
+                    id="delivery-lunch-start"
+                    label="Start Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.lunch?.start?.message || (errors.operations?.deliveryWindows?.lunch as any)?.message}
+                    {...register("operations.deliveryWindows.lunch.start")}
+                  />
+                  <Input
+                    id="delivery-lunch-end"
+                    label="End Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.lunch?.end?.message}
+                    {...register("operations.deliveryWindows.lunch.end")}
+                  />
+                </div>
+              </div>
+              <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
+                <h4 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
+                  Dinner
+                </h4>
+                <div className="space-y-3">
+                  <Input
+                    id="delivery-dinner-start"
+                    label="Start Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.dinner?.start?.message || (errors.operations?.deliveryWindows?.dinner as any)?.message}
+                    {...register("operations.deliveryWindows.dinner.start")}
+                  />
+                  <Input
+                    id="delivery-dinner-end"
+                    label="End Time"
+                    type="time"
+                    error={errors.operations?.deliveryWindows?.dinner?.end?.message}
+                    {...register("operations.deliveryWindows.dinner.end")}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* General Operations */}
         <Card className="p-6 space-y-6 shadow-sm border-primary/20">
           <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
-            <Clock size={24} className="text-gold" /> Operations
+            <Clock size={24} className="text-gold" /> General Operations
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <Input
+              id="operations-orderCutoffTime"
               label="Order Cutoff Time (24h)"
               type="time"
               {...register("operations.orderCutoffTime")}
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
+                id="operations-kitchenTimings-start"
                 label="Kitchen Start"
                 type="time"
                 {...register("operations.kitchenTimings.start")}
               />
               <Input
+                id="operations-kitchenTimings-end"
                 label="Kitchen End"
                 type="time"
                 {...register("operations.kitchenTimings.end")}
@@ -267,114 +448,11 @@ export function BusinessSettingsPage() {
             </div>
             <div className="md:col-span-2">
               <Input
+                id="operations-businessHolidays"
                 label="Business Holidays (YYYY-MM-DD, comma separated)"
                 placeholder="2025-01-01, 2025-08-15"
                 {...register("operations.businessHolidays")}
               />
-            </div>
-          </div>
-
-          {/* Cancellation Cutoff Times */}
-          <div>
-            <h3 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
-              <Clock size={16} className="text-rose-500" /> Cancellation Cutoff
-              Times
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Customers must cancel before these times for each meal type to
-              avoid being charged.
-            </p>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-background p-4 rounded-xl border border-primary/10">
-                <p className="text-xs font-bold text-primary mb-2">
-                  Breakfast cutoff
-                </p>
-                <Input
-                  label="Cancel before"
-                  type="time"
-                  {...register("operations.cancellationCutoffTimes.breakfast")}
-                />
-              </div>
-              <div className="bg-background p-4 rounded-xl border border-primary/10">
-                <p className="text-xs font-bold text-primary mb-2">
-                  Lunch cutoff
-                </p>
-                <Input
-                  label="Cancel before"
-                  type="time"
-                  {...register("operations.cancellationCutoffTimes.lunch")}
-                />
-              </div>
-              <div className="bg-background p-4 rounded-xl border border-primary/10">
-                <p className="text-xs font-bold text-primary mb-2">
-                  Dinner cutoff
-                </p>
-                <Input
-                  label="Cancel before"
-                  type="time"
-                  {...register("operations.cancellationCutoffTimes.dinner")}
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Delivery Windows */}
-        <Card className="p-6 space-y-6 shadow-sm border-primary/20 bg-primary/5">
-          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
-            <Truck size={24} className="text-gold" /> Delivery Windows
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
-              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
-                Breakfast
-              </h3>
-              <div className="space-y-3">
-                <Input
-                  label="Start"
-                  type="time"
-                  {...register("operations.deliveryWindows.breakfast.start")}
-                />
-                <Input
-                  label="End"
-                  type="time"
-                  {...register("operations.deliveryWindows.breakfast.end")}
-                />
-              </div>
-            </div>
-            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
-              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
-                Lunch
-              </h3>
-              <div className="space-y-3">
-                <Input
-                  label="Start"
-                  type="time"
-                  {...register("operations.deliveryWindows.lunch.start")}
-                />
-                <Input
-                  label="End"
-                  type="time"
-                  {...register("operations.deliveryWindows.lunch.end")}
-                />
-              </div>
-            </div>
-            <div className="space-y-4 bg-background p-5 rounded-2xl border border-primary/10 shadow-sm">
-              <h3 className="font-bold text-primary text-base border-b border-primary/10 pb-2">
-                Dinner
-              </h3>
-              <div className="space-y-3">
-                <Input
-                  label="Start"
-                  type="time"
-                  {...register("operations.deliveryWindows.dinner.start")}
-                />
-                <Input
-                  label="End"
-                  type="time"
-                  {...register("operations.deliveryWindows.dinner.end")}
-                />
-              </div>
             </div>
           </div>
         </Card>

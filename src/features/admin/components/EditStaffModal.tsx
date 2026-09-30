@@ -114,21 +114,22 @@ export function EditStaffModal({ user, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-900/50 backdrop-blur-sm">
-      <Card className="w-full max-w-lg bg-white overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-rice-200">
-          <h2 className="text-xl font-semibold text-ink-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-ink-900/50 backdrop-blur-sm overflow-y-auto">
+      <Card className="w-full max-w-lg bg-white overflow-hidden flex flex-col max-h-[90dvh] my-auto">
+        <div className="flex items-center justify-between p-4 border-b border-rice-200 shrink-0">
+          <h2 className="text-lg sm:text-xl font-semibold text-ink-900">
             Edit Staff Account
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors"
+            aria-label="Close"
+            className="p-2 text-ink-500 hover:text-ink-900 rounded-full hover:bg-rice-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="overflow-y-auto p-6">
+        <div className="overflow-y-auto p-4 sm:p-6">
           <form
             id="edit-staff-form"
             onSubmit={handleSubmit(onSubmit)}
@@ -206,7 +207,7 @@ export function EditStaffModal({ user, onClose }: Props) {
               <h3 className="text-sm font-bold text-ink-900 mb-2">
                 Salary Details
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-ink-700">
                     Base Salary (Monthly) ₹

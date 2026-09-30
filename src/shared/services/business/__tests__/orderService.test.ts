@@ -910,6 +910,7 @@ describe("orderService", () => {
         planTier: "standard",
         quantity: 1,
         pricePerDaySnapshot: 150,
+        pricingMatrixSnapshot: { lunch: 150 },
         mealPreferences: [{ mealType: "lunch" }],
       } as any;
 

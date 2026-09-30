@@ -1,43 +1,30 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as readline from 'readline';
 
+import * as readline from 'readline';
 import * as dotenv from 'dotenv';
 
-// Load env variables from .env.local
+// 1. Load .env.local so project ID etc. are available to the guard
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
-const useEmulators = process.env.VITE_USE_FIREBASE_EMULATORS === 'true';
-if (useEmulators) {
-  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
-  console.log('🔌 Running in EMULATOR mode. Pointing to local Firestore (8080) and Auth (9099) emulators.');
-}
+// 2. Point at local emulators BEFORE the guard check
+process.env.FIRESTORE_EMULATOR_HOST =
+  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+process.env.FIREBASE_AUTH_EMULATOR_HOST =
+  process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
+
+// 3. Guard – blocks immediately if not targeting a safe emulator environment
+import { enforceEmulatorGuard } from '../src/shared/lib/environmentGuard.node';
+enforceEmulatorGuard();
+
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
 const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'demo-test';
-const serviceAccountPath = path.resolve(__dirname, '../serviceAccountKey.json');
 
 if (!getApps().length) {
-  if (useEmulators) {
-    initializeApp({ projectId });
-    console.log(`Initialized Firebase Admin for Emulator Suite (Project: ${projectId})`);
-  } else if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = require(serviceAccountPath);
-    initializeApp({
-      credential: cert(serviceAccount),
-      projectId
-    });
-    console.log(`Initialized Firebase Admin using serviceAccountKey.json for project: ${projectId}`);
-  } else {
-    // Fallback to Application Default Credentials with Project ID
-    initializeApp({
-      projectId
-    });
-    console.log(`Initialized Firebase Admin using Application Default Credentials for project: ${projectId}`);
-  }
+  initializeApp({ projectId });
+  console.log(`🔌 Emulator mode — project: ${projectId}`);
 }
 
 const db = getFirestore();

@@ -115,6 +115,11 @@ export interface Order {
   itemsLabel: string;
   selectedOptionId: string | null;
   price: number; // INR, snapshot at creation time
+  isAddon?: boolean;
+  addonId?: string;
+  addonName?: string;
+  addonQuantity?: number;
+  addonUnitPrice?: number;
   currency: "INR";
   status: OrderStatus;
   /** Optional structured cancellation reason. `undefined` for non-cancelled orders and historic records. */
@@ -125,6 +130,7 @@ export interface Order {
   deliveryPartnerId: ID | null; // set by zone-based auto-assignment
   deliveryWindow: TimeWindow | null;
   paymentId: ID | null; // null until paid (one-time orders) or always null for orders billed via the parent subscription's invoice
+  invoiceId?: ID | null; // Associated invoice for add-on orders or billed orders
   operatorId?: ID; // The kitchen staff member currently handling this order
   routeSequence?: number; // Future compatibility: sorting optimized routes
   proofOfDeliveryUrl?: string; // Future compatibility: image upload for PoD

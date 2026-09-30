@@ -79,4 +79,13 @@ export const queryKeys = {
   settings: {
     business: ["settings", "business"] as const,
   },
+  pricing: {
+    all: ["pricingConfigurations"] as const,
+    effective: (date: string, scope: string = "general") =>
+      ["pricingConfigurations", "effective", date, scope] as const,
+  },
+  addons: {
+    all: ["addons"] as const,
+    detail: (id: string) => ["addons", "detail", id] as const,
+  },
 } as const;

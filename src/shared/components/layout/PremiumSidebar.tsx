@@ -54,7 +54,7 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
           "border-r border-primary/10 shadow-xl lg:static",
           "overflow-hidden",
           // Mobile: hidden off-screen by default, slides in when isOpen
-          isOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0",
+          isOpen ? "translate-x-0 w-72 max-w-[85vw]" : "-translate-x-full lg:translate-x-0",
           desktopWidth,
         )}
       >

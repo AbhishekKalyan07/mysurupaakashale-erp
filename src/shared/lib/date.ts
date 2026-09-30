@@ -13,6 +13,8 @@ export const getTodayInTimezone = (
   }).format(date);
 };
 
+export const getTodayIST = (): string => getTodayInTimezone("Asia/Kolkata");
+
 /**
  * Extracts the hour (0-23) of a given date in the specified IANA timezone (default: Asia/Kolkata).
  */
@@ -55,4 +57,25 @@ export const isSundayInTimezone = (
   return getDayOfWeekInTimezone(dateStr, timezone) === "Sunday";
 };
 
+/**
+ * Calculates subscription end date based on delivery days (weekly: 5 days, monthly: 25 days),
+ * skipping Sundays in Asia/Kolkata timezone.
+ */
+export const calculateSubscriptionEndDate = (
+  start: string,
+  cycle: "weekly" | "monthly" = "monthly",
+): string => {
+  if (!start || !start.includes("-")) return "";
+  const [y, m, d] = start.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return "";
+  const cur = new Date(Date.UTC(y, m - 1, d, 6, 30));
+  let remainingDays = cycle === "weekly" ? 5 : 25;
+  while (remainingDays > 0) {
+    cur.setUTCDate(cur.getUTCDate() + 1);
+    if (cur.getUTCDay() !== 0) {
+      remainingDays--;
+    }
+  }
+  return cur.toISOString().split("T")[0];
+};
 

@@ -6,8 +6,10 @@ test.describe('Customer Order History', () => {
     const page = new CustomerPage(customerPage);
     await page.gotoDashboard();
     
-    // Navigate to Subscriptions first
-    await page.navigateToSubscriptions();
+    // Navigate to Subscriptions via sidebar link (client-side navigation)
+    const subLink = customerPage.locator('a[href="/customer/subscription"]').first();
+    await expect(subLink).toBeVisible();
+    await subLink.click();
     
     // Click View Order History
     const viewHistoryBtn = customerPage.locator('button:has-text("View Order History")');

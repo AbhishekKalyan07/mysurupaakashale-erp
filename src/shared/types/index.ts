@@ -27,6 +27,10 @@ export type {
   DailyMenu,
   PublishStatus,
   MealMenu,
+  CreateMealPlanInput,
+  UpdateMealPlanInput,
+  CreateMealOptionInput,
+  UpdateMealOptionInput,
 } from "./mealPlan.types";
 export { MEAL_TYPES } from "./mealPlan.types";
 
@@ -99,3 +103,16 @@ export type {
 } from "./feedback.types";
 
 export type { Holiday, HolidayCreateResult } from "./holiday.types";
+
+export type {
+  BasePricingMatrix,
+  PricingConfigStatus,
+  PricingConfiguration,
+} from "./pricing.types";
+
+export type {
+  Addon,
+  AddonItem,
+  CreateAddonInput,
+  UpdateAddonInput,
+} from "./addon.types";

@@ -79,6 +79,20 @@ export function useCreateDailyMenu() {
   });
 }
 
+export function useHasOrdersForDate(date: string | null | undefined) {
+  return useQuery({
+    queryKey: ["orders", "hasOrdersForDate", date],
+    queryFn: async () => {
+      if (!date) return false;
+      const { orderRepository } = await import(
+        "@/shared/services/firestore/orderRepository"
+      );
+      return orderRepository.hasOrdersForDate(date);
+    },
+    enabled: !!date,
+  });
+}
+
 export function useUpdateDailyMenu() {
   const queryClient = useQueryClient();
   const { role } = useAuth();
@@ -91,6 +105,24 @@ export function useUpdateDailyMenu() {
       id: string;
       data: Partial<DailyMenu>;
     }) => {
+      const targetMenu = await dailyMenuRepository.getById(id);
+      if (!targetMenu) {
+        throw new Error("Menu not found");
+      }
+
+      // If menu is published, ensure no orders have already been generated for this date
+      if (targetMenu.status === "published") {
+        const { orderRepository } = await import(
+          "@/shared/services/firestore/orderRepository"
+        );
+        const hasOrders = await orderRepository.hasOrdersForDate(targetMenu.date);
+        if (hasOrders) {
+          throw new Error(
+            `Cannot modify menu: Orders have already been generated for ${targetMenu.date}. Existing order snapshots must be preserved.`,
+          );
+        }
+      }
+
       await dailyMenuRepository.update(id, {
         ...data,
         updatedAt: Timestamp.now(),
@@ -98,14 +130,20 @@ export function useUpdateDailyMenu() {
 
       const user = getAuth().currentUser;
       if (user) {
+        const action =
+          targetMenu.status === "published" ? "menu_revised" : "menu_edited";
         await auditRepository.logAction(
-          "menu_edited",
+          action,
           user.uid,
           role || "kitchen",
           user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           id,
           "menu",
-          { updatedKeys: Object.keys(data) },
+          {
+            updatedKeys: Object.keys(data),
+            date: targetMenu.date,
+            status: targetMenu.status,
+          },
         );
       }
       return id;
@@ -117,6 +155,8 @@ export function useUpdateDailyMenu() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.kitchen.dailyMenuDetail(id),
       });
+      queryClient.invalidateQueries({ queryKey: ["kitchen", "dailyMenu"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "hasOrdersForDate"] });
       toast.success("Menu updated successfully");
     },
     onError: (err: unknown) => {
@@ -163,6 +203,20 @@ export function usePublishDailyMenu() {
   return useMutation({
     mutationFn: async (menuId: string) => {
       const user = getAuth().currentUser;
+      const targetMenu = await dailyMenuRepository.getById(menuId);
+      if (!targetMenu) {
+        throw new Error("Menu not found");
+      }
+
+      // Archive any currently published menu for the same date to maintain single published menu invariant
+      const existingPublished = await dailyMenuRepository.getPublishedByDate(targetMenu.date);
+      if (existingPublished && existingPublished.id !== menuId) {
+        await dailyMenuRepository.update(existingPublished.id, {
+          status: "archived",
+          updatedAt: Timestamp.now(),
+        });
+      }
+
       // Client-side publish
       await dailyMenuRepository.update(menuId, {
         status: "published",
@@ -179,6 +233,7 @@ export function usePublishDailyMenu() {
           user.displayName || (role === "admin" ? "Admin" : "Kitchen Staff"),
           menuId,
           "menu",
+          { date: targetMenu.date },
         );
       }
       return menuId;
@@ -191,6 +246,7 @@ export function usePublishDailyMenu() {
         queryKey: queryKeys.kitchen.dailyMenuDetail(menuId),
       });
       queryClient.invalidateQueries({ queryKey: ["kitchen", "dailyMenu"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "hasOrdersForDate"] });
       toast.success("Menu published successfully");
     },
     onError: (err: unknown) => {

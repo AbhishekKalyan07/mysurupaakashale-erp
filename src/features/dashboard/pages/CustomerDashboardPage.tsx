@@ -14,11 +14,11 @@ import {
 import { useMealPlans } from "@/features/customer/hooks/useMealPlans";
 import { useCustomerAddresses } from "@/features/customer/hooks/useCustomerAddresses";
 import { useDeliveryPartnerProfile } from "@/features/delivery/hooks/useDeliveryPartnerProfile";
-import type { CustomerProfile } from "@/shared/types";
+import type { CustomerProfile, MealType, Order } from "@/shared/types";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Order } from "@/shared/types";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { operationalSettingsService } from "@/shared/services/business/operationalSettingsService";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { GetAppInlineCard } from "@/features/customer/components/GetAppModal";
@@ -51,9 +51,12 @@ import { ResumeDeliveryModal } from "@/features/customer/components/ResumeDelive
 import { PauseSubscriptionModal } from "@/features/customer/components/PauseSubscriptionModal";
 import { calculateDailyPrice } from "@/shared/utils/pricing";
 import { calculateAccruedBill } from "@/shared/utils/billing";
-import { Truck, XCircle, PauseCircle } from "lucide-react";
+import { Truck, XCircle, PauseCircle, PlusCircle } from "lucide-react";
 import { PauseDeliveryModal } from "@/features/customer/components/PauseDeliveryModal";
 import { CancelTodayModal } from "@/features/customer/components/CancelTodayModal";
+import { ChangeTodayMealModal } from "@/features/customer/components/ChangeTodayMealModal";
+import { AddTodayAddonModal } from "@/features/customer/components/AddTodayAddonModal";
+import { pricingService } from "@/shared/services/business/pricingService";
 
 const addressFormSchema = z.object({
   label: z.string().min(1, "Label is required (e.g., Home, Office)").max(50),
@@ -133,6 +136,9 @@ export function CustomerDashboardPage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
+  const [changeOptionOrder, setChangeOptionOrder] = useState<Order | null>(null);
+  const [showAddAddonModal, setShowAddAddonModal] = useState(false);
+  const [addonDefaultMeal, setAddonDefaultMeal] = useState<MealType | undefined>(undefined);
   const [showSkipDayModal, setShowSkipDayModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -410,6 +416,18 @@ export function CustomerDashboardPage() {
                     ) : subscription.status === "active" ? (
                       <>
                         <Button
+                          data-testid="add-addon-button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setAddonDefaultMeal(undefined);
+                            setShowAddAddonModal(true);
+                          }}
+                          className="text-gold-dark border-gold/30 hover:bg-gold/10 font-bold text-xs"
+                        >
+                          + Add-on <PlusCircle size={14} className="ml-1.5" />
+                        </Button>
+                        <Button
                           variant="secondary"
                           size="sm"
                           onClick={() => setShowCancelTodayModal(true)}
@@ -488,7 +506,7 @@ export function CustomerDashboardPage() {
                 Deliveries
               </span>
               {todayOrders && todayOrders.length > 0 && (
-                <span className="text-xs font-sans font-bold text-gold bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
+                <span className="text-xs font-sans font-bold text-gold-dark bg-gold/10 border border-gold/20 px-3 py-1.5 rounded-lg shadow-sm">
                   Total: ₹
                   {(() => {
                     if (!subscription) {
@@ -500,37 +518,36 @@ export function CustomerDashboardPage() {
                         )
                         .reduce((sum, order) => sum + (order.price || 0), 0);
                     }
-                    const activeTodayOrders = todayOrders.filter(
+                    const activeTodaySubOrders = todayOrders.filter(
                       (o) =>
                         o.subscriptionId === subscription.id &&
+                        !o.isAddon &&
                         o.status !== "cancelled" &&
                         o.status !== "skipped",
                     );
-                    const meals = activeTodayOrders.map((o) => o.mealType);
+                    const meals = activeTodaySubOrders.map((o) => o.mealType);
                     const sortedMeals = [];
                     if (meals.includes("breakfast")) sortedMeals.push("breakfast");
                     if (meals.includes("lunch")) sortedMeals.push("lunch");
                     if (meals.includes("dinner")) sortedMeals.push("dinner");
                     const key = sortedMeals.join("_");
-                    const matrix = subscription.pricingMatrixSnapshot as
-                      | Record<string, number>
-                      | undefined;
                     const subCost =
-                      matrix && matrix[key] !== undefined
-                        ? matrix[key] * (subscription.quantity || 1)
-                        : sortedMeals.length === 0
-                          ? 0
-                          : (subscription.pricePerDaySnapshot || 0) *
-                            (subscription.quantity || 1);
-                    const nonSubCost = todayOrders
+                      sortedMeals.length > 0
+                        ? pricingService.calculateAggregatedAmount(
+                            subscription,
+                            key,
+                            subscription.quantity || 1,
+                          )
+                        : 0;
+                    const nonSubAndAddonCost = todayOrders
                       .filter(
                         (o) =>
                           o.status !== "cancelled" &&
                           o.status !== "skipped" &&
-                          o.subscriptionId !== subscription.id,
+                          (o.subscriptionId !== subscription.id || o.isAddon),
                       )
                       .reduce((sum, order) => sum + (order.price || 0), 0);
-                    return subCost + nonSubCost;
+                    return subCost + nonSubAndAddonCost;
                   })()}
                 </span>
               )}
@@ -600,10 +617,39 @@ export function CustomerDashboardPage() {
                                 </Badge>
                               </div>
 
+                              {subscription &&
+                                order.status === "scheduled" &&
+                                (order.kitchenStatus === "scheduled" || !order.kitchenStatus) && (
+                                  <div className="pt-1 flex flex-wrap gap-2">
+                                    {order.mealType !== "breakfast" && !order.isAddon && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setChangeOptionOrder(order)}
+                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-gold-dark hover:text-primary font-sans transition-colors cursor-pointer bg-gold/10 hover:bg-gold/20 px-2.5 py-1 rounded-lg border border-gold/20"
+                                      >
+                                        <UtensilsCrossed size={12} /> Change Option
+                                      </button>
+                                    )}
+                                    {!order.isAddon && (
+                                      <button
+                                        type="button"
+                                        data-testid={`add-addon-meal-${order.mealType}`}
+                                        onClick={() => {
+                                          setAddonDefaultMeal(order.mealType);
+                                          setShowAddAddonModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-gold-dark font-sans transition-colors cursor-pointer bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg border border-primary/20"
+                                      >
+                                        <PlusCircle size={12} /> Add-on
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
                               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                                 {order.driverName ? (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                    <span className="text-text-muted text-[10px] font-bold uppercase tracking-wider">
                                       Driver
                                     </span>
                                     <span className="text-primary font-medium">
@@ -617,7 +663,7 @@ export function CustomerDashboardPage() {
                                   </div>
                                 ) : (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                    <span className="text-text-muted text-[10px] font-bold uppercase tracking-wider">
                                       Location
                                     </span>
                                     <span className="text-text-muted font-medium">
@@ -629,7 +675,7 @@ export function CustomerDashboardPage() {
                                 {order.estimatedETA &&
                                   order.status !== "delivered" && (
                                     <div className="flex flex-col">
-                                      <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                      <span className="text-text-muted text-[10px] font-bold uppercase tracking-wider">
                                         ETA
                                       </span>
                                       <span className="text-gold-dark font-bold">
@@ -641,7 +687,7 @@ export function CustomerDashboardPage() {
                                 {order.status === "delivered" &&
                                   order.updatedAt && (
                                     <div className="flex flex-col">
-                                      <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                      <span className="text-text-muted text-[10px] font-bold uppercase tracking-wider">
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
@@ -660,7 +706,7 @@ export function CustomerDashboardPage() {
 
                                 {order.billingStatus && (
                                   <div className="flex flex-col">
-                                    <span className="text-text-faint text-[10px] font-bold uppercase tracking-wider">
+                                    <span className="text-text-muted text-[10px] font-bold uppercase tracking-wider">
                                       Billing
                                     </span>
                                     <span className="text-primary font-medium">
@@ -693,7 +739,7 @@ export function CustomerDashboardPage() {
                     🌅 <span className="tracking-wide">Breakfast</span>
                   </strong>
                   <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
-                    07:00 AM - 09:00 AM
+                    {operationalSettingsService.getDeliveryWindowSync("breakfast").start} - {operationalSettingsService.getDeliveryWindowSync("breakfast").end}
                   </span>
                 </li>
                 <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 pb-3 border-b border-primary/5">
@@ -701,7 +747,7 @@ export function CustomerDashboardPage() {
                     ☀️ <span className="tracking-wide">Lunch</span>
                   </strong>
                   <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
-                    12:30 PM - 02:30 PM
+                    {operationalSettingsService.getDeliveryWindowSync("lunch").start} - {operationalSettingsService.getDeliveryWindowSync("lunch").end}
                   </span>
                 </li>
                 <li className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5">
@@ -709,13 +755,13 @@ export function CustomerDashboardPage() {
                     🌙 <span className="tracking-wide">Dinner</span>
                   </strong>
                   <span className="text-text-muted font-data font-medium text-xs sm:text-sm bg-surface-2 px-2.5 py-1 rounded-md border border-border whitespace-nowrap self-start sm:self-auto">
-                    07:00 PM - 09:00 PM
+                    {operationalSettingsService.getDeliveryWindowSync("dinner").start} - {operationalSettingsService.getDeliveryWindowSync("dinner").end}
                   </span>
                 </li>
               </ul>
               <p className="text-text-muted mt-4 text-xs font-medium leading-relaxed bg-primary/5 p-3 rounded-lg border border-primary/10">
                 To cancel a specific meal, please do so before the cut-off time:
-                Breakfast (5 AM), Lunch (10:30 AM), Dinner (4 PM).
+                Breakfast ({operationalSettingsService.getMealCutoffSync("breakfast")}), Lunch ({operationalSettingsService.getMealCutoffSync("lunch")}), Dinner ({operationalSettingsService.getMealCutoffSync("dinner")}).
               </p>
             </div>
           </Card>
@@ -760,7 +806,7 @@ export function CustomerDashboardPage() {
 
                 <div className="pt-4 border-t border-primary/10 mt-4 space-y-4">
                   <p className="text-[10px] text-text-muted font-sans font-bold uppercase tracking-wider">
-                    Confirm or edit the auto-filled details below
+                    Enter or confirm the address details below
                   </p>
 
                   <Input
@@ -907,6 +953,22 @@ export function CustomerDashboardPage() {
           />
         )}
 
+        {changeOptionOrder && subscription && (
+          <ChangeTodayMealModal
+            subscription={subscription}
+            order={changeOptionOrder}
+            onClose={() => setChangeOptionOrder(null)}
+          />
+        )}
+
+        {showAddAddonModal && subscription && (
+          <AddTodayAddonModal
+            subscription={subscription}
+            defaultMealType={addonDefaultMeal}
+            onClose={() => setShowAddAddonModal(false)}
+          />
+        )}
+
         {showSkipDayModal && subscription && (
           <PauseDeliveryModal
             subscription={subscription}
@@ -998,7 +1060,7 @@ function TrialMealModal({ onClose, uid, addresses, plans, profile }: any) {
         zoneId,
         kitchenId,
         deliveryPartnerId: null,
-        deliveryWindow: null,
+        deliveryWindow: operationalSettingsService.getDeliveryWindowSync("lunch"),
         paymentId: null,
         createdAt:
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,

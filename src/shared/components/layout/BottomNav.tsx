@@ -76,12 +76,15 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: "Notifications", to: "/admin/notifications", icon: Bell },
     { label: "Customers", to: "/admin/customers", icon: Users },
     { label: "Subscriptions", to: "/admin/subscriptions", icon: ClipboardList },
+    { label: "Payments", to: "/admin/payments", icon: Receipt },
     { label: "Staff", to: "/admin/staff", icon: UserCheck },
+    { label: "Menus", to: "/admin/menus", icon: ClipboardList },
     { label: "Holidays", to: "/admin/holidays", icon: CalendarX },
     { label: "Accounts", to: "/admin/accounts", icon: CreditCard },
     { label: "Analytics", to: "/admin/analytics", icon: BarChart3 },
     { label: "Complaints", to: "/admin/complaints", icon: Receipt },
     { label: "Audit Logs", to: "/admin/audit", icon: ClipboardList },
+    { label: "Zones", to: "/admin/zones", icon: Settings },
     { label: "Settings", to: "/admin/settings", icon: Settings },
   ],
   [ROLES.KITCHEN]: [],
@@ -129,7 +132,7 @@ export function BottomNav({ role }: BottomNavProps) {
 
           <div
             className={cn(
-              "fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-all duration-300 ease-in-out",
+              "fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-card rounded-t-[24px] border-t border-border shadow-xl lg:hidden transition-all duration-300 ease-in-out max-h-[80vh] overflow-y-auto",
               showMore
                 ? "translate-y-0 opacity-100 pointer-events-auto"
                 : "translate-y-full opacity-0 pointer-events-none invisible",

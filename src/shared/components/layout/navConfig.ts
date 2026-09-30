@@ -19,6 +19,9 @@ import {
   ClipboardList,
   Bell,
   Smartphone,
+  IndianRupee,
+  Utensils,
+  UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 import { ROLES, type Role } from "@/shared/constants/roles";
@@ -52,6 +55,9 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Orders", to: "/admin/orders", icon: Package },
         { label: "Kitchen", to: "/admin/kitchen", icon: ChefHat },
         { label: "Daily Menus", to: "/admin/menus", icon: BookOpen },
+        { label: "Meal Plans", to: "/admin/meal-plans", icon: UtensilsCrossed },
+        { label: "Add-ons", to: "/admin/addons", icon: Utensils },
+        { label: "Pricing", to: "/admin/pricing", icon: IndianRupee },
         { label: "Delivery", to: "/admin/delivery", icon: Truck },
         { label: "Holidays", to: "/admin/holidays", icon: CalendarX },
       ],

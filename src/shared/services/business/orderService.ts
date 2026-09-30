@@ -6,6 +6,7 @@ import {
   serverTimestamp,
   where,
   doc,
+  collection,
 } from "firebase/firestore";
 import { db, auth } from "@/shared/lib/firebase";
 import { orderRepository } from "../firestore/orderRepository";
@@ -16,6 +17,7 @@ import { mealPlanRepository } from "../firestore/mealPlanRepository";
 import { deliveryZoneRepository } from "../firestore/deliveryZoneRepository";
 import { notifyDailyOrdersGenerated } from "../firestore/notificationService";
 import { holidayRepository } from "../firestore/holidayRepository";
+import { dailyMenuRepository } from "../firestore/dailyMenuRepository";
 import type {
   Order,
   Subscription,
@@ -23,9 +25,50 @@ import type {
   DeliveryPartnerProfile,
   MealPlan,
   MealType,
+  DailyMenu,
 } from "@/shared/types";
 import { getTodayInTimezone, isSundayInTimezone } from "@/shared/lib/date";
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
+import { pricingService } from "./pricingService";
+import { operationalSettingsService } from "./operationalSettingsService";
+
+export interface RemoveTodayMealResult {
+  success: boolean;
+  cancelled: boolean;
+  orderId?: string;
+  cancellationAmount: number;
+  status: string;
+  mealType: MealType;
+  date: string;
+}
+
+export interface ChangeTodayMealOptionResult {
+  success: boolean;
+  changed: boolean;
+  orderId: string;
+  mealType: MealType;
+  date: string;
+  previousOptionId?: string | null;
+  newOptionId: string;
+  previousMealName?: string;
+  newMealName: string;
+  itemsLabel: string;
+  price: number;
+}
+
+export interface AddTodayAddonResult {
+  success: boolean;
+  orderId: string;
+  invoiceId: string;
+  mealType: MealType;
+  date: string;
+  addonId: string;
+  addonName: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  alreadyExists?: boolean;
+}
 
 /** Recursively strip `undefined` values from a plain object so Firestore never sees them. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
@@ -262,12 +305,15 @@ class OrderService {
         allZones,
         allPartners,
         todaysOrders,
+        publishedDailyMenu,
       ] = await Promise.all([
         subscriptionRepository.list(where("status", "==", "active")),
         mealPlanRepository.list(),
         deliveryZoneRepository.list(),
         userRepository.list(where("role", "==", "delivery_partner")),
         orderRepository.list(where("date", "==", today)),
+        dailyMenuRepository.getPublishedByDate(today).catch(() => null),
+        operationalSettingsService.getOperationalSettings(),
       ]);
 
       const subCustomerIds = Array.from(
@@ -348,6 +394,20 @@ class OrderService {
               continue; // Not subscribed to this meal
             }
 
+            // Scenario E: If a published Daily Menu exists for today, but this specific meal slot is marked unavailable
+            if (
+              publishedDailyMenu &&
+              publishedDailyMenu[mealType] &&
+              publishedDailyMenu[mealType].isAvailable === false
+            ) {
+              console.log(
+                `[orderService] ${mealType} is marked unavailable in published DailyMenu for ${today} — skipping order generation for sub ${sub.id}.`,
+              );
+              ordersSkipped++;
+              success = true;
+              continue;
+            }
+
             // Check cancellation (skips)
             const skipRef = doc(db, "subscriptions", sub.id, "skips", today);
             const skipDoc = await getDoc(skipRef);
@@ -397,9 +457,13 @@ class OrderService {
                   allZones,
                   mealPlans,
                   workloadMap,
+                  publishedDailyMenu,
                 );
                 order.id = existingOrder.id;
                 order.status = "scheduled";
+                (order as any).cancellationAmount = null;
+                (order as any).cancellationReason = null;
+                (order as any).cancelledAt = null;
                 ordersToCreate.push(order);
                 success = true;
                 continue;
@@ -428,6 +492,7 @@ class OrderService {
                 allZones,
                 mealPlans,
                 workloadMap,
+                publishedDailyMenu,
               );
               order.status = "cancelled";
               // kitchenStatus is not applicable for cancelled orders
@@ -449,6 +514,7 @@ class OrderService {
               allZones,
               mealPlans,
               workloadMap,
+              publishedDailyMenu,
             );
             ordersToCreate.push(order);
             success = true;
@@ -661,6 +727,849 @@ class OrderService {
     }
   }
 
+  private async assertOwnership(subscription: Subscription): Promise<{
+    uid: string;
+    role: string;
+    name: string;
+  }> {
+    const caller = auth.currentUser;
+    if (!caller?.uid) {
+      throw new Error("Not authenticated");
+    }
+    if (caller.uid === "system") {
+      return {
+        uid: "system",
+        role: "system",
+        name: "System Auto-Generator",
+      };
+    }
+    if (caller.uid === subscription.customerId) {
+      return {
+        uid: caller.uid,
+        role: "customer",
+        name: caller.displayName || caller.email || "Customer",
+      };
+    }
+    // Check if caller is admin
+    try {
+      const callerProfile = await userRepository.getById(caller.uid);
+      if (callerProfile?.role === "admin") {
+        return {
+          uid: caller.uid,
+          role: "admin",
+          name:
+            callerProfile.fullName ||
+            caller.displayName ||
+            caller.email ||
+            "Admin",
+        };
+      }
+    } catch {
+      // In tests or if getById fails
+    }
+    throw new Error("Unauthorized: You do not own this subscription");
+  }
+
+  /**
+   * Adds a single meal order for today for a given subscription.
+   * Enforces cutoff windows, removes existing skips if present, and preserves idempotency.
+   * Returns the number of orders created (0 or 1).
+   */
+  async addTodayMeal(
+    subscriptionId: string,
+    mealType: import("@/shared/types").MealType,
+    nowOverride?: Date,
+  ): Promise<number> {
+    const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+    const actor = await this.assertOwnership(subscription);
+    if (subscription.status !== "active" && subscription.status !== "paused") {
+      throw new Error(`Subscription ${subscriptionId} is not active`);
+    }
+    if (subscription.startDate && subscription.startDate > today) {
+      throw new Error(`Subscription ${subscriptionId} hasn't started yet`);
+    }
+    if (subscription.endDate && subscription.endDate < today) {
+      throw new Error(`Subscription ${subscriptionId} has already ended`);
+    }
+    // Verify requested meal is part of subscription preferences
+    const hasMeal = (subscription.mealPreferences || []).some(
+      (p) => p.mealType === mealType,
+    );
+    if (!hasMeal) {
+      throw new Error(
+        `Meal ${mealType} is not part of subscription ${subscriptionId}`,
+      );
+    }
+    // Enforce cutoff using repository validation (throws if cutoff passed)
+    await operationalSettingsService.getOperationalSettings();
+    (subscriptionRepository as any).validateSkipWindow(
+      today,
+      [mealType],
+      nowOverride,
+    );
+
+    // If previously skipped/cancelled, remove the skip entry so order can be scheduled
+    await subscriptionRepository.removeSkip(
+      subscription.id,
+      today,
+      [mealType],
+      actor.uid,
+    );
+
+    const created = await this.generateOrdersForSubscription(
+      subscription,
+      today,
+      [mealType],
+    );
+    return typeof created === "number" ? created : 0;
+  }
+
+  /**
+   * Adds an add-on item order for today for a given subscription and updates billing.
+   * Enforces authenticated ownership/admin authority, subscription eligibility,
+   * meal-specific cutoffs in Asia/Kolkata (<05:00, <10:30, <16:00, exact cutoff rejected),
+   * active add-on catalog validation, authoritative pricing snapshot (Pricing -> Order -> Billing/Invoice),
+   * idempotent transactional order and invoice creation/update, and audit logging.
+   */
+  async addTodayAddon(
+    subscriptionId: string,
+    mealType: import("@/shared/types").MealType,
+    addonId: string,
+    quantity: number = 1,
+    nowOverride?: Date,
+  ): Promise<AddTodayAddonResult> {
+    if (!["breakfast", "lunch", "dinner"].includes(mealType)) {
+      throw new Error(`Invalid meal type: ${mealType}`);
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error("Quantity must be a positive integer.");
+    }
+
+    const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+
+    // Verify authenticated ownership or admin role
+    const actor = await this.assertOwnership(subscription);
+
+    if (subscription.status !== "active" && subscription.status !== "paused") {
+      throw new Error(`Subscription ${subscriptionId} is not active`);
+    }
+    if (subscription.startDate && subscription.startDate > today) {
+      throw new Error(`Subscription ${subscriptionId} hasn't started yet`);
+    }
+    if (subscription.endDate && subscription.endDate < today) {
+      throw new Error(`Subscription ${subscriptionId} has already ended`);
+    }
+
+    // Enforce strict meal cutoff in business layer (Asia/Kolkata)
+    await operationalSettingsService.getOperationalSettings();
+    (subscriptionRepository as any).validateSkipWindow(
+      today,
+      [mealType],
+      nowOverride,
+    );
+
+    // Validate add-on against authoritative business pricing source
+    let addon = pricingService.getAddonById(addonId);
+    if (!addon) {
+      addon = await pricingService.getAddonByIdAsync(addonId);
+    }
+    if (!addon) {
+      throw new Error(`Add-on ${addonId} not found`);
+    }
+    if (!addon.isActive) {
+      throw new Error(`Add-on ${addon.name} is currently inactive`);
+    }
+    if (!addon.applicableMealTypes.includes(mealType)) {
+      throw new Error(
+        `Add-on ${addon.name} is not available for ${mealType}. Available slots: ${addon.applicableMealTypes.join(", ")}`,
+      );
+    }
+
+    // Authoritative pricing: backend-calculated amount snapshot
+    const { unitPrice, total } = pricingService.calculateAddonPrice(
+      addonId,
+      quantity,
+    );
+
+    // Resolve operational zone and kitchen
+    let resolvedZoneId = subscription.zoneId || null;
+    let resolvedKitchenId: string | null = null;
+    try {
+      const allZones = await deliveryZoneRepository.list();
+      const zone = allZones.find((z) => z.id === subscription.zoneId);
+      if (zone) {
+        resolvedKitchenId = zone.kitchenId || null;
+      }
+    } catch {}
+
+    // Deterministic add-on order ID for idempotency
+    const addonOrderId = `ord_${subscription.id}_${today}_${mealType}_addon_${addonId}`;
+    const orderRef = doc(db, "orders", addonOrderId);
+
+    // Locate or derive appropriate open invoice
+    let targetInvoiceId: string | null = null;
+    try {
+      const { accountsRepository } = await import(
+        "../firestore/accountsRepository"
+      );
+      const invoices = await accountsRepository.getInvoicesByCustomerId(
+        subscription.customerId,
+      );
+      const openInv = invoices.find(
+        (inv) =>
+          inv.subscriptionId === subscription.id &&
+          (inv.status === "issued" ||
+            inv.status === "draft" ||
+            inv.status === "overdue"),
+      );
+      if (openInv) {
+        targetInvoiceId = openInv.id;
+      }
+    } catch (err) {
+      console.warn("[orderService] Failed to query customer invoices:", err);
+    }
+
+    if (!targetInvoiceId) {
+      const effectiveEndDate = subscription.endDate || today;
+      targetInvoiceId = `inv_${subscription.id}_${effectiveEndDate}`;
+    }
+    const invoiceRef = doc(db, "invoices", targetInvoiceId);
+
+    let isDuplicate = false;
+
+    // Atomic transaction for order creation and invoice line update
+    await runTransaction(db, async (txn) => {
+      const orderSnap = await txn.get(orderRef);
+      const orderExists =
+        typeof orderSnap.exists === "function"
+          ? orderSnap.exists()
+          : Boolean(orderSnap.exists);
+      const orderData =
+        typeof orderSnap.data === "function"
+          ? (orderSnap.data() as Order)
+          : undefined;
+
+      if (orderExists && orderData && orderData.status !== "cancelled") {
+        isDuplicate = true;
+        return; // Idempotent: already created and billed
+      }
+
+      const invSnap = await txn.get(invoiceRef);
+      const invExists =
+        typeof invSnap.exists === "function"
+          ? invSnap.exists()
+          : Boolean(invSnap.exists);
+      const invData =
+        typeof invSnap.data === "function" ? (invSnap.data() as any) : undefined;
+
+      const existingLineItems =
+        invExists && invData?.lineItems ? [...invData.lineItems] : [];
+      const alreadyHasLineItem = existingLineItems.some(
+        (li: any) =>
+          li.orderId === addonOrderId ||
+          (li.addonId === addonId &&
+            li.mealType === mealType &&
+            li.orderId === addonOrderId),
+      );
+
+      const newLineItem = {
+        description: `Add-on: ${addon.name} (${mealType.toUpperCase()}) - ${quantity}x @ ₹${unitPrice}`,
+        quantity,
+        unitPrice,
+        amount: total,
+        addonId,
+        mealType,
+        orderId: addonOrderId,
+      };
+
+      const addonOrder: Partial<Order> = {
+        id: addonOrderId,
+        source: "subscription",
+        customerId: subscription.customerId,
+        subscriptionId: subscription.id,
+        planTier: subscription.planTier || "regular",
+        mealType,
+        date: today,
+        mealName: `${addon.name} (Add-on)`,
+        itemsLabel: `${addon.name} x${quantity}`,
+        mealQuantity: quantity,
+        price: total,
+        currency: "INR",
+        isAddon: true,
+        addonId,
+        addonName: addon.name,
+        addonQuantity: quantity,
+        addonUnitPrice: unitPrice,
+        status: "scheduled",
+        kitchenStatus: "scheduled",
+        deliveryAddressId: subscription.deliveryAddressId,
+        zoneId: resolvedZoneId,
+        kitchenId: resolvedKitchenId,
+        deliveryPartnerId: null,
+        deliveryWindow: operationalSettingsService.getDeliveryWindowSync(mealType),
+        paymentId: null,
+        invoiceId: targetInvoiceId,
+        selectedOptionId: null,
+      };
+
+      txn.set(
+        orderRef,
+        stripUndefined({
+          ...addonOrder,
+          createdAt: serverTimestamp() as unknown as Timestamp,
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        }),
+      );
+
+      const historyRef = doc(
+        collection(db, "orders", addonOrderId, "workflowHistory"),
+      );
+      txn.set(historyRef, {
+        fromStatus: "none",
+        toStatus: "scheduled",
+        notes: `Customer added today's add-on: ${addon.name} x${quantity}`,
+        changedAt: serverTimestamp(),
+        changedBy: actor.uid,
+      });
+
+      if (invExists && invData) {
+        if (!alreadyHasLineItem) {
+          const updatedLineItems = [...existingLineItems, newLineItem];
+          const newSubtotal = (invData.subtotal || 0) + total;
+          const newTotalAmount = (invData.totalAmount || 0) + total;
+          txn.update(invoiceRef, {
+            lineItems: updatedLineItems,
+            subtotal: newSubtotal,
+            totalAmount: newTotalAmount,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          });
+        }
+      } else {
+        const invPayload = {
+          id: targetInvoiceId!,
+          invoiceNumber: `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+          customerId: subscription.customerId,
+          subscriptionId: subscription.id,
+          lineItems: [newLineItem],
+          subtotal: total,
+          taxRate: 0,
+          taxAmount: 0,
+          totalAmount: total,
+          depositHeld: 0,
+          currency: "INR",
+          status: "issued",
+          billingPeriodStart: subscription.startDate || today,
+          billingPeriodEnd: subscription.endDate || today,
+          dueDate: today,
+          paidAt: null,
+          paymentId: null,
+          createdAt: serverTimestamp() as unknown as Timestamp,
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        };
+        txn.set(invoiceRef, invPayload);
+      }
+    });
+
+    if (!isDuplicate) {
+      try {
+        const { auditRepository } = await import(
+          "../firestore/auditRepository"
+        );
+        await auditRepository.logAction(
+          "addon_ordered",
+          actor.uid,
+          actor.role,
+          actor.name,
+          addonOrderId,
+          "order",
+          {
+            date: today,
+            mealType,
+            addonId,
+            addonName: addon.name,
+            quantity,
+            unitPrice,
+            totalAmount: total,
+            subscriptionId,
+            customerId: subscription.customerId,
+            invoiceId: targetInvoiceId,
+          },
+        );
+      } catch (err) {
+        console.warn(
+          "[orderService] Failed to record audit log for addon order:",
+          err,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      orderId: addonOrderId,
+      invoiceId: targetInvoiceId!,
+      mealType,
+      date: today,
+      addonId,
+      addonName: addon.name,
+      quantity,
+      unitPrice,
+      totalAmount: total,
+      alreadyExists: isDuplicate,
+    };
+  }
+
+  /**
+   * Removes/cancels a single meal order for today for a given subscription.
+   * Enforces authenticated ownership, eligibility, meal preferences, strict meal-specific cutoff,
+   * idempotency, canonical cancellation pricing, transactional order status mutation,
+   * skip record synchronization, and audit logging.
+   */
+  async removeTodayMeal(
+    subscriptionId: string,
+    mealType: import("@/shared/types").MealType,
+    nowOverride?: Date,
+  ): Promise<RemoveTodayMealResult> {
+    const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+
+    // Verify authenticated ownership or admin role
+    const actor = await this.assertOwnership(subscription);
+
+    if (subscription.status !== "active" && subscription.status !== "paused") {
+      throw new Error(`Subscription ${subscriptionId} is not active`);
+    }
+    if (subscription.startDate && subscription.startDate > today) {
+      throw new Error(`Subscription ${subscriptionId} hasn't started yet`);
+    }
+    if (subscription.endDate && subscription.endDate < today) {
+      throw new Error(`Subscription ${subscriptionId} has already ended`);
+    }
+
+    // Verify requested meal is part of subscription preferences
+    const hasMeal = (subscription.mealPreferences || []).some(
+      (p) => p.mealType === mealType,
+    );
+    if (!hasMeal) {
+      throw new Error(
+        `Meal ${mealType} is not part of subscription ${subscriptionId}`,
+      );
+    }
+
+    // Enforce strict meal cutoff in business layer
+    await operationalSettingsService.getOperationalSettings();
+    (subscriptionRepository as any).validateSkipWindow(
+      today,
+      [mealType],
+      nowOverride,
+    );
+
+    const cancellationAmount = pricingService.calculateCancellationAmount(
+      subscription,
+      [mealType],
+    );
+
+    // Locate today's order for that subscription and meal
+    const expectedId = `ord_${subscription.id}_${today}_${mealType}`;
+    let order = await orderRepository.getById(expectedId);
+    if (!order) {
+      const matches = await orderRepository.list(
+        where("subscriptionId", "==", subscriptionId),
+        where("date", "==", today),
+        where("mealType", "==", mealType),
+      );
+      if (matches.length > 0) {
+        order = matches.find((m) => !m.isAddon) || matches[0];
+      }
+    }
+
+    if (!order) {
+      throw new Error(`Order not found for ${mealType} on ${today}`);
+    }
+
+    // Check if order is already cancelled or skipped (idempotent no-op)
+    if (order.status === "cancelled" || order.status === "skipped") {
+      return {
+        success: true,
+        cancelled: false,
+        orderId: order.id,
+        cancellationAmount,
+        status: order.status,
+        mealType,
+        date: today,
+      };
+    }
+
+    const lockedStatuses = ["packing", "packed", "ready_for_pickup"];
+    if (lockedStatuses.includes(order.kitchenStatus || "")) {
+      throw new Error(
+        "Order is already being prepared by the kitchen and cannot be cancelled.",
+      );
+    }
+
+    const OPERATIONAL_STATUSES = [
+      "picked_up",
+      "out_for_delivery",
+      "delivered",
+      "failed_delivery",
+      "returned_delivery",
+    ];
+    if (OPERATIONAL_STATUSES.includes(order.status)) {
+      throw new Error(
+        "Order is already in delivery or delivered and cannot be modified.",
+      );
+    }
+
+    // Atomic transaction for concurrency safety and idempotency
+    let didCancel = false;
+    await runTransaction(db, async (t) => {
+      const orderRef = doc(db, "orders", order!.id!);
+      const snap = await t.get(orderRef);
+      if (!snap.exists()) {
+        throw new Error("Order not found");
+      }
+      const currentData = snap.data() as Order;
+      if (
+        currentData.status === "cancelled" ||
+        currentData.status === "skipped"
+      ) {
+        return; // Already cancelled by concurrent request
+      }
+      if (lockedStatuses.includes(currentData.kitchenStatus || "")) {
+        throw new Error(
+          "Order is already being prepared by the kitchen and cannot be cancelled.",
+        );
+      }
+      if (OPERATIONAL_STATUSES.includes(currentData.status)) {
+        throw new Error(
+          "Order is already in delivery or delivered and cannot be modified.",
+        );
+      }
+
+      t.update(orderRef, {
+        status: "cancelled",
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      });
+
+      const historyRef = doc(
+        collection(db, "orders", order!.id!, "workflowHistory"),
+      );
+      t.set(historyRef, {
+        fromStatus: currentData.status,
+        toStatus: "cancelled",
+        notes: "Customer cancelled today's meal",
+        changedAt: serverTimestamp(),
+        changedBy: actor.uid,
+      });
+      didCancel = true;
+    });
+
+    if (didCancel) {
+      await subscriptionRepository.addSkip(
+        subscription.id,
+        today,
+        [mealType],
+        "Customer cancelled today's meal",
+        actor.uid,
+      );
+
+      try {
+        const { auditRepository } = await import(
+          "../firestore/auditRepository"
+        );
+        await auditRepository.logAction(
+          "meal_cancelled",
+          actor.uid,
+          actor.role,
+          actor.name,
+          order.id!,
+          "order",
+          {
+            date: today,
+            mealType,
+            cancellationAmount,
+            subscriptionId,
+            customerId: subscription.customerId,
+          },
+        );
+      } catch (err) {
+        console.error(
+          "[orderService] Failed to record audit log for meal cancellation:",
+          err,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      cancelled: didCancel,
+      orderId: order.id,
+      cancellationAmount,
+      status: "cancelled",
+      mealType,
+      date: today,
+    };
+  }
+
+  /**
+   * Changes the meal option selection for today's lunch or dinner order.
+   * Strictly restricted to the same meal type (lunch -> lunch, dinner -> dinner).
+   * Enforces authenticated ownership/admin authority, subscription eligibility,
+   * scheduled order status, kitchen & operational locks, meal-specific cutoffs in Asia/Kolkata,
+   * option validity in the subscription plan, ₹0 price variance (financial immutability),
+   * deterministic order ID preservation, idempotency, workflow history, and audit logging.
+   */
+  async changeTodayMealOption(
+    subscriptionId: string,
+    mealType: import("@/shared/types").MealType,
+    newOptionId: string,
+    nowOverride?: Date,
+  ): Promise<ChangeTodayMealOptionResult> {
+    if (mealType !== "lunch" && mealType !== "dinner") {
+      throw new Error("Only lunch and dinner meal options can be changed.");
+    }
+
+    const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+
+    // Verify authenticated ownership or admin role
+    const actor = await this.assertOwnership(subscription);
+
+    if (subscription.status !== "active" && subscription.status !== "paused") {
+      throw new Error(`Subscription ${subscriptionId} is not active`);
+    }
+    if (subscription.startDate && subscription.startDate > today) {
+      throw new Error(`Subscription ${subscriptionId} hasn't started yet`);
+    }
+    if (subscription.endDate && subscription.endDate < today) {
+      throw new Error(`Subscription ${subscriptionId} has already ended`);
+    }
+
+    // Verify requested meal is part of subscription preferences
+    const hasMeal = (subscription.mealPreferences || []).some(
+      (p) => p.mealType === mealType,
+    );
+    if (!hasMeal) {
+      throw new Error(
+        `Meal ${mealType} is not part of subscription ${subscriptionId}`,
+      );
+    }
+
+    // Enforce strict meal cutoff in business layer
+    await operationalSettingsService.getOperationalSettings();
+    (subscriptionRepository as any).validateSkipWindow(
+      today,
+      [mealType],
+      nowOverride,
+    );
+
+    // Verify newOptionId exists in subscription plan for THIS meal slot
+    const plan = await mealPlanRepository.getById(subscription.planId);
+    if (!plan) {
+      throw new Error(`Plan ${subscription.planId} not found`);
+    }
+    const slot = (plan.mealSlots || []).find((s) => s.mealType === mealType);
+    if (!slot) {
+      throw new Error(`Meal slot ${mealType} not configured in plan ${plan.id}`);
+    }
+    const targetOption = (slot.options || []).find((o) => o.id === newOptionId);
+    if (!targetOption) {
+      throw new Error(
+        `Option ${newOptionId} is not a valid option for ${mealType} in plan ${plan.name}`,
+      );
+    }
+    if (targetOption.isActive === false) {
+      throw new Error(
+        `Option ${targetOption.label || newOptionId} is currently disabled and cannot be selected.`,
+      );
+    }
+    if (targetOption.isCustomerSelectable === false && actor.role === "customer") {
+      throw new Error(
+        `Option ${targetOption.label || newOptionId} is not selectable by customers.`,
+      );
+    }
+
+    // Locate today's order for that subscription and meal
+    const expectedId = `ord_${subscription.id}_${today}_${mealType}`;
+    let order = await orderRepository.getById(expectedId);
+    if (!order) {
+      const matches = await orderRepository.list(
+        where("subscriptionId", "==", subscriptionId),
+        where("date", "==", today),
+        where("mealType", "==", mealType),
+      );
+      if (matches.length > 0) {
+        order = matches[0];
+      }
+    }
+
+    if (!order) {
+      throw new Error(`Order not found for ${mealType} on ${today}`);
+    }
+
+    if (order.status !== "scheduled") {
+      throw new Error(
+        `Order is in '${order.status}' status and cannot be modified. Only scheduled orders can have meal options changed.`,
+      );
+    }
+
+    const lockedStatuses = ["preparing", "packing", "packed", "ready_for_pickup"];
+    if (lockedStatuses.includes(order.kitchenStatus || "")) {
+      throw new Error(
+        "Order is already being prepared by the kitchen and cannot be modified.",
+      );
+    }
+
+    const OPERATIONAL_STATUSES = [
+      "picked_up",
+      "out_for_delivery",
+      "delivered",
+      "failed_delivery",
+      "returned_delivery",
+    ];
+    if (OPERATIONAL_STATUSES.includes(order.status)) {
+      throw new Error(
+        "Order is already in delivery or delivered and cannot be modified.",
+      );
+    }
+
+    const newOptionLabel = targetOption.label;
+    const newItemsLabel = `Subscription - ${mealType}${newOptionLabel ? ` (${newOptionLabel})` : ""}`;
+
+    // Idempotency pre-check: if already changed to this option, return safe no-op
+    if (order.selectedOptionId === newOptionId) {
+      return {
+        success: true,
+        changed: false,
+        orderId: order.id,
+        mealType,
+        date: today,
+        previousOptionId: order.selectedOptionId,
+        newOptionId,
+        previousMealName: order.mealName,
+        newMealName: order.mealName || newOptionLabel,
+        itemsLabel: order.itemsLabel,
+        price: order.price,
+      };
+    }
+
+    // Atomic transaction for concurrency safety and idempotency
+    let didChange = false;
+    let previousOptionId = order.selectedOptionId;
+    let previousMealName = order.mealName;
+
+    await runTransaction(db, async (t) => {
+      const orderRef = doc(db, "orders", order!.id!);
+      const snap = await t.get(orderRef);
+      if (!snap.exists()) {
+        throw new Error("Order not found");
+      }
+      const currentData = snap.data() as Order;
+
+      if (currentData.status !== "scheduled") {
+        throw new Error(
+          `Order is in '${currentData.status}' status and cannot be modified.`,
+        );
+      }
+      if (lockedStatuses.includes(currentData.kitchenStatus || "")) {
+        throw new Error(
+          "Order is already being prepared by the kitchen and cannot be modified.",
+        );
+      }
+      if (OPERATIONAL_STATUSES.includes(currentData.status)) {
+        throw new Error(
+          "Order is already in delivery or delivered and cannot be modified.",
+        );
+      }
+      if (currentData.selectedOptionId === newOptionId) {
+        return; // Already changed by concurrent request
+      }
+
+      previousOptionId = currentData.selectedOptionId;
+      previousMealName = currentData.mealName;
+
+      t.update(orderRef, {
+        selectedOptionId: newOptionId,
+        mealName: newOptionLabel,
+        itemsLabel: newItemsLabel,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      });
+
+      const historyRef = doc(
+        collection(db, "orders", order!.id!, "workflowHistory"),
+      );
+      t.set(historyRef, {
+        fromStatus: currentData.status,
+        toStatus: currentData.status,
+        previousStatus: currentData.status,
+        newStatus: currentData.status,
+        notes: `Meal option changed from ${previousOptionId || "default"} (${previousMealName || "default"}) to ${newOptionId} (${newOptionLabel})`,
+        changedAt: serverTimestamp(),
+        changedBy: actor.uid,
+      });
+      didChange = true;
+    });
+
+    if (didChange) {
+      try {
+        const { auditRepository } = await import(
+          "../firestore/auditRepository"
+        );
+        await auditRepository.logAction(
+          "meal_option_changed",
+          actor.uid,
+          actor.role,
+          actor.name,
+          order.id!,
+          "order",
+          {
+            date: today,
+            mealType,
+            subscriptionId,
+            customerId: subscription.customerId,
+            oldOptionId: previousOptionId || null,
+            newOptionId,
+            oldMealName: previousMealName || null,
+            newMealName: newOptionLabel,
+          },
+        );
+      } catch (err) {
+        console.error(
+          "[orderService] Failed to record audit log for meal option change:",
+          err,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      changed: didChange,
+      orderId: order.id,
+      mealType,
+      date: today,
+      previousOptionId,
+      newOptionId,
+      previousMealName,
+      newMealName: newOptionLabel,
+      itemsLabel: newItemsLabel,
+      price: order.price,
+    };
+  }
+
   /**
    * Generates orders for a specific subscription and date for the specified meal types.
    * Useful when a subscription is resumed mid-day and needs today's remaining orders generated.
@@ -696,12 +1605,15 @@ class OrderService {
       allZones,
       allPartners,
       todaysOrders,
+      publishedDailyMenu,
     ] = await Promise.all([
       mealPlanRepository.list(),
       userRepository.getById(subscription.customerId),
       deliveryZoneRepository.list(),
       userRepository.list(where("role", "==", "delivery_partner")),
       orderRepository.list(where("date", "==", date)),
+      dailyMenuRepository.getPublishedByDate(date).catch(() => null),
+      operationalSettingsService.getOperationalSettings(),
     ]);
 
     const activePartners = allPartners.filter(
@@ -733,6 +1645,15 @@ class OrderService {
     for (const pref of subscription.mealPreferences) {
       if (!mealTypesToGenerate.includes(pref.mealType)) continue;
 
+      // Scenario E: If a published Daily Menu exists for this date, but this meal slot is marked unavailable
+      if (
+        publishedDailyMenu &&
+        publishedDailyMenu[pref.mealType] &&
+        publishedDailyMenu[pref.mealType].isAvailable === false
+      ) {
+        continue;
+      }
+
       // Idempotency guard: prevent overwriting active in-flight orders
       const expectedId = `ord_${subscription.id}_${date}_${pref.mealType}`;
       const existingOrder = todaysOrders.find(
@@ -763,6 +1684,7 @@ class OrderService {
         allZones,
         mealPlans,
         workloadMap,
+        publishedDailyMenu,
       );
       ordersToCreate.push(order);
 
@@ -1322,6 +2244,7 @@ class OrderService {
     allZones: any[],
     mealPlans: MealPlan[],
     workloadMap: Map<string, number>,
+    publishedMenu?: DailyMenu | null,
   ): Partial<Order> {
     const customer = customerMap.get(sub.customerId);
 
@@ -1404,6 +2327,32 @@ class OrderService {
       if (option) optionLabel = option.label;
     }
 
+    // Connect published DailyMenu if available for this date and meal slot
+    const dailyMeal =
+      publishedMenu && publishedMenu[mealType]?.isAvailable !== false
+        ? publishedMenu[mealType]
+        : null;
+
+    let finalMealName: string;
+    let finalItemsLabel: string;
+
+    if (dailyMeal && dailyMeal.name) {
+      finalMealName = dailyMeal.name;
+      finalItemsLabel =
+        dailyMeal.items && dailyMeal.items.length > 0
+          ? (dailyMeal.name === dailyMeal.items.join(", ")
+              ? dailyMeal.name
+              : `${dailyMeal.name} (${dailyMeal.items.join(", ")})`)
+          : dailyMeal.name;
+    } else {
+      // Safe fallback to existing MealPlan option
+      finalMealName = optionLabel || mealType;
+      finalItemsLabel =
+        "Subscription - " +
+        mealType +
+        (optionLabel ? " (" + optionLabel + ")" : "");
+    }
+
     const driver = partnerMap.get(partnerId || "");
     const addressStr = addr
       ? `${addr.line1} ${addr.line2 || ""}, ${addr.city}, ${addr.pincode}`.trim()
@@ -1431,31 +2380,22 @@ class OrderService {
       planName: plan?.name || "Unknown Plan",
       driverName: driver?.fullName || undefined,
       driverPhone: driver?.phone || undefined,
-      mealName: optionLabel || mealType,
+      mealName: finalMealName,
       mealQuantity: sub.quantity || 1,
       billingStatus: "Generated",
       kitchenStatus: "scheduled",
 
-      itemsLabel:
-        "Subscription - " +
-        mealType +
-        (optionLabel ? " (" + optionLabel + ")" : ""),
+      itemsLabel: finalItemsLabel,
+      packingNotes: dailyMeal?.description || undefined,
       selectedOptionId: pref.selectedOptionId ?? null,
-      price: sub.pricingMatrixSnapshot
-        ? ((sub.pricingMatrixSnapshot as unknown as Record<string, number>)[
-            mealType
-          ] || 0) * (sub.quantity || 1)
-        : Math.round(
-            (sub.pricePerDaySnapshot * (sub.quantity || 1)) /
-              sub.mealPreferences.length,
-          ),
+      price: pricingService.calculateMealPrice(sub, mealType),
       currency: "INR",
       status: "scheduled",
       deliveryAddressId: sub.deliveryAddressId ?? null,
       zoneId,
       kitchenId,
       deliveryPartnerId: partnerId ?? null,
-      deliveryWindow: null,
+      deliveryWindow: operationalSettingsService.getDeliveryWindowSync(mealType),
       paymentId: sub.latestPaymentId ?? null,
     };
 

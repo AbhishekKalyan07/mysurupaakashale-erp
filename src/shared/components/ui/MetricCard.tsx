@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/cn";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const metricCardVariants = cva(
-  "rounded-[20px] p-5 bg-card border overflow-hidden relative transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5",
+  "rounded-[16px] sm:rounded-[20px] p-3.5 sm:p-5 bg-card border overflow-hidden relative transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 min-w-0",
   {
     variants: {
       color: {
@@ -67,32 +67,32 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
         )}
         {...props}
       >
-        <div className="flex flex-col h-full justify-between relative z-10">
-          <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-col h-full justify-between relative z-10 min-w-0">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
             <div
               className={cn(
-                "flex items-center justify-center w-11 h-11 rounded-[14px] shadow-sm transition-colors duration-300",
+                "flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-[10px] sm:rounded-[14px] shadow-sm transition-colors duration-300 shrink-0",
                 iconStyle,
               )}
             >
               {icon}
             </div>
             {trend && (
-              <div className="text-[11px] font-bold text-text-muted bg-surface-2 px-2.5 py-1 rounded-full border border-border tracking-wide uppercase shadow-xs">
+              <div className="text-[10px] sm:text-[11px] font-bold text-text-muted bg-surface-2 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-border tracking-wide uppercase shadow-xs truncate">
                 {trend}
               </div>
             )}
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div
               className={cn(
-                "text-[32px] font-display font-bold leading-none mb-1.5 tracking-tight text-primary",
+                "text-xl sm:text-[32px] font-display font-bold leading-tight sm:leading-none mb-1 tracking-tight text-primary truncate",
               )}
             >
               {value}
             </div>
-            <div className="text-xs font-bold text-text-muted uppercase tracking-wider leading-tight">
+            <div className="text-[11px] sm:text-xs font-bold text-text-muted uppercase tracking-wider leading-tight truncate">
               {title}
             </div>
           </div>

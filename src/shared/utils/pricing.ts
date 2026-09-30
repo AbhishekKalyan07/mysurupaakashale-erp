@@ -1,10 +1,8 @@
 import type { Subscription } from "../types";
+import { pricingService } from "../services/business/pricingService";
 
 export function calculateDailyPrice(sub: Subscription): number {
-  if (!sub.pricingMatrixSnapshot) return sub.pricePerDaySnapshot;
-
   const meals = sub.mealPreferences.map((m) => m.mealType);
-
   if (meals.length === 0) return 0;
 
   let key = "";
@@ -28,6 +26,17 @@ export function calculateDailyPrice(sub: Subscription): number {
     key = "dinner";
   }
 
-  const matrix = sub.pricingMatrixSnapshot as unknown as Record<string, number>;
-  return matrix[key] || sub.pricePerDaySnapshot;
+  // Canonical precedence: negotiatedPricing -> pricingMatrixSnapshot -> effective base pricing
+  const negotiated = (sub as any).negotiatedPricing || {};
+  if (negotiated[key] !== undefined) {
+    return negotiated[key];
+  }
+
+  const snapshot = (sub as any).pricingMatrixSnapshot || {};
+  if (snapshot[key] !== undefined) {
+    return snapshot[key];
+  }
+
+  const matrix = pricingService.getPricingMatrix(sub);
+  return matrix[key] || sub.pricePerDaySnapshot || 0;
 }

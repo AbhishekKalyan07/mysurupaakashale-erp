@@ -18,6 +18,50 @@ export interface MealOption {
   id: string;
   label: string;
   items: string[]; // e.g. ["Rice", "Sambar", "Pickle"] — shown as a bullet list in the UI
+  description?: string;
+  isActive?: boolean; // defaults to true
+  isCustomerSelectable?: boolean; // defaults to true for options in selectable slots
+}
+
+export interface CreateMealPlanInput {
+  tier: PlanTier;
+  name: string;
+  description: string;
+  pricePerDay: number;
+  pricingMatrix?: MealPlanPricing;
+  currency?: "INR";
+  mealSlots?: MealSlotConfig[];
+  deliveryIncluded?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateMealPlanInput {
+  tier?: PlanTier;
+  name?: string;
+  description?: string;
+  pricePerDay?: number;
+  pricingMatrix?: MealPlanPricing;
+  mealSlots?: MealSlotConfig[];
+  deliveryIncluded?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateMealOptionInput {
+  label: string;
+  items: string[];
+  description?: string;
+  isActive?: boolean;
+  isCustomerSelectable?: boolean;
+}
+
+export interface UpdateMealOptionInput {
+  label?: string;
+  items?: string[];
+  description?: string;
+  isActive?: boolean;
+  isCustomerSelectable?: boolean;
 }
 
 export interface MealSlotConfig {
@@ -63,7 +107,7 @@ export type PublishStatus = "draft" | "published" | "archived";
 export interface MealMenu {
   name: string;
   items: string[];
-  description: string;
+  description?: string;
   isAvailable: boolean;
 }
 
@@ -76,11 +120,12 @@ export interface DailyMenu {
   id: ID; // Auto-generated ID
   date: string; // YYYY-MM-DD
   status: PublishStatus;
+  kitchenId?: string;
   breakfast: MealMenu;
   lunch: MealMenu;
   dinner: MealMenu;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  publishedAt: Timestamp | null;
-  publishedBy: ID | null;
+  publishedAt?: Timestamp | null;
+  publishedBy?: ID | null;
 }
