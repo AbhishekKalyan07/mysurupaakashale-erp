@@ -170,7 +170,7 @@ jobs:
   lighthouse-ci:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
-    needs: dependency-audit
+    needs: security-tests
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js

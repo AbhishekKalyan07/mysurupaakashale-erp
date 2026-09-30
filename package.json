@@ -83,6 +83,8 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "react-router": "8.3.0"
+    "react-router": "8.3.0",
+    "brace-expansion": ">=2.1.5",
+    "fast-uri": ">=3.1.8"
   }
 }
