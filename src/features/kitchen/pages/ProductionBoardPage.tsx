@@ -19,6 +19,8 @@ import { KitchenProductionTable } from "@/features/kitchen/components/KitchenPro
 import { KitchenProductionSummary } from "@/features/kitchen/components/KitchenProductionSummary";
 import { PackingList } from "@/features/kitchen/components/PackingList";
 import { PrintPackingSheet } from "@/features/kitchen/components/PrintPackingSheet";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
+
 export function ProductionBoardPage() {
   const today = getTodayIST();
 
@@ -81,7 +83,7 @@ export function ProductionBoardPage() {
     );
   }
 
-  const displayDate = new Intl.DateTimeFormat("en-IN", {
+  const displayDate = getCachedDateTimeFormatter("en-IN", {
     weekday: "long",
     year: "numeric",
     month: "long",

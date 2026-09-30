@@ -20,6 +20,7 @@ import type { Order } from "@/shared/types";
 import { orderRepository } from "@/shared/services/firestore/orderRepository";
 import { getTodayIST } from "@/shared/utils/dateUtils";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { GetAppInlineCard } from "@/features/customer/components/GetAppModal";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
@@ -645,7 +646,7 @@ export function CustomerDashboardPage() {
                                         Delivered At
                                       </span>
                                       <span className="text-success-dark font-bold">
-                                        {new Intl.DateTimeFormat("en-IN", {
+                                        {getCachedDateTimeFormatter("en-IN", {
                                           hour: "numeric",
                                           minute: "numeric",
                                           hour12: true,

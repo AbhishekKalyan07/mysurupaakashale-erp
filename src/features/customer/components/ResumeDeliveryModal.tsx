@@ -11,6 +11,7 @@ import { toast } from "react-hot-toast";
 import type { Subscription, MealType } from "@/shared/types";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { XCircle } from "lucide-react";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 interface ResumeDeliveryModalProps {
   subscription: Subscription;
@@ -27,7 +28,7 @@ export function ResumeDeliveryModal({
 
   const today = getTodayInTimezone();
   const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = getCachedDateTimeFormatter("en-US", {
     timeZone: "Asia/Kolkata",
     hour: "numeric",
     minute: "numeric",
