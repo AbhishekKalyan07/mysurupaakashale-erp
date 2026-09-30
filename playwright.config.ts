@@ -73,11 +73,13 @@ export default defineConfig({
         VITE_FIREBASE_APP_ID: '1:1234567890:web:1234567890',
       }
     },
-    {
+    // In CI, emulators are started externally by firebase emulators:exec in the workflow.
+    // Locally, Playwright starts them via this webServer entry.
+    ...(!process.env.CI ? [{
       command: 'npx firebase emulators:start --project demo-test --only auth,firestore',
       port: 8085,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 300000,
-    }
+    }] : []),
   ],
 });
