@@ -50,36 +50,58 @@ function getEnv(
   return value;
 }
 
-const firebaseConfig = {
-  apiKey: getEnv(
-    "VITE_FIREBASE_API_KEY",
-    import.meta.env.VITE_FIREBASE_API_KEY,
-  ),
-  authDomain: getEnv(
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  ),
-  projectId: getEnv(
-    "VITE_FIREBASE_PROJECT_ID",
-    import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  ),
-  storageBucket: getEnv(
-    "VITE_FIREBASE_STORAGE_BUCKET",
-    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  ),
-  messagingSenderId: getEnv(
-    "VITE_FIREBASE_MESSAGING_SENDER_ID",
-    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  ),
-  appId: getEnv("VITE_FIREBASE_APP_ID", import.meta.env.VITE_FIREBASE_APP_ID),
-};
-
 const useEmulators =
   getEnv(
     "VITE_USE_FIREBASE_EMULATORS",
     import.meta.env.VITE_USE_FIREBASE_EMULATORS,
     false,
   ) === "true";
+
+const isTestOrEmulator =
+  useEmulators ||
+  import.meta.env.MODE === "test" ||
+  (typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" ||
+      process.env.VITE_USE_FIREBASE_EMULATORS === "true"));
+
+const firebaseConfig = {
+  apiKey:
+    getEnv(
+      "VITE_FIREBASE_API_KEY",
+      import.meta.env.VITE_FIREBASE_API_KEY,
+      !isTestOrEmulator,
+    ) || "fake-api-key",
+  authDomain:
+    getEnv(
+      "VITE_FIREBASE_AUTH_DOMAIN",
+      import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      !isTestOrEmulator,
+    ) || "demo-test.firebaseapp.com",
+  projectId:
+    getEnv(
+      "VITE_FIREBASE_PROJECT_ID",
+      import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      !isTestOrEmulator,
+    ) || "demo-test",
+  storageBucket:
+    getEnv(
+      "VITE_FIREBASE_STORAGE_BUCKET",
+      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      !isTestOrEmulator,
+    ) || "demo-test.firebasestorage.app",
+  messagingSenderId:
+    getEnv(
+      "VITE_FIREBASE_MESSAGING_SENDER_ID",
+      import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      !isTestOrEmulator,
+    ) || "1234567890",
+  appId:
+    getEnv(
+      "VITE_FIREBASE_APP_ID",
+      import.meta.env.VITE_FIREBASE_APP_ID,
+      !isTestOrEmulator,
+    ) || "1:1234567890:web:1234567890",
+};
 if (import.meta.env.DEV) {
   console.log("BROWSER_DEBUG_EMULATORS:", {
     rawMeta: import.meta.env.VITE_USE_FIREBASE_EMULATORS,

@@ -56,6 +56,12 @@ test.describe('PHASE E1 — Owner Daily Menu -> Order Integration Flow', () => {
         VITE_USE_FIREBASE_EMULATORS: 'true',
         FIRESTORE_EMULATOR_HOST: '127.0.0.1:8085',
         FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099',
+        VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-test',
+        VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY || 'fake-api-key',
+        VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-test.firebaseapp.com',
+        VITE_FIREBASE_STORAGE_BUCKET: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-test.firebasestorage.app',
+        VITE_FIREBASE_MESSAGING_SENDER_ID: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
+        VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:1234567890',
       },
     });
 
