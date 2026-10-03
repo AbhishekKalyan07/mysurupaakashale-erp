@@ -119,6 +119,8 @@ export function useReferenceData(customerIds: string[] = []) {
     zoneMap,
     partnerMap,
     customerMap,
+    partnersList: partnersQuery.data || [],
+    zonesList: zonesQuery.data || [],
     isReferenceLoading: zonesQuery.isLoading || partnersQuery.isLoading,
   };
 }
