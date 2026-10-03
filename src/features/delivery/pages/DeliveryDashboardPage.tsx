@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { DashboardCardsSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { getTodayInTimezone } from "@/shared/lib/date";
-import { userRepository } from "@/shared/services/firestore/userRepository";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useReferenceData } from "@/shared/hooks/useReferenceData";
 import { useDeliveryBoard } from "../hooks/useDeliveryBoard";
 import { DeliverySummaryCards } from "../components/DeliverySummaryCards";
 import { DeliveryFilters } from "../components/DeliveryFilters";
@@ -26,58 +25,17 @@ export function DeliveryDashboardPage() {
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [mealFilter, setMealFilter] = useState<string>("all");
 
-  // Fetch Delivery Partners
-  const { data: deliveryPartners = [] } = useQuery({
-    queryKey: ["users", "delivery_partner"],
-    queryFn: async () => {
-      const { where } = await import("firebase/firestore");
-      return userRepository.list(
-        where("role", "==", "delivery_partner"),
-        where("isActive", "==", true),
-      );
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Fetch Customers (only those in today's orders)
   const customerIds = useMemo(
     () => Array.from(new Set(allOrders.map((o) => o.customerId))),
     [allOrders],
   );
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["users", "customers", customerIds],
-    queryFn: async () => {
-      if (customerIds.length === 0) return [];
-      const results = await userRepository.getByIds(customerIds);
-      return results as import("@/shared/types").CustomerProfile[];
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Fetch Zones
-  const { data: zones = [] } = useQuery({
-    queryKey: ["delivery_zones"],
-    queryFn: async () => {
-      const { deliveryZoneRepository } =
-        await import("@/shared/services/firestore/deliveryZoneRepository");
-      return deliveryZoneRepository.list();
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
-
-  const partnerMap = useMemo(
-    () => new Map(deliveryPartners.map((p) => [p.id, p.fullName || p.id])),
-    [deliveryPartners],
-  );
-  const customerMap = useMemo(
-    () => new Map(customers.map((c) => [c.id, c])),
-    [customers],
-  );
-  const zoneMap = useMemo(
-    () => new Map(zones.map((z) => [z.id, z.name])),
-    [zones],
-  );
+  const {
+    zoneMap,
+    partnerMap,
+    customerMap,
+    partnersList: deliveryPartners,
+  } = useReferenceData(customerIds);
 
   const shiftOrders = useMemo(() => {
     if (mealFilter === "all") return allOrders;
@@ -117,8 +75,8 @@ export function DeliveryDashboardPage() {
       // 3. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const customer = customerMap.get(o.customerId);
-        const name = customer?.fullName?.toLowerCase() || "";
+        const customerName = customerMap.get(o.customerId) || "";
+        const name = customerName.toLowerCase();
         const area = o.zoneId?.toLowerCase() || "";
         if (!name.includes(q) && !area.includes(q)) return false;
       }
