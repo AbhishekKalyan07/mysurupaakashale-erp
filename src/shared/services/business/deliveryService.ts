@@ -1,5 +1,6 @@
 import type { Order } from "@/shared/types";
 import { orderRepository } from "../firestore/orderRepository";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export interface DeliverySummary {
   assigned: number;
@@ -77,6 +78,11 @@ export class DeliveryService {
     partnerMap: Map<string, string>,
     zoneMap: Map<string, string>,
   ): DeliveryPartnerGroup[] {
+    const timeFormatter = getCachedDateTimeFormatter(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     const partnerGroups = new Map<string, Map<string, Order[]>>();
 
     for (const o of orders) {
@@ -129,10 +135,7 @@ export class DeliveryService {
         sortedOrders.forEach((order, index) => {
           // Assign 15 mins per stop
           const stopTime = new Date(currentTime.getTime() + index * 15 * 60000);
-          order.estimatedETA = stopTime.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          order.estimatedETA = timeFormatter.format(stopTime);
         });
 
         return { areaName, orders: sortedOrders };
