@@ -38,11 +38,11 @@ describe('Holiday Security Rules', () => {
   const adminAuth = { uid: 'admin-1', email: 'admin@mysurupaakashale.com', customClaims: { role: 'admin' } };
   const customerAuth = { uid: 'cust-1', email: 'cust@example.com' };
   
-  const HOLIDAY_ID = 'holiday_2026-10-02';
+  const HOLIDAY_ID = 'holiday_2099-10-02';
   
   const VALID_HOLIDAY_DOC = {
     id: HOLIDAY_ID,
-    date: '2026-10-02',
+    date: '2099-10-02',
     name: 'Gandhi Jayanti',
     status: 'active',
     createdBy: 'admin-1',
@@ -57,10 +57,10 @@ describe('Holiday Security Rules', () => {
 
     it('denies admin from creating a holiday with mismatched date in ID', async () => {
       const adminDb = testEnv.authenticatedContext(adminAuth.uid, adminAuth.customClaims).firestore();
-      const ref = doc(adminDb, 'holidays', 'holiday_2026-10-02');
+      const ref = doc(adminDb, 'holidays', 'holiday_2099-10-02');
       await assertFails(setDoc(ref, {
         ...VALID_HOLIDAY_DOC,
-        date: '2026-10-03', // mismatch with ID suffix
+        date: '2099-10-03', // mismatch with ID suffix
       }));
     });
 
@@ -130,7 +130,7 @@ describe('Holiday Security Rules', () => {
         planId: 'plan-1',
         planTier: 'basic',
         mealType: 'lunch',
-        date: '2026-10-02', // Matches active holiday
+        date: '2099-10-02', // Matches active holiday
         itemsLabel: 'Lunch',
         selectedOptionId: 'opt-1',
         price: 65,
@@ -174,7 +174,7 @@ describe('Holiday Security Rules', () => {
         planId: 'plan-1',
         planTier: 'basic',
         mealType: 'lunch',
-        date: '2026-10-02', // Matches cancelled holiday
+        date: '2099-10-02', // Matches cancelled holiday
         itemsLabel: 'Lunch',
         selectedOptionId: 'opt-1',
         price: 65,
