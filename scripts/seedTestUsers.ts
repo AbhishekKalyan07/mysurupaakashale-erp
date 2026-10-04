@@ -33,11 +33,13 @@ if (!getApps().length) {
 const auth = getAuth();
 const db = getFirestore();
 
+const DEFAULT_TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'emulator-test-password';
+
 const testUsers = [
-  { email: 'admin@mysuru.com', password: 'admin123', role: 'admin', fullName: 'Test Admin' },
-  { email: 'customer@mysuru.com', password: 'customer123', role: 'customer', fullName: 'Test Customer' },
-  { email: 'kitchen@mysuru.com', password: 'kitchen123', role: 'kitchen', fullName: 'Test Kitchen' },
-  { email: 'delivery@mysuru.com', password: 'delivery123', role: 'delivery_partner', fullName: 'Test Delivery' },
+  { email: 'admin@mysuru.com', password: process.env.TEST_ADMIN_PASSWORD || DEFAULT_TEST_PASSWORD, role: 'admin', fullName: 'Test Admin' },
+  { email: 'customer@mysuru.com', password: process.env.TEST_CUSTOMER_PASSWORD || DEFAULT_TEST_PASSWORD, role: 'customer', fullName: 'Test Customer' },
+  { email: 'kitchen@mysuru.com', password: process.env.TEST_KITCHEN_PASSWORD || DEFAULT_TEST_PASSWORD, role: 'kitchen', fullName: 'Test Kitchen' },
+  { email: 'delivery@mysuru.com', password: process.env.TEST_DELIVERY_PASSWORD || DEFAULT_TEST_PASSWORD, role: 'delivery_partner', fullName: 'Test Delivery' },
 ];
 
 async function seedTestUsers() {

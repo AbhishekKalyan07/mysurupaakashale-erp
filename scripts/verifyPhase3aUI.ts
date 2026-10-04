@@ -20,18 +20,28 @@ const adminAuth = getAuth();
 
 const ARTIFACT_DIR = 'C:/Users/Abhishek K/.gemini/antigravity-ide/brain/9e513a66-0909-421f-a0b8-559e47ff4930';
 
+const TEST_CUSTOMER_EMAIL = process.env.TEST_CUSTOMER_EMAIL || 'customer@mysuru.com';
+const TEST_CUSTOMER_PASSWORD = process.env.TEST_CUSTOMER_PASSWORD || 'emulator-test-password';
+const TEST_ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL || 'admin@mysuru.com';
+const TEST_ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || 'emulator-test-password';
+
 async function run() {
   console.log('🚀 Starting Phase 3A Browser & UI Verification...');
 
   // Reset any existing test customer subscriptions in the local emulator for a clean test run
   try {
-    const custUser = await adminAuth.getUserByEmail('customer@mysuru.com').catch(() => null);
+    const custUser = await adminAuth.getUserByEmail(TEST_CUSTOMER_EMAIL).catch(() => null);
     if (custUser) {
+      await adminAuth.updateUser(custUser.uid, { password: TEST_CUSTOMER_PASSWORD }).catch(() => {});
       const snap = await adminDb.collection('subscriptions').where('customerId', '==', custUser.uid).get();
       for (const d of snap.docs) {
         await d.ref.delete();
       }
       console.log(`🧹 Cleaned up ${snap.docs.length} existing subscriptions in local emulator for Test Customer.`);
+    }
+    const adminUser = await adminAuth.getUserByEmail(TEST_ADMIN_EMAIL).catch(() => null);
+    if (adminUser) {
+      await adminAuth.updateUser(adminUser.uid, { password: TEST_ADMIN_PASSWORD }).catch(() => {});
     }
   } catch (cleanErr) {
     console.warn('⚠️ Emulator subscription reset warning:', cleanErr);
@@ -60,8 +70,8 @@ async function run() {
     await customerPage.waitForTimeout(1500);
     await customerPage.waitForSelector('input[type="email"]', { timeout: 15000 });
 
-    await customerPage.fill('input[type="email"]', 'customer@mysuru.com');
-    await customerPage.fill('input[type="password"]', 'customer123');
+    await customerPage.fill('input[type="email"]', TEST_CUSTOMER_EMAIL);
+    await customerPage.fill('input[type="password"]', TEST_CUSTOMER_PASSWORD);
     await customerPage.click('button[type="submit"]');
 
     await customerPage.waitForURL((url) => url.pathname.includes('/dashboard') || url.pathname.includes('/customer'), { timeout: 15000 });
@@ -154,8 +164,8 @@ async function run() {
     await adminPage.waitForTimeout(1500);
     await adminPage.waitForSelector('input[type="email"]', { timeout: 15000 });
 
-    await adminPage.fill('input[type="email"]', 'admin@mysuru.com');
-    await adminPage.fill('input[type="password"]', 'admin123');
+    await adminPage.fill('input[type="email"]', TEST_ADMIN_EMAIL);
+    await adminPage.fill('input[type="password"]', TEST_ADMIN_PASSWORD);
     await adminPage.click('button[type="submit"]');
 
     await adminPage.waitForURL((url) => url.pathname.includes('/dashboard') || url.pathname.includes('/admin'), { timeout: 15000 });
