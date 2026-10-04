@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/firebase";
 import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import type { MealType, TimeWindow, BusinessSettings } from "@/shared/types";
+import { AUTHORITATIVE_OPERATIONAL_CUTOFFS } from "@/shared/types";
 
 export interface OperationalCutoffTimes {
   breakfast: string; // "HH:mm"
@@ -22,9 +23,7 @@ export interface OperationalSettings {
 }
 
 export const DEFAULT_CUTOFFS: OperationalCutoffTimes = {
-  breakfast: "05:00",
-  lunch: "10:30",
-  dinner: "16:00",
+  ...AUTHORITATIVE_OPERATIONAL_CUTOFFS,
 };
 
 export const DEFAULT_DELIVERY_WINDOWS: OperationalDeliveryWindows = {

@@ -2,6 +2,12 @@ import { Timestamp } from "firebase/firestore";
 import { useState } from "react";
 import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
+import { PricingService } from "@/shared/services/business/pricingService";
+import {
+  DEFAULT_COMPANY_PROFILE,
+  DEFAULT_PAYROLL_CONFIG,
+  AUTHORITATIVE_OPERATIONAL_CUTOFFS,
+} from "@/shared/types";
 import toast from "react-hot-toast";
 
 export function useSeedData() {
@@ -19,19 +25,12 @@ export function useSeedData() {
           name: "Basic Plan",
           description: "Wholesome daily meals with 3 separate deliveries.",
           tier: "basic",
-          pricePerDay: 159,
+          pricePerDay:
+            PricingService.FALLBACK_MATRIX.basic.breakfast_lunch_dinner,
           deliveryIncluded: true,
           isActive: true,
           sortOrder: 1,
-          pricingMatrix: {
-            breakfast: 60,
-            lunch: 65,
-            dinner: 65,
-            breakfast_lunch: 115,
-            lunch_dinner: 115,
-            breakfast_dinner: 115,
-            breakfast_lunch_dinner: 159,
-          },
+          pricingMatrix: { ...PricingService.FALLBACK_MATRIX.basic },
           mealSlots: [
             {
               mealType: "breakfast",
@@ -93,19 +92,12 @@ export function useSeedData() {
           name: "Regular Plan",
           description: "Wholesome daily meals with 3 separate deliveries.",
           tier: "regular",
-          pricePerDay: 210,
+          pricePerDay:
+            PricingService.FALLBACK_MATRIX.regular.breakfast_lunch_dinner,
           deliveryIncluded: true,
           isActive: true,
           sortOrder: 2,
-          pricingMatrix: {
-            breakfast: 60,
-            lunch: 85,
-            dinner: 85,
-            breakfast_lunch: 140,
-            lunch_dinner: 140,
-            breakfast_dinner: 140,
-            breakfast_lunch_dinner: 210,
-          },
+          pricingMatrix: { ...PricingService.FALLBACK_MATRIX.regular },
           mealSlots: [
             {
               mealType: "breakfast",
@@ -182,20 +174,18 @@ export function useSeedData() {
       const settingsRef = doc(db, "settings", "business");
       batch.set(settingsRef, {
         id: "business",
-        companyProfile: {
-          name: "Mysuru Paakashale",
-          tagline: "Authentic Meals",
-          supportEmail: "support@mysuru.com",
-          supportPhone: "9880425089",
-          address: "Mysuru",
-        },
+        companyProfile: { ...DEFAULT_COMPANY_PROFILE },
         financials: {
           gstPercentage: 5,
           currency: "INR",
           invoicePrefix: "INV",
         },
         pricing: {
-          mealPrices: { breakfast: 50, lunch: 100, dinner: 100 },
+          mealPrices: {
+            breakfast: PricingService.FALLBACK_MATRIX.basic.breakfast,
+            lunch: PricingService.FALLBACK_MATRIX.regular.lunch,
+            dinner: PricingService.FALLBACK_MATRIX.regular.dinner,
+          },
           deliveryCharges: { standard: 30 },
           securityDepositAmount: 1000,
         },
@@ -207,19 +197,10 @@ export function useSeedData() {
             lunch: { start: "12:30", end: "14:00" },
             dinner: { start: "19:30", end: "21:00" },
           },
-          cancellationCutoffTimes: {
-            breakfast: "05:00",
-            lunch: "10:30",
-            dinner: "16:00",
-          },
+          cancellationCutoffTimes: { ...AUTHORITATIVE_OPERATIONAL_CUTOFFS },
           businessHolidays: [],
         },
-        payroll: {
-          standardWorkingDays: 22,
-          standardWorkingHours: 8,
-          taxPercentage: 0,
-          leaveDeductionMultiplier: 1,
-        },
+        payroll: { ...DEFAULT_PAYROLL_CONFIG },
         updatedAt:
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });

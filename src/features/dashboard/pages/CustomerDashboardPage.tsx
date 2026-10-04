@@ -31,7 +31,7 @@ import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
 import { deliveryZoneRepository } from "@/shared/services/firestore/deliveryZoneRepository";
-import { resolveOperationalZoneAndKitchen } from "@/shared/services/business/operationalRouter";
+import { resolveOperationalZoneAndKitchen, isMysuruCityPincode } from "@/shared/services/business/operationalRouter";
 import {
   AddressPicker,
   type PickedAddress,
@@ -70,7 +70,10 @@ const addressFormSchema = z.object({
   state: z.string().min(1, "State is required").max(100),
   pincode: z
     .string()
-    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits"),
+    .trim()
+    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits")
+    .optional()
+    .or(z.literal("")),
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
@@ -129,6 +132,15 @@ export function CustomerDashboardPage() {
     return customerOrders.filter((o) => o.date === today);
   }, [customerOrders, today]);
 
+  const hasActiveTodayOrder = useMemo(() => {
+    return todayOrders.some(
+      (o) =>
+        o.subscriptionId === subscription?.id &&
+        !o.isAddon &&
+        o.status === "scheduled"
+    );
+  }, [todayOrders, subscription?.id]);
+
   const accruedBill = useMemo(() => {
     if (!subscription) return 0;
     return calculateAccruedBill(customerOrders, subscription);
@@ -153,6 +165,7 @@ export function CustomerDashboardPage() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -162,6 +175,9 @@ export function CustomerDashboardPage() {
       state: "Karnataka",
     },
   });
+
+  const watchedDashboardPincode = watch("pincode");
+  const [suggestedPincode, setSuggestedPincode] = useState<string | null>(null);
 
   // Track geocoords picked from AddressPicker (not stored in form)
   const [pickedCoords, setPickedCoords] = useState<{
@@ -174,8 +190,13 @@ export function CustomerDashboardPage() {
     if (picked.line2) setValue("line2", picked.line2, { shouldValidate: true });
     setValue("city", picked.city || "Mysuru", { shouldValidate: true });
     setValue("state", picked.state || "Karnataka", { shouldValidate: true });
-    if (picked.pincode)
-      setValue("pincode", picked.pincode, { shouldValidate: true });
+    // PART 3: Do not automatically confirm/set pincode on customer's behalf from geocoding.
+    // Instead provide the suggested pincode for the customer to explicitly review and select/enter.
+    if (picked.pincode) {
+      setSuggestedPincode(picked.pincode);
+    } else {
+      setSuggestedPincode(null);
+    }
     setPickedCoords({ lat: picked.lat, lng: picked.lng });
   };
 
@@ -210,6 +231,25 @@ export function CustomerDashboardPage() {
   const onAddressSubmit = async (data: AddressFormValues) => {
     setAddressError(null);
     try {
+      const { deliveryZoneRepository } = await import(
+        "@/shared/services/firestore/deliveryZoneRepository"
+      );
+      const { resolveOperationalZoneAndKitchen } = await import(
+        "@/shared/services/business/operationalRouter"
+      );
+      const allZones = await deliveryZoneRepository.list();
+      if (data.pincode && data.pincode.trim().length > 0) {
+        try {
+          resolveOperationalZoneAndKitchen({ pincode: data.pincode.trim() }, allZones);
+        } catch (routingErr: any) {
+          setAddressError(
+            routingErr?.message ||
+              `No zone available for your location (pincode ${data.pincode}). Please select a serviceable address.`,
+          );
+          return;
+        }
+      }
+
       await addAddress({
         ...data,
         isDefault: addresses.length === 0,
@@ -416,34 +456,38 @@ export function CustomerDashboardPage() {
                       </Button>
                     ) : subscription.status === "active" ? (
                       <>
-                        <Button
-                          data-testid="add-addon-button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setAddonDefaultMeal(undefined);
-                            setShowAddAddonModal(true);
-                          }}
-                          className="text-gold-dark border-gold/30 hover:bg-gold/10 font-bold text-xs"
-                        >
-                          + Add-on <PlusCircle size={14} className="ml-1.5" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setShowCancelTodayModal(true)}
-                          className="text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-bold text-xs"
-                        >
-                          Cancel Today <XCircle size={14} className="ml-1.5" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setShowSkipDayModal(true)}
-                          className="text-primary border-primary/20 hover:bg-primary/10 font-bold text-xs"
-                        >
-                          Skip a Day <Calendar size={14} className="ml-1.5" />
-                        </Button>
+                        {hasActiveTodayOrder && (
+                          <>
+                            <Button
+                              data-testid="add-addon-button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                setAddonDefaultMeal(undefined);
+                                setShowAddAddonModal(true);
+                              }}
+                              className="text-gold-dark border-gold/30 hover:bg-gold/10 font-bold text-xs"
+                            >
+                              + Add-on <PlusCircle size={14} className="ml-1.5" />
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setShowCancelTodayModal(true)}
+                              className="text-danger border-danger/20 hover:bg-danger/10 hover:text-danger hover:border-danger/30 font-bold text-xs"
+                            >
+                              Cancel Today <XCircle size={14} className="ml-1.5" />
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setShowSkipDayModal(true)}
+                              className="text-primary border-primary/20 hover:bg-primary/10 font-bold text-xs"
+                            >
+                              Skip a Day <Calendar size={14} className="ml-1.5" />
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="secondary"
                           size="sm"
@@ -832,12 +876,42 @@ export function CustomerDashboardPage() {
                   />
 
                   <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Pincode"
-                      placeholder="570001"
-                      {...register("pincode")}
-                      error={errors.pincode?.message}
-                    />
+                    <div>
+                      <Input
+                        label="Pincode (Optional)"
+                        placeholder="570001 (Optional)"
+                        {...register("pincode")}
+                        error={errors.pincode?.message}
+                      />
+                      {suggestedPincode && !watchedDashboardPincode && (
+                        <div className="mt-1 text-xs text-text-muted flex items-center gap-1.5 bg-primary/5 p-1.5 rounded-lg border border-primary/10">
+                          <span>Map suggested: <strong>{suggestedPincode}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setValue("pincode", suggestedPincode, { shouldValidate: true });
+                              setSuggestedPincode(null);
+                            }}
+                            className="text-primary font-bold hover:underline"
+                          >
+                            Use this pincode
+                          </button>
+                        </div>
+                      )}
+                      {watchedDashboardPincode && watchedDashboardPincode.trim().length === 6 && (
+                        <div className="mt-1 text-xs font-medium">
+                          {isMysuruCityPincode(watchedDashboardPincode) ? (
+                            <p className="text-emerald-600 font-semibold flex items-center gap-1">
+                              ✓ Serviceable: Mysuru City Delivery Zone
+                            </p>
+                          ) : (
+                            <p className="text-red-500 font-semibold flex items-center gap-1">
+                              ✕ Unserviceable: Pincode not covered. We only serve Mysuru City (570001–570032).
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <Input
                       label="City"
                       {...register("city")}
@@ -855,6 +929,7 @@ export function CustomerDashboardPage() {
                     onClick={() => {
                       setShowAddressForm(false);
                       setPickedCoords(null);
+                      setSuggestedPincode(null);
                       reset();
                     }}
                     className="font-bold text-xs px-4 py-2"
@@ -863,10 +938,13 @@ export function CustomerDashboardPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isAdding}
+                    disabled={
+                      isAdding ||
+                      (Boolean(watchedDashboardPincode && watchedDashboardPincode.trim().length === 6 && !isMysuruCityPincode(watchedDashboardPincode)))
+                    }
                     className="font-bold text-xs px-6 py-2"
                   >
-                    {isAdding ? "Saving..." : "Save"}
+                    {isAdding ? "Saving..." : "Confirm & Save Address"}
                   </Button>
                 </div>
               </form>
@@ -919,9 +997,24 @@ export function CustomerDashboardPage() {
                               {addr.line2}
                             </p>
                           )}
-                          <p className="text-primary font-bold text-xs mt-3 bg-primary/5 inline-block px-3 py-1.5 rounded-lg border border-primary/5 font-data">
-                            {addr.city} • {addr.pincode}
-                          </p>
+                          <div className="mt-3 inline-flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/5">
+                            <span className="text-primary font-bold text-xs font-data">
+                              {addr.city}{addr.pincode ? ` • ${addr.pincode}` : ""}
+                            </span>
+                            {(!addr.pincode || addr.pincode.trim().length === 0) ? (
+                              <span className="text-[10px] text-amber-800 bg-amber-100 font-bold px-1.5 py-0.5 rounded">
+                                Serviceability cannot be determined yet
+                              </span>
+                            ) : isMysuruCityPincode(addr.pincode) ? (
+                              <span className="text-[10px] text-emerald-700 bg-emerald-100 font-bold px-1.5 py-0.5 rounded">
+                                ✓ Serviceable
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-red-700 bg-red-100 font-bold px-1.5 py-0.5 rounded">
+                                ✕ Outside Mysuru
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <button

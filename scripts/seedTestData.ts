@@ -47,12 +47,17 @@ async function seedTestData() {
     const customerId = userRecord.uid;
 
     // 1.1 Ensure default active Delivery Zone exists
-    const zoneSnap = await db.collection('delivery_zones').doc('zone-1').get();
+    const zoneSnap = await db.collection('deliveryZones').doc('zone-1').get();
     if (!zoneSnap.exists) {
       console.log('Creating default delivery zone...');
-      await db.collection('delivery_zones').doc('zone-1').set({
+      await db.collection('deliveryZones').doc('zone-1').set({
         name: 'Gokulam & Saraswathipuram',
-        pincodes: ['570001', '570002', '570009'],
+        pincodes: [
+          '570001', '570002', '570003', '570004', '570005', '570006', '570007', '570008', '570009', '570010',
+          '570011', '570012', '570013', '570014', '570015', '570016', '570017', '570018', '570019', '570020',
+          '570021', '570022', '570023', '570024', '570025', '570026', '570027', '570028', '570029', '570030',
+          '570031', '570032',
+        ],
         kitchenId: 'test-kitchen',
         isActive: true,
         createdAt: Timestamp.now(),
@@ -85,12 +90,12 @@ async function seedTestData() {
     );
 
     // 2. Create a Mock Plan if it doesn't exist
-    const plansSnap = await db.collection('meal_plans').limit(1).get();
+    const plansSnap = await db.collection('mealPlans').limit(1).get();
     let planId = 'test-plan-1';
     let planTier = 'basic';
     if (plansSnap.empty) {
       console.log('No plans found, creating a mock plan...');
-      await db.collection('meal_plans').doc(planId).set({
+      await db.collection('mealPlans').doc(planId).set({
         name: 'Basic Test Plan',
         tier: 'basic',
         pricePerDay: 159,

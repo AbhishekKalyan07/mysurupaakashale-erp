@@ -84,10 +84,18 @@ async function main() {
   }, { merge: true });
 
   // 3. Ensure Delivery Zones
-  await db.collection('delivery_zones').doc('zone-1').set({
+  await db.collection('deliveryZones').doc('zone-1').set({
     id: 'zone-1',
-    name: 'Saraswathipuram & Gokulam',
-    pincodes: ['570001', '570002', '570009'],
+    name: 'Mysuru City Delivery Zone',
+    pincodes: [
+      '570001', '570002', '570003', '570004', '570005',
+      '570006', '570007', '570008', '570009', '570010',
+      '570011', '570012', '570013', '570014', '570015',
+      '570016', '570017', '570018', '570019', '570020',
+      '570021', '570022', '570023', '570024', '570025',
+      '570026', '570027', '570028', '570029', '570030',
+      '570031', '570032',
+    ],
     kitchenId: 'kitchen-central',
     isActive: true,
     createdAt: Timestamp.now(),

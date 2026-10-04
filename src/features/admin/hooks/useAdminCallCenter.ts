@@ -83,6 +83,36 @@ export function useAdminAddTodayMeal() {
   });
 }
 
+export function useAdminAddMealForDate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      customerId: string;
+      subscriptionId?: string;
+      date: string;
+      mealType: MealType;
+      optionId?: string;
+      nowOverride?: Date;
+    }) => {
+      return adminCallCenterService.adminAddMealForDate(params);
+    },
+    onSuccess: (order) => {
+      queryClient.invalidateQueries({ queryKey: ["customer-today-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["orderHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["auditLogs"] });
+      toast.success(
+        `Meal for ${order.date} (${order.mealType}) added successfully (₹${order.price}).`,
+      );
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to add meal.");
+    },
+  });
+}
+
 export function useAdminChangeTodayMealOption() {
   const queryClient = useQueryClient();
 

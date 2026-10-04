@@ -295,8 +295,17 @@ vi.mock("@/shared/services/business/billingService", () => ({
   },
 }));
 
-// Test Fixtures
-const TODAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+vi.mock("@/shared/lib/date", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/lib/date")>();
+  return {
+    ...actual,
+    getTodayIST: () => "2026-10-07",
+    getTodayInTimezone: (tz?: string, d?: Date) => (d ? actual.getTodayInTimezone(tz, d) : "2026-10-07"),
+  };
+});
+
+// Test Fixtures: Use a fixed Wednesday date (2026-10-07) to ensure tests are deterministic and independent of Sunday non-delivery day
+const TODAY = "2026-10-07";
 const TIME_BREAKFAST_BEFORE = new Date(`${TODAY}T04:30:00+05:30`);
 const TIME_BREAKFAST_AFTER = new Date(`${TODAY}T05:30:00+05:30`);
 const TIME_LUNCH_BEFORE = new Date(`${TODAY}T10:00:00+05:30`);
@@ -368,7 +377,7 @@ const mockSubscription: any = {
   planTier: "regular",
   status: "active",
   startDate: "2026-09-01",
-  endDate: "2026-09-30",
+  endDate: "2026-10-31",
   billingCycle: "monthly",
   autoRenew: true,
   quantity: 1,

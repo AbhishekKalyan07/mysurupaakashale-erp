@@ -96,6 +96,11 @@ const AdminMealPlansPage = lazy(() =>
     default: m.AdminMealPlansPage,
   })),
 );
+const AdminFailureQueuePage = lazy(() =>
+  import("@/features/admin/pages/AdminFailureQueuePage").then((m) => ({
+    default: m.AdminFailureQueuePage,
+  })),
+);
 const NotificationCenter = lazy(() =>
   import("@/features/notifications/pages/NotificationCenter").then((m) => ({
     default: m.NotificationCenter,
@@ -268,6 +273,10 @@ const router = createBrowserRouter([
             element: withSuspense(AdminCustomersPage),
           },
           {
+            path: "/admin/customers/:id",
+            element: withSuspense(AdminCustomersPage),
+          },
+          {
             path: "/admin/subscriptions",
             element: withSuspense(AdminSubscriptionsPage),
           },
@@ -300,6 +309,10 @@ const router = createBrowserRouter([
           { path: "/admin/meal-plans", element: withSuspense(AdminMealPlansPage) },
           { path: "/admin/zones", element: withSuspense(AdminZonesPage) },
           { path: "/admin/audit", element: withSuspense(AuditLogsPage) },
+          {
+            path: "/admin/failure-queue",
+            element: withSuspense(AdminFailureQueuePage),
+          },
           { path: "/admin/menus", element: withSuspense(DailyMenuListPage) },
           {
             path: "/admin/menus/new",

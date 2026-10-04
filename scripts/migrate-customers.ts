@@ -1,110 +1,191 @@
-// ⚠️  PRODUCTION MIGRATION SCRIPT — targets real Firestore via serviceAccountKey.json
-// This script is intentionally exempt from the emulator guard.
-// Do NOT run unless you are performing a deliberate, one-time production migration.
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+// scripts/migrate-customers.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Migration script: Normalizes all customer displayIds to continuous format:
+// MP-001, MP-002, MP-003...
+//
+// Key Invariants:
+// 1. Deterministic Ordering: Sorted by createdAt ascending, tie-broken by UID ascending.
+// 2. Identity Safety: Firebase Auth UID is UNCHANGED. Document path (users/{uid}) is UNCHANGED.
+// 3. Document Ownership: All profile fields, addresses, role remain intact.
+// 4. Historical Snapshot Preservation: Historical orders, invoices, and payments are NOT
+//    rewritten, preserving historical audit snapshots.
+// 5. Counter Continuity: settings/userCounters is synchronized to the max migrated customer count,
+//    ensuring the next registered customer receives the exact next continuous number.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, Firestore, FieldValue } from 'firebase-admin/firestore';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
+import * as fs from 'fs';
 
 // Load environment variables
 dotenv.config({ path: resolve(__dirname, '../.env.local') });
+dotenv.config({ path: resolve(__dirname, '../.env') });
 
-// IMPORTANT: Set up Firebase Admin SDK with a service account
-// You will need a serviceAccountKey.json file in the root of your project
-try {
-  const serviceAccount = require('../serviceAccountKey.json');
-  initializeApp({
-    credential: cert(serviceAccount)
-  });
-} catch (error) {
-  console.error('Failed to initialize Firebase Admin. Please ensure you have a valid serviceAccountKey.json file in the root directory.');
-  console.error(error);
-  process.exit(1);
+export interface CustomerMigrationResult {
+  totalCustomers: number;
+  migratedCount: number;
+  nextCounterValue: number;
+  mappings: Array<{
+    uid: string;
+    fullName: string;
+    oldDisplayId: string | null;
+    newDisplayId: string;
+    createdAt: string;
+  }>;
 }
 
-const db = getFirestore();
+/**
+ * Normalizes customer display IDs deterministically to MP-001, MP-002, etc.
+ * Safe to call against emulator or production Firestore instance.
+ */
+export async function migrateCustomerDisplayIds(
+  db: Firestore
+): Promise<CustomerMigrationResult> {
+  const usersCollection = db.collection('users');
+  const snapshot = await usersCollection.where('role', '==', 'customer').get();
 
-async function generateNextDisplayId(fullName?: string): Promise<string> {
-  const counterRef = db.collection('settings').doc('userCounters');
-  
-  if (fullName) {
-    const firstLetter = fullName.trim().charAt(0).toUpperCase();
-    const validLetter = /^[A-Z]$/.test(firstLetter) ? firstLetter : 'U';
-    const fieldName = `customer_${validLetter}`;
-
-    return db.runTransaction(async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      let count = 0;
-
-      if (counterDoc.exists) {
-        const data = counterDoc.data();
-        if (data && typeof data[fieldName] === 'number') {
-          count = data[fieldName];
-        }
-      } else {
-        transaction.set(counterRef, { [fieldName]: count });
-      }
-
-      const newCount = count + 1;
-      transaction.set(counterRef, { [fieldName]: newCount }, { merge: true });
-
-      const paddedCount = newCount.toString().padStart(3, '0');
-      return `MP-${validLetter}${paddedCount}`;
-    });
+  const totalCustomers = snapshot.size;
+  if (totalCustomers === 0) {
+    return {
+      totalCustomers: 0,
+      migratedCount: 0,
+      nextCounterValue: 0,
+      mappings: [],
+    };
   }
-  
-  return 'MP-U000'; // Fallback
-}
 
-async function migrateCustomers() {
-  console.log('Starting Customer Migration...');
-  
-  try {
-    const customersSnap = await db.collection('users').where('role', '==', 'customer').get();
-    console.log(`Found ${customersSnap.size} customers to migrate.`);
-    
-    let migratedCount = 0;
+  // Parse and sort documents deterministically:
+  // Primary sort: createdAt ascending. Secondary sort: doc.id (UID) ascending.
+  const customerList = snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+    let createdAtMs = 0;
 
-    for (const doc of customersSnap.docs) {
-      const data = doc.data();
-      const currentDisplayId = data.displayId;
-      const fullName = data.fullName;
-      
-      // Generate new Display ID
-      const newDisplayId = await generateNextDisplayId(fullName);
-      
-      const updateData: any = {
-        displayId: newDisplayId
-      };
-      
-      // Initialize delivery partner fields if missing
-      if (!data.hasOwnProperty('deliveryPartnerId')) {
-        updateData.deliveryPartnerId = null;
+    if (data.createdAt) {
+      if (typeof data.createdAt.toMillis === 'function') {
+        createdAtMs = data.createdAt.toMillis();
+      } else if (typeof data.createdAt._seconds === 'number') {
+        createdAtMs = data.createdAt._seconds * 1000;
+      } else if (typeof data.createdAt === 'string') {
+        const parsed = Date.parse(data.createdAt);
+        if (!isNaN(parsed)) createdAtMs = parsed;
+      } else if (typeof data.createdAt === 'number') {
+        createdAtMs = data.createdAt;
       }
-      
-      // 1. Update Customer Record
-      await doc.ref.update(updateData);
-      
-      // 2. Update all existing orders for this customer to use the new displayId
-      const ordersSnap = await db.collection('orders').where('customerId', '==', doc.id).get();
-      if (!ordersSnap.empty) {
-        const batch = db.batch();
-        ordersSnap.docs.forEach(orderDoc => {
-          batch.update(orderDoc.ref, { displayId: newDisplayId });
-        });
-        await batch.commit();
-        console.log(`Updated ${ordersSnap.size} orders for customer ${fullName} (${newDisplayId})`);
-      }
-      
-      console.log(`Migrated Customer: ${fullName} | ${currentDisplayId} -> ${newDisplayId}`);
-      migratedCount++;
     }
-    
-    console.log(`\nMigration completed successfully. Migrated ${migratedCount} customers.`);
-    
-  } catch (error) {
-    console.error('Migration failed:', error);
+
+    return {
+      ref: docSnap.ref,
+      id: docSnap.id,
+      data,
+      createdAtMs,
+      createdAtStr: data.createdAt ? String(data.createdAt) : 'none',
+    };
+  });
+
+  customerList.sort((a, b) => {
+    if (a.createdAtMs !== b.createdAtMs) {
+      return a.createdAtMs - b.createdAtMs;
+    }
+    return a.id.localeCompare(b.id);
+  });
+
+  const mappings: CustomerMigrationResult['mappings'] = [];
+  let currentSequence = 0;
+
+  // Execute migration in chunks using Firestore Batches
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < customerList.length; i += BATCH_SIZE) {
+    const chunk = customerList.slice(i, i + BATCH_SIZE);
+    const batch = db.batch();
+
+    for (const item of chunk) {
+      currentSequence++;
+      const paddedNumber = currentSequence.toString().padStart(3, '0');
+      const newDisplayId = `MP-${paddedNumber}`;
+      const oldDisplayId = item.data.displayId || null;
+
+      // Update ONLY customer displayId. Do NOT alter uid, ownership, role, addresses, etc.
+      batch.update(item.ref, {
+        displayId: newDisplayId,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      mappings.push({
+        uid: item.id,
+        fullName: item.data.fullName || 'Unnamed Customer',
+        oldDisplayId,
+        newDisplayId,
+        createdAt: item.createdAtStr,
+      });
+    }
+
+    await batch.commit();
   }
+
+  // Synchronize settings/userCounters so subsequent customer registrations continue smoothly
+  const counterRef = db.collection('settings').doc('userCounters');
+  await counterRef.set(
+    {
+      customer: currentSequence,
+    },
+    { merge: true }
+  );
+
+  return {
+    totalCustomers,
+    migratedCount: mappings.length,
+    nextCounterValue: currentSequence,
+    mappings,
+  };
 }
 
-migrateCustomers().then(() => process.exit(0)).catch(() => process.exit(1));
+// ─────────────────────────────────────────────────────────────────────────────
+// CLI Execution
+// ─────────────────────────────────────────────────────────────────────────────
+async function runCli() {
+  const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
+
+  if (!getApps().length) {
+    if (isEmulator) {
+      console.log(`[Migration] Connecting to Firestore Emulator at ${process.env.FIRESTORE_EMULATOR_HOST}`);
+      initializeApp({
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-test',
+      });
+    } else {
+      const saPath = resolve(__dirname, '../serviceAccountKey.json');
+      if (fs.existsSync(saPath)) {
+        console.log(`[Migration] Connecting to Production Firestore using serviceAccountKey.json`);
+        const serviceAccount = require(saPath);
+        initializeApp({
+          credential: cert(serviceAccount),
+        });
+      } else {
+        console.error('[Migration] Error: Neither FIRESTORE_EMULATOR_HOST nor serviceAccountKey.json was found.');
+        process.exit(1);
+      }
+    }
+  }
+
+  const db = getFirestore();
+  console.log('[Migration] Starting customer display ID migration...');
+  const result = await migrateCustomerDisplayIds(db);
+
+  console.log(`[Migration] Finished. Inspected: ${result.totalCustomers}, Migrated: ${result.migratedCount}`);
+  for (const m of result.mappings) {
+    console.log(`  - Customer "${m.fullName}" (UID: ${m.uid}): ${m.oldDisplayId} -> ${m.newDisplayId}`);
+  }
+  console.log(`[Migration] settings/userCounters.customer set to: ${result.nextCounterValue}`);
+  console.log(`[Migration] Next customer created will receive: MP-${(result.nextCounterValue + 1).toString().padStart(3, '0')}`);
+}
+
+// Only run CLI if invoked directly
+if (process.argv[1] && process.argv[1].includes('migrate-customers')) {
+  runCli()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('[Migration] Fatal error during migration:', err);
+      process.exit(1);
+    });
+}

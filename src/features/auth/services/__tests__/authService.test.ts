@@ -107,7 +107,7 @@ describe("authService - signUpCustomer Failure Injections", () => {
 
     mockGetDoc.mockResolvedValue({ exists: () => false }); // Phone does not exist by default
 
-    vi.mocked(userRepository.generateNextDisplayId).mockResolvedValue("MP-T001");
+    vi.mocked(userRepository.generateNextDisplayId).mockResolvedValue("MP-001");
 
     mockBatch = {
       set: vi.fn(),

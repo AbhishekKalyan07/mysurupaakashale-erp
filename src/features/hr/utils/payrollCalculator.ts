@@ -1,4 +1,5 @@
 import type { EmployeeSalaryProfile, AttendanceRecord } from "@/shared/types";
+import { DEFAULT_PAYROLL_CONFIG } from "@/shared/types";
 
 export interface PayrollConfig {
   standardWorkingDays: number;
@@ -15,7 +16,7 @@ export function calculatePayroll(
   // Use configured basicSalary if it exists and is >= 0, otherwise fallback to 0.
   // Same for overtimeRate.
   const basic = profile?.basicSalary ?? 0;
-  const otRate = profile?.overtimeRate ?? 100;
+  const otRate = profile?.overtimeRate ?? DEFAULT_PAYROLL_CONFIG.defaultOvertimeRate;
 
   const {
     standardWorkingDays,

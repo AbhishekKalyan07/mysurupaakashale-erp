@@ -2,7 +2,15 @@ import { test, expect } from '../shared/fixtures';
 
 test.describe('Customer: Remove Today Meal', () => {
   // Since we seed the order in auth.setup.ts, it will persist through tests
-  test('customer can remove a meal for today', async ({ customerPage }) => {
+  test('customer can remove a meal for today before cutoff', async ({ customerPage }) => {
+    // Set virtual page clock to tomorrow 08:00 AM IST so dinner cutoff is deterministically open
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    await customerPage.clock.setFixedTime(new Date(`${year}-${month}-${day}T08:00:00+05:30`));
+
     // We expect the dashboard to have the 'Modify Order' or similar cancellation option for today's meal
     await customerPage.goto('/customer');
 

@@ -38,12 +38,13 @@ describe('Holiday Security Rules', () => {
   const adminAuth = { uid: 'admin-1', email: 'admin@mysurupaakashale.com', customClaims: { role: 'admin' } };
   const customerAuth = { uid: 'cust-1', email: 'cust@example.com' };
   
-  const HOLIDAY_ID = 'holiday_2026-10-02';
+  const HOLIDAY_DATE = '2026-12-25';
+  const HOLIDAY_ID = `holiday_${HOLIDAY_DATE}`;
   
   const VALID_HOLIDAY_DOC = {
     id: HOLIDAY_ID,
-    date: '2026-10-02',
-    name: 'Gandhi Jayanti',
+    date: HOLIDAY_DATE,
+    name: 'Christmas',
     status: 'active',
     createdBy: 'admin-1',
   };
@@ -130,7 +131,7 @@ describe('Holiday Security Rules', () => {
         planId: 'plan-1',
         planTier: 'basic',
         mealType: 'lunch',
-        date: '2026-10-02', // Matches active holiday
+        date: HOLIDAY_DATE, // Matches active holiday
         itemsLabel: 'Lunch',
         selectedOptionId: 'opt-1',
         price: 65,
@@ -174,7 +175,7 @@ describe('Holiday Security Rules', () => {
         planId: 'plan-1',
         planTier: 'basic',
         mealType: 'lunch',
-        date: '2026-10-02', // Matches cancelled holiday
+        date: HOLIDAY_DATE, // Matches cancelled holiday
         itemsLabel: 'Lunch',
         selectedOptionId: 'opt-1',
         price: 65,

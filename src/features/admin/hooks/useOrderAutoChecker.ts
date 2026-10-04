@@ -1,17 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   orderDiagnosticService,
   type OrderDiagnosticResult,
 } from "@/shared/services/business/orderDiagnosticService";
-import { queryKeys } from "@/shared/lib/queryKeys";
 
 export function useOrderAutoChecker(
   date: string,
   existingOrdersCount: number,
   isInitialLoading: boolean,
 ) {
-  const queryClient = useQueryClient();
   const [diagnosticResult, setDiagnosticResult] =
     useState<OrderDiagnosticResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -19,14 +16,8 @@ export function useOrderAutoChecker(
   const runCheck = useCallback(async () => {
     setIsChecking(true);
     try {
-      const res = await orderDiagnosticService.diagnoseAndRemediate(date);
+      const res = await orderDiagnosticService.diagnose(date);
       setDiagnosticResult(res);
-      if (res.autoHealedCount > 0) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "orders", date] });
-        queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-        queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
-        queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
-      }
       return res;
     } catch (err) {
       console.error("[useOrderAutoChecker] Failed to run diagnostic check:", err);
@@ -34,7 +25,7 @@ export function useOrderAutoChecker(
     } finally {
       setIsChecking(false);
     }
-  }, [date, queryClient]);
+  }, [date]);
 
   // Reset diagnostic result when switching dates
   useEffect(() => {
@@ -50,17 +41,12 @@ export function useOrderAutoChecker(
     let isMounted = true;
     setIsChecking(true);
 
+    // Strictly read-only diagnosis: never mutates orders or database state upon date viewing
     orderDiagnosticService
-      .diagnoseAndRemediate(date)
+      .diagnose(date)
       .then((res) => {
         if (!isMounted) return;
         setDiagnosticResult(res);
-        if (res.autoHealedCount > 0) {
-          queryClient.invalidateQueries({ queryKey: ["admin", "orders", date] });
-          queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
-          queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
-          queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
-        }
       })
       .catch((err) => {
         console.error("[useOrderAutoChecker] Background check failed:", err);
@@ -72,7 +58,7 @@ export function useOrderAutoChecker(
     return () => {
       isMounted = false;
     };
-  }, [date, existingOrdersCount, isInitialLoading, queryClient]);
+  }, [date, existingOrdersCount, isInitialLoading]);
 
   return {
     diagnosticResult,

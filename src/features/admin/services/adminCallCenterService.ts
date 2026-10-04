@@ -10,7 +10,7 @@ import {
 } from "@/shared/services/business/orderService";
 import { pricingService } from "@/shared/services/business/pricingService";
 import { getTodayInTimezone } from "@/shared/lib/date";
-import type { MealType } from "@/shared/types";
+import type { MealType, Order } from "@/shared/types";
 
 export interface AdminActor {
   uid: string;
@@ -158,6 +158,53 @@ export class AdminCallCenterService {
       date: today,
       price: mealPrice,
     };
+  }
+
+  /**
+   * Adds an individual meal for today or a specific future date on behalf of a customer.
+   * Does NOT modify the customer's permanent subscription meal configuration.
+   * Enforces admin caller authentication, cutoff rules, and logs audit record.
+   */
+  async adminAddMealForDate(params: {
+    customerId: string;
+    subscriptionId?: string;
+    date: string;
+    mealType: MealType;
+    optionId?: string;
+    nowOverride?: Date;
+  }): Promise<Order> {
+    const admin = await this.assertAdminCaller();
+    const order = await orderService.addIndividualMeal({
+      ...params,
+      nowOverride: params.nowOverride,
+    });
+
+    try {
+      await auditRepository.logAction(
+        "admin_individual_meal_added",
+        admin.uid,
+        admin.role,
+        admin.name,
+        order.id,
+        "order",
+        {
+          action: "admin_individual_meal_added",
+          performedByAdminId: admin.uid,
+          performedByRole: admin.role,
+          customerId: params.customerId,
+          subscriptionId: params.subscriptionId || null,
+          orderId: order.id,
+          mealType: params.mealType,
+          date: params.date,
+          price: order.price,
+          status: order.status,
+        },
+      );
+    } catch (auditErr) {
+      console.error("[AdminCallCenterService] Audit logging failed:", auditErr);
+    }
+
+    return order;
   }
 
   /**

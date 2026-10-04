@@ -22,6 +22,7 @@ import {
 } from "../hooks/usePayroll";
 import { useStaffUsers } from "@/features/admin/hooks/useAdmin";
 import { useBusinessSettings } from "@/features/admin/hooks/useSettings";
+import { DEFAULT_PAYROLL_CONFIG } from "@/shared/types";
 import { salaryProfileRepository } from "@/shared/services/firestore/payrollRepository";
 import { sanitizeSpreadsheetValue } from "@/shared/utils/spreadsheet";
 import { attendanceRepository } from "@/shared/services/firestore/attendanceRepository";
@@ -108,11 +109,17 @@ export function PayrollDashboardPage() {
 
   const handleGenerate = async (user: any) => {
     const profile = await salaryProfileRepository.getProfile(user.id);
-    const standardWorkingDays = settings?.payroll?.standardWorkingDays || 22;
-    const standardWorkingHours = settings?.payroll?.standardWorkingHours || 8;
-    const taxPercentage = settings?.payroll?.taxPercentage || 0;
+    const standardWorkingDays =
+      settings?.payroll?.standardWorkingDays ||
+      DEFAULT_PAYROLL_CONFIG.standardWorkingDays;
+    const standardWorkingHours =
+      settings?.payroll?.standardWorkingHours ||
+      DEFAULT_PAYROLL_CONFIG.standardWorkingHours;
+    const taxPercentage =
+      settings?.payroll?.taxPercentage ?? DEFAULT_PAYROLL_CONFIG.taxPercentage;
     const leaveDeductionMultiplier =
-      settings?.payroll?.leaveDeductionMultiplier || 1;
+      settings?.payroll?.leaveDeductionMultiplier ??
+      DEFAULT_PAYROLL_CONFIG.leaveDeductionMultiplier;
 
     const startDate = `${month}-01`;
     const lastDay = new Date(

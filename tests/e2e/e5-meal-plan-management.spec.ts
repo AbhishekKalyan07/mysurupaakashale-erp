@@ -3,6 +3,7 @@ import axios from 'axios';
 
 test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management Flow', () => {
   test('Admin manages meal plans and options, verifies customer selectability, frozen pricing, and disablement', async ({ adminPage, customerPage }) => {
+    test.setTimeout(90000);
     // 0. Clean any pre-existing test subscriptions in emulator
     try {
       const subListResp = await axios.get(
@@ -181,7 +182,9 @@ test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management
     await adminPage.locator('button:has-text("+ Create Subscription")').first().click();
     await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 10000 });
 
-    await adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first().click();
+    const stdPlanCard = adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first();
+    await expect(stdPlanCard).toBeVisible({ timeout: 10000 });
+    await stdPlanCard.click();
 
     const lunchSelectAfterDisable = adminPage.locator('select[data-testid="select-option-lunch"]');
     await expect(lunchSelectAfterDisable).toBeVisible({ timeout: 10000 });

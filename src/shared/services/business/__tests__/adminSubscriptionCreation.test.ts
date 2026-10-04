@@ -8,6 +8,7 @@ import { pricingService } from "../pricingService";
 import { orderService } from "../orderService";
 import { pricingRepository } from "@/shared/services/firestore/pricingRepository";
 import { settingsRepository } from "@/shared/services/firestore/settingsRepository";
+import * as dateLib from "@/shared/lib/date";
 import type { CustomerProfile, MealPlan, Subscription } from "@/shared/types";
 
 describe("PHASE E3 — Admin-Assisted Subscription Creation & Lifecycle Integration", () => {
@@ -82,6 +83,7 @@ describe("PHASE E3 — Admin-Assisted Subscription Creation & Lifecycle Integrat
     vi.spyOn(subscriptionRepository, "getById").mockResolvedValue(null);
     vi.spyOn(auditRepository, "logAction").mockResolvedValue(undefined as any);
     vi.spyOn(settingsRepository, "getBusinessSettings").mockResolvedValue({ pricing: { securityDepositAmount: 1000 } } as any);
+    vi.spyOn(dateLib, "getTodayIST").mockReturnValue("2026-10-01");
   });
 
   const baseInput: AdminCreateSubscriptionInput = {

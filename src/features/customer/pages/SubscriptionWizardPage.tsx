@@ -15,6 +15,7 @@ import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
+import { QuantityStepper } from "@/shared/components/ui/QuantityStepper";
 import { toast } from "react-hot-toast";
 import {
   ArrowRight,
@@ -32,6 +33,7 @@ import { queryKeys } from "@/shared/lib/queryKeys";
 import { useBusinessSettings } from "@/features/admin/hooks/useSettings";
 import { ManualPaymentPanel } from "../components/ManualPaymentPanel";
 import { getTodayIST } from "@/shared/utils/dateUtils";
+import { isMysuruCityPincode } from "@/shared/services/business/operationalRouter";
 
 // Zod Schema for Address
 const addressFormSchema = z.object({
@@ -45,7 +47,10 @@ const addressFormSchema = z.object({
   state: z.string().min(1, "State is required").max(100),
   pincode: z
     .string()
-    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits"),
+    .trim()
+    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits")
+    .optional()
+    .or(z.literal("")),
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
@@ -199,6 +204,7 @@ export function SubscriptionWizardPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -208,6 +214,7 @@ export function SubscriptionWizardPage() {
       state: "Karnataka",
     },
   });
+  const watchedPincode = watch("pincode");
 
   if (isPlansLoading || isSettingsLoading || isSubLoading) {
     return <LoadingScreen />;
@@ -275,15 +282,31 @@ export function SubscriptionWizardPage() {
     if (activeDinnerOptions[0]) setDinnerOptionId(activeDinnerOptions[0].id);
   }
 
-  // Set default selected address once addresses loaded
-  if (addresses.length > 0 && !selectedAddressId) {
-    const defaultAddr = addresses?.find((a) => a.isDefault);
-    setSelectedAddressId(defaultAddr?.id || addresses[0].id);
-  }
+  // PART 3: Do not automatically select or confirm customer address/pincode on their behalf.
+  // The customer must explicitly select a saved address or add and confirm a new one.
 
   // Handle address form submit
   const onAddressSubmit = async (data: AddressFormValues) => {
     try {
+      if (data.pincode && data.pincode.trim().length > 0) {
+        const { deliveryZoneRepository } = await import(
+          "@/shared/services/firestore/deliveryZoneRepository"
+        );
+        const { resolveOperationalZoneAndKitchen } = await import(
+          "@/shared/services/business/operationalRouter"
+        );
+        const allZones = await deliveryZoneRepository.list();
+        try {
+          resolveOperationalZoneAndKitchen({ pincode: data.pincode.trim() }, allZones);
+        } catch (routingErr: any) {
+          toast.error(
+            routingErr?.message ||
+              `No zone available for your location (pincode ${data.pincode}). Please select an address in our delivery zones.`,
+          );
+          return;
+        }
+      }
+
       const newAddr = await addAddress({
         ...data,
         isDefault: addresses.length === 0, // default if first address
@@ -306,19 +329,21 @@ export function SubscriptionWizardPage() {
     if (!currentAddress) return;
 
     try {
-      const { deliveryZoneRepository } = await import(
-        "@/shared/services/firestore/deliveryZoneRepository"
-      );
-      const { resolveOperationalZoneAndKitchen } = await import(
-        "@/shared/services/business/operationalRouter"
-      );
-      const allZones = await deliveryZoneRepository.list();
-      resolveOperationalZoneAndKitchen(currentAddress, allZones);
+      if (currentAddress.pincode && currentAddress.pincode.trim().length > 0) {
+        const { deliveryZoneRepository } = await import(
+          "@/shared/services/firestore/deliveryZoneRepository"
+        );
+        const { resolveOperationalZoneAndKitchen } = await import(
+          "@/shared/services/business/operationalRouter"
+        );
+        const allZones = await deliveryZoneRepository.list();
+        resolveOperationalZoneAndKitchen(currentAddress, allZones);
+      }
       setStep(3);
     } catch (err: any) {
       toast.error(
         err?.message ||
-          `Delivery is not currently available for pincode ${currentAddress.pincode}. Please select or add an address in our delivery zones.`,
+          `No zone available for your location (pincode ${currentAddress.pincode}). Please select or add an address in our delivery zones.`,
       );
     }
   };
@@ -353,7 +378,7 @@ export function SubscriptionWizardPage() {
     try {
       // Validate delivery zone serviceability for selected address
       const currentAddress = addresses.find((a) => a.id === selectedAddressId);
-      if (currentAddress) {
+      if (currentAddress && currentAddress.pincode && currentAddress.pincode.trim().length > 0) {
         const { deliveryZoneRepository } = await import(
           "@/shared/services/firestore/deliveryZoneRepository"
         );
@@ -366,7 +391,7 @@ export function SubscriptionWizardPage() {
         } catch (routingErr: any) {
           setSubmissionError(
             routingErr?.message ||
-              `Delivery is not currently available for pincode ${currentAddress.pincode}. Please select a serviceable address.`,
+              `No zone available for your location (pincode ${currentAddress.pincode}). Please select a serviceable address.`,
           );
           setSubmittingDraft(false);
           return;
@@ -591,7 +616,7 @@ export function SubscriptionWizardPage() {
                             {option.label}
                           </h4>
                           <p className="text-ink-500 text-xs mt-1">
-                            Includes: {option.items.join(", ")}
+                            Includes: {option.items?.join(", ") || "Standard items"}
                           </p>
                         </div>
                       </div>
@@ -642,7 +667,7 @@ export function SubscriptionWizardPage() {
                             {option.label}
                           </h4>
                           <p className="text-ink-500 text-xs mt-1">
-                            Includes: {option.items.join(", ")}
+                            Includes: {option.items?.join(", ") || "Standard items"}
                           </p>
                         </div>
                       </div>
@@ -678,41 +703,78 @@ export function SubscriptionWizardPage() {
           {!showAddressForm ? (
             <div className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
-                {addresses.map((addr) => (
-                  <Card
-                    key={addr.id}
-                    onClick={() => setSelectedAddressId(addr.id)}
-                    className={`p-4 cursor-pointer border-2 transition-all hover:border-emerald-500/70 flex flex-col justify-between ${
-                      selectedAddressId === addr.id
-                        ? "border-emerald-600 bg-emerald-50/10"
-                        : "border-rice-300"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-sans font-bold text-ink-800 text-sm">
-                          {addr.label}
-                        </span>
-                        {addr.isDefault && (
-                          <span className="text-[10px] bg-rice-100 text-ink-500 px-1.5 py-0.5 rounded font-sans uppercase font-bold">
-                            Default
+                {addresses.map((addr) => {
+                  const hasPincode = Boolean(addr.pincode && addr.pincode.trim().length > 0);
+                  const isPincodeServiceable = hasPincode ? isMysuruCityPincode(addr.pincode!.trim()) : false;
+                  const isSelected = selectedAddressId === addr.id;
+                  return (
+                    <Card
+                      key={addr.id}
+                      onClick={() => {
+                        if (hasPincode && !isPincodeServiceable) {
+                          toast.error(
+                            `Pincode ${addr.pincode} is not serviceable. We currently only deliver to Mysuru City (570001–570032).`
+                          );
+                          return;
+                        }
+                        setSelectedAddressId(addr.id);
+                      }}
+                      className={`p-4 cursor-pointer border-2 transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? "border-emerald-600 bg-emerald-50/10 shadow-sm ring-1 ring-emerald-600/30"
+                          : hasPincode && !isPincodeServiceable
+                          ? "border-red-200 bg-red-50/20 opacity-75 hover:border-red-400"
+                          : "border-rice-300 hover:border-emerald-500/70"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-sans font-bold text-ink-800 text-sm">
+                            {addr.label}
                           </span>
-                        )}
-                      </div>
-                      <p className="text-ink-600 text-xs font-sans line-clamp-2">
-                        {addr.line1}
-                      </p>
-                      {addr.line2 && (
-                        <p className="text-ink-600 text-xs font-sans line-clamp-1">
-                          {addr.line2}
+                          <div className="flex items-center gap-1.5">
+                            {!hasPincode ? (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-sans font-bold flex items-center gap-1">
+                                Serviceability cannot be determined yet
+                              </span>
+                            ) : isPincodeServiceable ? (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-sans font-bold flex items-center gap-1">
+                                ✓ Serviceable
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-sans font-bold flex items-center gap-1">
+                                ✕ Outside Mysuru
+                              </span>
+                            )}
+                            {addr.isDefault && (
+                              <span className="text-[10px] bg-rice-100 text-ink-500 px-1.5 py-0.5 rounded font-sans uppercase font-bold">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-ink-600 text-xs font-sans line-clamp-2">
+                          {addr.line1}
                         </p>
+                        {addr.line2 && (
+                          <p className="text-ink-600 text-xs font-sans line-clamp-1">
+                            {addr.line2}
+                          </p>
+                        )}
+                        <p className="text-ink-700 text-xs font-semibold font-sans mt-2">
+                          {addr.city}{addr.pincode ? `, ${addr.pincode}` : ""}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="mt-3 pt-2 border-t border-emerald-100 flex items-center justify-between text-emerald-700 text-xs font-bold">
+                          <span className="flex items-center gap-1">
+                            <CheckCircle size={14} /> Confirmed Delivery Address
+                          </span>
+                        </div>
                       )}
-                      <p className="text-ink-700 text-xs font-semibold font-sans mt-2">
-                        {addr.city}, {addr.pincode}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
 
                 {/* Add new address button */}
                 <Card
@@ -750,12 +812,27 @@ export function SubscriptionWizardPage() {
                   {...register("label")}
                   error={errors.label?.message}
                 />
-                <Input
-                  label="Pincode (6 digits)"
-                  placeholder="570001"
-                  {...register("pincode")}
-                  error={errors.pincode?.message}
-                />
+                <div>
+                  <Input
+                    label="Pincode (Optional)"
+                    placeholder="570001 (Optional)"
+                    {...register("pincode")}
+                    error={errors.pincode?.message}
+                  />
+                  {watchedPincode && watchedPincode.trim().length === 6 && (
+                    <div className="mt-1 text-xs">
+                      {isMysuruCityPincode(watchedPincode) ? (
+                        <p className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <CheckCircle size={12} /> Serviceable: Mysuru City Delivery Zone
+                        </p>
+                      ) : (
+                        <p className="text-red-600 font-semibold flex items-center gap-1">
+                          <AlertCircle size={12} /> Unserviceable: Pincode {watchedPincode} is not served. Only Mysuru City (570001–570032) is supported.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <Input
@@ -801,10 +878,13 @@ export function SubscriptionWizardPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isAdding}
+                  disabled={
+                    isAdding ||
+                    (Boolean(watchedPincode && watchedPincode.trim().length === 6 && !isMysuruCityPincode(watchedPincode)))
+                  }
                   className="font-sans font-semibold"
                 >
-                  {isAdding ? "Saving..." : "Save Address"}
+                  {isAdding ? "Saving..." : "Confirm & Save Address"}
                 </Button>
               </div>
             </form>
@@ -823,7 +903,7 @@ export function SubscriptionWizardPage() {
               disabled={!selectedAddressId || showAddressForm}
               className="flex items-center gap-2 font-sans font-semibold"
             >
-              Review Order <ArrowRight size={16} />
+              Confirm Address & Review Order <ArrowRight size={16} />
             </Button>
           </div>
         </div>
@@ -846,27 +926,18 @@ export function SubscriptionWizardPage() {
             <div className="md:col-span-2 space-y-4">
               {/* Preferences Summary */}
               <Card className="p-4 border-rice-300">
-                <div className="flex justify-between items-start mb-3">
+                <div className="flex justify-between items-center mb-3">
                   <h3 className="font-sans font-bold text-ink-800 text-sm">
                     Selected Preferences
                   </h3>
-                  <div className="flex items-center gap-2 bg-rice-100 rounded-lg p-1 border border-rice-300">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
-                    >
-                      -
-                    </button>
-                    <span className="text-xs font-bold w-12 text-center">
-                      {quantity} {quantity === 1 ? "Person" : "People"}
-                    </span>
-                    <button
-                      onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                      className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-ink-700 font-bold"
-                    >
-                      +
-                    </button>
-                  </div>
+                  <QuantityStepper
+                    value={quantity}
+                    onChange={setQuantity}
+                    min={1}
+                    max={10}
+                    unitLabel="Person"
+                    size="sm"
+                  />
                 </div>
                 <div className="space-y-2 text-ink-600 text-xs font-sans">
                   <div className="flex justify-between">
@@ -925,8 +996,8 @@ export function SubscriptionWizardPage() {
                       <p className="text-ink-700">{currentAddress.line2}</p>
                     )}
                     <p className="text-ink-700">
-                      {currentAddress.city}, {currentAddress.state} -{" "}
-                      {currentAddress.pincode}
+                      {currentAddress.city}, {currentAddress.state}
+                      {currentAddress.pincode ? ` - ${currentAddress.pincode}` : ""}
                     </p>
                   </div>
                 ) : (

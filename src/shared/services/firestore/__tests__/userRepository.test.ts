@@ -51,41 +51,9 @@ describe("userRepository", () => {
 
 
   describe("generateNextDisplayId", () => {
-    it("generates customer ID with fullName", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "John Doe",
-      );
-      expect(result).toBe("MP-J001");
-    });
-
-    it("normalizes lowercase first letter to uppercase", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "alice smith",
-      );
-      expect(result).toBe("MP-A001");
-    });
-
-    it("falls back to U for non-alphabet initial", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "123 User",
-      );
-      expect(result).toBe("MP-U001");
-    });
-
-    it("falls back to U for whitespace only name", async () => {
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "   ",
-      );
-      expect(result).toBe("MP-U001");
-    });
-
-    it("falls back to U when fullName is undefined", async () => {
+    it("generates customer ID correctly", async () => {
       const result = await userRepository.generateNextDisplayId("customer");
-      expect(result).toBe("MP-U001");
+      expect(result).toBe("MP-001");
     });
 
     it("increments existing count for customer", async () => {
@@ -95,7 +63,7 @@ describe("userRepository", () => {
           const transaction = {
             get: vi.fn(async () => ({
               exists: () => true,
-              data: () => ({ customer_J: 42 }),
+              data: () => ({ customer: 42 }),
             })),
             set: vi.fn(),
             update: vi.fn(),
@@ -105,11 +73,8 @@ describe("userRepository", () => {
         },
       );
 
-      const result = await userRepository.generateNextDisplayId(
-        "customer",
-        "John",
-      );
-      expect(result).toBe("MP-J043");
+      const result = await userRepository.generateNextDisplayId("customer");
+      expect(result).toBe("MP-043");
     });
 
     it("generates admin ID starting at 1001", async () => {
@@ -162,10 +127,10 @@ describe("userRepository", () => {
           const transaction = {
             get: vi.fn(async () => ({
               exists: () => true,
-              data: () => ({ customer_S: storedCount }),
+              data: () => ({ customer: storedCount }),
             })),
             set: vi.fn((_ref, data: any) => {
-              if (data.customer_S) storedCount = data.customer_S;
+              if (typeof data.customer === "number") storedCount = data.customer;
             }),
             update: vi.fn(),
             delete: vi.fn(),
@@ -183,8 +148,8 @@ describe("userRepository", () => {
         "Sunil",
       );
 
-      expect(id1).toBe("MP-S011");
-      expect(id2).toBe("MP-S012");
+      expect(id1).toBe("MP-011");
+      expect(id2).toBe("MP-012");
       expect(storedCount).toBe(12);
     });
   });

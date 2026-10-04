@@ -106,7 +106,11 @@ describe("subscriptionService", () => {
 
       expect(typeof id).toBe("string");
       expect(subscriptionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ customerId: "c1", depositAmount: 1000 }),
+        expect.objectContaining({
+          customerId: "c1",
+          depositAmount: 1000,
+          deliveryPartnerId: null,
+        }),
         expect.any(String),
       );
     });

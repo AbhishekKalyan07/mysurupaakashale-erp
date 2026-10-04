@@ -386,7 +386,7 @@ export async function initRemoteConfig(): Promise<any | null> {
 // dev` never silently talks to the emulator (or vice versa) depending on
 // what happens to be running in a teammate's terminal. See README.md.
 // ---------------------------------------------------------------------------
-if (useEmulators) {
+if (!import.meta.env.PROD && useEmulators) {
   // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues in CI/Playwright
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8085);

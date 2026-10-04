@@ -174,10 +174,17 @@ function AndroidInstructions() {
   );
 }
 
-const APP_URL = "https://app.mysurupaakashale.in";
-const QR_SRC = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1a1a2e&bgcolor=ffffff&qzone=1&data=${encodeURIComponent(APP_URL)}`;
+function getEffectiveAppUrl(): string {
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin;
+  }
+  return "https://app.mysurupaakashale.in";
+}
 
 function DesktopInstructions() {
+  const appUrl = getEffectiveAppUrl();
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1a1a2e&bgcolor=ffffff&qzone=1&data=${encodeURIComponent(appUrl)}`;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-text-muted font-medium text-center">
@@ -222,7 +229,7 @@ function DesktopInstructions() {
       <div className="flex flex-col items-center gap-3">
         <div className="p-3 bg-white rounded-[16px] border-2 border-border shadow-sm">
           <img
-            src={QR_SRC}
+            src={qrSrc}
             alt="QR code to open Mysuru Paakashale app on mobile"
             width={160}
             height={160}
@@ -231,7 +238,7 @@ function DesktopInstructions() {
         </div>
         <div className="text-center">
           <p className="text-xs text-text-muted">Scan with your phone camera to open</p>
-          <p className="text-[11px] font-mono text-primary/70 mt-0.5 select-all">{APP_URL}</p>
+          <p className="text-[11px] font-mono text-primary/70 mt-0.5 select-all">{appUrl}</p>
         </div>
       </div>
     </div>

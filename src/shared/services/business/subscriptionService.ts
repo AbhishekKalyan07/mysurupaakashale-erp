@@ -41,6 +41,14 @@ export interface AdminCreateSubscriptionInput {
   pricePerDaySnapshot?: number;
   pricingMatrixSnapshot?: MealPlanPricing;
   endDate?: string | null;
+  negotiatedPricing?: MealPlanPricing | null;
+}
+
+export interface AdminChangeSubscriptionPlanInput {
+  subscriptionId: string;
+  newPlanId: string;
+  newMealPreferences?: MealPreference[];
+  adminActor: AdminActor;
 }
 
 class SubscriptionService {
@@ -63,6 +71,7 @@ class SubscriptionService {
     options?: {
       status?: SubscriptionStatus;
       adminActor?: AdminActor;
+      negotiatedPricing?: MealPlanPricing | null;
     },
   ): Promise<string> {
     if (
@@ -81,6 +90,27 @@ class SubscriptionService {
       throw new Error("At least one meal preference is required.");
     }
 
+    // Validate negotiatedPricing if supplied
+    let sanitizedNegotiated: MealPlanPricing | undefined = undefined;
+    if (options?.negotiatedPricing && Object.keys(options.negotiatedPricing).length > 0) {
+      if (!options.adminActor || options.adminActor.role !== "admin") {
+        throw new Error(
+          "Unauthorized: Only Admin can configure customer-specific negotiated pricing.",
+        );
+      }
+      sanitizedNegotiated = {} as MealPlanPricing;
+      for (const [key, val] of Object.entries(options.negotiatedPricing)) {
+        if (val !== undefined && val !== null) {
+          if (typeof val !== "number" || !Number.isFinite(val) || val < 0) {
+            throw new Error(
+              `Invalid negotiated price for '${key}'. Must be a finite, non-negative number.`,
+            );
+          }
+          (sanitizedNegotiated as any)[key] = val;
+        }
+      }
+    }
+
     const subscriptionId = crypto.randomUUID();
     const settings = await settingsRepository.getBusinessSettings();
     const depositAmount = settings?.pricing.securityDepositAmount || 1000;
@@ -95,27 +125,34 @@ class SubscriptionService {
 
     const initialStatus = options?.status || "pending_payment";
 
+    const subscriptionPayload: any = {
+      customerId,
+      planId,
+      status: initialStatus,
+      planTier,
+      quantity,
+      pricePerDaySnapshot,
+      pricingMatrixSnapshot: finalPricingMatrix,
+      zoneId: null,
+      mealPreferences,
+      startDate,
+      endDate,
+      billingCycle,
+      autoRenew,
+      deliveryAddressId,
+      deliveryPartnerId: null,
+      latestPaymentId: null,
+      depositAmount,
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    };
+
+    if (sanitizedNegotiated && Object.keys(sanitizedNegotiated).length > 0) {
+      subscriptionPayload.negotiatedPricing = sanitizedNegotiated;
+    }
+
     await subscriptionRepository.create(
-      {
-        customerId,
-        planId,
-        status: initialStatus,
-        planTier,
-        quantity,
-        pricePerDaySnapshot,
-        pricingMatrixSnapshot: finalPricingMatrix,
-        zoneId: null,
-        mealPreferences,
-        startDate,
-        endDate,
-        billingCycle,
-        autoRenew,
-        deliveryAddressId,
-        latestPaymentId: null,
-        depositAmount,
-        createdAt: serverTimestamp() as unknown as Timestamp,
-        updatedAt: serverTimestamp() as unknown as Timestamp,
-      },
+      subscriptionPayload,
       subscriptionId,
     );
 
@@ -202,10 +239,26 @@ class SubscriptionService {
     }
 
     // 8. Pricing resolution (E2 authoritative)
-    const quantity = input.quantity && input.quantity > 0 ? input.quantity : 1;
+    const quantity = Math.floor(input.quantity && input.quantity > 0 ? input.quantity : 1);
     const pricingSnapshot =
       input.pricingMatrixSnapshot ||
       (await pricingService.getEffectivePricing(input.startDate, plan.tier));
+
+    // Validate negotiatedPricing if supplied
+    let sanitizedNegotiated: MealPlanPricing | undefined = undefined;
+    if (input.negotiatedPricing && Object.keys(input.negotiatedPricing).length > 0) {
+      sanitizedNegotiated = {} as MealPlanPricing;
+      for (const [key, val] of Object.entries(input.negotiatedPricing)) {
+        if (val !== undefined && val !== null) {
+          if (typeof val !== "number" || !Number.isFinite(val) || val < 0) {
+            throw new Error(
+              `Invalid negotiated price for '${key}'. Must be a finite, non-negative number.`,
+            );
+          }
+          (sanitizedNegotiated as any)[key] = val;
+        }
+      }
+    }
 
     const pricePerDay =
       input.pricePerDaySnapshot !== undefined
@@ -214,14 +267,23 @@ class SubscriptionService {
             input.mealPreferences,
             input.startDate,
             plan.tier,
+            sanitizedNegotiated,
           );
 
-    // 9. Calculate end date if not provided
+    // 9. Calculate or validate custom end date
     const billingCycle = input.billingCycle || "monthly";
-    const endDate =
-      input.endDate !== undefined
-        ? input.endDate
-        : calculateSubscriptionEndDate(input.startDate, billingCycle);
+    let endDate: string | null = null;
+    if (input.endDate !== undefined && input.endDate !== null) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(input.endDate)) {
+        throw new Error("Invalid end date format. Expected YYYY-MM-DD.");
+      }
+      if (input.endDate < input.startDate) {
+        throw new Error("Subscription end date cannot be earlier than start date.");
+      }
+      endDate = input.endDate;
+    } else {
+      endDate = calculateSubscriptionEndDate(input.startDate, billingCycle);
+    }
 
     const initialStatus = input.status || "active";
 
@@ -239,7 +301,11 @@ class SubscriptionService {
       billingCycle,
       endDate,
       input.autoRenew ?? true,
-      { status: initialStatus, adminActor },
+      {
+        status: initialStatus,
+        adminActor,
+        negotiatedPricing: sanitizedNegotiated,
+      },
     );
 
     // 11. Lifecycle initializations for active subscription
@@ -318,6 +384,11 @@ class SubscriptionService {
           planId: plan.id,
           planTier: plan.tier,
           startDate: input.startDate,
+          endDate,
+          quantity,
+          pricePerDay,
+          hasNegotiatedPricing: !!(sanitizedNegotiated && Object.keys(sanitizedNegotiated).length > 0),
+          negotiatedPricing: sanitizedNegotiated || null,
           status: initialStatus,
           action: "admin_subscription_created",
         },
@@ -327,6 +398,178 @@ class SubscriptionService {
     }
 
     return subscriptionId;
+  }
+
+  /**
+   * Admin-assisted customer subscription plan change.
+   * Updates plan tier, recalculates pricing snapshot, validates against new plan's slots,
+   * preserves existing negotiated pricing if configured, preserves lifecycle state, and logs audit record.
+   */
+  async changeSubscriptionPlan(
+    input: AdminChangeSubscriptionPlanInput,
+  ): Promise<void> {
+    const { subscriptionId, newPlanId, newMealPreferences, adminActor } = input;
+
+    // 1. Authorization: Only admin can change customer plans
+    if (!adminActor || adminActor.role !== "admin") {
+      throw new Error(
+        "Unauthorized: Only Admin can change customer subscription plan.",
+      );
+    }
+
+    // 2. Validate subscription exists
+    if (!subscriptionId) {
+      throw new Error("Subscription ID is required.");
+    }
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error("Subscription not found.");
+    }
+
+    // 3. Lifecycle checks: cannot change cancelled or expired subscription
+    if (
+      subscription.status === "cancelled" ||
+      subscription.status === "expired"
+    ) {
+      throw new Error(
+        `Cannot change plan on ${subscription.status} subscription.`,
+      );
+    }
+
+    // 4. Validate new plan exists and is active
+    if (!newPlanId) {
+      throw new Error("New Plan ID is required.");
+    }
+    const { mealPlanRepository } = await import(
+      "../firestore/mealPlanRepository"
+    );
+    const newPlan = await mealPlanRepository.getById(newPlanId);
+    if (!newPlan || !newPlan.isActive) {
+      throw new Error("Invalid or inactive meal plan.");
+    }
+
+    // 5. Determine meal preferences
+    const mealPreferences =
+      newMealPreferences && newMealPreferences.length > 0
+        ? newMealPreferences
+        : subscription.mealPreferences || [];
+
+    if (mealPreferences.length === 0) {
+      throw new Error("At least one meal preference is required.");
+    }
+
+    // Validate meal preferences against new plan's slots
+    if (newPlan.mealSlots && newPlan.mealSlots.length > 0) {
+      const planSlotTypes = new Set(newPlan.mealSlots.map((s) => s.mealType));
+      for (const pref of mealPreferences) {
+        if (!planSlotTypes.has(pref.mealType)) {
+          throw new Error(
+            `Meal type '${pref.mealType}' is not offered by plan '${newPlan.name}'.`,
+          );
+        }
+      }
+    }
+
+    const todayIST = getTodayIST();
+
+    // 6. Pricing resolution
+    // New base pricing matrix snapshot for the new plan tier
+    const newPricingMatrix = await pricingService.getEffectivePricing(
+      todayIST,
+      newPlan.tier,
+    );
+
+    // Calculate price per day snapshot for the new plan
+    let newPricePerDay: number;
+    if (
+      subscription.negotiatedPricing &&
+      Object.keys(subscription.negotiatedPricing).length > 0
+    ) {
+      // If customer has negotiated pricing override, calculate with negotiated pricing
+      const meals = mealPreferences.map((m) => m.mealType);
+      let key = "";
+      if (
+        meals.includes("breakfast") &&
+        meals.includes("lunch") &&
+        meals.includes("dinner")
+      ) {
+        key = "breakfast_lunch_dinner";
+      } else if (meals.includes("breakfast") && meals.includes("lunch")) {
+        key = "breakfast_lunch";
+      } else if (meals.includes("lunch") && meals.includes("dinner")) {
+        key = "lunch_dinner";
+      } else if (meals.includes("breakfast") && meals.includes("dinner")) {
+        key = "breakfast_dinner";
+      } else if (meals.includes("breakfast")) {
+        key = "breakfast";
+      } else if (meals.includes("lunch")) {
+        key = "lunch";
+      } else if (meals.includes("dinner")) {
+        key = "dinner";
+      }
+      const flatNegotiated = subscription.negotiatedPricing as any;
+      if (key && flatNegotiated[key] !== undefined) {
+        newPricePerDay = flatNegotiated[key];
+      } else {
+        newPricePerDay = await pricingService.calculateSubscriptionPrice(
+          mealPreferences,
+          todayIST,
+          newPlan.tier,
+        );
+      }
+    } else {
+      newPricePerDay = await pricingService.calculateSubscriptionPrice(
+        mealPreferences,
+        todayIST,
+        newPlan.tier,
+      );
+    }
+
+    const previousPlanId = subscription.planId;
+    const previousPlanTier = subscription.planTier;
+    const previousPricePerDay = subscription.pricePerDaySnapshot;
+
+    // 7. Update subscription record in Firestore
+    await subscriptionRepository.update(subscription.id, {
+      planId: newPlan.id,
+      planTier: newPlan.tier,
+      mealPreferences,
+      pricingMatrixSnapshot: newPricingMatrix,
+      pricePerDaySnapshot: newPricePerDay,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+
+    // 8. Audit Logging
+    try {
+      const { auditRepository } = await import(
+        "../firestore/auditRepository"
+      );
+      await auditRepository.logAction(
+        "admin_subscription_plan_changed",
+        adminActor.uid,
+        adminActor.role || "admin",
+        adminActor.fullName || "Admin",
+        subscription.id,
+        "subscription",
+        {
+          customerId: subscription.customerId,
+          subscriptionId: subscription.id,
+          previousPlanId,
+          previousPlanTier,
+          previousPricePerDay,
+          newPlanId: newPlan.id,
+          newPlanName: newPlan.name,
+          newPlanTier: newPlan.tier,
+          newPricePerDay,
+          action: "admin_subscription_plan_changed",
+        },
+      );
+    } catch (auditErr) {
+      console.error(
+        "[SubscriptionService] Failed to record audit log for plan change:",
+        auditErr,
+      );
+    }
   }
 
   /**
@@ -496,6 +739,7 @@ class SubscriptionService {
     shouldPauseNow: boolean = true,
     pauseStartDate: string | null = null,
     pauseEndDate: string | null = null,
+    actor?: { uid: string; role: string; fullName?: string } | AdminActor,
   ): Promise<void> {
     if (!subscription || !subscription.id) {
       throw new Error("Valid subscription object is required.");
@@ -527,31 +771,44 @@ class SubscriptionService {
 
     if (shouldPauseNow) {
       const today = getTodayInTimezone();
+      const { getModifiableMeals } = await import("@/shared/utils/dateUtils");
+      const modifiableMealsForToday = getModifiableMeals(
+        today,
+        subscription.mealPreferences?.map((p) => p.mealType) || ["breakfast", "lunch", "dinner"]
+      );
+
       const cancelledOrders = await orderService.appendCancelOrdersToBatch(
         batch,
         subscription.id,
         subscription.customerId,
         today,
-        ["breakfast", "lunch", "dinner"], // Cancel all eligible meals for today
+        modifiableMealsForToday,
       );
 
       await batch.commit();
 
       if (cancelledOrders.length > 0) {
+        const actorUid = actor?.uid || subscription.customerId;
+        const actorRole = actor?.role || "customer";
+        const actorName =
+          actor?.fullName ||
+          (actorRole === "admin" ? "Admin" : "Customer");
+
         import("@/shared/services/firestore/auditRepository")
           .then((m) => {
             cancelledOrders.forEach((o) => {
               m.auditRepository
                 .logAction(
                   "meal_cancelled",
-                  subscription.customerId,
-                  "customer",
-                  "Customer",
+                  actorUid,
+                  actorRole,
+                  actorName,
                   o.id!,
                   "order",
                   {
                     date: today,
                     mealType: o.mealType,
+                    source: actorRole === "admin" ? "admin_pause" : "customer_pause",
                   },
                 )
                 .catch(console.error);

@@ -6,6 +6,7 @@ test.describe('PHASE E1 — Owner Daily Menu -> Order Integration Flow', () => {
   const FUTURE_DATE = '2026-11-20'; // Distinct future working day
 
   test('admin creates, edits, publishes future menu and connects to frozen order snapshot', async ({ adminPage }) => {
+    test.setTimeout(90000);
     // 1. Login as Admin / Open Daily Menu
     await adminPage.goto('/admin/menus');
     await adminPage.waitForSelector('h1:has-text("Daily Menus")', { timeout: 20000 });

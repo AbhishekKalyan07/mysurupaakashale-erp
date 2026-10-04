@@ -1,4 +1,14 @@
-import type { DeliveryZone } from "@/shared/types/delivery.types";
+import { MYSURU_CITY_PINCODES, type DeliveryZone } from "@/shared/types/delivery.types";
+
+export { MYSURU_CITY_PINCODES };
+
+/**
+ * Validates whether a given pincode is one of the 32 verified Mysuru City pincodes.
+ */
+export function isMysuruCityPincode(pincode: string | undefined | null): boolean {
+  if (!pincode) return false;
+  return (MYSURU_CITY_PINCODES as readonly string[]).includes(pincode.trim());
+}
 
 export interface RoutingResult {
   zoneId: string;

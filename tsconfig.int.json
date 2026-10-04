@@ -34,6 +34,8 @@
     "tests/**/*.ts",
     "scripts/automation/auth.ts",
     "scripts/automation/env.ts",
+    "scripts/auditProductionBundle.ts",
+    "scripts/migrate-customers.ts",
     "vite.config.ts",
     "vitest.int.config.ts",
     "vitest.int.setup.ts",

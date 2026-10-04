@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, IndianRupee, AlertCircle } from "lucide-react";
+import { X, IndianRupee, AlertCircle, Calendar, Sparkles, SlidersHorizontal } from "lucide-react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
-import { useMealPlans } from "@/features/customer/hooks/useMealPlans";
+import { QuantityStepper } from "@/shared/components/ui/QuantityStepper";
+import { useMealPlans, isStandardPlan } from "@/features/customer/hooks/useMealPlans";
 import { useAdminCreateSubscription } from "../hooks/useAdminSubscriptions";
 import { pricingService } from "@/shared/services/business/pricingService";
-import { getTodayIST } from "@/shared/lib/date";
+import { getTodayIST, calculateSubscriptionEndDate } from "@/shared/lib/date";
 import { formatAllottedId } from "@/shared/utils/displayId";
-import type { CustomerProfile, MealPreference, MealType } from "@/shared/types";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import type { CustomerProfile, MealPreference, MealType, MealPlanPricing } from "@/shared/types";
 
 interface Props {
   customer: CustomerProfile;
@@ -16,21 +18,62 @@ interface Props {
   onSuccess?: (subscriptionId: string) => void;
 }
 
+const PRICING_KEYS = [
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch", label: "Lunch" },
+  { key: "dinner", label: "Dinner" },
+  { key: "breakfast_lunch", label: "Breakfast + Lunch" },
+  { key: "lunch_dinner", label: "Lunch + Dinner" },
+  { key: "breakfast_dinner", label: "Breakfast + Dinner" },
+  { key: "breakfast_lunch_dinner", label: "All 3 Meals" },
+] as const;
+
+function countActiveDeliveryDays(startDate: string, endDate: string): number {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const [ey, em, ed] = endDate.split("-").map(Number);
+  if (isNaN(sy) || isNaN(sm) || isNaN(sd) || isNaN(ey) || isNaN(em) || isNaN(ed)) return 0;
+  const cur = new Date(Date.UTC(sy, sm - 1, sd));
+  const end = new Date(Date.UTC(ey, em - 1, ed));
+  let count = 0;
+  while (cur <= end) {
+    if (cur.getUTCDay() !== 0) count++;
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return count;
+}
+
 export function AdminCreateSubscriptionModal({
   customer,
   isOpen,
   onClose,
   onSuccess,
 }: Props) {
-  const { data: plans = [], isLoading: plansLoading } = useMealPlans();
+  useScrollLock(isOpen);
+  const { data: rawPlans = [], isLoading: plansLoading } = useMealPlans();
+  const plans = useMemo(() => (rawPlans || []).filter(isStandardPlan), [rawPlans]);
   const createSubMutation = useAdminCreateSubscription();
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [startDate, setStartDate] = useState<string>(getTodayIST());
+  const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
   const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly">("monthly");
   const [quantity, setQuantity] = useState<number>(1);
   const [autoRenew, setAutoRenew] = useState<boolean>(true);
   const [status, setStatus] = useState<"active" | "pending_payment">("active");
+
+  // Negotiated Pricing state
+  const [useNegotiated, setUseNegotiated] = useState<boolean>(false);
+  const [negotiatedValues, setNegotiatedValues] = useState<Record<string, string>>({
+    breakfast: "",
+    lunch: "",
+    dinner: "",
+    breakfast_lunch: "",
+    lunch_dinner: "",
+    breakfast_dinner: "",
+    breakfast_lunch_dinner: "",
+  });
 
   // Address
   const customerAddresses = customer.addresses || [];
@@ -58,7 +101,7 @@ export function AdminCreateSubscriptionModal({
     dinner: null,
   });
 
-  // Selected plan object
+  // Selected plan object (filtered automatically to Basic and Regular via useMealPlans)
   const selectedPlan = useMemo(() => {
     return plans.find((p) => p.id === selectedPlanId) || plans[0] || null;
   }, [plans, selectedPlanId]);
@@ -114,6 +157,23 @@ export function AdminCreateSubscriptionModal({
     return list;
   }, [enabledMeals, mealOptionSelections]);
 
+  // Parse negotiated pricing values
+  const parsedNegotiated = useMemo<MealPlanPricing | null>(() => {
+    if (!useNegotiated) return null;
+    const res: Record<string, number> = {};
+    let hasAny = false;
+    for (const [key, val] of Object.entries(negotiatedValues)) {
+      if (val.trim() !== "") {
+        const num = Number(val);
+        if (Number.isFinite(num) && num >= 0) {
+          res[key] = num;
+          hasAny = true;
+        }
+      }
+    }
+    return hasAny ? (res as unknown as MealPlanPricing) : null;
+  }, [useNegotiated, negotiatedValues]);
+
   // Real-time Pricing Preview via E2 Authoritative PricingService
   const [previewDailyRate, setPreviewDailyRate] = useState<number>(0);
   const [pricingLoading, setPricingLoading] = useState<boolean>(false);
@@ -131,6 +191,7 @@ export function AdminCreateSubscriptionModal({
           currentMealPreferences,
           startDate,
           selectedPlan.tier,
+          parsedNegotiated,
         );
         if (!isCancelled) {
           setPreviewDailyRate(rate);
@@ -146,11 +207,38 @@ export function AdminCreateSubscriptionModal({
     return () => {
       isCancelled = true;
     };
-  }, [selectedPlan, currentMealPreferences, startDate]);
+  }, [selectedPlan, currentMealPreferences, startDate, parsedNegotiated]);
+
+  // Auto-fill negotiated pricing values from current plan's pricingMatrix
+  const handleFillPlanDefaults = () => {
+    if (!selectedPlan?.pricingMatrix) return;
+    const matrix = selectedPlan.pricingMatrix as any;
+    setNegotiatedValues({
+      breakfast: matrix.breakfast !== undefined ? String(matrix.breakfast) : "",
+      lunch: matrix.lunch !== undefined ? String(matrix.lunch) : "",
+      dinner: matrix.dinner !== undefined ? String(matrix.dinner) : "",
+      breakfast_lunch: matrix.breakfast_lunch !== undefined ? String(matrix.breakfast_lunch) : "",
+      lunch_dinner: matrix.lunch_dinner !== undefined ? String(matrix.lunch_dinner) : "",
+      breakfast_dinner: matrix.breakfast_dinner !== undefined ? String(matrix.breakfast_dinner) : "",
+      breakfast_lunch_dinner: matrix.breakfast_lunch_dinner !== undefined ? String(matrix.breakfast_lunch_dinner) : "",
+    });
+  };
+
+  const computedPresetEndDate = useMemo(() => {
+    return calculateSubscriptionEndDate(startDate, billingCycle);
+  }, [startDate, billingCycle]);
+
+  const effectiveEndDate = dateMode === "custom" ? customEndDate : computedPresetEndDate;
+
+  const deliveryDays = useMemo(() => {
+    if (dateMode === "preset") {
+      return billingCycle === "weekly" ? 5 : 25;
+    }
+    return countActiveDeliveryDays(startDate, customEndDate);
+  }, [dateMode, billingCycle, startDate, customEndDate]);
 
   if (!isOpen) return null;
 
-  const deliveryDays = billingCycle === "weekly" ? 5 : 25;
   const cycleSubtotal = previewDailyRate * quantity * deliveryDays;
   const securityDeposit = 1000;
   const estimatedTotal = cycleSubtotal + (status === "active" ? securityDeposit : 0);
@@ -167,6 +255,29 @@ export function AdminCreateSubscriptionModal({
       return;
     }
 
+    if (dateMode === "custom") {
+      if (!customEndDate) {
+        alert("Please enter a custom end date.");
+        return;
+      }
+      if (customEndDate < startDate) {
+        alert("Subscription end date cannot be earlier than start date.");
+        return;
+      }
+    }
+
+    if (useNegotiated) {
+      for (const [key, val] of Object.entries(negotiatedValues)) {
+        if (val.trim() !== "") {
+          const num = Number(val);
+          if (!Number.isFinite(num) || num < 0) {
+            alert(`Invalid negotiated price for '${key}'. Must be a non-negative finite number.`);
+            return;
+          }
+        }
+      }
+    }
+
     let finalAddressId = selectedAddressId;
     if (!finalAddressId) {
       if (!newAddressLine1 || !newAddressPincode) {
@@ -181,12 +292,14 @@ export function AdminCreateSubscriptionModal({
         customerId: customer.id,
         planId: selectedPlan.id,
         startDate,
+        endDate: effectiveEndDate || null,
         mealPreferences: currentMealPreferences,
         deliveryAddressId: finalAddressId,
         billingCycle,
         quantity,
-        autoRenew,
+        autoRenew: dateMode === "custom" ? false : autoRenew,
         status,
+        negotiatedPricing: parsedNegotiated,
       },
       {
         onSuccess: (newSubId) => {
@@ -227,11 +340,14 @@ export function AdminCreateSubscriptionModal({
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5 overflow-y-auto">
-          {/* Plan Selection */}
+          {/* Plan Selection (Only Basic and Regular) */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-text-muted block">
-              1. Select Meal Plan *
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted block">
+                1. Select Meal Plan (Basic / Regular) *
+              </label>
+              <span className="text-[11px] text-text-muted">Standard tiers only</span>
+            </div>
             {plansLoading ? (
               <div className="text-xs text-text-muted p-3 bg-surface-1 rounded-xl">
                 Loading available plans...
@@ -249,7 +365,7 @@ export function AdminCreateSubscriptionModal({
                     <div
                       key={p.id}
                       onClick={() => setSelectedPlanId(p.id)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                      className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                         isSelected
                           ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
                           : "border-border hover:border-border-focus bg-surface-1/50"
@@ -261,9 +377,12 @@ export function AdminCreateSubscriptionModal({
                           {p.tier}
                         </Badge>
                       </div>
-                      <p className="text-xs text-text-muted mt-1 line-clamp-1">
+                      <p className="text-xs text-text-muted mt-1 line-clamp-2">
                         {p.description || "Fresh nutritious daily home meals"}
                       </p>
+                      <div className="mt-2 pt-2 border-t border-border/40 text-xs font-semibold text-primary">
+                        From ₹{p.pricePerDay}/day
+                      </div>
                     </div>
                   );
                 })}
@@ -271,60 +390,187 @@ export function AdminCreateSubscriptionModal({
             )}
           </div>
 
-          {/* Schedule & Quantity */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
-                Start Date *
+          {/* Schedule, Custom Dates & Quantity Stepper */}
+          <div className="p-4 rounded-xl border border-border bg-surface-1/40 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Calendar size={14} className="text-primary" /> 2. Schedule & Duration
               </label>
-              <input
-                type="date"
-                name="startDate"
-                required
-                min={getTodayIST()}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
-              />
+              <div className="inline-flex rounded-lg border border-border bg-card p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDateMode("preset")}
+                  className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                    dateMode === "preset"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  Preset Cycle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateMode("custom");
+                    if (!customEndDate) setCustomEndDate(computedPresetEndDate);
+                  }}
+                  className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                    dateMode === "custom"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  Custom Date Range
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
-                Billing Cycle
-              </label>
-              <select
-                name="billingCycle"
-                value={billingCycle}
-                onChange={(e) => setBillingCycle(e.target.value as any)}
-                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
-              >
-                <option value="monthly">Monthly (25 delivery days)</option>
-                <option value="weekly">Weekly (5 delivery days)</option>
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
+                  Start Date *
+                </label>
+                <input
+                  type="date"
+                  name="startDate"
+                  required
+                  min={getTodayIST()}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                />
+              </div>
+
+              {dateMode === "preset" ? (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Preset Cycle
+                  </label>
+                  <select
+                    name="billingCycle"
+                    value={billingCycle}
+                    onChange={(e) => setBillingCycle(e.target.value as any)}
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                  >
+                    <option value="monthly">Monthly (~25 delivery days)</option>
+                    <option value="weekly">Weekly (5 delivery days)</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
+                    Custom End Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="customEndDate"
+                    required
+                    min={startDate}
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
+                  Quantity (Persons)
+                </label>
+                <QuantityStepper
+                  value={quantity}
+                  onChange={setQuantity}
+                  min={1}
+                  max={20}
+                  unitLabel="Person"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-text-muted block mb-1">
-                Quantity (Persons)
-              </label>
-              <input
-                type="number"
-                name="quantity"
-                required
-                min="1"
-                max="20"
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm text-center font-mono font-bold"
-              />
+            <div className="text-[11px] text-text-muted flex items-center justify-between border-t border-border/40 pt-2">
+              <span>
+                Effective Duration: <strong className="text-text">{startDate}</strong> to{" "}
+                <strong className="text-text">{effectiveEndDate || "—"}</strong>
+              </span>
+              <span>
+                Active Delivery Days (excl. Sundays): <strong className="text-primary">{deliveryDays} days</strong>
+              </span>
             </div>
+          </div>
+
+          {/* Negotiated Customer Pricing (Optional Admin Feature) */}
+          <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useNegotiated}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setUseNegotiated(checked);
+                    if (checked && !Object.values(negotiatedValues).some((v) => v !== "")) {
+                      handleFillPlanDefaults();
+                    }
+                  }}
+                  className="w-4 h-4 text-primary rounded"
+                />
+                <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <SlidersHorizontal size={14} /> Negotiated Customer Pricing (Optional)
+                </span>
+              </label>
+
+              {useNegotiated && (
+                <button
+                  type="button"
+                  onClick={handleFillPlanDefaults}
+                  className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+                >
+                  <Sparkles size={12} /> Reset to Plan Defaults
+                </button>
+              )}
+            </div>
+
+            {useNegotiated ? (
+              <div className="space-y-2.5 pt-1">
+                <p className="text-[11px] text-text-muted">
+                  Specify agreed rates for this customer subscription. This will override the standard plan pricing snapshot without modifying global plan catalogs.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  {PRICING_KEYS.map(({ key, label }) => (
+                    <div key={key} className="space-y-1">
+                      <label className="text-[10px] font-semibold text-text-muted block truncate" title={label}>
+                        {label} (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="e.g. 75"
+                        value={negotiatedValues[key] || ""}
+                        onChange={(e) =>
+                          setNegotiatedValues((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                        className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-mono font-bold"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-text-muted">
+                Using standard {selectedPlan?.name || "plan"} catalog rates. Enable to define custom negotiated meal pricing.
+              </p>
+            )}
           </div>
 
           {/* Meal Preferences Selection */}
           <div className="space-y-2 pt-2 border-t border-border/60">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-text-muted block">
-                2. Meal Slots & Preferences *
+                3. Meal Slots & Preferences *
               </label>
               <span className="text-[11px] text-text-muted">
                 {currentMealPreferences.length} meal slot(s) selected
@@ -381,7 +627,7 @@ export function AdminCreateSubscriptionModal({
                   />
                   <span className="font-bold text-sm text-text">Lunch</span>
                 </label>
-                {enabledMeals.lunch && selectedPlan?.mealSlots?.find((s) => s.mealType === "lunch")?.options && (
+                {enabledMeals.lunch && (
                   <div className="mt-2 pl-6">
                     <select
                       data-testid="select-option-lunch"
@@ -392,14 +638,14 @@ export function AdminCreateSubscriptionModal({
                           lunch: e.target.value || null,
                         }))
                       }
-                      className="w-full text-xs h-8 px-2 rounded-lg border border-border bg-card"
+                      className="w-full text-xs h-7 px-2 rounded-lg border border-border bg-card"
                     >
-                      {selectedPlan.mealSlots
-                        .find((s) => s.mealType === "lunch")!
-                        .options.filter((opt) => opt.isActive !== false)
-                        .map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label}
+                      {selectedPlan?.mealSlots
+                        ?.find((s) => s.mealType === "lunch")
+                        ?.options?.filter((o) => o.isActive !== false)
+                        ?.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
                           </option>
                         ))}
                     </select>
@@ -429,7 +675,7 @@ export function AdminCreateSubscriptionModal({
                   />
                   <span className="font-bold text-sm text-text">Dinner</span>
                 </label>
-                {enabledMeals.dinner && selectedPlan?.mealSlots?.find((s) => s.mealType === "dinner")?.options && (
+                {enabledMeals.dinner && (
                   <div className="mt-2 pl-6">
                     <select
                       data-testid="select-option-dinner"
@@ -440,14 +686,14 @@ export function AdminCreateSubscriptionModal({
                           dinner: e.target.value || null,
                         }))
                       }
-                      className="w-full text-xs h-8 px-2 rounded-lg border border-border bg-card"
+                      className="w-full text-xs h-7 px-2 rounded-lg border border-border bg-card"
                     >
-                      {selectedPlan.mealSlots
-                        .find((s) => s.mealType === "dinner")!
-                        .options.filter((opt) => opt.isActive !== false)
-                        .map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label}
+                      {selectedPlan?.mealSlots
+                        ?.find((s) => s.mealType === "dinner")
+                        ?.options?.filter((o) => o.isActive !== false)
+                        ?.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
                           </option>
                         ))}
                     </select>
@@ -457,45 +703,59 @@ export function AdminCreateSubscriptionModal({
             </div>
           </div>
 
-          {/* Delivery Address & Settings */}
-          <div className="space-y-3 pt-2 border-t border-border/60">
+          {/* Delivery Address Selection */}
+          <div className="space-y-2 pt-2 border-t border-border/60">
             <label className="text-xs font-bold uppercase tracking-wider text-text-muted block">
-              3. Delivery Address *
+              4. Delivery Address *
             </label>
             {customerAddresses.length > 0 ? (
-              <select
-                name="deliveryAddressId"
-                value={selectedAddressId}
-                onChange={(e) => setSelectedAddressId(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
-              >
-                {customerAddresses.map((addr) => (
-                  <option key={addr.id} value={addr.id}>
-                    {addr.label}: {addr.line1}, {addr.city} ({addr.pincode})
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-2">
+                <select
+                  value={selectedAddressId}
+                  onChange={(e) => setSelectedAddressId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                >
+                  {customerAddresses.map((addr) => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.line1}, {addr.city} ({addr.pincode}){" "}
+                      {addr.id === customer.defaultAddressId ? "— (Default)" : ""}
+                    </option>
+                  ))}
+                  <option value="">+ Add / Enter Different Address</option>
+                </select>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Address Line 1 *"
-                  value={newAddressLine1}
-                  onChange={(e) => setNewAddressLine1(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm sm:col-span-2"
-                />
-                <input
-                  type="text"
-                  placeholder="Pincode *"
-                  value={newAddressPincode}
-                  onChange={(e) => setNewAddressPincode(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm font-mono"
-                />
+              <div className="p-3 bg-surface-1 rounded-xl text-xs text-text-muted">
+                No existing address found on customer profile. Please enter below:
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-text">
+            {!selectedAddressId && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <input
+                  type="text"
+                  placeholder="Address Line 1 (Street, Door No)"
+                  value={newAddressLine1}
+                  onChange={(e) => setNewAddressLine1(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Pincode (e.g. 570001)"
+                  value={newAddressPincode}
+                  onChange={(e) => setNewAddressPincode(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-card text-sm"
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Configuration Options */}
+          <div className="pt-2 border-t border-border/60 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text">
                 <input
                   type="checkbox"
                   checked={autoRenew}
@@ -540,7 +800,7 @@ export function AdminCreateSubscriptionModal({
                 <IndianRupee size={14} /> Pricing Summary (E2 Authoritative)
               </div>
               <span className="text-[10px] text-text-muted font-mono">
-                Effective: {startDate} (IST)
+                Effective: {startDate} (IST) {useNegotiated ? "• Negotiated" : ""}
               </span>
             </div>
 

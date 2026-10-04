@@ -179,7 +179,7 @@ export default defineConfig(({ mode }) => {
   },
   build: {
     target: 'esnext',
-    sourcemap: true, // Required for Sentry source map upload
+    sourcemap: process.env.SENTRY_AUTH_TOKEN ? 'hidden' : false, // Generates hidden maps for Sentry upload without browser sourceMappingURL comment only when SENTRY_AUTH_TOKEN is present
     modulePreload: false, // Don't inject <link rel="modulepreload"> for lazy chunks
     // Split heavy, rarely-changed vendor code into its own chunks so route
     // navigations don't re-download it, and the main bundle stays lean.

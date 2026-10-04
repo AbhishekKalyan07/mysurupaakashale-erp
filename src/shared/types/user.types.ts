@@ -8,7 +8,7 @@ export interface Address {
   line2?: string;
   city: string;
   state: string;
-  pincode: string;
+  pincode?: string;
   /** Null until geocoded — see features/customer/services (Phase: Customer module). */
   lat: number | null;
   lng: number | null;

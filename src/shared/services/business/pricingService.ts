@@ -1,4 +1,4 @@
-import type { Subscription, MealType, MealPreference, Addon } from "@/shared/types";
+import type { Subscription, MealType, MealPreference, Addon, MealPlanPricing } from "@/shared/types";
 import type { BasePricingMatrix } from "@/shared/types/pricing.types";
 import { pricingRepository, PricingRepository } from "../firestore/pricingRepository";
 import { addonRepository, AddonRepository, INITIAL_ADDONS } from "../firestore/addonRepository";
@@ -79,7 +79,7 @@ export function normalizeBasePricingMatrix(
  *   3️⃣ effective base pricing (from effective-dated PricingConfiguration for target service date)
  *   4️⃣ FALLBACK_MATRIX (canonical default baseline when unseeded)
  */
-class PricingService {
+export class PricingService {
   public static readonly FALLBACK_MATRIX: Record<string, Record<string, number>> = {
     basic: {
       breakfast: 60,
@@ -276,13 +276,20 @@ class PricingService {
 
   /**
    * Calculates the subscription price for a combination of preferred meals on a target start date.
+   * Can optionally factor in negotiatedPricing override for customer-specific rate calculation.
    */
   async calculateSubscriptionPrice(
     mealPreferences: MealPreference[],
     targetDate?: string,
     planTier: string = "regular",
+    negotiatedPricing?: MealPlanPricing | null,
   ): Promise<number> {
-    const matrix = await this.getEffectivePricing(targetDate, planTier);
+    const baseMatrix = await this.getEffectivePricing(targetDate, planTier);
+    const flatNegotiated = negotiatedPricing
+      ? flattenPricingMatrix(negotiatedPricing)
+      : {};
+    const matrix = { ...baseMatrix, ...flatNegotiated };
+
     const meals = (mealPreferences || []).map((m) => m.mealType);
     if (meals.length === 0) return 0;
 
@@ -307,7 +314,14 @@ class PricingService {
       key = "dinner";
     }
 
-    return (matrix as any)[key] ?? 0;
+    if ((matrix as any)[key] !== undefined) {
+      return (matrix as any)[key];
+    }
+    if (key.includes("_")) {
+      const parts = key.split("_");
+      return parts.reduce((sum, p) => sum + ((matrix as any)[p] || 0), 0);
+    }
+    return 0;
   }
 
   /**

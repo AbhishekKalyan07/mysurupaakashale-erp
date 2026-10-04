@@ -8,6 +8,7 @@ export interface BusinessSettings {
     supportEmail: string;
     supportPhone: string;
     address: string;
+    upiId?: string;
   };
   financials: {
     gstPercentage: number;
@@ -70,3 +71,39 @@ export interface BusinessSettings {
   updatedAt: Timestamp;
   updatedBy: string; // Admin UID
 }
+
+/**
+ * Authoritative default company profile configuration.
+ * Single source of truth for fallback and initial company branding/contact details.
+ */
+export const DEFAULT_COMPANY_PROFILE = {
+  name: "Mysuru Paakashale",
+  tagline: "Authentic South Indian Meals",
+  supportEmail: "support@mysurupaakashale.in",
+  supportPhone: "9880425089",
+  address: "Gokulam 3rd Stage, Mysuru - 570002",
+  upiId: "mysuru.paakashale@upi",
+} as const;
+
+/**
+ * Authoritative default payroll parameters.
+ */
+export const DEFAULT_PAYROLL_CONFIG = {
+  standardWorkingDays: 22,
+  standardWorkingHours: 8,
+  taxPercentage: 0,
+  leaveDeductionMultiplier: 1,
+  defaultOvertimeRate: 100,
+} as const;
+
+/**
+ * Authoritative operational cutoff times enforced by server security rules.
+ * Breakfast: 05:00 IST (23:30 UTC prev day)
+ * Lunch: 10:30 IST (05:00 UTC)
+ * Dinner: 16:00 IST (10:30 UTC)
+ */
+export const AUTHORITATIVE_OPERATIONAL_CUTOFFS = {
+  breakfast: "05:00",
+  lunch: "10:30",
+  dinner: "16:00",
+} as const;

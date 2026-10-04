@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
 
 export interface PremiumModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function PremiumModal({
   className,
 }: PremiumModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  useScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;

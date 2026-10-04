@@ -22,6 +22,7 @@ import {
   IndianRupee,
   Utensils,
   UtensilsCrossed,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import { ROLES, type Role } from "@/shared/constants/roles";
@@ -80,6 +81,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
       groupLabel: "System",
       items: [
         { label: "Notifications", to: "/admin/notifications", icon: Bell },
+        { label: "Failure Queue", to: "/admin/failure-queue", icon: AlertTriangle },
         { label: "Complaints", to: "/admin/complaints", icon: MessageSquare },
         { label: "Audit Logs", to: "/admin/audit", icon: ClipboardList },
         { label: "Analytics", to: "/admin/analytics", icon: TrendingUp },

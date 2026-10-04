@@ -73,9 +73,11 @@ async function seedOrders() {
   const customerUser = await auth.getUserByEmail(customerEmail);
   const uid = customerUser.uid;
 
-  // Calculate today's date in Asia/Kolkata
+  // Calculate today and tomorrow dates in Asia/Kolkata
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(tomorrow);
 
   // Seed plan-1 with options
   await db.collection('mealPlans').doc('plan-1').set({
@@ -109,7 +111,15 @@ async function seedOrders() {
         ]
       }
     ],
-    pricingMatrix: { breakfast: 100, lunch: 100, dinner: 100 }
+    pricingMatrix: {
+      breakfast: 100,
+      lunch: 100,
+      dinner: 100,
+      breakfast_lunch: 200,
+      lunch_dinner: 200,
+      breakfast_dinner: 200,
+      breakfast_lunch_dinner: 300
+    }
   });
 
   // Seed kitchen and delivery zone for operational order generation
@@ -125,7 +135,15 @@ async function seedOrders() {
     id: 'zone-1',
     name: 'Central Zone',
     kitchenId: 'kitchen-1',
-    pincodes: ['570001'],
+    pincodes: [
+      '570001', '570002', '570003', '570004', '570005',
+      '570006', '570007', '570008', '570009', '570010',
+      '570011', '570012', '570013', '570014', '570015',
+      '570016', '570017', '570018', '570019', '570020',
+      '570021', '570022', '570023', '570024', '570025',
+      '570026', '570027', '570028', '570029', '570030',
+      '570031', '570032',
+    ],
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -179,6 +197,21 @@ async function seedOrders() {
       subscriptionId: subId,
       customerId: uid,
       date: todayStr,
+      mealType: 'dinner',
+      status: 'scheduled',
+      kitchenStatus: 'scheduled',
+      price: 100,
+      selectedOptionId: 'dinner-opt-1',
+      mealName: 'Dinner Option 1',
+      itemsLabel: 'Subscription - dinner (Dinner Option 1)',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: `ord_${subId}_${tomorrowStr}_dinner`,
+      subscriptionId: subId,
+      customerId: uid,
+      date: tomorrowStr,
       mealType: 'dinner',
       status: 'scheduled',
       kitchenStatus: 'scheduled',

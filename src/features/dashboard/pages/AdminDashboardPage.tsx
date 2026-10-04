@@ -57,54 +57,63 @@ export function AdminDashboardPage() {
             value={metrics?.systemStatus === "healthy" ? "Healthy" : "Degraded"}
             icon={<ShieldAlert size={24} />}
             color={metrics?.systemStatus === "healthy" ? "mint" : "rose"}
+            onClick={() => navigate("/admin/audit")}
           />
           <MetricCard
             title="Total Customers"
             value={metrics?.totalCustomers ?? 0}
             icon={<Users size={24} />}
             color="blue"
+            onClick={() => navigate("/admin/customers")}
           />
           <MetricCard
             title="Active Drivers"
             value={metrics?.activeDrivers ?? 0}
             icon={<Truck size={24} />}
             color="lavender"
+            onClick={() => navigate("/admin/zones")}
           />
           <MetricCard
             title="Active Subs"
             value={metrics?.activeSubscriptions ?? 0}
             icon={<CreditCard size={24} />}
             color="mint"
+            onClick={() => navigate("/admin/subscriptions")}
           />
           <MetricCard
             title="Revenue Today"
             value={`₹${metrics?.revenueToday?.toLocaleString() ?? 0}`}
             icon={<IndianRupee size={24} />}
             color="gold"
+            onClick={() => navigate("/admin/accounts")}
           />
           <MetricCard
             title="Total Orders"
             value={metrics?.todayOrders.total ?? 0}
             icon={<Package size={24} />}
             color="amber"
+            onClick={() => navigate("/admin/orders")}
           />
           <MetricCard
             title="Scheduled"
             value={metrics?.todayOrders.scheduled ?? 0}
             icon={<AlertTriangle size={24} />}
             color="rose"
+            onClick={() => navigate("/admin/orders")}
           />
           <MetricCard
             title="Kitchen SLA"
             value={`${metrics?.kitchenSLA ?? 100}%`}
             icon={<ChefHat size={24} />}
             color={(metrics?.kitchenSLA ?? 100) >= 95 ? "mint" : "rose"}
+            onClick={() => navigate("/admin/kitchen")}
           />
           <MetricCard
             title="Delivery SLA"
             value={`${metrics?.deliverySLA ?? 100}%`}
             icon={<PackageOpen size={24} />}
             color={(metrics?.deliverySLA ?? 100) >= 95 ? "mint" : "rose"}
+            onClick={() => navigate("/admin/delivery")}
           />
           <MetricCard
             title="Failed Deliveries"
@@ -115,18 +124,21 @@ export function AdminDashboardPage() {
                 ? "mint"
                 : "rose"
             }
+            onClick={() => navigate("/admin/orders")}
           />
           <MetricCard
             title="Cancelled Orders"
             value={metrics?.todayOrders.cancelled ?? 0}
             icon={<XCircle size={24} />}
             color="rose"
+            onClick={() => navigate("/admin/orders")}
           />
           <MetricCard
             title="Failed Payments"
             value={metrics?.failedPayments ?? 0}
             icon={<XCircle size={24} />}
             color={(metrics?.failedPayments ?? 0) === 0 ? "mint" : "rose"}
+            onClick={() => navigate("/admin/accounts")}
           />
           <MetricCard
             title="Open Complaints"

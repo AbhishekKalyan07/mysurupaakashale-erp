@@ -9,11 +9,15 @@ import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { FormSkeleton } from "@/shared/components/feedback/SkeletonLoader";
 import { Link } from "react-router-dom";
 import {
+  DEFAULT_COMPANY_PROFILE,
+  DEFAULT_PAYROLL_CONFIG,
+  AUTHORITATIVE_OPERATIONAL_CUTOFFS,
+} from "@/shared/types";
+import {
   useBusinessSettings,
   useUpdateBusinessSettings,
 } from "../hooks/useSettings";
-import { Save, Store, IndianRupee, Clock, Truck, Play, ArrowRight } from "lucide-react";
-import { useSeedData } from "../hooks/useSeedData";
+import { Save, Store, IndianRupee, Clock, Truck, ArrowRight, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -41,6 +45,7 @@ const settingsSchema = z.object({
     supportEmail: z.string().email(),
     supportPhone: z.string().min(10),
     address: z.string(),
+    upiId: z.string().optional(),
   }),
   financials: z.object({
     gstPercentage: z.coerce.number().min(0).max(100),
@@ -84,7 +89,6 @@ type SettingsForm = z.infer<typeof settingsSchema>;
 export function BusinessSettingsPage() {
   const { data: settings, isLoading, isError } = useBusinessSettings();
   const updateMutation = useUpdateBusinessSettings();
-  const { seedData, isSeeding } = useSeedData();
 
   const {
     register,
@@ -99,11 +103,14 @@ export function BusinessSettingsPage() {
     if (settings) {
       reset({
         companyProfile: {
-          name: settings.companyProfile?.name || "Mysuru Paakashale",
-          tagline: settings.companyProfile?.tagline || "",
-          supportEmail: settings.companyProfile?.supportEmail || "support@mysurupaakashale.com",
-          supportPhone: settings.companyProfile?.supportPhone || "9876543210",
-          address: settings.companyProfile?.address || "",
+          name: settings.companyProfile?.name || DEFAULT_COMPANY_PROFILE.name,
+          tagline: settings.companyProfile?.tagline ?? DEFAULT_COMPANY_PROFILE.tagline,
+          supportEmail:
+            settings.companyProfile?.supportEmail || DEFAULT_COMPANY_PROFILE.supportEmail,
+          supportPhone:
+            settings.companyProfile?.supportPhone || DEFAULT_COMPANY_PROFILE.supportPhone,
+          address: settings.companyProfile?.address || DEFAULT_COMPANY_PROFILE.address,
+          upiId: settings.companyProfile?.upiId || DEFAULT_COMPANY_PROFILE.upiId,
         },
         financials: {
           gstPercentage: settings.financials?.gstPercentage ?? 0,
@@ -114,19 +121,10 @@ export function BusinessSettingsPage() {
         operations: {
           ...settings.operations,
           cancellationCutoffTimes: settings.operations
-            .cancellationCutoffTimes ?? {
-            breakfast: "05:00",
-            lunch: "10:30",
-            dinner: "16:00",
-          },
+            .cancellationCutoffTimes ?? { ...AUTHORITATIVE_OPERATIONAL_CUTOFFS },
           businessHolidays: (settings.operations?.businessHolidays ?? []).join(", "),
         },
-        payroll: settings.payroll || {
-          standardWorkingDays: 22,
-          standardWorkingHours: 8,
-          taxPercentage: 0,
-          leaveDeductionMultiplier: 1,
-        },
+        payroll: settings.payroll || { ...DEFAULT_PAYROLL_CONFIG },
       });
     }
   }, [settings, reset]);
@@ -169,6 +167,10 @@ export function BusinessSettingsPage() {
       },
       operations: {
         ...data.operations,
+        cancellationCutoffTimes:
+          data.operations?.cancellationCutoffTimes || {
+            ...AUTHORITATIVE_OPERATIONAL_CUTOFFS,
+          },
         businessHolidays: (data.operations?.businessHolidays || "")
           .split(",")
           .map((s) => s.trim())
@@ -220,6 +222,14 @@ export function BusinessSettingsPage() {
               label="Support Phone"
               type="tel"
               {...register("companyProfile.supportPhone")}
+            />
+            <Input
+              label="Business UPI ID / VPA"
+              placeholder="e.g. mysuru.paakashale@upi"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="lowercase font-mono"
+              {...register("companyProfile.upiId")}
             />
             <div className="md:col-span-2">
               <Input label="Tagline" {...register("companyProfile.tagline")} />
@@ -310,9 +320,15 @@ export function BusinessSettingsPage() {
             <h3 className="text-sm font-bold text-primary mb-1 flex items-center gap-2">
               <Clock size={16} className="text-rose-500" /> Cutoff Times (24h)
             </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Modifications, cancellations, and add-on requests for today must occur strictly before these times.
-            </p>
+            <div className="mb-4 mt-2 rounded-xl border border-emerald-600/30 bg-emerald-500/10 p-3.5 flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-text-muted leading-relaxed">
+                <span className="font-semibold text-primary block text-sm mb-0.5">
+                  Server-Authoritative Security Boundary
+                </span>
+                Cancellation and skip cutoff times (Breakfast: 05:00, Lunch: 10:30, Dinner: 16:00 IST) are strictly enforced by the server-authoritative Firestore security rules to protect daily kitchen prep cycles. These times cannot be changed client-side without a security rules update.
+              </div>
+            </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="bg-background p-4 rounded-xl border border-primary/10">
                 <Input
@@ -486,35 +502,6 @@ export function BusinessSettingsPage() {
               step="0.1"
               {...register("payroll.leaveDeductionMultiplier")}
             />
-          </div>
-        </Card>
-
-        {/* Manual Operations */}
-        <Card className="p-6 space-y-6 shadow-sm border-primary/20">
-          <h2 className="text-xl font-bold text-primary flex items-center gap-3 border-b border-primary/10 pb-4 font-display">
-            <Play size={24} className="text-emerald-600" /> Manual Operations
-            (Spark Plan)
-          </h2>
-          <div className="grid md:grid-cols-1 gap-4">
-            <div className="space-y-3 bg-primary/5 p-5 rounded-2xl border border-primary/10">
-              <h3 className="font-bold text-primary text-base">
-                Seed Production Data
-              </h3>
-              <p className="text-sm font-medium text-text-muted">
-                Initializes the database with default Meal Plans and Business
-                Settings. Run this once on a fresh deployment to set up the
-                system.
-              </p>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={seedData}
-                isLoading={isSeeding}
-                className="mt-4 !bg-emerald-600 hover:!bg-emerald-700 shadow-md"
-              >
-                Seed Data
-              </Button>
-            </div>
           </div>
         </Card>
       </form>

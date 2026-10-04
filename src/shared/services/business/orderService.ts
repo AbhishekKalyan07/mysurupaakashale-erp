@@ -15,7 +15,14 @@ import { orderGenerationRunRepository } from "../firestore/analyticsRepository";
 import { userRepository } from "../firestore/userRepository";
 import { mealPlanRepository } from "../firestore/mealPlanRepository";
 import { deliveryZoneRepository } from "../firestore/deliveryZoneRepository";
-import { notifyDailyOrdersGenerated } from "../firestore/notificationService";
+import {
+  notifyDailyOrdersGenerated,
+  notifyAdminAlert,
+  notifyOrderGeneratedCustomer,
+  notifyOrderGeneratedDriver,
+} from "../firestore/notificationService";
+import { auditRepository } from "../firestore/auditRepository";
+import { failureQueueRepository } from "../firestore/failureQueueRepository";
 import { holidayRepository } from "../firestore/holidayRepository";
 import { dailyMenuRepository } from "../firestore/dailyMenuRepository";
 import type {
@@ -297,6 +304,8 @@ class OrderService {
       runId,
     );
 
+    const backgroundTasks: Promise<any>[] = [];
+
     try {
       // 1. Fetch data
       const [
@@ -356,7 +365,6 @@ class OrderService {
       });
 
       const ordersToCreate: Partial<Order>[] = [];
-      const backgroundTasks: Promise<any>[] = [];
 
       for (const sub of allSubscriptions) {
         if (sub.endDate && sub.endDate < today) {
@@ -523,42 +531,32 @@ class OrderService {
               ordersUnassigned++;
               const actor = getSystemOrAdminActor();
               backgroundTasks.push(
-                import("@/shared/services/firestore/auditRepository")
-                  .then((m) =>
-                    m.auditRepository.logAction(
-                      "delivery_assignment_failed",
-                      actor.uid,
-                      actor.role,
-                      actor.name,
-                      order.id!,
-                      "order",
-                      {
-                        orderId: order.id,
-                        customerId: sub.customerId,
-                        zoneId: order.zoneId,
-                        mealType: order.mealType,
-                        date: today,
-                        reason:
-                          "No eligible partner available for this zone and shift",
-                      },
-                    ),
-                  )
-                  .catch(console.error),
+                auditRepository.logAction(
+                  "delivery_assignment_failed",
+                  actor.uid,
+                  actor.role,
+                  actor.name,
+                  order.id!,
+                  "order",
+                  {
+                    orderId: order.id,
+                    customerId: sub.customerId,
+                    zoneId: order.zoneId,
+                    mealType: order.mealType,
+                    date: today,
+                    reason:
+                      "No eligible partner available for this zone and shift",
+                  },
+                ).catch(console.error),
               );
               backgroundTasks.push(
-                import("@/shared/services/firestore/notificationService")
-                  .then((m) =>
-                    import("@/shared/services/firestore/userRepository").then(
-                      (ur) =>
-                        ur.userRepository
-                          .list(where("role", "==", "admin"))
-                          .then((admins) =>
-                            m.notifyAdminAlert(
-                              admins.map((a) => a.id),
-                              "Delivery Assignment Failed",
-                              `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`,
-                            ),
-                          ),
+                userRepository
+                  .list(where("role", "==", "admin"))
+                  .then((admins) =>
+                    notifyAdminAlert(
+                      admins.map((a) => a.id),
+                      "Delivery Assignment Failed",
+                      `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`,
                     ),
                   )
                   .catch(console.error),
@@ -573,40 +571,39 @@ class OrderService {
               );
               ordersFailed++;
 
-              import("@/shared/services/firestore/failureQueueRepository")
-                .then((m) => {
-                  m.failureQueueRepository
-                    .logFailure(
-                      sub.customerId,
-                      sub.id,
-                      mealType,
-                      today,
-                      err instanceof Error ? err.message : String(err),
-                      err instanceof Error ? err.stack : undefined,
-                    )
-                    .catch(console.error);
-                })
-                .catch(console.error);
+              backgroundTasks.push(
+                failureQueueRepository
+                  .logFailure(
+                    sub.customerId,
+                    sub.id,
+                    mealType,
+                    today,
+                    err instanceof Error ? err.message : String(err),
+                    err instanceof Error ? err.stack : undefined,
+                  )
+                  .catch((qErr) =>
+                    console.error(
+                      "[orderService] failureQueue logging failed:",
+                      qErr,
+                    ),
+                  ),
+              );
 
               // Admin Alert
-              import("@/shared/services/firestore/notificationService")
-                .then((m) => {
-                  import("@/shared/services/firestore/userRepository")
-                    .then((ur) => {
-                      ur.userRepository
-                        .list(where("role", "==", "admin"))
-                        .then((admins) => {
-                          m.notifyAdminAlert(
-                            admins.map((a) => a.id),
-                            "Order Generation Failed",
-                            `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`,
-                          );
-                        })
-                        .catch(console.error);
-                    })
-                    .catch(console.error);
-                })
-                .catch(console.error);
+              backgroundTasks.push(
+                userRepository
+                  .list(where("role", "==", "admin"))
+                  .then((admins) =>
+                    notifyAdminAlert(
+                      admins.map((a) => a.id),
+                      "Order Generation Failed",
+                      `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`,
+                    ),
+                  )
+                  .catch((nErr) =>
+                    console.error("[orderService] Admin alert failed:", nErr),
+                  ),
+              );
             } else {
               // Wait a bit before retrying
               await new Promise((resolve) => setTimeout(resolve, 500));
@@ -635,48 +632,62 @@ class OrderService {
         await batch.commit();
         ordersGenerated += batchOrders.length;
 
-        // Trigger notifications asynchronously
-        import("@/shared/services/firestore/notificationService")
-          .then((m) => {
-            batchOrders.forEach((o) => {
-              m.notifyOrderGeneratedCustomer(
-                o.customerId!,
-                o.mealType || "meal",
-                o.date!,
-              ).catch(console.error);
-              if (o.deliveryPartnerId) {
-                m.notifyOrderGeneratedDriver(
-                  o.deliveryPartnerId,
-                  o.id!,
+        // Trigger notifications asynchronously and collect into backgroundTasks
+        backgroundTasks.push(
+          (async () => {
+            const notifPromises = batchOrders.flatMap((o) => {
+              const list: Promise<any>[] = [
+                notifyOrderGeneratedCustomer(
+                  o.customerId!,
                   o.mealType || "meal",
-                  o.customerName || "Unknown",
                   o.date!,
-                ).catch(console.error);
+                ).catch((err) =>
+                  console.error(
+                    "[orderService] customer notification failed:",
+                    err,
+                  ),
+                ),
+              ];
+              if (o.deliveryPartnerId) {
+                list.push(
+                  notifyOrderGeneratedDriver(
+                    o.deliveryPartnerId,
+                    o.id!,
+                    o.mealType || "meal",
+                    o.customerName || "Unknown",
+                    o.date!,
+                  ).catch((err) =>
+                    console.error(
+                      "[orderService] driver notification failed:",
+                      err,
+                    ),
+                  ),
+                );
               }
+              return list;
             });
-          })
-          .catch(console.error);
+            await Promise.allSettled(notifPromises);
+          })().catch(console.error),
+        );
 
         const actor = getSystemOrAdminActor();
-        import("@/shared/services/firestore/auditRepository")
-          .then((m) => {
-            m.auditRepository
-              .logAction(
-                "orders_generated",
-                actor.uid,
-                actor.role,
-                actor.name,
-                runId,
-                "system",
-                {
-                  date: today,
-                  mealType,
-                  count: batchOrders.length,
-                },
-              )
-              .catch(console.error);
-          })
-          .catch(console.error);
+        backgroundTasks.push(
+          auditRepository
+            .logAction(
+              "orders_generated",
+              actor.uid,
+              actor.role,
+              actor.name,
+              runId,
+              "system",
+              {
+                date: today,
+                mealType,
+                count: batchOrders.length,
+              },
+            )
+            .catch(console.error),
+        );
       }
 
       const completedAt = serverTimestamp() as unknown as Timestamp;
@@ -711,12 +722,28 @@ class OrderService {
         }
       }
 
+      // Await all background side-effect tasks before returning so that
+      // automated processes (e.g. Node cron with process.exit) do not truncate in-flight promises.
+      if (backgroundTasks.length > 0) {
+        const results = await Promise.allSettled(backgroundTasks);
+        results.forEach((r, idx) => {
+          if (r.status === "rejected") {
+            console.warn(`[orderService] Background side-effect task ${idx} failed:`, r.reason);
+          }
+        });
+      }
+
       return {
         generated: ordersGenerated,
         failed: ordersFailed,
         unassigned: ordersUnassigned,
       };
     } catch (error: any) {
+      if (backgroundTasks.length > 0) {
+        try {
+          await Promise.allSettled(backgroundTasks);
+        } catch {}
+      }
       const completedAt = serverTimestamp() as unknown as Timestamp;
       await orderGenerationRunRepository.update(runId, {
         status: "failed",
@@ -826,6 +853,320 @@ class OrderService {
       [mealType],
     );
     return typeof created === "number" ? created : 0;
+  }
+
+  /**
+   * Adds an individual meal for today or for a specific future date on behalf of a customer.
+   * Does NOT permanently modify the customer's subscription meal configuration.
+   * Treats it as an individual one-time order using existing order architecture and pricing.
+   * Enforces operational cutoffs (for today) and holiday/Sunday delivery rules.
+   */
+  async addIndividualMeal(params: {
+    customerId: string;
+    subscriptionId?: string | null;
+    date: string; // YYYY-MM-DD
+    mealType: import("@/shared/types").MealType;
+    optionId?: string;
+    nowOverride?: Date;
+  }): Promise<Order> {
+    const { customerId, subscriptionId, date, mealType, optionId, nowOverride } = params;
+
+    if (!["breakfast", "lunch", "dinner"].includes(mealType)) {
+      throw new Error(`Invalid meal type: ${mealType}`);
+    }
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error("Invalid date format. Expected YYYY-MM-DD.");
+    }
+
+    const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+    if (date < today) {
+      throw new Error("Cannot add a meal for a past date.");
+    }
+
+    if (isSundayInTimezone(date)) {
+      throw new Error("Deliveries are closed on Sundays.");
+    }
+
+    const isHoliday = await holidayRepository.isHoliday(date);
+    if (isHoliday) {
+      throw new Error("Deliveries are closed on declared holidays.");
+    }
+
+    // Cutoff validation: if date is today, enforce cutoff
+    if (date === today) {
+      await operationalSettingsService.getOperationalSettings();
+      operationalSettingsService.validateMealCutoff(mealType, date, nowOverride);
+    }
+
+    // Load customer profile
+    const customer = (await userRepository.getById(customerId)) as CustomerProfile | null;
+    if (!customer) {
+      throw new Error(`Customer ${customerId} not found.`);
+    }
+
+    // Resolve subscription if available
+    let subscription: Subscription | null = null;
+    if (subscriptionId) {
+      subscription = await subscriptionRepository.getById(subscriptionId);
+    } else {
+      subscription = await subscriptionRepository.getActiveSubscriptionByCustomerId(customerId);
+    }
+
+    // Calculate authoritative price:
+    // If subscription exists, use pricingService.calculateMealPrice (which checks negotiatedPricing -> snapshot -> base)
+    // If no subscription, resolve effective base pricing for date
+    let price: number;
+    let planTier: import("@/shared/types").PlanTier | null = null;
+    let planName = "One-Time Meal";
+
+    if (subscription) {
+      price = pricingService.calculateMealPrice(subscription, mealType, 1, date);
+      planTier = subscription.planTier;
+      if (subscription.planId) {
+        const plan = await mealPlanRepository.getById(subscription.planId);
+        if (plan) planName = plan.name;
+      }
+    } else {
+      const basePricing = await pricingService.getEffectivePricing(date, "regular");
+      price = (basePricing as any)[mealType] ?? 0;
+    }
+
+    // Resolve delivery address
+    const addr =
+      customer.addresses?.find((a: any) => a.id === subscription?.deliveryAddressId) ||
+      customer.addresses?.find((a: any) => a.id === customer.defaultAddressId) ||
+      customer.addresses?.[0];
+
+    const allZones = await deliveryZoneRepository.list();
+    let zoneId: string | null = null;
+    let kitchenId: string | null = null;
+
+    const manualZoneId = subscription?.zoneId || customer.zoneId;
+    if (manualZoneId) {
+      const manualZone = allZones.find((z) => z.id === manualZoneId && z.isActive !== false);
+      if (manualZone?.kitchenId) {
+        zoneId = manualZone.id;
+        kitchenId = manualZone.kitchenId;
+      }
+    }
+
+    if (!zoneId || !kitchenId) {
+      try {
+        const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
+        zoneId = resolved.zoneId;
+        kitchenId = resolved.kitchenId;
+      } catch {
+        // Missing kitchen/zone will be caught by the check below
+      }
+    }
+
+    if (!kitchenId || !zoneId) {
+      throw new Error(`Missing kitchen configuration for customer ${customerId}`);
+    }
+
+    // Partner resolution
+    const allPartners = (await userRepository.list(where("role", "==", "delivery_partner"))) as DeliveryPartnerProfile[];
+    const activePartners = allPartners.filter((p) => p.isActive);
+    let partnerId: string | null = customer.mealDeliveryPartners?.[mealType] || customer.deliveryPartnerId || null;
+
+    if (!partnerId && zoneId) {
+      const eligible = activePartners.filter(
+        (p) =>
+          p.isAvailable &&
+          p.zoneIds?.includes(zoneId!) &&
+          (!p.shifts || p.shifts.length === 0 || p.shifts.includes(mealType)),
+      );
+      if (eligible.length > 0) {
+        partnerId = eligible[0].id;
+      }
+    }
+
+    const partner = partnerId ? activePartners.find((p) => p.id === partnerId) : null;
+    const addressStr = addr
+      ? `${addr.line1} ${addr.line2 || ""}, ${addr.city}, ${addr.pincode}`.trim()
+      : undefined;
+
+    // Check if daily menu published for items label
+    const publishedMenu = await dailyMenuRepository.getPublishedByDate(date).catch(() => null);
+    const dailyMeal = publishedMenu && publishedMenu[mealType]?.isAvailable !== false ? publishedMenu[mealType] : null;
+
+    let mealName: string = mealType;
+    let itemsLabel = `One-time ${mealType}`;
+    if (dailyMeal?.name) {
+      mealName = dailyMeal.name;
+      itemsLabel = dailyMeal.items?.length ? `${dailyMeal.name} (${dailyMeal.items.join(", ")})` : dailyMeal.name;
+    }
+
+    const orderId = `ord_addon_${subscription?.id || customerId}_${date}_${mealType}`;
+    const zoneName = zoneId ? allZones.find((z) => z.id === zoneId)?.name : undefined;
+
+    // Check pre-transaction for any existing active order for this customer, date, and mealType
+    const existingCustomerOrders = await orderRepository.list(
+      where("customerId", "==", customerId),
+      where("date", "==", date),
+    );
+    const activeExisting = existingCustomerOrders.find(
+      (o) =>
+        o.mealType === mealType &&
+        o.status !== "cancelled" &&
+        o.status !== "skipped",
+    );
+    if (activeExisting) {
+      throw new Error(
+        `An active order already exists for ${date} (${mealType}). Order ID: ${activeExisting.id} (Status: ${activeExisting.status}).`,
+      );
+    }
+
+    const initialOrderDoc: Order = {
+      id: orderId,
+      displayId: customer.displayId || `ORD-${orderId.slice(-6).toUpperCase()}`,
+      source: "one_time",
+      customerId: customer.id,
+      subscriptionId: subscription?.id || null,
+      planTier: planTier || null,
+      mealType,
+      date,
+      customerName: customer.fullName,
+      customerCode: customer.displayId || undefined,
+      customerPhone: customer.phone || undefined,
+      address: addressStr || undefined,
+      addressCoords: sanitizeCoordinates(addr),
+      zoneName,
+      planName,
+      driverName: partner?.fullName || undefined,
+      driverPhone: partner?.phone || undefined,
+      mealName,
+      mealQuantity: 1,
+      billingStatus: "Generated",
+      kitchenStatus: "scheduled",
+      itemsLabel,
+      selectedOptionId: optionId || null,
+      price,
+      currency: "INR",
+      status: "scheduled",
+      deliveryAddressId: addr?.id || "",
+      zoneId,
+      kitchenId,
+      deliveryPartnerId: partnerId || null,
+      deliveryWindow: operationalSettingsService.getDeliveryWindowSync(mealType),
+      paymentId: null,
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    };
+
+    // Candidate document references for transactional concurrency & idempotency
+    const subOrderId = subscription?.id
+      ? `ord_${subscription.id}_${date}_${mealType}`
+      : null;
+    const subOrderRef = subOrderId ? doc(db, "orders", subOrderId) : null;
+    const addonSubOrderId = subscription?.id
+      ? `ord_addon_${subscription.id}_${date}_${mealType}`
+      : null;
+    const addonSubOrderRef = addonSubOrderId
+      ? doc(db, "orders", addonSubOrderId)
+      : null;
+    const addonCustOrderId = `ord_addon_${customerId}_${date}_${mealType}`;
+    const addonCustOrderRef = doc(db, "orders", addonCustOrderId);
+
+    let resultingOrder: Order = initialOrderDoc;
+
+    await runTransaction(db, async (txn) => {
+      // 1. Transactionally read all candidate order documents
+      const refsMap = new Map<string, ReturnType<typeof doc>>();
+      if (subOrderRef) refsMap.set(subOrderRef.id, subOrderRef);
+      if (addonSubOrderRef) refsMap.set(addonSubOrderRef.id, addonSubOrderRef);
+      refsMap.set(addonCustOrderRef.id, addonCustOrderRef);
+
+      const candidateSnaps = await Promise.all(
+        Array.from(refsMap.values()).map((ref) => txn.get(ref)),
+      );
+
+      // 2. Concurrency/Idempotency check: Reject if ANY order for this slot is already active
+      for (const snap of candidateSnaps) {
+        if (snap.exists()) {
+          const data = snap.data() as Order;
+          if (data.status !== "cancelled" && data.status !== "skipped") {
+            throw new Error(
+              `An active order already exists for ${date} (${mealType}). Order ID: ${snap.id} (Status: ${data.status}).`,
+            );
+          }
+        }
+      }
+
+      // 3. If a cancelled or skipped order already exists, restore it in-place instead of creating a duplicate document
+      const subSnap = subOrderRef ? candidateSnaps.find((s) => s.id === subOrderRef.id) : null;
+      const addonSubSnap = addonSubOrderRef ? candidateSnaps.find((s) => s.id === addonSubOrderRef.id) : null;
+      const addonCustSnap = candidateSnaps.find((s) => s.id === addonCustOrderRef.id);
+
+      const targetToRestore =
+        (subSnap && subSnap.exists())
+          ? { ref: subOrderRef!, snap: subSnap }
+          : (addonSubSnap && addonSubSnap.exists())
+            ? { ref: addonSubOrderRef!, snap: addonSubSnap }
+            : (addonCustSnap && addonCustSnap.exists())
+              ? { ref: addonCustOrderRef, snap: addonCustSnap }
+              : null;
+
+      if (targetToRestore) {
+        const existingData = targetToRestore.snap.data() as Order;
+        resultingOrder = {
+          ...existingData,
+          price,
+          mealName,
+          itemsLabel,
+          selectedOptionId: optionId || null,
+          zoneId,
+          kitchenId,
+          deliveryPartnerId: partnerId || existingData.deliveryPartnerId || null,
+          driverName: partner?.fullName || existingData.driverName,
+          driverPhone: partner?.phone || existingData.driverPhone,
+          deliveryWindow: operationalSettingsService.getDeliveryWindowSync(mealType),
+          status: "scheduled",
+          kitchenStatus: "scheduled",
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        };
+        (resultingOrder as any).cancellationAmount = null;
+        (resultingOrder as any).cancellationReason = null;
+        (resultingOrder as any).cancelledAt = null;
+
+        txn.set(targetToRestore.ref, stripUndefined(resultingOrder), { merge: true });
+
+        const historyRef = doc(collection(db, "orders", targetToRestore.ref.id, "workflowHistory"));
+        txn.set(historyRef, {
+          fromStatus: existingData.status,
+          toStatus: "scheduled",
+          notes: "Meal added/restored for date by Admin",
+          changedAt: serverTimestamp(),
+          changedBy: auth.currentUser?.uid || "admin",
+        });
+      } else {
+        // No existing cancelled order; create new order document
+        resultingOrder = initialOrderDoc;
+        const targetRef = doc(db, "orders", orderId);
+        txn.set(targetRef, stripUndefined(initialOrderDoc));
+
+        const historyRef = doc(collection(db, "orders", orderId, "workflowHistory"));
+        txn.set(historyRef, {
+          fromStatus: null,
+          toStatus: "scheduled",
+          notes: "One-time meal order created by Admin",
+          changedAt: serverTimestamp(),
+          changedBy: auth.currentUser?.uid || "admin",
+        });
+      }
+    });
+
+    // If subscription has a skip entry for this date/meal, remove it
+    if (subscription) {
+      try {
+        const caller = auth.currentUser;
+        await subscriptionRepository.removeSkip(subscription.id, date, [mealType], caller?.uid || "admin");
+      } catch {
+        // Skip subcollection entry might not exist, ignore
+      }
+    }
+
+    return resultingOrder;
   }
 
   /**
@@ -1903,15 +2244,19 @@ class OrderService {
     }
 
     if (!zoneId || !kitchenId) {
-      const resolved = resolveOperationalZoneAndKitchen(
-        defaultAddress,
-        allZones,
-      );
-      zoneId = resolved.zoneId;
-      kitchenId = resolved.kitchenId;
+      try {
+        const resolved = resolveOperationalZoneAndKitchen(
+          defaultAddress,
+          allZones,
+        );
+        zoneId = resolved.zoneId;
+        kitchenId = resolved.kitchenId;
+      } catch {
+        // Unresolved address/pincode leaves zoneId/kitchenId null
+      }
     }
 
-    const zoneName = zoneMap.get(zoneId)?.name;
+    const zoneName = zoneId ? zoneMap.get(zoneId)?.name : undefined;
 
     const batch = writeBatch(db);
     ordersToSync.forEach((order) => {
@@ -2273,7 +2618,7 @@ class OrderService {
         zoneId = resolved.zoneId;
         kitchenId = resolved.kitchenId;
       } catch {
-        // Handled below by missing kitchen configuration check
+        // Missing kitchen/zone will be caught by the check below
       }
     }
 

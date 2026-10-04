@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Package, Loader2, Search, SlidersHorizontal, X, RefreshCw, Copy, MapPin } from "lucide-react";
+import { Package, Loader2, Search, X, RefreshCw, Copy, MapPin, SlidersHorizontal } from "lucide-react";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
@@ -18,6 +18,7 @@ import { useOrderAutoChecker } from "@/features/admin/hooks/useOrderAutoChecker"
 import { OrderDiagnosticCard } from "@/features/admin/components/OrderDiagnosticCard";
 import { cn } from "@/shared/lib/cn";
 import { formatAllottedId } from "@/shared/utils/displayId";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customer detail fetcher (for OrderCard customer prop)
@@ -172,6 +173,8 @@ function AdminOrderDetailDialog({
       setIsCancelling(false);
     }
   };
+
+  useScrollLock(true);
 
   return (
     <div className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -424,7 +427,6 @@ export function AdminOrdersPage() {
     getDefaultMealType(),
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(
     null,
   );
@@ -635,58 +637,49 @@ export function AdminOrdersPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text cursor-pointer p-1"
+              aria-label="Clear search"
             >
               <X size={14} />
             </button>
           )}
         </div>
         <Button
-          variant={showFilters ? "tonal" : "secondary"}
+          variant="secondary"
           size="md"
-          onClick={() => setShowFilters(!showFilters)}
+          className="h-11 px-4 flex items-center gap-2 rounded-[14px]"
+          onClick={() => {}}
         >
           <SlidersHorizontal size={16} />
-          <span className="hidden sm:inline">Filters</span>
+          <span>Filters</span>
         </Button>
       </div>
 
-      {/* Expanded filters */}
-      <div
-        className={cn(
-          "grid transition-all duration-300 ease-in-out",
-          showFilters
-            ? "grid-rows-[1fr] opacity-100"
-            : "grid-rows-[0fr] opacity-0",
-        )}
-      >
-        <div className="overflow-hidden">
-          <div className="bg-card rounded-[20px] border border-border p-4 space-y-3">
-            <div>
-              <label className="text-xs font-semibold text-text-muted uppercase tracking-wider block mb-2">
-                Meal Type
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(["all", "breakfast", "lunch", "dinner"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMealTypeFilter(m)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
-                      mealTypeFilter === m
-                        ? "bg-primary text-white border-primary"
-                        : "bg-surface-2 text-text-muted border-border hover:border-secondary/40",
-                    )}
-                  >
-                    {m === "all"
-                      ? "All Meals"
-                      : m.charAt(0).toUpperCase() + m.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Permanent Meal Type Filter */}
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+          Meal:
+        </span>
+        {[
+          { key: "all", label: "All Meals", icon: "" },
+          { key: "breakfast", label: "Breakfast", icon: "🌅 " },
+          { key: "lunch", label: "Lunch", icon: "☀️ " },
+          { key: "dinner", label: "Dinner", icon: "🌙 " },
+        ].map(({ key, label, icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setMealTypeFilter(key as MealType | "all")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all shrink-0 cursor-pointer min-h-[32px] flex items-center gap-1.5",
+              mealTypeFilter === key
+                ? "bg-primary text-white border-primary shadow-xs font-bold"
+                : "bg-surface-2 text-text-muted border-border hover:border-secondary/40 hover:text-text",
+            )}
+          >
+            {icon}{label}
+          </button>
+        ))}
       </div>
 
       {/* Status KPI Filter Chips — horizontally scrollable */}

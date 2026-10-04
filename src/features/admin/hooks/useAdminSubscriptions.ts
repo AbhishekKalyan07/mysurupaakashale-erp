@@ -8,7 +8,10 @@ import { getAuth } from "firebase/auth";
 import toast from "react-hot-toast";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
-import { subscriptionService } from "@/shared/services/business/subscriptionService";
+import {
+  subscriptionService,
+  type AdminCreateSubscriptionInput,
+} from "@/shared/services/business/subscriptionService";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import { mealPlanRepository } from "@/shared/services/firestore/mealPlanRepository";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
@@ -303,14 +306,19 @@ export function usePauseSubscription() {
       pauseStartDate?: string | null;
       pauseEndDate?: string | null;
     }) => {
+      const admin = getAuth().currentUser;
+      const adminActor = admin
+        ? { uid: admin.uid, role: "admin", fullName: admin.displayName || "Admin" }
+        : undefined;
+
       await subscriptionService.pauseSubscription(
         subscription,
         shouldPauseNow,
         pauseStartDate,
         pauseEndDate,
+        adminActor,
       );
 
-      const admin = getAuth().currentUser;
       if (admin) {
         await auditRepository.logAction(
           "subscription_paused",
@@ -562,22 +570,53 @@ export function useRemoveNegotiatedPricing() {
   });
 }
 
+// ── Admin: change subscription plan ──────────────────────────────────────────
+export function useChangeSubscriptionPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      subscriptionId: string;
+      newPlanId: string;
+      newMealPreferences?: MealPreference[];
+    }) => {
+      const admin = getAuth().currentUser;
+      if (!admin) {
+        throw new Error("Unauthorized: Admin authentication required.");
+      }
+      await subscriptionService.changeSubscriptionPlan({
+        subscriptionId: params.subscriptionId,
+        newPlanId: params.newPlanId,
+        newMealPreferences: params.newMealPreferences,
+        adminActor: {
+          uid: admin.uid,
+          role: "admin",
+          fullName: admin.displayName || "Admin",
+        },
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subscriptions.detail(variables.subscriptionId),
+      });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orderHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["auditLogs"] });
+      toast.success("Subscription plan updated successfully.");
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || "Failed to change subscription plan.");
+    },
+  });
+}
+
 // ── Admin: create subscription for customer (Phase E3) ───────────────────────
 export function useAdminCreateSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      customerId: string;
-      planId: string;
-      startDate: string;
-      mealPreferences: MealPreference[];
-      deliveryAddressId: string;
-      billingCycle?: "weekly" | "monthly";
-      quantity?: number;
-      autoRenew?: boolean;
-      status?: SubscriptionStatus;
-    }) => {
+    mutationFn: async (params: AdminCreateSubscriptionInput) => {
       const user = getAuth().currentUser;
       const adminActor = {
         uid: user?.uid || "admin",

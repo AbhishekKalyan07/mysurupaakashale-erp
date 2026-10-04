@@ -2,7 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { settingsRepository } from "@/shared/services/firestore/settingsRepository";
 import { queryKeys } from "@/shared/lib/queryKeys";
-import type { BusinessSettings } from "@/shared/types";
+import {
+  DEFAULT_COMPANY_PROFILE,
+  DEFAULT_PAYROLL_CONFIG,
+  AUTHORITATIVE_OPERATIONAL_CUTOFFS,
+  type BusinessSettings,
+} from "@/shared/types";
 import toast from "react-hot-toast";
 import { getAuth } from "firebase/auth";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
@@ -17,13 +22,7 @@ export function useBusinessSettings() {
         // Return default structure if it doesn't exist yet
         return {
           id: "business",
-          companyProfile: {
-            name: "Mysuru Paakashale",
-            tagline: "Authentic South Indian Meals",
-            supportEmail: "support@mysurupaakashale.com",
-            supportPhone: "9876543210",
-            address: "Mysuru, Karnataka",
-          },
+          companyProfile: { ...DEFAULT_COMPANY_PROFILE },
           financials: {
             gstPercentage: 0,
             currency: "INR",
@@ -42,19 +41,10 @@ export function useBusinessSettings() {
               lunch: { start: "12:30", end: "14:00" },
               dinner: { start: "19:30", end: "21:00" },
             },
-            cancellationCutoffTimes: {
-              breakfast: "05:00",
-              lunch: "10:30",
-              dinner: "16:00",
-            },
+            cancellationCutoffTimes: { ...AUTHORITATIVE_OPERATIONAL_CUTOFFS },
             businessHolidays: [],
           },
-          payroll: {
-            standardWorkingDays: 22,
-            standardWorkingHours: 8,
-            taxPercentage: 0,
-            leaveDeductionMultiplier: 1,
-          },
+          payroll: { ...DEFAULT_PAYROLL_CONFIG },
         } as unknown as BusinessSettings;
       }
       return data;

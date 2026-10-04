@@ -360,16 +360,42 @@ class BillingService {
 
     const totalAmount = standardTotal + addonTotal;
 
-    // 1b. Calculate verified payments
+    // 1b. Calculate verified payments for the current billing cycle
     const payments = await paymentRepository.getByCustomerId(
       subscription.customerId,
     );
-    const verifiedUsagePayments = payments.filter(
-      (p) =>
-        p.subscriptionId === subscription.id &&
-        p.status === "verified" &&
-        p.purpose !== "security_deposit",
-    );
+    const cycleBillingMonth = subscription.startDate.slice(0, 7);
+    const verifiedUsagePayments = payments.filter((p) => {
+      if (
+        p.subscriptionId !== subscription.id ||
+        p.status !== "verified" ||
+        p.purpose === "security_deposit"
+      ) {
+        return false;
+      }
+
+      if (subscription.billingCycle === "monthly") {
+        if (p.billingMonth) {
+          return p.billingMonth === cycleBillingMonth;
+        }
+        if (p.paymentDate) {
+          return (
+            p.paymentDate >= subscription.startDate &&
+            p.paymentDate <= effectiveEndDate
+          );
+        }
+        return true;
+      }
+
+      // Weekly or custom cycles: match payments made for this cycle window
+      if (p.paymentDate) {
+        return (
+          p.paymentDate >= subscription.startDate &&
+          p.paymentDate <= effectiveEndDate
+        );
+      }
+      return true;
+    });
     const verifiedSecurityDeposits = payments.filter(
       (p) =>
         p.subscriptionId === subscription.id &&

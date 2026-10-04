@@ -54,6 +54,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
+    {
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 5'] },
+      dependencies: ['setup'],
+      testMatch: /.*mobile\.spec\.ts/,
+    },
   ],
 
   /* Run your local dev server before starting the tests */
@@ -76,7 +82,9 @@ export default defineConfig({
     // In CI, emulators are started externally by firebase emulators:exec in the workflow.
     // Locally, Playwright starts them via this webServer entry.
     ...(!process.env.CI ? [{
-      command: 'npx firebase emulators:start --project demo-test --only auth,firestore',
+      command: process.platform === 'win32'
+        ? 'firebase.cmd emulators:start --project demo-test --only auth,firestore'
+        : 'npx firebase emulators:start --project demo-test --only auth,firestore',
       port: 8085,
       reuseExistingServer: true,
       timeout: 300000,

@@ -1,6 +1,7 @@
 import { FileWarning, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { PremiumButton as Button } from "./PremiumButton";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
 
 export interface UnsavedChangesDialogProps {
   /** Called when the user decides to stay on the page */
@@ -29,6 +30,7 @@ export function UnsavedChangesDialog({
   onLeave,
 }: UnsavedChangesDialogProps) {
   const stayRef = useRef<HTMLButtonElement>(null);
+  useScrollLock(true);
 
   useEffect(() => {
     stayRef.current?.focus();

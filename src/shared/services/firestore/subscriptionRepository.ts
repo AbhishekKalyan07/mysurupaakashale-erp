@@ -86,12 +86,11 @@ class SubscriptionRepository extends BaseRepository<Subscription> {
       const mergedMealTypes = [
         ...new Set([...existingMealTypes, ...mealTypes]),
       ];
-      await setDoc(skipRef, {
-        date,
+      await updateDoc(skipRef, {
         mealTypes: mergedMealTypes,
         reason,
-        createdAt: serverTimestamp() as unknown as Timestamp,
-        createdBy: uid,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+        updatedBy: uid,
       });
     } else {
       await setDoc(skipRef, {

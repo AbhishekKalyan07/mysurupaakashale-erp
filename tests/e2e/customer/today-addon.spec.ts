@@ -2,6 +2,14 @@ import { test, expect } from '../shared/fixtures';
 
 test.describe('Customer: Today\'s Add-on & Cancellation Pricing Flow (Phase D.5)', () => {
   test('customer can add today add-on with authoritative pricing and view cancellation pricing', async ({ customerPage }) => {
+    // Set virtual page clock to tomorrow 08:00 AM IST so dinner cutoff is deterministically open
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    await customerPage.clock.setFixedTime(new Date(`${year}-${month}-${day}T08:00:00+05:30`));
+
     await customerPage.goto('/customer');
 
     // Wait for customer dashboard to load

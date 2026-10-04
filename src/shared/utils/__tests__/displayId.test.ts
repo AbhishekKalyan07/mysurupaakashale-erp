@@ -4,8 +4,8 @@ import { formatAllottedId, isFormattedDisplayId } from "../displayId";
 describe("displayId utility", () => {
   describe("isFormattedDisplayId", () => {
     it("recognizes customer allotted IDs", () => {
-      expect(isFormattedDisplayId("MP-A001")).toBe(true);
-      expect(isFormattedDisplayId("MP-K102")).toBe(true);
+      expect(isFormattedDisplayId("MP-001")).toBe(true);
+      expect(isFormattedDisplayId("MP-002")).toBe(true);
       expect(isFormattedDisplayId("CUST-1001")).toBe(true);
     });
 
@@ -32,7 +32,7 @@ describe("displayId utility", () => {
 
   describe("formatAllottedId", () => {
     it("returns genuine displayId when present", () => {
-      expect(formatAllottedId("MP-A001", "wtea9lQtgPVLLrrUEZVu")).toBe("MP-A001");
+      expect(formatAllottedId("MP-001", "wtea9lQtgPVLLrrUEZVu")).toBe("MP-001");
       expect(formatAllottedId("ADMIN-1001", "adminUid1234567890123")).toBe("ADMIN-1001");
     });
 

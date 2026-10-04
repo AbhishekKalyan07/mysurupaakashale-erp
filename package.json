@@ -14,11 +14,13 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --test-timeout=30000 tests/active-backend",
     "test:security": "set FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 && firebase emulators:exec --only firestore \"vitest run --test-timeout=30000 --config vitest.int.config.ts tests/security\"",
+    "test:migration": "firebase emulators:exec --only auth,firestore \"vitest run --test-timeout=30000 --config vitest.int.config.ts tests/migration\"",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview",
     "db:wipe": "vite-node scripts/wipeUserData.ts",
     "db:seed-plans": "vite-node scripts/seedPlans.ts",
+    "audit:bundle": "vite-node --script scripts/auditProductionBundle.ts",
     "emulators:start": "firebase emulators:start --project demo-test --export-on-exit=./emulator-data --import=./emulator-data"
   },
   "dependencies": {

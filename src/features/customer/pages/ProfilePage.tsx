@@ -13,6 +13,7 @@ import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import toast from "react-hot-toast";
+import { isMysuruCityPincode } from "@/shared/services/business/operationalRouter";
 
 const profileSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your full name"),
@@ -38,7 +39,10 @@ const addressFormSchema = z.object({
   state: z.string().min(1, "State is required").max(100),
   pincode: z
     .string()
-    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits"),
+    .trim()
+    .regex(/^[1-9][0-9]{5}$/, "Pincode must be exactly 6 digits")
+    .optional()
+    .or(z.literal("")),
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
@@ -73,6 +77,7 @@ export function ProfilePage() {
     register: registerAddr,
     handleSubmit: handleAddrSubmit,
     reset: resetAddr,
+    watch: watchAddr,
     formState: { errors: addrErrors },
   } = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -82,6 +87,7 @@ export function ProfilePage() {
       state: "Karnataka",
     },
   });
+  const watchedProfilePincode = watchAddr("pincode");
 
   useEffect(() => {
     if (profile) {
@@ -154,6 +160,15 @@ export function ProfilePage() {
 
   const onAddressSubmit = async (data: AddressFormValues) => {
     try {
+      if (data.pincode && data.pincode.trim().length > 0) {
+        if (!isMysuruCityPincode(data.pincode.trim())) {
+          toast.error(
+            `Delivery is not currently available for pincode ${data.pincode}. We only serve Mysuru City (570001–570032).`
+          );
+          return;
+        }
+      }
+
       await addAddress({
         ...data,
         isDefault: addresses.length === 0,
@@ -290,9 +305,24 @@ export function ProfilePage() {
                       {address.line2 && (
                         <p className="text-sm text-ink-600">{address.line2}</p>
                       )}
-                      <p className="text-sm text-ink-600">
-                        {address.city}, {address.state} {address.pincode}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm text-ink-600 font-data">
+                          {address.city}, {address.state}{address.pincode ? ` ${address.pincode}` : ""}
+                        </p>
+                        {(!address.pincode || address.pincode.trim().length === 0) ? (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
+                            Serviceability cannot be determined yet
+                          </span>
+                        ) : isMysuruCityPincode(address.pincode) ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                            ✓ Serviceable
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded">
+                            ✕ Outside Mysuru
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"
@@ -357,12 +387,27 @@ export function ProfilePage() {
                     {...registerAddr("state")}
                   />
                 </div>
-                <Input
-                  label="Pincode"
-                  required
-                  error={addrErrors.pincode?.message}
-                  {...registerAddr("pincode")}
-                />
+                <div>
+                  <Input
+                    label="Pincode (Optional)"
+                    placeholder="570001 (Optional)"
+                    error={addrErrors.pincode?.message}
+                    {...registerAddr("pincode")}
+                  />
+                  {watchedProfilePincode && watchedProfilePincode.trim().length === 6 && (
+                    <div className="mt-1 text-xs font-medium">
+                      {isMysuruCityPincode(watchedProfilePincode.trim()) ? (
+                        <p className="text-emerald-700 font-semibold">
+                          ✓ Serviceable in Mysuru City Zone
+                        </p>
+                      ) : (
+                        <p className="text-red-600 font-semibold">
+                          ✕ Unserviceable: We only serve Mysuru City (570001–570032).
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button
@@ -376,9 +421,13 @@ export function ProfilePage() {
                   <Button
                     type="submit"
                     isLoading={isAdding}
+                    disabled={
+                      isAdding ||
+                      (Boolean(watchedProfilePincode && watchedProfilePincode.trim().length === 6 && !isMysuruCityPincode(watchedProfilePincode.trim())))
+                    }
                     className="min-h-[44px] flex-1 sm:flex-initial font-bold"
                   >
-                    Save Address
+                    Confirm & Save Address
                   </Button>
                 </div>
               </form>

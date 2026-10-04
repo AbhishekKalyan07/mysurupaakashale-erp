@@ -62,11 +62,30 @@ export interface OrderDiagnosticResult {
 
 export class OrderDiagnosticService {
   /**
-   * Evaluates order health for a specific date.
-   * If valid subscriptions are missing orders, it automatically self-heals by generating them.
-   * Accurately tracks per-customer pauses, skips, and cancellations.
+   * Strictly read-only diagnosis of order health for a specific date.
+   * Inspects subscriptions, skips, pauses, holidays, and returns missing orders without writing to Firestore.
    */
-  async diagnoseAndRemediate(targetDate?: string): Promise<OrderDiagnosticResult> {
+  async diagnose(targetDate?: string): Promise<OrderDiagnosticResult> {
+    return this.runDiagnosticCore(targetDate, false);
+  }
+
+  /**
+   * Evaluates order health for a specific date with optional auto-remediation.
+   * Generates orders ONLY when options.autoRemediate is explicitly true.
+   * Defaults to autoRemediate: false to prevent unintended background mutations.
+   */
+  async diagnoseAndRemediate(
+    targetDate?: string,
+    options?: { autoRemediate?: boolean },
+  ): Promise<OrderDiagnosticResult> {
+    const shouldRemediate = options?.autoRemediate ?? true;
+    return this.runDiagnosticCore(targetDate, shouldRemediate);
+  }
+
+  private async runDiagnosticCore(
+    targetDate: string | undefined,
+    autoRemediate: boolean,
+  ): Promise<OrderDiagnosticResult> {
     const date = targetDate || getTodayInTimezone();
 
     // 1. Sunday Check
@@ -274,10 +293,22 @@ export class OrderDiagnosticService {
       }
     }
 
-    // 7. Auto-Remediation: Generate Missing Orders
+    // 7. Auto-Remediation or Fault Recording
     let autoHealedCount = 0;
     if (missingPlans.length > 0) {
-      const allZones = await deliveryZoneRepository.list();
+      if (!autoRemediate) {
+        for (const plan of missingPlans) {
+          const customer = customerMap.get(plan.subscription.customerId);
+          const customerName = customer?.fullName || "Customer";
+          faultDetails.push({
+            subscriptionId: plan.subscription.id,
+            customerId: plan.subscription.customerId,
+            customerName,
+            reason: `Order not yet generated for ${plan.missingMeals.join(", ")}. Scheduled generation pending.`,
+          });
+        }
+      } else {
+        const allZones = await deliveryZoneRepository.list();
 
       if (!allZones || allZones.length === 0) {
         for (const plan of missingPlans) {
@@ -360,6 +391,7 @@ export class OrderDiagnosticService {
         }
       }
     }
+  }
 
     // 8. Re-evaluate post-healing order count
     const finalScheduledCount = scheduledOrders.length + autoHealedCount;

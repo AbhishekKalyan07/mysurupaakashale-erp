@@ -98,7 +98,7 @@ export function useCreateStaffUser() {
         persistence: inMemoryPersistence,
       });
 
-      if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
+      if (!import.meta.env.PROD && import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
         connectAuthEmulator(tempAuth, "http://127.0.0.1:9099", {
           disableWarnings: true,
         });

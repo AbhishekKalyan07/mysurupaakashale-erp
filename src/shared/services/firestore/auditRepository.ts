@@ -153,6 +153,33 @@ class AuditRepository extends BaseRepository<AuditLog> {
         snap.docs.length === pageSize ? snap.docs[snap.docs.length - 1] : null,
     };
   }
+
+  /**
+   * Fetches audit history relevant to a specific customer, their subscriptions, or orders.
+   */
+  async getLogsForCustomer(
+    customerId: string,
+    subscriptionIds: string[] = [],
+    pageSize: number = 30,
+  ): Promise<AuditLog[]> {
+    try {
+      const logs = await this.list(
+        orderBy("timestamp", "desc"),
+        limit(150),
+      );
+      const targetIds = new Set([customerId, ...subscriptionIds]);
+      return logs
+        .filter((l) => {
+          if (l.entityId && targetIds.has(l.entityId)) return true;
+          if (l.details?.customerId && targetIds.has(String(l.details.customerId))) return true;
+          if (l.details?.subscriptionId && targetIds.has(String(l.details.subscriptionId))) return true;
+          return false;
+        })
+        .slice(0, pageSize);
+    } catch {
+      return [];
+    }
+  }
 }
 
 export const auditRepository = new AuditRepository();

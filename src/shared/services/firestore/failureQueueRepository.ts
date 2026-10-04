@@ -48,6 +48,37 @@ class FailureQueueRepository extends BaseRepository<FailureQueueRecord> {
 
     return id;
   }
+
+  async listAll(
+    filterStatus?: "pending" | "resolved" | "ignored",
+  ): Promise<FailureQueueRecord[]> {
+    if (filterStatus) {
+      const { where } = await import("firebase/firestore");
+      return this.list(where("status", "==", filterStatus));
+    }
+    return this.list();
+  }
+
+  async updateStatus(
+    id: string,
+    status: "resolved" | "ignored",
+    resolvedBy: string,
+  ): Promise<void> {
+    await this.update(id, {
+      status,
+      resolvedBy,
+      resolvedAt: serverTimestamp() as unknown as Timestamp,
+    } as any);
+  }
+
+  async recordRetry(id: string): Promise<void> {
+    const existing = await this.getById(id);
+    const newCount = (existing?.retryCount || 0) + 1;
+    await this.update(id, {
+      retryCount: newCount,
+      lastRetryAt: serverTimestamp() as unknown as Timestamp,
+    } as any);
+  }
 }
 
 export const failureQueueRepository = new FailureQueueRepository();

@@ -80,6 +80,11 @@ export type {
 export type { AuditLog } from "./audit.types";
 
 export type { BusinessSettings } from "./settings.types";
+export {
+  DEFAULT_COMPANY_PROFILE,
+  DEFAULT_PAYROLL_CONFIG,
+  AUTHORITATIVE_OPERATIONAL_CUTOFFS,
+} from "./settings.types";
 
 export type { DailySummary, OrderGenerationRun } from "./analytics.types";
 

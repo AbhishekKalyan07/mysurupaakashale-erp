@@ -51,6 +51,10 @@ export interface Subscription {
   pauseStartDate?: ISODateString | null;
   /** End date of a scheduled pause (inclusive) */
   pauseEndDate?: ISODateString | null;
+  /** Last billed date for cycle settlement and renewal tracking */
+  lastBilledDate?: ISODateString | null;
+  /** Last invoice ID generated for subscription renewal/settlement */
+  lastInvoiceId?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

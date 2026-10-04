@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { DEFAULT_COMPANY_PROFILE } from "@/shared/types";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -23,6 +24,7 @@ export interface InvoiceCompanyProfile {
   supportEmail?: string;
   supportPhone?: string;
   address?: string;
+  upiId?: string;
 }
 
 /**
@@ -38,15 +40,16 @@ export function generateInvoicePdf(
   const W = 210; // A4 width mm
   const margin = 18;
 
-  const companyName = companyProfile?.name?.trim() || "Mysuru Paakashale";
+  const companyName = companyProfile?.name?.trim() || DEFAULT_COMPANY_PROFILE.name;
   const tagline =
-    companyProfile?.tagline?.trim() || "Daily Home-Style Meal Delivery Service";
+    companyProfile?.tagline?.trim() || DEFAULT_COMPANY_PROFILE.tagline;
   const supportEmail =
-    companyProfile?.supportEmail?.trim() || "mysuru.paakashale@gmail.com";
+    companyProfile?.supportEmail?.trim() || DEFAULT_COMPANY_PROFILE.supportEmail;
   const companyAddress =
-    companyProfile?.address?.trim() || "Mysuru Paakashale, Mysuru, Karnataka, India";
+    companyProfile?.address?.trim() || `${DEFAULT_COMPANY_PROFILE.name}, ${DEFAULT_COMPANY_PROFILE.address}`;
   const supportPhone = companyProfile?.supportPhone?.trim();
-  let subline = "Mysuru, Karnataka | mysuru.paakashale@upi";
+  const upiId = companyProfile?.upiId?.trim() || DEFAULT_COMPANY_PROFILE.upiId;
+  let subline = `Mysuru, Karnataka | ${upiId}`;
   if (companyProfile) {
     subline = supportPhone ? `Tel: ${supportPhone}` : supportEmail;
   }

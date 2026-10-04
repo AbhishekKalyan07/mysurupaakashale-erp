@@ -1,30 +1,12 @@
-$ErrorActionPreference = "Stop"
-
-Write-Host "Running type-check..."
 npm run type-check
-
-Write-Host "Running lint..."
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 npm run lint
-
-Write-Host "Running tests..."
-npm run test -- --run
-
-Write-Host "Running coverage..."
-npm run test:coverage
-
-Write-Host "Running security tests..."
-npm run test:security
-
-Write-Host "Running playwright..."
-npx playwright test
-
-Write-Host "Running audit..."
-npm audit
-
-Write-Host "Running build..."
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run test:unit
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run test:integration
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 npm run build
-
-Write-Host "Running LHCI..."
-npx lhci autorun
-
-Write-Host "Validation Complete!"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+npm run audit:bundle
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

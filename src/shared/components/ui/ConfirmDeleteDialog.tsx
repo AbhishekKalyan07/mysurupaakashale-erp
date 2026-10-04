@@ -2,6 +2,7 @@ import { AlertTriangle, Trash2, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { PremiumButton as Button } from "./PremiumButton";
 import { cn } from "@/shared/lib/cn";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
 
 export interface ConfirmDeleteDialogProps {
   /** Label for the entity being deleted, e.g. "customer", "order", "menu" */
@@ -47,6 +48,7 @@ export function ConfirmDeleteDialog({
   className,
 }: ConfirmDeleteDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  useScrollLock(true);
 
   // Auto-focus cancel (safe default) and close on Escape
   useEffect(() => {

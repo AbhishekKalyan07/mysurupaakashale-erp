@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import type { PaymentMethod } from "@/shared/types";
+import { DEFAULT_COMPANY_PROFILE } from "@/shared/types";
+import { useBusinessSettings } from "@/features/admin/hooks/useSettings";
 
 function getCurrentBillingMonth() {
   return getTodayInTimezone().slice(0, 7);
@@ -54,6 +56,9 @@ export function ManualPaymentPanel({
   onSuccess?: () => void;
 }) {
   const submitPayment = useSubmitPayment();
+  const { data: settings } = useBusinessSettings();
+  const upiId = settings?.companyProfile?.upiId || DEFAULT_COMPANY_PROFILE.upiId;
+  const companyName = settings?.companyProfile?.name || DEFAULT_COMPANY_PROFILE.name;
   const billingMonth = getCurrentBillingMonth();
   const billingLabel = formatBillingMonthLong(billingMonth);
 
@@ -208,9 +213,9 @@ export function ManualPaymentPanel({
         </h4>
         <div className="grid grid-cols-2 gap-y-1 text-ink-600 text-xs">
           <span className="font-semibold">UPI ID:</span>
-          <span className="font-mono">mysuru.paakashale@upi</span>
+          <span className="font-mono">{upiId}</span>
           <span className="font-semibold">Account Name:</span>
-          <span>Mysuru Paakashale</span>
+          <span>{companyName}</span>
           <span className="font-semibold">Bank:</span>
           <span>State Bank of India</span>
           <span className="font-semibold">Account No:</span>

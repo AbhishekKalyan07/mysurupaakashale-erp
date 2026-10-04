@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,6 +16,12 @@ import {
   Receipt,
   CalendarDays,
   CreditCard,
+  History,
+  CalendarPlus,
+  RefreshCw,
+  Clock,
+  Calendar,
+  Utensils,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { HeroBanner as PageHeader } from "@/shared/components/ui/HeroBanner";
@@ -39,22 +46,29 @@ import {
 } from "@/features/admin/hooks/useAdminSubscriptions";
 import { StatusChip } from "@/shared/components/ui/StatusChip";
 import { MealBadge } from "@/shared/components/ui/MealBadge";
-import { PackageOpen, Clock, Calendar, Utensils } from "lucide-react";
 import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
 import { accountsRepository } from "@/shared/services/firestore/accountsRepository";
 import { paymentRepository } from "@/shared/services/firestore/paymentRepository";
+import { auditRepository } from "@/shared/services/firestore/auditRepository";
+import { userRepository } from "@/shared/services/firestore/userRepository";
+import { pricingService } from "@/shared/services/business/pricingService";
+import { getTodayIST } from "@/shared/lib/date";
 import { NegotiatedPricingEditor } from "@/features/admin/components/NegotiatedPricingEditor";
 import { CustomerTodayMealsTab } from "@/features/admin/components/CustomerTodayMealsTab";
 import { AdminCreateSubscriptionModal } from "@/features/admin/components/AdminCreateSubscriptionModal";
+import { ChangePlanModal } from "@/features/admin/components/ChangePlanModal";
+import { AddMealForDateModal } from "@/features/admin/components/AddMealForDateModal";
 import type {
   CustomerProfile,
   UserProfile,
   DeliveryPartnerProfile,
   DeliveryZone,
   Order,
+  Subscription,
 } from "@/shared/types";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import { formatAllottedId } from "@/shared/utils/displayId";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
 
 function formatDate(value: any): string {
   if (!value) return "—";
@@ -67,12 +81,22 @@ function formatDate(value: any): string {
 }
 
 // ── Customer Order History Tab ─────────────────────────────────────────────────
-function CustomerOrderHistoryTab({ customerId }: { customerId: string }) {
+function CustomerOrderHistoryTab({
+  customer,
+  activeSub,
+}: {
+  customer: CustomerProfile;
+  activeSub?: Subscription | null;
+}) {
+  const customerId = customer.id;
   const {
     data: orders,
     isLoading,
     error,
   } = useCustomerOrderHistory(customerId);
+
+  const [isAddMealModalOpen, setIsAddMealModalOpen] = useState(false);
+  const todayIST = getTodayIST();
 
   if (isLoading)
     return (
@@ -87,111 +111,200 @@ function CustomerOrderHistoryTab({ customerId }: { customerId: string }) {
       </div>
     );
 
-  if (!orders || orders.length === 0) {
-    return (
-      <div className="p-8 text-center text-text-muted">
-        <PackageOpen size={32} className="mx-auto mb-3 opacity-20" />
-        <p className="text-sm font-medium">No order history available.</p>
-      </div>
-    );
-  }
-
-  const groupedOrders: Record<string, Order[]> = {};
-  for (const order of orders) {
-    if (!groupedOrders[order.date]) groupedOrders[order.date] = [];
-    groupedOrders[order.date].push(order);
-  }
+  const allOrders = orders || [];
+  const upcomingOrders = allOrders.filter((o) => o.date > todayIST);
+  const todayOrders = allOrders.filter((o) => o.date === todayIST);
+  const pastOrders = allOrders.filter((o) => o.date < todayIST);
 
   const mealSortOrder: Record<string, number> = {
     breakfast: 1,
     lunch: 2,
     dinner: 3,
   };
-  const groupKeys = Object.keys(groupedOrders).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime(),
-  );
+
+  const renderOrderList = (list: Order[], emptyMsg: string) => {
+    if (list.length === 0) {
+      return (
+        <div className="p-4 text-center text-text-muted text-xs bg-surface-1 rounded-xl border border-border">
+          {emptyMsg}
+        </div>
+      );
+    }
+
+    const grouped: Record<string, Order[]> = {};
+    for (const order of list) {
+      if (!grouped[order.date]) grouped[order.date] = [];
+      grouped[order.date].push(order);
+    }
+    const groupKeys = Object.keys(grouped).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime(),
+    );
+
+    return (
+      <div className="space-y-4">
+        {groupKeys.map((date) => {
+          const dayOrders = grouped[date].sort(
+            (a, b) =>
+              (mealSortOrder[a.mealType] || 99) -
+              (mealSortOrder[b.mealType] || 99),
+          );
+          return (
+            <div key={date} className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-1">
+                <Calendar size={12} /> {formatDate(date)}
+              </h4>
+              <div className="grid gap-2">
+                {dayOrders.map((order) => {
+                  const isTerminal = [
+                    "delivered",
+                    "failed_delivery",
+                    "cancelled",
+                  ].includes(order.status);
+                  return (
+                    <div
+                      key={order.id}
+                      className={`bg-background rounded-xl p-3 border border-border flex items-center justify-between gap-4 ${isTerminal ? "opacity-70" : ""}`}
+                    >
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <MealBadge mealType={order.mealType} compact />
+                          {order.source === "one_time" && (
+                            <Badge variant="warning" className="text-[9px] uppercase font-bold">
+                              One-Time
+                            </Badge>
+                          )}
+                          {order.isAddon && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                              ✨ Add-on: {order.addonName || "Add-on"}
+                              {order.addonQuantity && order.addonQuantity > 1
+                                ? ` x${order.addonQuantity}`
+                                : ""}
+                            </span>
+                          )}
+                          {order.deliveryWindow && (
+                            <span className="text-[10px] text-text-muted flex items-center gap-0.5">
+                              <Clock size={10} /> {order.deliveryWindow.start}–
+                              {order.deliveryWindow.end}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-text font-medium truncate flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-text-muted">
+                            ID: {order.displayId || order.id.slice(0, 10)}
+                          </span>
+                          <span>•</span>
+                          <span>{order.mealName || order.itemsLabel || order.mealType}</span>
+                          <span>•</span>
+                          <span className="font-mono tabular-nums font-semibold text-primary">
+                            ₹{order.price || 0}
+                          </span>
+                        </div>
+                        {/* Delivery partner — reads from order.driverName (denormalized snapshot, frozen at assignment time for historical correctness) */}
+                        <div className="text-[10px] text-text-muted flex items-center gap-0.5">
+                          <span>Driver:</span>
+                          <span className="font-medium text-text">
+                            {order.driverName ||
+                              (order.deliveryPartnerId ? "Assigned" : "Not Assigned")}
+                          </span>
+                        </div>
+                        {order.deliveryResult &&
+                          order.status === "failed_delivery" && (
+                            <div className="text-[10px] text-danger font-bold">
+                              Failed: {order.deliveryResult.reasonCode}
+                            </div>
+                          )}
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <StatusChip status={order.status} size="sm" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">
+          Orders Overview
+        </span>
+        <Button
+          variant="primary"
+          size="xs"
+          onClick={() => setIsAddMealModalOpen(true)}
+          className="text-xs flex items-center gap-1.5"
+        >
+          <CalendarPlus size={14} /> + Add Meal for Date
+        </Button>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-surface-1 rounded-xl p-3 border border-border text-center">
-          <div className="text-xl font-bold text-text">{orders.length}</div>
+          <div className="text-xl font-bold text-text">{allOrders.length}</div>
           <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mt-0.5">
             Total Orders
           </div>
         </div>
+        <div className="bg-info/10 rounded-xl p-3 border border-info/20 text-center">
+          <div className="text-xl font-bold text-blue-600">
+            {upcomingOrders.length}
+          </div>
+          <div className="text-[10px] font-medium text-blue-600/80 uppercase tracking-wider mt-0.5">
+            Upcoming
+          </div>
+        </div>
         <div className="bg-success/10 rounded-xl p-3 border border-success/20 text-center">
           <div className="text-xl font-bold text-success">
-            {orders.filter((o) => o.status === "delivered").length}
+            {allOrders.filter((o) => o.status === "delivered").length}
           </div>
           <div className="text-[10px] font-medium text-success/80 uppercase tracking-wider mt-0.5">
             Delivered
           </div>
         </div>
-        <div className="bg-danger/10 rounded-xl p-3 border border-danger/20 text-center">
-          <div className="text-xl font-bold text-danger">
-            {orders.filter((o) => o.status === "cancelled").length}
-          </div>
-          <div className="text-[10px] font-medium text-danger/80 uppercase tracking-wider mt-0.5">
-            Cancelled
-          </div>
-        </div>
       </div>
 
-      {groupKeys.map((date) => {
-        const dayOrders = groupedOrders[date].sort(
-          (a, b) =>
-            (mealSortOrder[a.mealType] || 99) -
-            (mealSortOrder[b.mealType] || 99),
-        );
-        return (
-          <div key={date} className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-1">
-              <Calendar size={12} /> {formatDate(date)}
-            </h3>
-            <div className="grid gap-2">
-              {dayOrders.map((order) => {
-                const isTerminal = [
-                  "delivered",
-                  "failed_delivery",
-                  "cancelled",
-                ].includes(order.status);
-                return (
-                  <div
-                    key={order.id}
-                    className={`bg-background rounded-xl p-3 border border-border flex items-center justify-between gap-4 ${isTerminal ? "opacity-70" : ""}`}
-                  >
-                    <div className="flex flex-col gap-1.5 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <MealBadge mealType={order.mealType} compact />
-                        {order.deliveryWindow && (
-                          <span className="text-[10px] text-text-muted flex items-center gap-0.5">
-                            <Clock size={10} /> {order.deliveryWindow.start}–
-                            {order.deliveryWindow.end}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-text font-medium truncate">
-                        ID: {order.id.slice(0, 8)} • Qty:{" "}
-                        {order.mealQuantity || 1}
-                      </div>
-                      {order.deliveryResult &&
-                        order.status === "failed_delivery" && (
-                          <div className="text-[10px] text-danger font-bold">
-                            Failed: {order.deliveryResult.reasonCode}
-                          </div>
-                        )}
-                    </div>
-                    <div className="shrink-0">
-                      <StatusChip status={order.status} size="sm" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      {/* Upcoming Orders Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text flex items-center gap-1.5">
+            <Clock size={14} className="text-blue-500" /> Upcoming Orders ({upcomingOrders.length})
+          </h3>
+        </div>
+        {renderOrderList(upcomingOrders, "No upcoming scheduled orders.")}
+      </div>
+
+      {/* Today's Orders Section */}
+      {todayOrders.length > 0 && (
+        <div className="space-y-3 pt-2 border-t border-border">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text flex items-center gap-1.5">
+            <Utensils size={14} className="text-gold" /> Today's Orders ({todayOrders.length})
+          </h3>
+          {renderOrderList(todayOrders, "No orders scheduled for today.")}
+        </div>
+      )}
+
+      {/* Past Order History Section */}
+      <div className="space-y-3 pt-2 border-t border-border">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+          <History size={14} /> Past Orders History ({pastOrders.length})
+        </h3>
+        {renderOrderList(pastOrders, "No past order history available.")}
+      </div>
+
+      {isAddMealModalOpen && (
+        <AddMealForDateModal
+          customer={customer}
+          subscription={activeSub}
+          isOpen={isAddMealModalOpen}
+          onClose={() => setIsAddMealModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -209,6 +322,7 @@ function CustomerSubscriptionsTab({
   const resumeMutation = useResumeSubscription();
   const rejectMutation = useRejectSubscription();
   const [editingNegotiatedSub, setEditingNegotiatedSub] = useState<any | null>(null);
+  const [editingPlanSub, setEditingPlanSub] = useState<Subscription | null>(null);
   const { data: subs = [], isLoading, error } = useQuery({
     queryKey: ["subscriptions", "customer", customerId],
     queryFn: () => subscriptionRepository.getByCustomerId(customerId),
@@ -256,7 +370,18 @@ function CustomerSubscriptionsTab({
         </div>
       )}
       {subs.map((sub) => {
-        const hasNegotiated = !!sub.negotiatedPricing;
+        const hasNegotiated = !!sub.negotiatedPricing && Object.keys(sub.negotiatedPricing).length > 0;
+        const standardBaseMatrix = pricingService.resolveSyncBasePricing(sub.startDate, sub.planTier);
+        const subMeals = (sub.mealPreferences || []).map((m: any) => m.mealType);
+        let standardDailyRate = 0;
+        if (subMeals.length === 3) standardDailyRate = standardBaseMatrix.breakfast_lunch_dinner;
+        else if (subMeals.includes("breakfast") && subMeals.includes("lunch")) standardDailyRate = standardBaseMatrix.breakfast_lunch;
+        else if (subMeals.includes("lunch") && subMeals.includes("dinner")) standardDailyRate = standardBaseMatrix.lunch_dinner;
+        else if (subMeals.includes("breakfast") && subMeals.includes("dinner")) standardDailyRate = standardBaseMatrix.breakfast_dinner;
+        else if (subMeals.includes("breakfast")) standardDailyRate = standardBaseMatrix.breakfast;
+        else if (subMeals.includes("lunch")) standardDailyRate = standardBaseMatrix.lunch;
+        else if (subMeals.includes("dinner")) standardDailyRate = standardBaseMatrix.dinner;
+
         return (
           <div
             key={sub.id}
@@ -282,7 +407,10 @@ function CustomerSubscriptionsTab({
 
               <div className="text-right">
                 <div className="text-sm font-bold text-primary">
-                  ₹{sub.pricePerDaySnapshot || 0} / day
+                  ₹{sub.pricePerDaySnapshot || standardDailyRate} / day
+                </div>
+                <div className="text-[10px] text-text-muted">
+                  Standard: ₹{standardDailyRate}/day
                 </div>
                 <div className="text-[10px] text-text-muted uppercase tracking-wider">
                   Auto-Renew: {sub.autoRenew ? "Enabled" : "Off"}
@@ -322,13 +450,27 @@ function CustomerSubscriptionsTab({
               </div>
             )}
 
-            {/* Negotiated Pricing Section */}
-            <div className="pt-2 border-t border-primary/5">
+            {/* Negotiated Pricing & Plan Change Section */}
+            <div className="pt-2 border-t border-primary/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-muted">
+                  Plan ID: <strong className="text-text font-medium">{sub.planId || "Default"}</strong> ({sub.planTier || "regular"})
+                </span>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => setEditingPlanSub(sub)}
+                  className="text-xs flex items-center gap-1.5"
+                >
+                  <RefreshCw size={12} /> Change Plan
+                </Button>
+              </div>
+
               {hasNegotiated && sub.negotiatedPricing ? (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-1.5 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-amber-800 text-[11px] uppercase tracking-wider">
-                      Negotiated Pricing Overrides
+                      Negotiated Pricing Overrides (Configured)
                     </span>
                     <Button
                       variant="ghost"
@@ -336,7 +478,7 @@ function CustomerSubscriptionsTab({
                       onClick={() => setEditingNegotiatedSub(sub)}
                       className="text-xs text-primary underline h-auto p-1"
                     >
-                      Edit
+                      Edit Overrides
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-text-muted">
@@ -349,12 +491,13 @@ function CustomerSubscriptionsTab({
                   </div>
                 </div>
               ) : (
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between bg-surface-1/50 rounded-xl p-2.5 border border-border text-xs text-text-muted">
+                  <span>Negotiated Pricing: <strong className="text-text font-medium">None (Standard plan price: ₹{standardDailyRate}/day)</strong></span>
                   <Button
                     variant="ghost"
                     size="xs"
                     onClick={() => setEditingNegotiatedSub(sub)}
-                    className="text-xs text-text-muted hover:text-primary"
+                    className="text-xs text-primary hover:underline"
                   >
                     + Override Pricing
                   </Button>
@@ -488,6 +631,14 @@ function CustomerSubscriptionsTab({
           subscriptionId={editingNegotiatedSub.id}
           existingPricing={editingNegotiatedSub.negotiatedPricing}
           onClose={() => setEditingNegotiatedSub(null)}
+        />
+      )}
+
+      {editingPlanSub && (
+        <ChangePlanModal
+          subscription={editingPlanSub}
+          isOpen={!!editingPlanSub}
+          onClose={() => setEditingPlanSub(null)}
         />
       )}
     </div>
@@ -625,6 +776,110 @@ function CustomerAccountTab({ customerId }: { customerId: string }) {
   );
 }
 
+// ── Customer Audit History Tab ───────────────────────────────────────────────
+function CustomerAuditHistoryTab({
+  customerId,
+  subscriptionIds = [],
+}: {
+  customerId: string;
+  subscriptionIds?: string[];
+}) {
+  const { data: logs = [], isLoading, error } = useQuery({
+    queryKey: ["auditLogs", "customer", customerId, ...subscriptionIds],
+    queryFn: () => auditRepository.getLogsForCustomer(customerId, subscriptionIds),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-center text-sm font-medium text-text-muted">
+        Loading audit history...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="p-6 text-center text-sm font-medium text-danger">
+        Failed to load audit history.
+      </div>
+    );
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div className="p-8 text-center text-text-muted space-y-2">
+        <History size={32} className="mx-auto mb-1 opacity-20" />
+        <p className="text-sm font-medium">No relevant audit records found for this customer.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-xs font-bold text-text-muted uppercase tracking-wider">
+          Activity & Audit Trail ({logs.length})
+        </span>
+      </div>
+      <div className="space-y-2.5">
+        {logs.map((log) => {
+          const actionLabel = log.action
+            ? log.action.replace(/_/g, " ").replace(/^admin /, "Admin: ")
+            : "Activity";
+          return (
+            <div
+              key={log.id}
+              className="bg-background rounded-xl p-3.5 border border-primary/10 shadow-xs space-y-1.5 text-xs"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-primary capitalize">
+                    {actionLabel}
+                  </span>
+                  <Badge variant="default" className="text-[9px] font-mono uppercase">
+                    {log.entityType || "general"}
+                  </Badge>
+                </div>
+                <span className="text-[10px] text-text-muted whitespace-nowrap">
+                  {formatDate(log.timestamp)}
+                </span>
+              </div>
+
+              <div className="text-[11px] text-text-muted flex items-center gap-1.5">
+                <span>By:</span>
+                <strong className="text-text font-medium">
+                  {log.performedByName || "System"}
+                </strong>
+                {log.performedByRole && (
+                  <span className="text-[10px] text-text-muted bg-surface-1 px-1.5 py-0.5 rounded border border-border capitalize">
+                    {log.performedByRole}
+                  </span>
+                )}
+              </div>
+
+              {log.details && Object.keys(log.details).length > 0 && (
+                <div className="bg-surface-1/70 rounded-lg p-2 mt-1 text-[11px] font-mono text-text-muted space-y-0.5 border border-border/50">
+                  {Object.entries(log.details).map(([k, v]) => {
+                    if (k === "customerId" || k === "subscriptionId") return null;
+                    const displayVal = typeof v === "object" ? JSON.stringify(v) : String(v);
+                    return (
+                      <div key={k} className="truncate">
+                        <span className="text-text-muted font-sans font-medium capitalize">
+                          {k.replace(/([A-Z])/g, " $1")}:{" "}
+                        </span>
+                        <span className="text-text font-semibold">{displayVal}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Detail Dialog ────────────────────────────────────────────────────────────
 function CustomerDetailDialog({
   customer,
@@ -633,6 +888,7 @@ function CustomerDetailDialog({
   customer: CustomerProfile;
   onClose: () => void;
 }) {
+  useScrollLock(true);
   const addrList = customer.addresses || [];
   const defaultId = customer.defaultAddressId;
 
@@ -655,14 +911,39 @@ function CustomerDetailDialog({
   const [selectedZoneId, setSelectedZoneId] = useState(customer.zoneId || "");
 
   const [activeTab, setActiveTab] = useState<
-    "profile" | "today" | "subscriptions" | "orders" | "account"
+    "profile" | "today" | "subscriptions" | "orders" | "account" | "audit"
   >("today");
   const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
 
-  // Find current partner object if exists
-  const currentPartner = deliveryPartners.find(
-    (p) => p.id === customer.deliveryPartnerId,
-  );
+  // Fetch customer subscriptions
+  const { data: subs = [] } = useQuery({
+    queryKey: ["subscriptions", "customer", customer.id],
+    queryFn: () => subscriptionRepository.getByCustomerId(customer.id),
+  });
+  const activeSub = subs.find((s) => s.status === "active") || subs[0] || null;
+  const subIds = useMemo(() => subs.map((s) => s.id), [subs]);
+
+  // Calculate standard plan price for active subscription
+  const standardPlanPrice = useMemo(() => {
+    if (!activeSub) return 0;
+    const matrix = pricingService.resolveSyncBasePricing(activeSub.startDate, activeSub.planTier);
+    const meals = (activeSub.mealPreferences || []).map((m: any) => m.mealType);
+    if (meals.length === 3) return matrix.breakfast_lunch_dinner;
+    if (meals.includes("breakfast") && meals.includes("lunch")) return matrix.breakfast_lunch;
+    if (meals.includes("lunch") && meals.includes("dinner")) return matrix.lunch_dinner;
+    if (meals.includes("breakfast") && meals.includes("dinner")) return matrix.breakfast_dinner;
+    if (meals.includes("breakfast")) return matrix.breakfast;
+    if (meals.includes("lunch")) return matrix.lunch;
+    if (meals.includes("dinner")) return matrix.dinner;
+    return 0;
+  }, [activeSub]);
+
+  const defaultAddress = addrList.find((a) => a.id === defaultId) || addrList[0];
+  const defaultAddressText = defaultAddress
+    ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(", ") +
+      (defaultAddress.pincode ? ` - ${defaultAddress.pincode}` : "")
+    : "No address recorded";
+
   const currentZone = zones.find((z) => z.id === customer.zoneId);
 
   return (
@@ -713,6 +994,54 @@ function CustomerDetailDialog({
               <X size={20} />
             </button>
           </div>
+        </div>
+
+        {/* Customer Relationship Summary Card */}
+        <div className="bg-surface-1/60 border-b border-primary/10 p-4 sm:px-6 space-y-2 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">Customer</span>
+              <span className="font-bold text-primary truncate block">{customer.fullName}</span>
+              <span className="text-[10px] text-text-muted">{customer.phone}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">Current Plan</span>
+              <span className="font-bold text-primary truncate block">
+                {activeSub ? `${(activeSub.planTier || "regular").toUpperCase()} PLAN` : "No Active Plan"}
+              </span>
+              <span className="text-[10px] text-text-muted">
+                {activeSub ? `Status: ${activeSub.status}` : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">Standard Price</span>
+              <span className="font-bold text-primary block">
+                {activeSub ? `₹${standardPlanPrice}/day` : "—"}
+              </span>
+              <span className="text-[10px] text-text-muted">
+                {activeSub ? (activeSub.billingCycle || "monthly") : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">Negotiated Price</span>
+              {activeSub?.negotiatedPricing && Object.keys(activeSub.negotiatedPricing).length > 0 ? (
+                <span className="font-bold text-amber-700 block">
+                  ₹{activeSub.pricePerDaySnapshot || standardPlanPrice}/day
+                  <Badge variant="warning" className="text-[8px] uppercase tracking-wider ml-1 py-0 px-1">Configured</Badge>
+                </span>
+              ) : (
+                <span className="text-text-muted font-medium block">None (Standard)</span>
+              )}
+              <span className="text-[10px] text-text-muted">
+                {activeSub ? `${formatDate(activeSub.startDate)} — ${activeSub.endDate ? formatDate(activeSub.endDate) : "Ongoing"}` : "—"}
+              </span>
+            </div>
+          </div>
+          {defaultAddressText && (
+            <div className="text-[11px] text-text-muted truncate pt-1.5 border-t border-border/50 flex items-center gap-1">
+              <span className="font-semibold text-primary">📍 Address:</span> {defaultAddressText}
+            </div>
+          )}
         </div>
 
         <div className="flex border-b border-primary/10 px-4 sm:px-6 overflow-x-auto shrink-0" role="tablist">
@@ -775,6 +1104,18 @@ function CustomerDetailDialog({
             }`}
           >
             Account & Billing
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "audit"}
+            onClick={() => setActiveTab("audit")}
+            className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === "audit"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-muted hover:text-primary"
+            }`}
+          >
+            <History size={14} /> Audit History
           </button>
         </div>
 
@@ -1028,37 +1369,57 @@ function CustomerDetailDialog({
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">
-                        Partner
-                      </div>
-                      <div className="font-bold text-primary text-base">
-                        {currentPartner
-                          ? currentPartner.fullName
-                          : customer.deliveryPartnerId
-                            ? "Unknown Partner"
-                            : "Unassigned"}
-                      </div>
-                      {customer.mealDeliveryPartners && (
-                        <div className="text-xs text-text-muted mt-1 space-y-0.5">
-                          {customer.mealDeliveryPartners.breakfast && <div>Breakfast: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.breakfast)?.fullName || "Unknown"}</div>}
-                          {customer.mealDeliveryPartners.lunch && <div>Lunch: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.lunch)?.fullName || "Unknown"}</div>}
-                          {customer.mealDeliveryPartners.dinner && <div>Dinner: {deliveryPartners.find(p => p.id === customer.mealDeliveryPartners?.dinner)?.fullName || "Unknown"}</div>}
-                        </div>
-                      )}
+                  <div className="space-y-2">
+                    {/* Delivery partners per meal — applies resolution: meal-specific → global fallback → Not Assigned */}
+                    <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">
+                      Delivery Partners
                     </div>
+                    {(["breakfast", "lunch", "dinner"] as const).map((meal) => {
+                      const mealSpecificId = customer.mealDeliveryPartners?.[meal];
+                      // Meal-specific wins if explicitly set (even if null means "inherit global");
+                      // undefined means not set at all → fall through to global
+                      const resolvedId =
+                        mealSpecificId !== undefined && mealSpecificId !== null
+                          ? mealSpecificId
+                          : (customer.deliveryPartnerId ?? null);
+                      const partner = resolvedId
+                        ? deliveryPartners.find((p) => p.id === resolvedId)
+                        : null;
+                      const hasCustomOverride =
+                        mealSpecificId !== undefined && mealSpecificId !== null;
+                      return (
+                        <div
+                          key={meal}
+                          className="flex items-center justify-between gap-2 py-0.5"
+                        >
+                          <span className="text-[10px] text-text-muted font-medium w-16 shrink-0 capitalize">
+                            {meal}
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <span
+                              className={`text-xs font-semibold truncate ${
+                                resolvedId ? "text-primary" : "text-text-muted italic"
+                              }`}
+                            >
+                              {resolvedId
+                                ? (partner?.fullName ?? "Unknown Partner")
+                                : "Not Assigned"}
+                            </span>
+                            {hasCustomOverride && (
+                              <span className="text-[9px] bg-gold/10 text-amber-700 border border-gold/20 rounded px-1 py-0.5 font-bold uppercase tracking-wider shrink-0">
+                                Custom
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                     {(customer.assignedAt || customer.assignedBy) && (
-                      <div>
-                        <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider mb-1">
-                          Assignment Details
-                        </div>
-                        <div className="text-xs text-text-muted font-medium">
-                          {customer.assignedAt
-                            ? `On ${formatDate(customer.assignedAt)}`
-                            : ""}
-                          {customer.assignedBy ? ` By Admin` : ""}
-                        </div>
+                      <div className="text-[10px] text-text-muted/70 border-t border-border pt-1.5 mt-0.5">
+                        {customer.assignedAt
+                          ? `Last updated ${formatDate(customer.assignedAt)}`
+                          : ""}
+                        {customer.assignedBy ? " by Admin" : ""}
                       </div>
                     )}
                   </div>
@@ -1076,10 +1437,13 @@ function CustomerDetailDialog({
             />
           )}
           {activeTab === "orders" && (
-            <CustomerOrderHistoryTab customerId={customer.id} />
+            <CustomerOrderHistoryTab customer={customer} activeSub={activeSub} />
           )}
           {activeTab === "account" && (
             <CustomerAccountTab customerId={customer.id} />
+          )}
+          {activeTab === "audit" && (
+            <CustomerAuditHistoryTab customerId={customer.id} subscriptionIds={subIds} />
           )}
         </div>
       </div>
@@ -1281,16 +1645,219 @@ function CustomerCardView({
   );
 }
 
+// ── Customer Activity View (Grouped by Today, Yesterday, Earlier) ──────────────
+function CustomerActivityView({
+  customers,
+  onSelect,
+  deliveryPartners,
+  zones = [],
+}: {
+  customers: CustomerProfile[];
+  onSelect: (customer: CustomerProfile) => void;
+  deliveryPartners: DeliveryPartnerProfile[];
+  zones?: DeliveryZone[];
+}) {
+  const groups = useMemo(() => {
+    const now = new Date();
+    const todayStr = format(now, "yyyy-MM-dd");
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = format(yesterday, "yyyy-MM-dd");
+
+    const res: {
+      today: CustomerProfile[];
+      yesterday: CustomerProfile[];
+      earlier: CustomerProfile[];
+    } = {
+      today: [],
+      yesterday: [],
+      earlier: [],
+    };
+
+    const getCustDate = (c: CustomerProfile): { dateStr: string; timestamp: number } => {
+      const raw = c.createdAt || c.updatedAt;
+      if (!raw) return { dateStr: "", timestamp: 0 };
+      try {
+        const d = (raw as any).toDate ? (raw as any).toDate() : new Date(raw as any);
+        return { dateStr: format(d, "yyyy-MM-dd"), timestamp: d.getTime() };
+      } catch {
+        return { dateStr: "", timestamp: 0 };
+      }
+    };
+
+    for (const c of customers) {
+      const { dateStr } = getCustDate(c);
+      if (dateStr === todayStr) {
+        res.today.push(c);
+      } else if (dateStr === yesterdayStr) {
+        res.yesterday.push(c);
+      } else {
+        res.earlier.push(c);
+      }
+    }
+
+    const sortFn = (a: CustomerProfile, b: CustomerProfile) => {
+      return getCustDate(b).timestamp - getCustDate(a).timestamp;
+    };
+
+    res.today.sort(sortFn);
+    res.yesterday.sort(sortFn);
+    res.earlier.sort(sortFn);
+
+    return res;
+  }, [customers]);
+
+  const renderSection = (
+    title: string,
+    subtitle: string,
+    items: CustomerProfile[],
+    accentColor: string,
+  ) => {
+    if (items.length === 0) return null;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${accentColor}`} />
+            <h3 className="font-display font-bold text-sm text-primary tracking-wide">
+              {title}
+            </h3>
+            <span className="text-[11px] font-semibold text-text-muted bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+              {items.length}
+            </span>
+          </div>
+          <span className="text-xs text-text-muted font-medium">{subtitle}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {items.map((cust) => {
+            const partner = deliveryPartners.find(
+              (p) => p.id === cust.deliveryPartnerId,
+            );
+            const zone = zones.find((z) => z.id === cust.zoneId);
+            const defaultAddress =
+              cust.addresses?.find((a) => a.id === cust.defaultAddressId) ||
+              cust.addresses?.[0];
+            const raw = cust.createdAt || cust.updatedAt;
+            let timeLabel = "";
+            try {
+              if (raw) {
+                const d = (raw as any).toDate ? (raw as any).toDate() : new Date(raw as any);
+                timeLabel = format(d, "h:mm a");
+              }
+            } catch {
+              timeLabel = "";
+            }
+
+            return (
+              <Card
+                key={cust.id}
+                onClick={() => onSelect(cust)}
+                className="p-4 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-3 bg-card border-border"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-primary truncate hover:text-gold transition-colors">
+                        {cust.fullName}
+                      </h4>
+                      <p className="text-xs text-text-muted font-mono">
+                        {formatAllottedId(cust.displayId, cust.id, "customer")}
+                      </p>
+                    </div>
+                    {timeLabel && (
+                      <span className="text-[11px] text-text-muted font-mono bg-surface-2 px-2 py-0.5 rounded border border-border shrink-0">
+                        {timeLabel}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 text-xs text-text-muted mt-2">
+                    <p className="flex items-center gap-1.5 truncate">
+                      <span className="font-medium text-text">{cust.phone}</span>
+                      {cust.email && <span className="text-text-faint">• {cust.email}</span>}
+                    </p>
+                    {defaultAddress && (
+                      <p className="text-[11px] text-text-muted truncate">
+                        📍 {[defaultAddress.line1, defaultAddress.city].filter(Boolean).join(", ")}
+                        {defaultAddress.pincode ? ` (${defaultAddress.pincode})` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    {partner ? (
+                      <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium truncate max-w-[130px]">
+                        🚚 {partner.fullName}
+                      </span>
+                    ) : zone ? (
+                      <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full font-medium truncate max-w-[130px]">
+                        📍 {zone.name}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                        Auto (Pincode)
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                      cust.isActive
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-rose-50 text-rose-700 border border-rose-200"
+                    }`}
+                  >
+                    {cust.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const hasAnyActivity =
+    groups.today.length > 0 ||
+    groups.yesterday.length > 0 ||
+    groups.earlier.length > 0;
+
+  if (!hasAnyActivity) {
+    return (
+      <EmptyState
+        icon={<Clock size={48} className="text-text-faint" />}
+        title="No activity recorded"
+        description="No recent customer activity was found."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {renderSection("Today", "Registered or updated today", groups.today, "bg-emerald-500")}
+      {renderSection("Yesterday", "Registered or updated yesterday", groups.yesterday, "bg-amber-500")}
+      {renderSection("Earlier", "Older customer records", groups.earlier, "bg-slate-400")}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
-type StatusFilter = "all" | "active" | "inactive";
+type StatusFilter = "all" | "active" | "inactive" | "activity";
 
 const TABS: { label: string; value: StatusFilter; icon: React.ReactNode }[] = [
   { label: "All", value: "all", icon: <Users size={16} /> },
   { label: "Active", value: "active", icon: <CheckCircle size={16} /> },
   { label: "Inactive", value: "inactive", icon: <XCircle size={16} /> },
+  { label: "New Activity", value: "activity", icon: <Clock size={16} /> },
 ];
 
 export function AdminCustomersPage() {
+  const { id: customerUrlId } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<CustomerProfile | null>(null);
@@ -1312,6 +1879,29 @@ export function AdminCustomersPage() {
   const deliveryPartners = (staffUsers || []).filter(
     (u) => u.role === "delivery_partner" && u.isActive,
   ) as DeliveryPartnerProfile[];
+
+  // Deep-link: If URL has customerUrlId, fetch that customer directly
+  const { data: directCustomer } = useQuery({
+    queryKey: ["customer", customerUrlId],
+    queryFn: () => (customerUrlId ? userRepository.getById(customerUrlId) : null),
+    enabled: !!customerUrlId && (!selected || selected.id !== customerUrlId),
+  });
+
+  useEffect(() => {
+    if (directCustomer && directCustomer.role === "customer" && (!selected || selected.id !== directCustomer.id)) {
+      setSelected(directCustomer as CustomerProfile);
+    }
+  }, [directCustomer, selected]);
+
+  const handleSelectCustomer = (customer: CustomerProfile) => {
+    setSelected(customer);
+    navigate(`/admin/customers/${customer.id}`);
+  };
+
+  const handleCloseCustomer = () => {
+    setSelected(null);
+    navigate("/admin/customers");
+  };
 
   const handleNextPage = () => {
     if (data?.lastDoc) {
@@ -1453,6 +2043,13 @@ export function AdminCustomersPage() {
                 : `No ${activeTab === "all" ? "" : activeTab} customers found.`
             }
           />
+        ) : activeTab === "activity" ? (
+          <CustomerActivityView
+            customers={filtered}
+            onSelect={handleSelectCustomer}
+            deliveryPartners={deliveryPartners}
+            zones={zones}
+          />
         ) : (
           <div className="space-y-4">
             {/* Desktop Table View */}
@@ -1487,7 +2084,7 @@ export function AdminCustomersPage() {
                       <tr
                         key={row.id}
                         className="hover:bg-primary/5 transition-colors group cursor-pointer"
-                        onClick={() => setSelected(row)}
+                        onClick={() => handleSelectCustomer(row)}
                       >
                         <td className="px-6 py-4">
                           <div className="font-bold text-primary group-hover:text-gold transition-colors text-base">
@@ -1549,7 +2146,7 @@ export function AdminCustomersPage() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelected(row);
+                              handleSelectCustomer(row);
                             }}
                           >
                             Manage
@@ -1568,7 +2165,7 @@ export function AdminCustomersPage() {
                 <CustomerCardView
                   key={row.id}
                   customer={row}
-                  onSelect={() => setSelected(row)}
+                  onSelect={() => handleSelectCustomer(row)}
                   deliveryPartners={deliveryPartners}
                   zones={zones}
                 />
@@ -1612,7 +2209,7 @@ export function AdminCustomersPage() {
       {selected && (
         <CustomerDetailDialog
           customer={selected}
-          onClose={() => setSelected(null)}
+          onClose={handleCloseCustomer}
         />
       )}
     </div>

@@ -393,6 +393,7 @@ describe('Phase E2 — Owner/Admin Pricing Configuration & Effective-Dated Prici
     const bareSub: Subscription = {
       id: 'sub-bare-k',
       planTier: 'basic',
+      startDate: '2026-09-15',
       quantity: 1,
       mealPreferences: [],
       pricePerDaySnapshot: 0,

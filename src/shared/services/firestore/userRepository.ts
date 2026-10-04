@@ -79,42 +79,50 @@ class UserRepository extends BaseRepository<UserProfile> {
    * Allocates the next sequential human-readable display ID via an atomic Firestore transaction.
    *
    * Formats:
-   *   - Customer: MP-{Initial}{PaddedCount} (e.g. MP-A001). Initial defaults to "U" if blank or non-alphabet.
+   *   - Customer: MP-{PaddedCount} (e.g. MP-001, MP-002, MP-003). Continuous sequential numbering.
    *   - Staff roles (admin, kitchen, delivery_partner, accounts):
    *     ADMIN-{1001+}, KTCH-{1001+}, DLVY-{1001+}, ACCT-{1001+}
    */
-  async generateNextDisplayId(role: Role, fullName?: string): Promise<string> {
+  async generateNextDisplayId(role: Role, _fullName?: string): Promise<string> {
     const counterRef = doc(db, "settings", "userCounters");
 
     if (role === "customer") {
-      const rawName =
-        fullName && typeof fullName === "string" ? fullName.trim() : "";
-      const firstChar = rawName.charAt(0).toUpperCase();
-      const validLetter = /^[A-Z]$/.test(firstChar) ? firstChar : "U";
-      const fieldName = `customer_${validLetter}`;
+      const maxRetries = 5;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await runTransaction(db, async (transaction) => {
+            const counterDoc = await transaction.get(counterRef);
+            let count = 0;
 
-      return runTransaction(db, async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
-        let count = 0;
+            if (counterDoc.exists()) {
+              const data = counterDoc.data();
+              if (
+                "customer" in data &&
+                typeof data["customer"] === "number" &&
+                Number.isInteger(data["customer"]) &&
+                data["customer"] >= 0
+              ) {
+                count = data["customer"];
+              }
+            }
 
-        if (counterDoc.exists()) {
-          const data = counterDoc.data();
-          if (
-            fieldName in data &&
-            typeof data[fieldName] === "number" &&
-            Number.isInteger(data[fieldName]) &&
-            data[fieldName] >= 0
-          ) {
-            count = data[fieldName];
+            const newCount = count + 1;
+            transaction.set(counterRef, { customer: newCount }, { merge: true });
+
+            const paddedCount = newCount.toString().padStart(3, "0");
+            return `MP-${paddedCount}`;
+          });
+        } catch (err: any) {
+          if (attempt < maxRetries) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, attempt * 60 + Math.random() * 40),
+            );
+            continue;
           }
+          throw err;
         }
-
-        const newCount = count + 1;
-        transaction.set(counterRef, { [fieldName]: newCount }, { merge: true });
-
-        const paddedCount = newCount.toString().padStart(3, "0");
-        return `MP-${validLetter}${paddedCount}`;
-      });
+      }
+      throw new Error("Failed to generate customer display ID after retries");
     }
 
     const prefixMap: Record<Role, string> = {
@@ -126,27 +134,41 @@ class UserRepository extends BaseRepository<UserProfile> {
     };
     const prefix = prefixMap[role] || "USER";
 
-    return runTransaction(db, async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      let count = 1000;
+    const maxRetries = 5;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await runTransaction(db, async (transaction) => {
+          const counterDoc = await transaction.get(counterRef);
+          let count = 1000;
 
-      if (counterDoc.exists()) {
-        const data = counterDoc.data();
-        if (
-          role in data &&
-          typeof data[role] === "number" &&
-          Number.isInteger(data[role]) &&
-          data[role] >= 0
-        ) {
-          count = data[role];
+          if (counterDoc.exists()) {
+            const data = counterDoc.data();
+            if (
+              role in data &&
+              typeof data[role] === "number" &&
+              Number.isInteger(data[role]) &&
+              data[role] >= 0
+            ) {
+              count = data[role];
+            }
+          }
+
+          const newCount = count + 1;
+          transaction.set(counterRef, { [role]: newCount }, { merge: true });
+
+          return `${prefix}-${newCount}`;
+        });
+      } catch (err: any) {
+        if (attempt < maxRetries) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, attempt * 60 + Math.random() * 40),
+          );
+          continue;
         }
+        throw err;
       }
-
-      const newCount = count + 1;
-      transaction.set(counterRef, { [role]: newCount }, { merge: true });
-
-      return `${prefix}-${newCount}`;
-    });
+    }
+    throw new Error(`Failed to generate ${role} display ID after retries`);
   }
 
   /**

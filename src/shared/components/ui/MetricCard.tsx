@@ -60,11 +60,25 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
     return (
       <div
         ref={ref}
+        role={props.onClick ? (props.role || "button") : props.role}
+        tabIndex={props.onClick ? (props.tabIndex ?? 0) : props.tabIndex}
+        aria-label={
+          props["aria-label"] ||
+          (props.onClick ? `${title}: ${value}` : undefined)
+        }
         className={cn(
           metricCardVariants({ color }),
           active && "ring-2 ring-offset-2 ring-secondary/40",
+          props.onClick && "select-none active:scale-[0.98]",
           className,
         )}
+        onKeyDown={(e) => {
+          if (props.onClick && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            props.onClick(e as any);
+          }
+          props.onKeyDown?.(e);
+        }}
         {...props}
       >
         <div className="flex flex-col h-full justify-between relative z-10 min-w-0">

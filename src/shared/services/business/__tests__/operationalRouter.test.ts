@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { resolveOperationalZoneAndKitchen } from "../operationalRouter";
+import {
+  resolveOperationalZoneAndKitchen,
+  isMysuruCityPincode,
+  MYSURU_CITY_PINCODES,
+} from "../operationalRouter";
+import { DEFAULT_DELIVERY_ZONES } from "@/shared/services/firestore/deliveryZoneRepository";
 
 describe("resolveOperationalZoneAndKitchen", () => {
   const mockZones = [
@@ -107,5 +112,181 @@ describe("resolveOperationalZoneAndKitchen", () => {
       zonesWithInactive
     );
     expect(result).toEqual({ zoneId: "z-active", kitchenId: "k2" });
+  });
+});
+
+describe("Mysuru City Pincode Coverage & Routing (32 Verified Pincodes)", () => {
+  it("contains exactly the 32 verified Mysuru City 570xxx pincodes", () => {
+    expect(MYSURU_CITY_PINCODES).toHaveLength(32);
+    expect(MYSURU_CITY_PINCODES[0]).toBe("570001");
+    expect(MYSURU_CITY_PINCODES[31]).toBe("570032");
+    expect(MYSURU_CITY_PINCODES).not.toContain("570033");
+  });
+
+  it("recognizes every single configured Mysuru city pincode (570001 through 570032)", () => {
+    for (const pin of MYSURU_CITY_PINCODES) {
+      expect(isMysuruCityPincode(pin)).toBe(true);
+      const result = resolveOperationalZoneAndKitchen(
+        { pincode: pin },
+        DEFAULT_DELIVERY_ZONES
+      );
+      expect(result.zoneId).toBe("zone-1");
+      expect(result.kitchenId).toBe("kitchen-1");
+    }
+  });
+
+  it("explicitly verifies 570013 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570013")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570013" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570021 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570021")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570021" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570024 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570024")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570024" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570025 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570025")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570025" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570026 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570026")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570026" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570027 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570027")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570027" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570028 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570028")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570028" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570029 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570029")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570029" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570030 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570030")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570030" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570031 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570031")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570031" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570032 works and routes to kitchen-1", () => {
+    expect(isMysuruCityPincode("570032")).toBe(true);
+    const result = resolveOperationalZoneAndKitchen(
+      { pincode: "570032" },
+      DEFAULT_DELIVERY_ZONES
+    );
+    expect(result.zoneId).toBe("zone-1");
+    expect(result.kitchenId).toBe("kitchen-1");
+  });
+
+  it("explicitly verifies 570033 is NOT configured and throws unserviceable error", () => {
+    expect(isMysuruCityPincode("570033")).toBe(false);
+    expect(() =>
+      resolveOperationalZoneAndKitchen(
+        { pincode: "570033" },
+        DEFAULT_DELIVERY_ZONES
+      )
+    ).toThrow("Cannot route order: No delivery zone serves pincode 570033.");
+  });
+
+  it("unknown/unconfigured pincode is not automatically serviceable and throws", () => {
+    const unknownPincodes = ["570033", "570034", "570099", "571001", "600001", "110001", "999999"];
+    for (const pin of unknownPincodes) {
+      expect(isMysuruCityPincode(pin)).toBe(false);
+      expect(() =>
+        resolveOperationalZoneAndKitchen({ pincode: pin }, DEFAULT_DELIVERY_ZONES)
+      ).toThrow(`Cannot route order: No delivery zone serves pincode ${pin}.`);
+    }
+  });
+
+  it("invalid, empty, or whitespace pincodes return false for isMysuruCityPincode and do not auto-assign zone", () => {
+    expect(isMysuruCityPincode("")).toBe(false);
+    expect(isMysuruCityPincode("   ")).toBe(false);
+    expect(isMysuruCityPincode(null)).toBe(false);
+    expect(isMysuruCityPincode(undefined)).toBe(false);
+    expect(isMysuruCityPincode("invalid")).toBe(false);
+
+    // Empty or missing pincode must NOT auto-assign zone-1 or default kitchen
+    expect(() =>
+      resolveOperationalZoneAndKitchen({ pincode: "" }, DEFAULT_DELIVERY_ZONES)
+    ).toThrow("Cannot route order: No valid address or pincode provided.");
+
+    expect(() =>
+      resolveOperationalZoneAndKitchen({ pincode: "   " }, DEFAULT_DELIVERY_ZONES)
+    ).toThrow("Cannot route order: Address pincode is empty.");
+
+    expect(() =>
+      resolveOperationalZoneAndKitchen({ pincode: undefined }, DEFAULT_DELIVERY_ZONES)
+    ).toThrow("Cannot route order: No valid address or pincode provided.");
+
+    expect(() =>
+      resolveOperationalZoneAndKitchen(null, DEFAULT_DELIVERY_ZONES)
+    ).toThrow("Cannot route order: No valid address or pincode provided.");
   });
 });

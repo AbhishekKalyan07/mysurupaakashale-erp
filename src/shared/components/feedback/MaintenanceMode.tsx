@@ -1,4 +1,5 @@
 import { Wrench } from "lucide-react";
+import { DEFAULT_COMPANY_PROFILE } from "@/shared/types";
 
 export interface MaintenanceModeProps {
   title?: string;
@@ -63,10 +64,10 @@ export function MaintenanceMode({
       <p className="text-xs text-ink-500">
         If you have questions, contact us at{" "}
         <a
-          href="mailto:support@mysurupaakashale.in"
+          href={`mailto:${DEFAULT_COMPANY_PROFILE.supportEmail}`}
           className="text-leaf-600 underline hover:text-leaf-700"
         >
-          support@mysurupaakashale.in
+          {DEFAULT_COMPANY_PROFILE.supportEmail}
         </a>
       </p>
     </div>
