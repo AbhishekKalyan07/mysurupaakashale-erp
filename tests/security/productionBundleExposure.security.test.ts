@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { runBundleAudit } from '../../scripts/auditProductionBundle';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 describe('Production Bundle Exposure & Hardening Security Test', () => {
   const distDir = path.resolve(process.cwd(), 'dist');
+
+  beforeAll(() => {
+    if (!fs.existsSync(distDir) || fs.readdirSync(distDir).length === 0) {
+      execSync('npm run build', { stdio: 'pipe' });
+    }
+  }, 120000);
 
   it('requires production build artifacts to exist in dist/', () => {
     expect(fs.existsSync(distDir)).toBe(true);

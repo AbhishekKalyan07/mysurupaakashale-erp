@@ -83,6 +83,8 @@ jobs:
           java-version: '21'
       - name: Install dependencies
         run: npm ci
+      - name: Build production bundle for security audit
+        run: npm run build
       - name: Start Firebase Emulators and run security tests
         run: |
           npx firebase emulators:exec \
