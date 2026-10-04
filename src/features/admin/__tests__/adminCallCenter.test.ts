@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.useFakeTimers();
+vi.setSystemTime(new Date("2026-09-15T08:00:00Z"));
+
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { adminCallCenterService } from "../services/adminCallCenterService";

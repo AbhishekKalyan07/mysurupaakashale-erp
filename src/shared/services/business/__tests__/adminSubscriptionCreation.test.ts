@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.useFakeTimers();
+vi.setSystemTime(new Date("2026-09-15T08:00:00Z"));
+
 import { subscriptionService, type AdminActor, type AdminCreateSubscriptionInput } from "../subscriptionService";
 import { subscriptionRepository } from "@/shared/services/firestore/subscriptionRepository";
 import { userRepository } from "@/shared/services/firestore/userRepository";

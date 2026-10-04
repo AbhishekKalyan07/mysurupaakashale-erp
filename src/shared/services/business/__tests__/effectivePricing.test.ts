@@ -1,4 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.useFakeTimers();
+vi.setSystemTime(new Date("2026-09-15T08:00:00Z"));
+
 import { pricingService } from '../pricingService';
 import { pricingRepository } from '@/shared/services/firestore/pricingRepository';
 import type { Subscription, Order, Invoice, PricingConfiguration } from '@/shared/types';
