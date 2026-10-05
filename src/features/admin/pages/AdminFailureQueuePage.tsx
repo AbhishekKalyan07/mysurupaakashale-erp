@@ -16,6 +16,11 @@ import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { failureQueueService } from "../services/failureQueueService";
 import type { FailureQueueRecord } from "@/shared/services/firestore/failureQueueRepository";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useFailureQueueReferences } from "../hooks/useFailureQueueReferences";
+import {
+  formatFailureQueueCustomerDisplay,
+  formatFailureQueueSubscriptionDisplay,
+} from "../utils/failureQueueReferenceResolver";
 import toast from "react-hot-toast";
 
 type FilterStatus = "all" | "pending" | "resolved" | "ignored";
@@ -85,18 +90,26 @@ export function AdminFailureQueuePage() {
     },
   });
 
+  const { data: references } = useFailureQueueReferences(incidents);
+
   const filteredIncidents = useMemo(() => {
     if (!searchQuery.trim()) return incidents;
     const q = searchQuery.toLowerCase();
-    return incidents.filter(
-      (item) =>
+    return incidents.filter((item) => {
+      const custDisplay = references?.customerDisplayMap.get(item.customerId) || "";
+      const subDisplay =
+        (item.subscriptionId && references?.subscriptionDisplayMap.get(item.subscriptionId)) || "";
+      return (
         item.customerId?.toLowerCase().includes(q) ||
+        custDisplay.toLowerCase().includes(q) ||
         item.subscriptionId?.toLowerCase().includes(q) ||
+        subDisplay.toLowerCase().includes(q) ||
         item.reason?.toLowerCase().includes(q) ||
         item.date?.includes(q) ||
-        item.mealType?.toLowerCase().includes(q),
-    );
-  }, [incidents, searchQuery]);
+        item.mealType?.toLowerCase().includes(q)
+      );
+    });
+  }, [incidents, searchQuery, references]);
 
   const stats = useMemo(() => {
     return {
@@ -218,6 +231,15 @@ export function AdminFailureQueuePage() {
             const isExpanded = expandedTraceId === incident.id;
             const isPending = incident.status === "pending";
 
+            const customerDisplay =
+              references?.customerDisplayMap.get(incident.customerId) ||
+              formatFailureQueueCustomerDisplay(null, incident.customerId);
+
+            const subscriptionDisplay = incident.subscriptionId
+              ? references?.subscriptionDisplayMap.get(incident.subscriptionId) ||
+                formatFailureQueueSubscriptionDisplay(null, undefined, incident.subscriptionId)
+              : null;
+
             return (
               <PremiumCard
                 key={incident.id}
@@ -258,9 +280,19 @@ export function AdminFailureQueuePage() {
                     </div>
 
                     <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-                      <span>Customer: <code className="bg-muted px-1.5 py-0.5 rounded">{incident.customerId}</code></span>
-                      {incident.subscriptionId && (
-                        <span>Subscription: <code className="bg-muted px-1.5 py-0.5 rounded">{incident.subscriptionId}</code></span>
+                      <span>
+                        Customer:{" "}
+                        <span className="font-semibold text-foreground bg-muted/80 px-2 py-0.5 rounded">
+                          {customerDisplay}
+                        </span>
+                      </span>
+                      {subscriptionDisplay && (
+                        <span>
+                          Subscription:{" "}
+                          <span className="font-semibold text-foreground bg-muted/80 px-2 py-0.5 rounded">
+                            {subscriptionDisplay}
+                          </span>
+                        </span>
                       )}
                       {incident.resolvedBy && (
                         <span>Resolved by: <code className="bg-muted px-1.5 py-0.5 rounded">{incident.resolvedBy}</code></span>
@@ -270,24 +302,23 @@ export function AdminFailureQueuePage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 self-end md:self-center">
-                    {incident.stackTrace && (
-                      <button
-                        onClick={() =>
-                          setExpandedTraceId(isExpanded ? null : incident.id)
-                        }
-                        className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 rounded-lg flex items-center gap-1"
-                      >
-                        {isExpanded ? (
-                          <>
-                            <ChevronUp className="w-3.5 h-3.5" /> Hide Trace
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="w-3.5 h-3.5" /> Stack Trace
-                          </>
-                        )}
-                      </button>
-                    )}
+                    <button
+                      id={`btn-toggle-trace-${incident.id}`}
+                      onClick={() =>
+                        setExpandedTraceId(isExpanded ? null : incident.id)
+                      }
+                      className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 rounded-lg flex items-center gap-1"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" /> Hide Details
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" /> Details
+                        </>
+                      )}
+                    </button>
 
                     {isPending && (
                       <>
@@ -330,15 +361,41 @@ export function AdminFailureQueuePage() {
                   </div>
                 </div>
 
-                {/* Collapsible Stack Trace */}
-                {isExpanded && incident.stackTrace && (
+                {/* Collapsible Diagnostic Details & Stack Trace */}
+                {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-border">
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">
-                      Exception Stack Trace:
+                    <div className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                      Diagnostic Technical References:
                     </div>
-                    <pre className="text-xs bg-muted/70 p-3 rounded-lg overflow-x-auto text-muted-foreground font-mono leading-relaxed whitespace-pre-wrap">
-                      {incident.stackTrace}
-                    </pre>
+                    <div className="text-xs font-mono text-muted-foreground bg-muted/40 p-2.5 rounded-lg space-y-1 mb-2">
+                      <div>
+                        <span className="text-muted-foreground/70 font-sans">Customer UID:</span>{" "}
+                        <code className="text-foreground">{incident.customerId}</code>
+                      </div>
+                      {incident.subscriptionId && (
+                        <div>
+                          <span className="text-muted-foreground/70 font-sans">Subscription UUID:</span>{" "}
+                          <code className="text-foreground">{incident.subscriptionId}</code>
+                        </div>
+                      )}
+                      {incident.orderId && (
+                        <div>
+                          <span className="text-muted-foreground/70 font-sans">Order ID:</span>{" "}
+                          <code className="text-foreground">{incident.orderId}</code>
+                        </div>
+                      )}
+                    </div>
+                    {incident.stackTrace && (
+                      <>
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">
+                          Exception Stack Trace:
+                        </div>
+                        <pre className="text-xs bg-muted/70 p-3 rounded-lg overflow-x-auto text-muted-foreground font-mono leading-relaxed whitespace-pre-wrap">
+                          {incident.stackTrace}
+                        </pre>
+                      </>
+                    )}
                   </div>
                 )}
               </PremiumCard>

@@ -8,6 +8,7 @@ import { useAdminCreateSubscription } from "../hooks/useAdminSubscriptions";
 import { pricingService } from "@/shared/services/business/pricingService";
 import { getTodayIST, calculateSubscriptionEndDate } from "@/shared/lib/date";
 import { formatAllottedId } from "@/shared/utils/displayId";
+import { isMysuruCityPincode } from "@/shared/services/business/operationalRouter";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import type { CustomerProfile, MealPreference, MealType, MealPlanPricing } from "@/shared/types";
 
@@ -279,9 +280,23 @@ export function AdminCreateSubscriptionModal({
     }
 
     let finalAddressId = selectedAddressId;
-    if (!finalAddressId) {
+    if (finalAddressId) {
+      const chosenAddress = customerAddresses.find((a) => a.id === selectedAddressId);
+      if (chosenAddress?.pincode && !isMysuruCityPincode(chosenAddress.pincode.trim())) {
+        alert(
+          `Cannot create subscription: The selected address pincode '${chosenAddress.pincode}' is outside the Mysuru City service area (570001–570032).`,
+        );
+        return;
+      }
+    } else {
       if (!newAddressLine1 || !newAddressPincode) {
         alert("Please select or enter a delivery address.");
+        return;
+      }
+      if (!isMysuruCityPincode(newAddressPincode.trim())) {
+        alert(
+          `Cannot create subscription: Pincode '${newAddressPincode.trim()}' is outside the Mysuru City service area (570001–570032).`,
+        );
         return;
       }
       finalAddressId = `addr_${Date.now()}`;

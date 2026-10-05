@@ -199,4 +199,43 @@ describe("Bug 4: Order Generation Background Task Settlement", () => {
     expect(result.generated).toBe(1);
     expect(result.failed).toBe(0);
   });
+
+  it("Scenario E: Unassigned orders trigger admin alert with human-readable notification message without raw ID", async () => {
+    vi.mocked(subscriptionRepository.list).mockResolvedValue([
+      {
+        ...mockSub,
+        id: "sub-uuid-abc-123",
+        startDate: "2026-10-01",
+        endDate: "2026-10-31",
+      },
+    ]);
+    const { userRepository } = await import("@/shared/services/firestore/userRepository");
+    vi.mocked(userRepository.list).mockImplementation(async () => {
+      return [{ id: "admin-1", role: "admin" } as any];
+    });
+    vi.mocked(userRepository.getByIds).mockResolvedValue([
+      {
+        id: "cust-1",
+        fullName: "Rahul Kumar",
+        displayId: "MP-001",
+        role: "customer",
+      } as any,
+    ]);
+
+    const notifMod = await import("@/shared/services/firestore/notificationService");
+
+    await (orderService as any).generateMealOrders("2026-10-05", "lunch");
+
+    expect(notifMod.notifyAdminAlert).toHaveBeenCalledWith(
+      ["admin-1"],
+      "Delivery Assignment Failed",
+      expect.stringContaining("Order for Rahul Kumar (MP-001) — Lunch on 5 Oct 2026"),
+    );
+    const lastCall = vi.mocked(notifMod.notifyAdminAlert).mock.calls.find(
+      (call) => call[1] === "Delivery Assignment Failed",
+    );
+    expect(lastCall).toBeDefined();
+    expect(lastCall![2]).not.toContain("ord_");
+    expect(lastCall![2]).not.toContain("sub-uuid-abc-123");
+  });
 });

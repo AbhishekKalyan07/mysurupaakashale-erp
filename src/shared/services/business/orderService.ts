@@ -34,7 +34,12 @@ import type {
   MealType,
   DailyMenu,
 } from "@/shared/types";
-import { getTodayInTimezone, isSundayInTimezone } from "@/shared/lib/date";
+import {
+  getCachedDateTimeFormatter,
+  getTodayInTimezone,
+  isSundayInTimezone,
+} from "@/shared/lib/date";
+import { formatAllottedId, isFormattedDisplayId } from "@/shared/utils/displayId";
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
 import { pricingService } from "./pricingService";
 import { operationalSettingsService } from "./operationalSettingsService";
@@ -113,6 +118,82 @@ function sanitizeCoordinates(
     return { lat: addr.lat, lng: addr.lng };
   }
   return null;
+}
+
+/**
+ * Formats an ISO date string (YYYY-MM-DD) into a clean, human-readable date
+ * in Asia/Kolkata timezone (e.g., "5 Oct 2026"). Returns fallback if parsing fails.
+ */
+export function formatNotificationDate(dateStr?: string): string {
+  if (!dateStr || typeof dateStr !== "string") return "";
+  const parts = dateStr.split("-").map(Number);
+  if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+    const [y, m, d] = parts;
+    const dateObj = new Date(Date.UTC(y, m - 1, d, 6, 30));
+    if (!isNaN(dateObj.getTime())) {
+      return getCachedDateTimeFormatter("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }).format(dateObj);
+    }
+  }
+  return dateStr;
+}
+
+/**
+ * Formats the admin alert message for unassigned delivery orders.
+ *
+ * Replaces the raw internal Firestore document ID (ord_<subscription-uuid>_<date>_<mealType>)
+ * with human-readable business information (e.g. "Order for Rahul Kumar (MP-001) — Lunch on 5 Oct 2026").
+ *
+ * Never exposes subscription UUIDs or raw document IDs.
+ */
+export function formatDeliveryAssignmentAlertMessage(
+  order: Partial<Order>,
+  mealType?: string,
+  dateStr?: string,
+): string {
+  const effectiveMeal = mealType || order.mealType || "";
+  const mealLabel = effectiveMeal
+    ? effectiveMeal.charAt(0).toUpperCase() + effectiveMeal.slice(1)
+    : "Meal";
+
+  const effectiveDate = dateStr || order.date || "";
+  const formattedDate = formatNotificationDate(effectiveDate);
+  const dateSuffix = formattedDate ? ` on ${formattedDate}` : "";
+
+  const rawName = order.customerName?.trim();
+  const hasValidName = !!(rawName && rawName !== "Unknown Customer");
+
+  // Resolve customer display ID safely (e.g. MP-001)
+  let displayCode = order.customerCode;
+  if (!displayCode && order.displayId && /^MP-|^CUST-/i.test(order.displayId)) {
+    displayCode = order.displayId;
+  }
+  const allottedId = formatAllottedId(displayCode, order.customerId, "customer");
+  const candidateId =
+    allottedId && allottedId !== "N/A"
+      ? allottedId
+      : order.displayId && isFormattedDisplayId(order.displayId)
+        ? order.displayId
+        : "";
+
+  let customerPart = "";
+  if (hasValidName && candidateId) {
+    customerPart = `${rawName} (${candidateId})`;
+  } else if (hasValidName) {
+    customerPart = rawName;
+  } else if (candidateId) {
+    customerPart = `Customer (${candidateId})`;
+  }
+
+  if (customerPart) {
+    return `Order for ${customerPart} — ${mealLabel}${dateSuffix} could not be automatically assigned. Please assign manually.`;
+  }
+
+  return `Order for ${mealLabel}${dateSuffix} could not be automatically assigned. Please assign manually.`;
 }
 
 class OrderService {
@@ -556,7 +637,7 @@ class OrderService {
                     notifyAdminAlert(
                       admins.map((a) => a.id),
                       "Delivery Assignment Failed",
-                      `Order ${order.id} for ${mealType} could not be automatically assigned. Please assign manually.`,
+                      formatDeliveryAssignmentAlertMessage(order, mealType, today),
                     ),
                   )
                   .catch(console.error),
@@ -2061,7 +2142,7 @@ class OrderService {
           await notifMod.notifyAdminAlert(
             admins.map((a) => a.id),
             "Delivery Assignment Failed",
-            `Order ${order.id} for ${pref.mealType} could not be automatically assigned. Please assign manually.`,
+            formatDeliveryAssignmentAlertMessage(order, pref.mealType, date),
           );
         } catch (e) {
           console.error(

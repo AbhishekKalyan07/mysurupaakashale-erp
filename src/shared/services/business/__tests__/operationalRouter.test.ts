@@ -255,8 +255,18 @@ describe("Mysuru City Pincode Coverage & Routing (32 Verified Pincodes)", () => 
     ).toThrow("Cannot route order: No delivery zone serves pincode 570033.");
   });
 
+  it("explicitly verifies unserviceable external pincode 573133 throws deterministic error", () => {
+    expect(isMysuruCityPincode("573133")).toBe(false);
+    expect(() =>
+      resolveOperationalZoneAndKitchen(
+        { pincode: "573133" },
+        DEFAULT_DELIVERY_ZONES,
+      ),
+    ).toThrow("Cannot route order: No delivery zone serves pincode 573133.");
+  });
+
   it("unknown/unconfigured pincode is not automatically serviceable and throws", () => {
-    const unknownPincodes = ["570033", "570034", "570099", "571001", "600001", "110001", "999999"];
+    const unknownPincodes = ["570033", "570034", "570099", "571001", "573133", "600001", "110001", "999999"];
     for (const pin of unknownPincodes) {
       expect(isMysuruCityPincode(pin)).toBe(false);
       expect(() =>
