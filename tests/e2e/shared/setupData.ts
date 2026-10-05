@@ -36,6 +36,10 @@ export async function seedUsers() {
   execSync(`node "${path.join(__dirname, 'seed.cjs')}"`, { stdio: 'inherit' });
 }
 
+export async function resetStandardPlan() {
+  execSync(`node "${path.join(__dirname, 'seed.cjs')}" --only-plans`, { stdio: 'pipe' });
+}
+
 /**
  * Signs in a user via the Firebase Auth Emulator REST API and returns
  * the raw token response (idToken, refreshToken, localId, etc.).

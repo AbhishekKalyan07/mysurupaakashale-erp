@@ -9,6 +9,11 @@ import path from 'path';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  /* Allow up to 90 s per test — multi-step flows spanning two browser contexts
+   * (e.g. E3 admin + customer) comfortably exceed the default 30 s budget on
+   * local Windows runners where emulator cold-start adds overhead. CI ubuntu
+   * runners are faster and stay well within this limit. */
+  timeout: 90000,
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

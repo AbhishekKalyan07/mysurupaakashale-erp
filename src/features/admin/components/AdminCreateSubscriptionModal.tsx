@@ -364,6 +364,8 @@ export function AdminCreateSubscriptionModal({
                   return (
                     <div
                       key={p.id}
+                      data-testid={`plan-select-card-${p.id}`}
+                      aria-selected={isSelected}
                       onClick={() => setSelectedPlanId(p.id)}
                       className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                         isSelected

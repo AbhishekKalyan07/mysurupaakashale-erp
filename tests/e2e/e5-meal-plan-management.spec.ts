@@ -1,7 +1,16 @@
 import { test, expect } from './shared/fixtures';
+import { resetStandardPlan } from './shared/setupData';
 import axios from 'axios';
 
 test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management Flow', () => {
+  test.beforeEach(async () => {
+    await resetStandardPlan();
+  });
+
+  test.afterEach(async () => {
+    await resetStandardPlan();
+  });
+
   test('Admin manages meal plans and options, verifies customer selectability, frozen pricing, and disablement', async ({ adminPage, customerPage }) => {
     test.setTimeout(90000);
     // 0. Clean any pre-existing test subscriptions in emulator
@@ -94,10 +103,10 @@ test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management
 
     await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 10000 });
 
-    // Select Standard Plan
+    // Select Standard Plan (verified selected by default)
     const planSelect = adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first();
     await expect(planSelect).toBeVisible({ timeout: 10000 });
-    await planSelect.click();
+    await expect(planSelect).toHaveClass(/border-primary/);
 
     // Verify Lunch dropdown contains the newly added option "Millet Bisi Bele Bath"
     const lunchSelect = adminPage.locator('select[data-testid="select-option-lunch"]');
@@ -184,7 +193,7 @@ test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management
 
     const stdPlanCard = adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first();
     await expect(stdPlanCard).toBeVisible({ timeout: 10000 });
-    await stdPlanCard.click();
+    await expect(stdPlanCard).toHaveClass(/border-primary/);
 
     const lunchSelectAfterDisable = adminPage.locator('select[data-testid="select-option-lunch"]');
     await expect(lunchSelectAfterDisable).toBeVisible({ timeout: 10000 });

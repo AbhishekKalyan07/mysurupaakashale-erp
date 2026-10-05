@@ -68,18 +68,7 @@ async function seedUsers() {
   }
 }
 
-async function seedOrders() {
-  const customerEmail = 'customer@test.com';
-  const customerUser = await auth.getUserByEmail(customerEmail);
-  const uid = customerUser.uid;
-
-  // Calculate today and tomorrow dates in Asia/Kolkata
-  const now = new Date();
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(tomorrow);
-
-  // Seed plan-1 with options
+async function seedMealPlans() {
   await db.collection('mealPlans').doc('plan-1').set({
     id: 'plan-1',
     name: 'Standard Plan',
@@ -121,6 +110,21 @@ async function seedOrders() {
       breakfast_lunch_dinner: 300
     }
   });
+}
+
+async function seedOrders() {
+  const customerEmail = 'customer@test.com';
+  const customerUser = await auth.getUserByEmail(customerEmail);
+  const uid = customerUser.uid;
+
+  // Calculate today and tomorrow dates in Asia/Kolkata
+  const now = new Date();
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(tomorrow);
+
+  // Seed plan-1 with options
+  await seedMealPlans();
 
   // Seed kitchen and delivery zone for operational order generation
   await db.collection('kitchens').doc('kitchen-1').set({
@@ -241,10 +245,20 @@ async function seedOrders() {
   console.log('Orders and subscriptions seeded.');
 }
 
-seedUsers().then(seedOrders).then(() => {
-  console.log('Seed complete.');
-  process.exit(0);
-}).catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv.includes('--only-plans')) {
+  seedMealPlans().then(() => {
+    console.log('Meal plans reset complete.');
+    process.exit(0);
+  }).catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+} else {
+  seedUsers().then(seedOrders).then(() => {
+    console.log('Seed complete.');
+    process.exit(0);
+  }).catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}

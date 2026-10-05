@@ -29,10 +29,10 @@ test.describe('PHASE E3 — Admin-Assisted Customer Plan/Subscription Management
     await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 10000 });
     await expect(adminPage.locator('text=Admin Assisted').first()).toBeVisible();
 
-    // 6. Select Plan (Standard Plan)
+    // 6. Select Plan (Standard Plan is selected by default; verify selection)
     const planCard = adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first();
     await expect(planCard).toBeVisible({ timeout: 10000 });
-    await planCard.click();
+    await expect(planCard).toHaveClass(/border-primary/);
 
     // 7. Verify / Fill Address if empty
     const addressInput = adminPage.locator('input[placeholder*="Address Line 1"]');
