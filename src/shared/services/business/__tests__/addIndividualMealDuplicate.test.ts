@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.useFakeTimers();
+vi.setSystemTime(new Date("2026-10-01T04:00:00Z"));
+
 import type { Order, Subscription, CustomerProfile, DeliveryPartnerProfile } from "@/shared/types";
 import { orderService } from "../orderService";
 
