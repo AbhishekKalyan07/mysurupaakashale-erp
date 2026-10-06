@@ -2,11 +2,16 @@ import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { formatINR } from "@/shared/utils/currency";
 import { parseAuditLogDetails } from "@/shared/utils/auditParser";
+import {
+  formatFailureQueueCustomerDisplay,
+  formatFailureQueueSubscriptionDisplay,
+} from "../utils/failureQueueReferenceResolver";
 
 interface SystemAuditReportViewProps {
   details: any;
   action?: string;
   reason?: string;
+  references?: Record<string, string>;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -71,14 +76,16 @@ function formatMeal(meal?: unknown): string {
   return meal.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatKey(key: string): string {
+function formatBusinessSafeKey(key: string): string {
   const customMap: Record<string, string> = {
     newPartnerId: "New Partner ID",
     oldPartnerId: "Old Partner ID",
     newPartnerName: "Assigned Partner",
     oldPartnerName: "Previous Partner",
-    subscriptionId: "Subscription ID",
-    customerId: "Customer ID",
+    subscriptionId: "Subscription",
+    customerId: "Customer",
+    userId: "User",
+    orderId: "Order",
     billingMonth: "Billing Month",
     invoiceId: "Invoice ID",
     paymentMethod: "Payment Method",
@@ -101,17 +108,40 @@ function formatKey(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatValue(value: unknown): string {
+function formatBusinessSafeValue(
+  key: string,
+  value: unknown,
+  references?: Record<string, string>,
+): string {
   if (value === null || value === undefined) return "None";
+  const strVal = String(value);
+
+  if (key === "customerId" || key === "userId") {
+    if (references?.[`customer:${strVal}`]) return references[`customer:${strVal}`];
+    if (references?.[`user:${strVal}`]) return references[`user:${strVal}`];
+    return formatFailureQueueCustomerDisplay(null, strVal);
+  }
+
+  if (key === "subscriptionId") {
+    if (references?.[`subscription:${strVal}`]) return references[`subscription:${strVal}`];
+    return formatFailureQueueSubscriptionDisplay(null, undefined, strVal);
+  }
+
+  if (key === "orderId") {
+    if (references?.[`order:${strVal}`]) return references[`order:${strVal}`];
+    if (strVal.startsWith("ORD-")) return strVal;
+    return "Order";
+  }
+
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "object") {
     try {
       return JSON.stringify(value);
     } catch {
-      return String(value);
+      return strVal;
     }
   }
-  return String(value);
+  return strVal;
 }
 
 function RawJsonInspector({ details }: { details: any }) {
@@ -132,6 +162,7 @@ export function SystemAuditReportView({
   details,
   action,
   reason,
+  references,
 }: SystemAuditReportViewProps) {
   const { isRawDump, report } = parseAuditLogDetails(details);
 
@@ -336,16 +367,33 @@ export function SystemAuditReportView({
               <CopyButton text={String(refNum)} />
             </div>
           )}
-          {details.customerName && (
+          {(details.customerId && (references?.[`customer:${details.customerId}`] || references?.[`user:${details.customerId}`])) ? (
+            <div>
+              <span className="text-text-muted font-medium">Customer: </span>
+              <span className="font-semibold">
+                {references[`customer:${details.customerId}`] || references[`user:${details.customerId}`]}
+              </span>
+            </div>
+          ) : details.customerName ? (
             <div>
               <span className="text-text-muted font-medium">Customer: </span>
               <span className="font-semibold">{details.customerName}</span>
             </div>
-          )}
+          ) : details.customerId ? (
+            <div>
+              <span className="text-text-muted font-medium">Customer: </span>
+              <span className="font-semibold">
+                {formatFailureQueueCustomerDisplay(null, details.customerId)}
+              </span>
+            </div>
+          ) : null}
           {details.subscriptionId && (
             <div>
               <span className="text-text-muted font-medium">Subscription: </span>
-              <span className="font-mono text-[10px]">{details.subscriptionId}</span>
+              <span className="font-semibold">
+                {references?.[`subscription:${details.subscriptionId}`] ||
+                 formatFailureQueueSubscriptionDisplay(null, undefined, details.subscriptionId)}
+              </span>
             </div>
           )}
           {details.billingMonth && (
@@ -440,6 +488,35 @@ export function SystemAuditReportView({
         </div>
 
         <div className="space-y-1 text-[11px]">
+          {(details.customerId && (references?.[`customer:${details.customerId}`] || references?.[`user:${details.customerId}`])) ? (
+            <div>
+              <span className="text-text-muted font-medium">Customer: </span>
+              <span className="font-semibold">
+                {references[`customer:${details.customerId}`] || references[`user:${details.customerId}`]}
+              </span>
+            </div>
+          ) : details.customerName ? (
+            <div>
+              <span className="text-text-muted font-medium">Customer: </span>
+              <span className="font-semibold">{details.customerName}</span>
+            </div>
+          ) : details.customerId ? (
+            <div>
+              <span className="text-text-muted font-medium">Customer: </span>
+              <span className="font-semibold">
+                {formatFailureQueueCustomerDisplay(null, details.customerId)}
+              </span>
+            </div>
+          ) : null}
+          {details.subscriptionId && (
+            <div>
+              <span className="text-text-muted font-medium">Subscription: </span>
+              <span className="font-semibold">
+                {references?.[`subscription:${details.subscriptionId}`] ||
+                 formatFailureQueueSubscriptionDisplay(null, undefined, details.subscriptionId)}
+              </span>
+            </div>
+          )}
           {details.status && (
             <div>
               <span className="text-text-muted font-medium">Status: </span>
@@ -493,9 +570,9 @@ export function SystemAuditReportView({
           {entries.map(([key, val]) => (
             <div key={key} className="flex items-baseline gap-1.5 break-all">
               <span className="font-semibold text-text-muted text-[10px] uppercase tracking-wider min-w-[90px] flex-shrink-0">
-                {`${formatKey(key)}:`}
+                {`${formatBusinessSafeKey(key)}:`}
               </span>
-              <span className="text-text font-medium">{formatValue(val)}</span>
+              <span className="text-text font-medium">{formatBusinessSafeValue(key, val, references)}</span>
             </div>
           ))}
         </div>

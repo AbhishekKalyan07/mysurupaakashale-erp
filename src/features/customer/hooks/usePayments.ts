@@ -130,6 +130,7 @@ export function useApprovePayment() {
       meta?: {
         customerEmail: string;
         customerName: string;
+        customerDisplayId?: string;
         planName: string;
         planTier: string;
         deliveryAddress: string;

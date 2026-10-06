@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
@@ -14,6 +14,7 @@ interface PremiumSidebarProps {
 
 export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
   const items = NAV_ITEMS_BY_ROLE[role];
+  const location = useLocation();
   const { triggerInstall } = usePWAInstall();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -163,6 +164,29 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                     );
                   }
 
+                  const isItemActive = (navLinkActive: boolean) => {
+                    if (navLinkActive) return true;
+                    const path = location.pathname;
+                    if (
+                      to === "/admin/payment-verification" ||
+                      to === "/admin/payments"
+                    ) {
+                      return (
+                        path === "/admin/payment-verification" ||
+                        path.startsWith("/admin/payment-verification/") ||
+                        path === "/admin/payments" ||
+                        path.startsWith("/admin/payments/")
+                      );
+                    }
+                    if (to === "/admin/settings") {
+                      return (
+                        path === "/admin/business-settings" ||
+                        path.startsWith("/admin/business-settings/")
+                      );
+                    }
+                    return false;
+                  };
+
                   return (
                     <NavLink
                       key={to}
@@ -170,44 +194,48 @@ export function PremiumSidebar({ role, isOpen, onClose }: PremiumSidebarProps) {
                       end={to === "/dashboard"}
                       onClick={onClose}
                       title={isCollapsed ? label : undefined}
-                      className={({ isActive }) =>
-                        cn(
+                      className={({ isActive: navLinkActive }) => {
+                        const isActive = isItemActive(navLinkActive);
+                        return cn(
                           "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-sm font-medium",
                           "transition-all duration-150 group relative",
                           isActive
                             ? "bg-primary/10 text-primary"
                             : "text-primary/60 hover:bg-primary/5 hover:text-primary",
                           isCollapsed ? "lg:justify-center" : "justify-start",
-                        )
-                      }
+                        );
+                      }}
                     >
-                      {({ isActive }) => (
-                        <>
-                          {isActive && (
-                            <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full animate-in fade-in" />
-                          )}
-                          <Icon
-                            size={18}
-                            strokeWidth={isActive ? 2.5 : 1.8}
-                            className={cn(
-                              "shrink-0 transition-colors",
-                              isActive
-                                ? "text-primary"
-                                : "text-primary/60 group-hover:text-primary",
+                      {({ isActive: navLinkActive }) => {
+                        const isActive = isItemActive(navLinkActive);
+                        return (
+                          <>
+                            {isActive && (
+                              <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full animate-in fade-in" />
                             )}
-                          />
-                          <span
-                            className={cn(
-                              "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300",
-                              isCollapsed
-                                ? "lg:opacity-0 lg:w-0"
-                                : "opacity-100 w-auto",
-                            )}
-                          >
-                            {label}
-                          </span>
-                        </>
-                      )}
+                            <Icon
+                              size={18}
+                              strokeWidth={isActive ? 2.5 : 1.8}
+                              className={cn(
+                                "shrink-0 transition-colors",
+                                isActive
+                                  ? "text-primary"
+                                  : "text-primary/60 group-hover:text-primary",
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "whitespace-nowrap overflow-hidden leading-tight transition-all duration-300",
+                                isCollapsed
+                                  ? "lg:opacity-0 lg:w-0"
+                                  : "opacity-100 w-auto",
+                              )}
+                            >
+                              {label}
+                            </span>
+                          </>
+                        );
+                      }}
                     </NavLink>
                   );
                 })}

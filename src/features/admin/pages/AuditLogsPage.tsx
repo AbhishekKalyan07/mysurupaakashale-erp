@@ -82,12 +82,65 @@ export function AuditLogsPage() {
   const filteredLogs =
     data?.logs.filter((log) => {
       if (!filters.actorName) return true;
-      const search = filters.actorName.toLowerCase();
-      return (
+      const search = filters.actorName.toLowerCase().trim();
+      if (!search) return true;
+
+      // 1. Check actor fields & resolved actor
+      const actorResolved = references?.[`user:${log.performedBy}`]?.toLowerCase() || "";
+      const matchesActor =
         log.performedByName?.toLowerCase().includes(search) ||
         log.performedByRole?.toLowerCase().includes(search) ||
-        log.performedBy.toLowerCase().includes(search)
-      );
+        log.performedBy.toLowerCase().includes(search) ||
+        actorResolved.includes(search);
+
+      if (matchesActor) return true;
+
+      // 2. Check entity resolved references
+      if (log.entityId && log.entityType) {
+        const entityResolved =
+          references?.[`${log.entityType}:${log.entityId}`]?.toLowerCase() ||
+          references?.[`${log.entityType.toLowerCase()}:${log.entityId}`]?.toLowerCase() ||
+          "";
+        const entityResolvedUser = references?.[`user:${log.entityId}`]?.toLowerCase() || "";
+        const entityResolvedCustomer = references?.[`customer:${log.entityId}`]?.toLowerCase() || "";
+        const entityResolvedSub = references?.[`subscription:${log.entityId}`]?.toLowerCase() || "";
+        if (
+          entityResolved.includes(search) ||
+          entityResolvedUser.includes(search) ||
+          entityResolvedCustomer.includes(search) ||
+          entityResolvedSub.includes(search)
+        ) {
+          return true;
+        }
+      }
+
+      // 3. Check details for customer name, customer display ID, or details references
+      const details = log.details;
+      if (details && typeof details === "object") {
+        if (
+          typeof details.customerName === "string" &&
+          details.customerName.toLowerCase().includes(search)
+        ) {
+          return true;
+        }
+        const custId = details.customerId || details.userId;
+        if (custId) {
+          const custRef = (
+            references?.[`customer:${custId}`] ||
+            references?.[`user:${custId}`] ||
+            ""
+          ).toLowerCase();
+          if (custRef.includes(search)) return true;
+        }
+        if (details.subscriptionId) {
+          const subRef = (
+            references?.[`subscription:${details.subscriptionId}`] || ""
+          ).toLowerCase();
+          if (subRef.includes(search)) return true;
+        }
+      }
+
+      return false;
     }) || [];
 
   return (
@@ -142,12 +195,12 @@ export function AuditLogsPage() {
           </div>
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5 flex items-center justify-between">
-              <span>Actor Name</span>
+              <span>Actor / Customer</span>
             </label>
             <input
               type="text"
               name="actorName"
-              placeholder="Filter by name (current page only)..."
+              placeholder="Filter by actor, customer name, MP-xxx (current page)..."
               value={filters.actorName || ""}
               onChange={handleFilterChange}
               className="w-full h-11 px-4 border border-primary/20 bg-background rounded-xl text-sm font-sans text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold shadow-sm transition-colors"
@@ -182,7 +235,7 @@ export function AuditLogsPage() {
           <div className="mt-3 text-xs flex items-center gap-1.5 text-warning/90 bg-warning/10 p-2 rounded border border-warning/20">
             <Info size={14} className="flex-shrink-0" />
             <span>
-              Note: Name search filters the current page only. Narrow down using
+              Note: Search filters the current page by actor name, customer name, or MP display ID. Narrow down using
               date filters to find older records.
             </span>
           </div>
@@ -291,7 +344,9 @@ export function AuditLogsPage() {
                               Entity:{" "}
                             </span>
                             <span className="font-bold font-sans text-text">
-                              {references?.[`${log.entityType}:${log.entityId}`] || "Unknown entity"}
+                              {references?.[`${log.entityType}:${log.entityId}`] ||
+                               references?.[`${log.entityType.toLowerCase()}:${log.entityId}`] ||
+                               "Unknown entity"}
                             </span>
                           </div>
                         )}
@@ -305,6 +360,7 @@ export function AuditLogsPage() {
                         details={log.details}
                         action={log.action}
                         reason={log.reason}
+                        references={references}
                       />
                     </td>
                   </tr>

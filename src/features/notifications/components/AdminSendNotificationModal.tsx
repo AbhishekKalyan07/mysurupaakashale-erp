@@ -20,6 +20,7 @@ import {
 } from "@/shared/services/firestore/notificationService";
 import { userRepository } from "@/shared/services/firestore/userRepository";
 import type { UserProfile, NotificationType, NotificationPriority } from "@/shared/types";
+import { formatAllottedId } from "@/shared/utils/displayId";
 import { toast } from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/queryKeys";
@@ -205,12 +206,14 @@ export function AdminSendNotificationModal({ isOpen, onClose }: Props) {
                   <option value="">
                     -- Choose User ({filteredUsers.length} available) --
                   </option>
-                  {filteredUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName || "Unnamed"} ({u.phone || u.email || u.id}) — [
-                      {u.role}]
-                    </option>
-                  ))}
+                  {filteredUsers.map((u) => {
+                    const displayId = formatAllottedId(u.displayId, u.id, u.role);
+                    return (
+                      <option key={u.id} value={u.id}>
+                        {u.fullName || "Unnamed"} ({displayId}) — [{u.role}]
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}

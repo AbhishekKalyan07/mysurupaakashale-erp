@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { clsx } from "clsx";
 import { ROLE_LABELS, type Role } from "@/shared/constants/roles";
 import { NAV_ITEMS_BY_ROLE } from "./navConfig";
@@ -11,6 +11,27 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const items = NAV_ITEMS_BY_ROLE[role];
+  const location = useLocation();
+
+  const isItemActive = (to: string, navLinkActive: boolean) => {
+    if (navLinkActive) return true;
+    const path = location.pathname;
+    if (to === "/admin/payment-verification" || to === "/admin/payments") {
+      return (
+        path === "/admin/payment-verification" ||
+        path.startsWith("/admin/payment-verification/") ||
+        path === "/admin/payments" ||
+        path.startsWith("/admin/payments/")
+      );
+    }
+    if (to === "/admin/settings") {
+      return (
+        path === "/admin/business-settings" ||
+        path.startsWith("/admin/business-settings/")
+      );
+    }
+    return false;
+  };
 
   return (
     <>
@@ -55,14 +76,15 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
                     to={to}
                     end={to === "/dashboard"} // only strict end for dashboard so sub-routes stay active
                     onClick={onClose}
-                    className={({ isActive }) =>
-                      clsx(
+                    className={({ isActive: navLinkActive }) => {
+                      const isActive = isItemActive(to, navLinkActive);
+                      return clsx(
                         "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
                           ? "border-turmeric-400 bg-leaf-700 text-rice-25"
                           : "border-transparent text-leaf-100 hover:bg-leaf-700/60 hover:text-rice-25",
-                      )
-                    }
+                      );
+                    }}
                   >
                     <Icon size={18} />
                     {label}

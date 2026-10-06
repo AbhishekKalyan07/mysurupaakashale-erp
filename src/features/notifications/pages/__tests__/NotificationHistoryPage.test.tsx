@@ -12,6 +12,16 @@ vi.mock("@/features/notifications/hooks/useNotifications", () => ({
   useNotificationHistory: vi.fn(),
 }));
 
+vi.mock("../../hooks/useNotificationRecipientReferences", () => ({
+  useNotificationRecipientReferences: vi.fn(() => ({
+    data: new Map([
+      ["cust-1", "Rahul Kumar (MP-001)"],
+      ["raw-uid-1234567890abcdef", "Priya Sharma (MP-002)"],
+    ]),
+    isLoading: false,
+  })),
+}));
+
 vi.mock("../components/AdminSendNotificationModal", () => ({
   AdminSendNotificationModal: () => null,
 }));
@@ -176,5 +186,65 @@ describe("NotificationHistoryPage", () => {
       mockLastDoc,
       20,
     );
+  });
+
+  it("renders customer name + MP ID and does not render raw Firebase UID in normal view", () => {
+    vi.mocked(notificationHooks.useNotificationHistory).mockReturnValue({
+      data: {
+        notifications: [
+          {
+            ...mockNotification("1", "Payment Received"),
+            recipientId: "raw-uid-1234567890abcdef",
+          },
+        ],
+        lastDoc: null,
+      },
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+
+    renderComponent();
+
+    // Normal view displays title and friendly customer name + MP display ID
+    expect(container?.textContent).toContain("Payment Received");
+    expect(container?.textContent).toContain("Priya Sharma (MP-002)");
+
+    // Normal table row does not render raw UID
+    const row = container?.querySelector("tbody tr");
+    expect(row?.textContent).not.toContain("raw-uid-1234567890abcdef");
+  });
+
+  it("shows raw recipient UID only inside expanded technical details", async () => {
+    vi.mocked(notificationHooks.useNotificationHistory).mockReturnValue({
+      data: {
+        notifications: [
+          {
+            ...mockNotification("1", "Payment Received"),
+            recipientId: "raw-uid-1234567890abcdef",
+          },
+        ],
+        lastDoc: null,
+      },
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+
+    renderComponent();
+
+    const row = container?.querySelector("tbody tr");
+    expect(container?.textContent).not.toContain("Recipient UID:");
+
+    // Click row to expand technical details
+    await act(async () => {
+      (row as HTMLElement)?.click();
+    });
+
+    // Now technical details are revealed
+    expect(container?.textContent).toContain("Recipient UID:");
+    expect(container?.textContent).toContain("raw-uid-1234567890abcdef");
   });
 });

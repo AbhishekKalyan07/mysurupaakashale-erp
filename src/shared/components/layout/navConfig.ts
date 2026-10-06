@@ -69,7 +69,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
         { label: "Accounts", to: "/admin/accounts", icon: ReceiptText },
         {
           label: "Payment Verification",
-          to: "/admin/payments",
+          to: "/admin/payment-verification",
           icon: CheckCircle,
         },
         { label: "Payroll", to: "/admin/payroll", icon: CreditCard },

@@ -314,6 +314,7 @@ function PaymentDetailDialog({
           meta = {
             customerEmail: user.email,
             customerName: user.fullName,
+            customerDisplayId: user.displayId || formatAllottedId(user.displayId, user.id, "customer"),
             planName: plan.name,
             planTier: plan.tier,
             deliveryAddress: `Address ID: ${subscription.deliveryAddressId}`,

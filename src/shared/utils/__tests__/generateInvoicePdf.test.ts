@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generateInvoicePdf, type InvoiceData } from "../generateInvoicePdf";
+import {
+  generateInvoicePdf,
+  formatInvoicePdfFilename,
+  type InvoiceData,
+} from "../generateInvoicePdf";
 
 // Mock jsPDF
 vi.mock("jspdf", () => {
@@ -101,5 +105,95 @@ describe("generateInvoicePdf", () => {
       18,
       30,
     );
+  });
+});
+
+describe("formatInvoicePdfFilename", () => {
+  it("formats normal customer name, display ID, and invoice number correctly", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "Rahul Kumar",
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-Rahul-Kumar-MP-001-INV-1791224487773.pdf");
+  });
+
+  it("safely handles and collapses whitespace in customer name", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "  Rahul   Kumar  ",
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-Rahul-Kumar-MP-001-INV-1791224487773.pdf");
+  });
+
+  it("sanitizes punctuation and filesystem-unsafe special characters", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "Rahul K. / Kumar (O'Connor) #1 & Co.",
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe(
+      "Invoice-Rahul-K-Kumar-O-Connor-1-Co-MP-001-INV-1791224487773.pdf",
+    );
+  });
+
+  it("handles missing customer name gracefully without double hyphens", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: null,
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-MP-001-INV-1791224487773.pdf");
+  });
+
+  it("handles empty string customer name gracefully", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "   ",
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-MP-001-INV-1791224487773.pdf");
+  });
+
+  it("handles missing display ID gracefully", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "Rahul Kumar",
+      customerDisplayId: null,
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-Rahul-Kumar-INV-1791224487773.pdf");
+  });
+
+  it("handles both missing customer name and display ID", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "",
+      customerDisplayId: "",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).toBe("Invoice-INV-1791224487773.pdf");
+  });
+
+  it("preserves real invoice number exactly", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "Priya Sharma",
+      customerDisplayId: "MP-042",
+      invoiceNumber: "INV-CUSTOM-2026-9999",
+    });
+    expect(filename).toBe(
+      "Invoice-Priya-Sharma-MP-042-INV-CUSTOM-2026-9999.pdf",
+    );
+  });
+
+  it("never includes private data like email, phone or raw UIDs", () => {
+    const filename = formatInvoicePdfFilename({
+      customerName: "Rahul Kumar",
+      customerDisplayId: "MP-001",
+      invoiceNumber: "INV-1791224487773",
+    });
+    expect(filename).not.toContain("@");
+    expect(filename).not.toContain("9876543210");
+    expect(filename).not.toMatch(/[a-z0-9]{28}/); // No raw Firebase UID
+    expect(filename).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/); // No raw UUID
   });
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import { useNotificationHistory } from "@/features/notifications/hooks/useNotifications";
+import { useNotificationRecipientReferences } from "../hooks/useNotificationRecipientReferences";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { EmptyState } from "@/shared/components/feedback/EmptyState";
@@ -79,7 +80,13 @@ function TypeIcon({ type }: { type: string }) {
   return <Info size={14} className={cls} />;
 }
 
-function NotificationRow({ n }: { n: Notification }) {
+function NotificationRow({
+  n,
+  recipientDisplay,
+}: {
+  n: Notification;
+  recipientDisplay?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const parsedDate = parseFirestoreDate(n.createdAt);
   const dateStr = parsedDate ? format(parsedDate, "MMM dd, yyyy HH:mm") : "—";
@@ -105,8 +112,8 @@ function NotificationRow({ n }: { n: Notification }) {
           </span>
           <div className="text-right md:text-left">
             <div className="font-semibold text-text text-sm">{n.title}</div>
-            <div className="text-text-muted font-mono text-xs truncate max-w-[180px]">
-              {n.recipientId}
+            <div className="text-text-muted font-sans text-xs truncate max-w-[220px]">
+              {recipientDisplay || "Resolving…"}
             </div>
           </div>
         </td>
@@ -146,6 +153,14 @@ function NotificationRow({ n }: { n: Notification }) {
                 <div className="text-text leading-relaxed font-medium">{n.message}</div>
               </div>
               <div className="space-y-2">
+                <div>
+                  <span className="text-text-muted uppercase tracking-wider font-semibold">
+                    Recipient UID:{" "}
+                  </span>
+                  <span className="font-mono text-text break-all">
+                    {n.recipientId}
+                  </span>
+                </div>
                 <div>
                   <span className="text-text-muted uppercase tracking-wider font-semibold">
                     Related Entity:{" "}
@@ -215,6 +230,7 @@ export function NotificationHistoryPage() {
   } = useNotificationHistory(activeFilter, currentLastDoc, 20);
 
   const notifications = data?.notifications;
+  const { data: recipientMap } = useNotificationRecipientReferences(notifications);
 
   const handleNextPage = () => {
     if (data?.lastDoc) {
@@ -252,10 +268,12 @@ export function NotificationHistoryPage() {
   const filtered = (notifications ?? []).filter((n) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
+    const recipientDisplay = recipientMap?.get(n.recipientId)?.toLowerCase() || "";
     return (
       n.title.toLowerCase().includes(q) ||
       n.type.toLowerCase().includes(q) ||
       n.recipientId.toLowerCase().includes(q) ||
+      recipientDisplay.includes(q) ||
       n.message.toLowerCase().includes(q)
     );
   });
@@ -369,7 +387,11 @@ export function NotificationHistoryPage() {
                 </thead>
                 <tbody className="block md:table-row-group divide-y divide-border/60">
                   {filtered.map((n) => (
-                    <NotificationRow key={n.id} n={n} />
+                    <NotificationRow
+                      key={n.id}
+                      n={n}
+                      recipientDisplay={recipientMap?.get(n.recipientId)}
+                    />
                   ))}
                 </tbody>
               </table>

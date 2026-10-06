@@ -28,6 +28,53 @@ export interface InvoiceCompanyProfile {
 }
 
 /**
+ * Formats a clean, filesystem-safe filename for downloaded invoices:
+ * Invoice-[CustomerName]-[CustomerDisplayId]-[InvoiceNumber].pdf
+ * e.g. Invoice-Rahul-Kumar-MP-001-INV-1791224487773.pdf
+ *
+ * Rules:
+ * - Preserves the real invoice number exactly.
+ * - Uses the customer display ID (e.g. MP-001).
+ * - Sanitizes names for filesystem safety (replaces spaces/punctuation with hyphens, collapses consecutive hyphens).
+ * - Gracefully omits missing customer name or display ID without leaving double hyphens.
+ * - Never includes raw Firebase Auth UIDs, subscription UUIDs, phone, or email.
+ */
+export function formatInvoicePdfFilename(params: {
+  customerName?: string | null;
+  customerDisplayId?: string | null;
+  invoiceNumber: string;
+}): string {
+  const parts: string[] = ["Invoice"];
+
+  if (params.customerName) {
+    const sanitizedName = params.customerName
+      .trim()
+      .replace(/[^A-Za-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (sanitizedName) {
+      parts.push(sanitizedName);
+    }
+  }
+
+  if (params.customerDisplayId) {
+    const sanitizedDisplayId = params.customerDisplayId
+      .trim()
+      .replace(/[^A-Za-z0-9-]+/g, "")
+      .replace(/^-+|-+$/g, "");
+    if (sanitizedDisplayId) {
+      parts.push(sanitizedDisplayId);
+    }
+  }
+
+  const invoiceNum = (params.invoiceNumber || "").trim();
+  if (invoiceNum) {
+    parts.push(invoiceNum);
+  }
+
+  return `${parts.join("-")}.pdf`;
+}
+
+/**
  * Generates a professional PDF invoice for a verified payment.
  * Returns the jsPDF instance (call .output('datauristring') for email,
  * or .save(filename) to download).

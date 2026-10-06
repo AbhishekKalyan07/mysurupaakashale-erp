@@ -323,6 +323,10 @@ const router = createBrowserRouter([
             element: withSuspense(DailyMenuEditorPage),
           },
           {
+            path: "/admin/payment-verification",
+            element: withSuspense(PaymentVerificationPage),
+          },
+          {
             path: "/admin/payments",
             element: withSuspense(PaymentVerificationPage),
           },

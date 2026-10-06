@@ -247,13 +247,51 @@ describe("SystemAuditReportView", () => {
 
       expect(html).toContain("New Partner ID:");
       expect(html).toContain("np-101");
-      expect(html).toContain("Subscription ID:");
-      expect(html).toContain("sub-202");
+      expect(html).toContain("Subscription:");
+      expect(html).toContain("Subscription (SUB-SUB202)");
       expect(html).toContain("Billing Month:");
       expect(html).toContain("2026-09");
       expect(html).toContain("Staff ID:");
       expect(html).toContain("stf-303");
       expect(html).toContain("View Raw JSON");
+      // Raw technical ID remains in raw JSON
+      expect(html).toContain("sub-202");
+    });
+
+    it("renders friendly customer and subscription references when provided via references map", () => {
+      const details = {
+        customerId: "raw_firebase_uid_abc",
+        subscriptionId: "sub_uuid_xyz_789",
+      };
+      const references = {
+        "customer:raw_firebase_uid_abc": "Rahul Kumar (MP-001)",
+        "subscription:sub_uuid_xyz_789": "Standard Plan (Monthly)",
+      };
+
+      const html = renderToString(
+        <SystemAuditReportView
+          details={details}
+          action="subscription_created"
+          references={references}
+        />,
+      );
+
+      // Normal view renders friendly display
+      expect(html).toContain("Customer:");
+      expect(html).toContain("Rahul Kumar (MP-001)");
+      expect(html).toContain("Subscription:");
+      expect(html).toContain("Standard Plan (Monthly)");
+
+      // Raw technical IDs are NOT in the normal key-value rows
+      // (They are only inside the <pre> block for raw JSON)
+      const normalView = html.split("<details")[0];
+      expect(normalView).not.toContain("raw_firebase_uid_abc");
+      expect(normalView).not.toContain("sub_uuid_xyz_789");
+
+      // Raw JSON block retains the real technical IDs
+      const rawJsonBlock = html.split("<details")[1];
+      expect(rawJsonBlock).toContain("raw_firebase_uid_abc");
+      expect(rawJsonBlock).toContain("sub_uuid_xyz_789");
     });
   });
 });

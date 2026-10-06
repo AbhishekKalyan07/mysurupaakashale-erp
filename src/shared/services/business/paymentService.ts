@@ -19,8 +19,10 @@ import {
 import { auditRepository } from "../firestore/auditRepository";
 import {
   generateInvoicePdf,
+  formatInvoicePdfFilename,
   type InvoiceData,
 } from "@/shared/utils/generateInvoicePdf";
+import { formatAllottedId } from "@/shared/utils/displayId";
 import { sendInvoiceEmail } from "@/shared/services/email/sendInvoiceEmail";
 
 class PaymentService {
@@ -377,8 +379,15 @@ class PaymentService {
           businessSettings?.companyProfile,
         );
 
-        // Auto-download the PDF in the admin's browser
-        pdf.save(`Invoice-${invoiceNumber}.pdf`);
+        // Auto-download the PDF in the admin's browser with human-readable filename
+        const pdfFilename = formatInvoicePdfFilename({
+          customerName: resolvedMeta.customerName || capturedPayment.customerName,
+          customerDisplayId:
+            (resolvedMeta as any)?.customerDisplayId ||
+            formatAllottedId(null, capturedPayment.customerId, "customer"),
+          invoiceNumber,
+        });
+        pdf.save(pdfFilename);
 
         // Send email to customer (gracefully skips if EmailJS not configured)
         sendInvoiceEmail({
