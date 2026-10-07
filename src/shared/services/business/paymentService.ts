@@ -8,7 +8,7 @@ import {
 import { db } from "@/shared/lib/firebase";
 import type { ManualPayment, SubmitPaymentInput } from "@/shared/types";
 import { paymentRepository } from "../firestore/paymentRepository";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { userRepository } from "../firestore/userRepository";
 import {
   notifyPaymentSubmitted,
@@ -536,7 +536,7 @@ class PaymentService {
           await notifyPaymentReminder(
             payment.customerId,
             payment.amount,
-            dueDate.toLocaleDateString(),
+            getCachedDateTimeFormatter().format(dueDate),
           );
         } catch (err) {
           console.warn(

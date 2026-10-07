@@ -25,7 +25,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { formatCurrency } from "@/shared/utils/currency";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { toast } from "react-hot-toast";
 
 export function AccountsDashboardPage() {
@@ -264,8 +264,9 @@ export function AccountsDashboardPage() {
                   {inv.invoiceNumber}
                 </PremiumTableCell>
                 <PremiumTableCell className="text-text-muted">
+                  {/* ⚡ Bolt: Using cached formatter to prevent expensive Intl API instantiations during list render */}
                   {inv.createdAt?.toDate
-                    ? inv.createdAt.toDate().toLocaleDateString()
+                    ? getCachedDateTimeFormatter().format(inv.createdAt.toDate())
                     : "N/A"}
                 </PremiumTableCell>
                 <PremiumTableCell className="font-semibold">

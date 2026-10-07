@@ -1,0 +1,6 @@
+⚡ Bolt: Cache Intl.DateTimeFormat instances across application
+
+💡 What: Replaced direct calls to `toLocaleDateString()` and `toLocaleTimeString()` with the `getCachedDateTimeFormatter` utility.
+🎯 Why: `Intl.DateTimeFormat` instantiations are expensive and cause main-thread overhead, especially when called inside loops or list renders (e.g. mapping orders/invoices).
+📊 Impact: Reduces main-thread blocking by avoiding repeated expensive Intl instantiations, significantly improving render performance of lists and reports (roughly 100x faster execution for repeated formatting per previous journal learning).
+🔬 Measurement: Verify rendering performance of `AdminDashboardPage`, `AccountsDashboardPage` and other replaced pages. Run all tests to ensure accurate formatting persists.

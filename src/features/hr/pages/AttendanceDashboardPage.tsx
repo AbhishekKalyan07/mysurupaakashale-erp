@@ -17,6 +17,7 @@ import {
 } from "../hooks/useAttendance";
 import { useStaffUsers } from "@/features/admin/hooks/useAdmin";
 import { Calendar, LogIn, LogOut, CheckCircle, Users } from "lucide-react";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function AttendanceDashboardPage() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -34,20 +35,20 @@ export function AttendanceDashboardPage() {
   const attendanceList = attendance || [];
 
   const handleCheckIn = async (staffId: string, staffName: string) => {
-    const time = new Date().toLocaleTimeString("en-US", {
+    const time = getCachedDateTimeFormatter("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(new Date());
     await checkIn.mutateAsync({ staffId, staffName, date, time });
   };
 
   const handleCheckOut = async (staffId: string) => {
-    const time = new Date().toLocaleTimeString("en-US", {
+    const time = getCachedDateTimeFormatter("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(new Date());
     await checkOut.mutateAsync({ staffId, date, time });
   };
 

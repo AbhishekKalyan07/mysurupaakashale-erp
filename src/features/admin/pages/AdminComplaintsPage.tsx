@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
 import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import { formatAllottedId } from "@/shared/utils/displayId";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function AdminComplaintsPage() {
   const queryClient = useQueryClient();
@@ -129,7 +130,11 @@ export function AdminComplaintsPage() {
                       {complaint.status}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {parseFirestoreDate(complaint.createdAt)?.toLocaleDateString("en-IN") ?? "—"}
+                      {/* ⚡ Bolt: Using cached formatter to prevent expensive Intl API instantiations during list render */}
+                      {(() => {
+                        const date = parseFirestoreDate(complaint.createdAt);
+                        return date ? getCachedDateTimeFormatter("en-IN").format(date) : "—";
+                      })()}
                     </span>
                   </div>
                   <h4 className="font-bold text-primary text-lg">

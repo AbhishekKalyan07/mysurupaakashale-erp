@@ -1,4 +1,5 @@
 import type { PayrollRecord, UserProfile } from "@/shared/types";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 interface PayslipProps {
   payroll: PayrollRecord;
@@ -27,7 +28,7 @@ export function PayslipPrintView({ payroll, staff, settings }: PayslipProps) {
               <strong>Month:</strong> {payroll.month}
             </p>
             <p className="text-sm">
-              <strong>Date:</strong> {new Date().toLocaleDateString("en-IN")}
+              <strong>Date:</strong> {getCachedDateTimeFormatter("en-IN").format(new Date())}
             </p>
           </div>
         </div>

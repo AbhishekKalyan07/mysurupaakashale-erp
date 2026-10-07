@@ -1,5 +1,6 @@
 import type { Order } from "@/shared/types";
 import { orderRepository } from "../firestore/orderRepository";
+import { getCachedDateTimeFormatter } from "../../lib/date";
 
 export interface DeliverySummary {
   assigned: number;
@@ -129,10 +130,11 @@ export class DeliveryService {
         sortedOrders.forEach((order, index) => {
           // Assign 15 mins per stop
           const stopTime = new Date(currentTime.getTime() + index * 15 * 60000);
-          order.estimatedETA = stopTime.toLocaleTimeString([], {
+          // ⚡ Bolt: Using cached formatter to prevent expensive Intl API instantiations during loop execution
+          order.estimatedETA = getCachedDateTimeFormatter(undefined, {
             hour: "2-digit",
             minute: "2-digit",
-          });
+          }).format(stopTime);
         });
 
         return { areaName, orders: sortedOrders };

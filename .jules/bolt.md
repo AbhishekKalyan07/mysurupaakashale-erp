@@ -1,3 +1,7 @@
 ## 2024-09-15 - Caching Intl API Instantiations
 **Learning:** Instantiating `Intl.NumberFormat` (and likely other `Intl.*` APIs like `Intl.DateTimeFormat`) is an expensive operation in JavaScript, taking roughly 100x longer per call than using a cached instance (e.g. ~6.8ms vs ~0.06ms for 100k calls). In a React application, calling this frequently inside render loops or loops over data (like mapping lists of orders, invoices, or payments for a dashboard or table) can introduce noticeable main-thread overhead.
 **Action:** Always instantiate `Intl.NumberFormat` and `Intl.DateTimeFormat` once outside of functions/components (at module scope) or wrap them in a singleton pattern, and reuse the instance for formatting.
+
+## 2026-10-07 - Avoid toLocaleDateString and toLocaleTimeString loops
+**Learning:** `Date.prototype.toLocaleDateString()` and `Date.prototype.toLocaleTimeString()` inherently create a new `Intl.DateTimeFormat` object under the hood each time they are called. This means that using them in list renders or loops still triggers the expensive instantiation overhead of the Intl API, even though it looks innocuous compared to calling `new Intl.DateTimeFormat()`.
+**Action:** Replace `toLocaleDateString` and `toLocaleTimeString` calls with a cached formatter, particularly in loops, data grids, or maps (e.g. `getCachedDateTimeFormatter().format(date)`). Always include a comment explaining the performance optimization when doing so.
