@@ -53,6 +53,7 @@ try {
 registerRoute(
   ({ request, url }) =>
     url.origin === self.location.origin &&
+    !request.headers.has("authorization") &&
     (request.destination === "script" ||
       request.destination === "style" ||
       request.destination === "font" ||
@@ -63,6 +64,7 @@ registerRoute(
       new ExpirationPlugin({
         maxEntries: 100,
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+        purgeOnQuotaError: true,
       }),
       {
         // When the server returns HTML for a missing JS chunk (SPA fallback),
@@ -80,10 +82,16 @@ registerRoute(
           }
           return response;
         },
-        cacheWillUpdate: async ({ response }) => {
+        cacheWillUpdate: async ({ request, response }) => {
+          // Do not cache non-200 responses or authenticated responses
+          if (!response || response.status !== 200) {
+            return null;
+          }
+          if (request && request.headers && request.headers.has("authorization")) {
+            return null;
+          }
           // Do not cache SPA fallback (HTML) for static asset requests
           if (
-            response &&
             response.headers.get("content-type")?.includes("text/html")
           ) {
             return null;
@@ -180,9 +188,20 @@ if (typeof indexedDB !== "undefined") {
 self.addEventListener("notificationclick", (event: any) => {
   event.notification.close();
 
-  // Determine the URL to open (can be provided in payload.data.url)
-  const urlToOpen = event.notification.data?.url || "/";
-  const targetUrl = new URL(urlToOpen, self.location.origin).href;
+  // Validate target URL: ensure origin strictly matches self.location.origin and avoid open redirect
+  let targetUrl = self.location.origin + "/";
+  try {
+    const rawUrl = event.notification.data?.url || "/";
+    const parsed = new URL(rawUrl, self.location.origin);
+    if (
+      parsed.origin === self.location.origin &&
+      (parsed.protocol === "http:" || parsed.protocol === "https:")
+    ) {
+      targetUrl = parsed.href;
+    }
+  } catch {
+    targetUrl = self.location.origin + "/";
+  }
 
   event.waitUntil(
     self.clients

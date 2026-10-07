@@ -27,17 +27,20 @@ window.addEventListener("vite:preloadError", (event) => {
   const now = Date.now();
   if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
     sessionStorage.setItem("pwa_last_preload_reload", now.toString());
-    if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
-      navigator.serviceWorker
-        .getRegistrations()
-        .then((registrations) => Promise.all(registrations.map((r) => r.unregister())))
-        .catch(() => {})
-        .finally(() => {
-          window.location.reload();
-        });
-    } else {
+    const cleanupAndReload = async () => {
+      try {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((r) => r.unregister()));
+        }
+        if (typeof window !== "undefined" && "caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch {}
       window.location.reload();
-    }
+    };
+    cleanupAndReload();
   } else {
     import("react-hot-toast")
       .then(({ default: toast }) => {

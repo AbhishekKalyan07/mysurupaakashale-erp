@@ -140,9 +140,12 @@ describe("D.8: PWA Configuration & Metadata", () => {
     expect(content).toContain("short_name: 'Paakashale'");
     expect(content).toContain("display: 'standalone'");
     expect(content).toContain("theme_color: '#4A235A'");
+    // Hardening: verify bulky preview artifacts are excluded from precache
+    expect(content).toContain("'**/favicon-preview.html'");
+    expect(content).toContain("'**/bug_report/**/*'");
   });
 
-  it("Service worker in src/sw.ts configures navigation fallback and skipWaiting", () => {
+  it("Service worker in src/sw.ts configures navigation fallback, skipWaiting, and security hardening", () => {
     const swPath = resolve(process.cwd(), "src/sw.ts");
     const swContent = readFileSync(swPath, "utf-8");
 
@@ -151,6 +154,13 @@ describe("D.8: PWA Configuration & Metadata", () => {
     expect(swContent).toContain('createHandlerBoundToURL("/index.html")');
     expect(swContent).toContain("NavigationRoute");
     expect(swContent).toContain("precacheAndRoute(self.__WB_MANIFEST)");
+
+    // Hardening: Authorization headers must not enter runtime cache
+    expect(swContent).toContain('!request.headers.has("authorization")');
+    // Hardening: Cache expiration handles quota errors safely
+    expect(swContent).toContain("purgeOnQuotaError: true");
+    // Hardening: Notification click validates origin to prevent open redirect
+    expect(swContent).toContain("parsed.origin === self.location.origin");
   });
 });
 

@@ -258,7 +258,7 @@ export async function signOutUser(): Promise<void> {
       const key = localStorage.key(i);
       if (
         key &&
-        (key.startsWith("auth_cache_") ||
+        (key.startsWith("auth_") ||
           key.startsWith("pwa_") ||
           key === "current_fcm_token")
       ) {
@@ -269,6 +269,9 @@ export async function signOutUser(): Promise<void> {
     sessionStorage.clear();
   } catch {}
 
+  try {
+    await queryClient.cancelQueries();
+  } catch {}
   queryClient.clear();
   await firebaseSignOut(auth);
 }

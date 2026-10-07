@@ -74,7 +74,9 @@ export default defineConfig(({ mode }) => {
           '**/html2canvas-*.js',
           '**/vendor-maps-*.js',
           '**/vendor-sentry-*.js',
-          '**/*.map'
+          '**/*.map',
+          '**/favicon-preview.html',
+          '**/bug_report/**/*',
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },

@@ -316,8 +316,9 @@ describe("authService - additional helper functions", () => {
     ).rejects.toThrow("An account with this mobile number already exists.");
   });
 
-  it("signOutUser clears auth_cache_ and pwa_ from localStorage", async () => {
+  it("signOutUser clears all auth_ and pwa_ from localStorage", async () => {
     localStorage.setItem("auth_cache_123", "val");
+    localStorage.setItem("auth_session_token", "token-abc");
     localStorage.setItem("pwa_prompt", "val");
     localStorage.setItem("current_fcm_token", "token");
     localStorage.setItem("keep_me", "val");
@@ -326,6 +327,7 @@ describe("authService - additional helper functions", () => {
     await signOutUser();
 
     expect(localStorage.getItem("auth_cache_123")).toBeNull();
+    expect(localStorage.getItem("auth_session_token")).toBeNull();
     expect(localStorage.getItem("pwa_prompt")).toBeNull();
     expect(localStorage.getItem("current_fcm_token")).toBeNull();
     expect(localStorage.getItem("keep_me")).toBe("val");
