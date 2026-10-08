@@ -10,6 +10,8 @@ import toast from "react-hot-toast";
 import { useReferenceData } from "@/shared/hooks/useReferenceData";
 import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import { formatAllottedId } from "@/shared/utils/displayId";
+import { serverTimestamp, type Timestamp } from "firebase/firestore";
+import { queryKeys } from "@/shared/lib/queryKeys";
 
 export function AdminComplaintsPage() {
   const queryClient = useQueryClient();
@@ -20,7 +22,7 @@ export function AdminComplaintsPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["admin", "complaints"],
+    queryKey: queryKeys.feedback.adminComplaints,
     queryFn: () => feedbackRepository.list(),
   });
 
@@ -36,11 +38,15 @@ export function AdminComplaintsPage() {
       status: FeedbackStatus;
       notes?: string;
     }) => {
-      await feedbackRepository.update(id, { status, resolutionNotes: notes || "" });
+      await feedbackRepository.update(id, {
+        status,
+        resolutionNotes: notes || "",
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      });
     },
     onSuccess: () => {
       toast.success("Complaint updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["admin", "complaints"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feedback.adminComplaints });
     },
     onError: (err: unknown) => {
       toast.error((err as Error).message || "Failed to update complaint");
@@ -52,7 +58,7 @@ export function AdminComplaintsPage() {
       <ErrorState
         title="Failed to load complaints"
         onRetry={() =>
-          queryClient.invalidateQueries({ queryKey: ["admin", "complaints"] })
+          queryClient.invalidateQueries({ queryKey: queryKeys.feedback.adminComplaints })
         }
       />
     );

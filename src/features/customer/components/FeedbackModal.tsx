@@ -10,6 +10,8 @@ import { feedbackRepository } from "@/shared/services/firestore/feedbackReposito
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/queryKeys";
 
 const feedbackSchema = z.object({
   category: z.enum(["food_quality", "delivery_issue", "packaging", "other"]),
@@ -28,6 +30,7 @@ interface FeedbackModalProps {
 
 export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const { firebaseUser } = useAuth();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -60,6 +63,12 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
           serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
       });
       toast.success("Feedback submitted successfully. We will look into it!");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.feedback.byCustomer(firebaseUser.uid),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.feedback.adminComplaints,
+      });
       reset();
       onClose();
     } catch (error) {

@@ -17,6 +17,7 @@ import {
   CalendarX,
   Bell,
   Smartphone,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { Role } from "@/shared/constants/roles";
@@ -93,6 +94,7 @@ const MORE_ITEMS_BY_ROLE: Record<Role, MoreMenuItem[]> = {
     { label: "Notifications", to: "/customer/notifications", icon: Bell },
     { label: "Billing & Payments", to: "/customer/payments", icon: CreditCard },
     { label: "Order History", to: "/customer/orders", icon: Package },
+    { label: "My Feedback", to: "/customer/feedback", icon: MessageSquare },
     { label: "Get App", to: "#get-app", icon: Smartphone },
   ],
   [ROLES.ACCOUNTS]: [],

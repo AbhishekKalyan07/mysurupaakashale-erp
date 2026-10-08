@@ -11,7 +11,7 @@ export function isFormattedDisplayId(id?: string | null): boolean {
   // Standard Mysuru Paakashale allotted formats
   return (
     /^MP-[A-Za-z0-9]+$/i.test(trimmed) ||
-    /^(ADMIN|KTCH|DLVY|ACCT|STAFF|CUST|ORD)-[A-Za-z0-9]+$/i.test(trimmed)
+    /^(ADMIN|KTCH|DLVY|ACCT|STAFF|CUST|ORD|TKT)-[A-Za-z0-9]+$/i.test(trimmed)
   );
 }
 
@@ -50,4 +50,20 @@ export function formatAllottedId(
   }
 
   return "N/A";
+}
+
+/**
+ * Formats a business-safe ticket display reference (e.g. TKT-B8F9A1)
+ * from a raw feedback document ID or existing ticket code.
+ * Avoids exposing raw 20+ character Firestore document hashes.
+ */
+export function formatTicketId(id?: string | null): string {
+  if (!id || typeof id !== "string") return "TKT-UNKNOWN";
+  const trimmed = id.trim();
+  if (!trimmed) return "TKT-UNKNOWN";
+  if (/^TKT-[A-Za-z0-9]+$/i.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+  const clean = trimmed.replace(/[^A-Za-z0-9]/g, "").slice(0, 6).toUpperCase();
+  return `TKT-${clean || "000000"}`;
 }

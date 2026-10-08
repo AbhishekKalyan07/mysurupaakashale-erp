@@ -45,6 +45,7 @@ import {
   ExternalLink,
   Info,
   MessageSquareWarning,
+  MessageSquare,
   Play,
 } from "lucide-react";
 import { FeedbackModal } from "@/features/customer/components/FeedbackModal";
@@ -435,6 +436,15 @@ export function CustomerDashboardPage() {
                   </div>
 
                   <div className="border-t border-primary/10 pt-3 flex flex-wrap justify-end gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate("/customer/feedback")}
+                      className="text-primary border-primary/20 hover:bg-gold/10 hover:text-gold hover:border-gold/30 font-bold text-xs"
+                    >
+                      My Feedback{" "}
+                      <MessageSquare size={14} className="ml-1.5" />
+                    </Button>
                     <Button
                       variant="secondary"
                       size="sm"

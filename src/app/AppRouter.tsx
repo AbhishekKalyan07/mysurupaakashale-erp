@@ -151,6 +151,12 @@ const CustomerDashboardPage = lazy(() =>
     default: m.CustomerDashboardPage,
   })),
 );
+const CustomerFeedbackPage = lazy(() =>
+  import("@/features/customer/pages/CustomerFeedbackPage").then((m) => ({
+    default: m.CustomerFeedbackPage,
+  })),
+);
+
 const ProductionBoardPage = lazy(() =>
   import("@/features/kitchen/pages/ProductionBoardPage").then((m) => ({
     default: m.ProductionBoardPage,
@@ -381,6 +387,15 @@ const router = createBrowserRouter([
           {
             path: "/customer/notifications",
             element: withSuspense(NotificationCenter),
+          },
+          // Customer feedback & support tickets
+          {
+            path: "/customer/feedback",
+            element: withSuspense(CustomerFeedbackPage),
+          },
+          {
+            path: "/customer/tickets",
+            element: <Navigate to="/customer/feedback" replace />,
           },
         ],
       },

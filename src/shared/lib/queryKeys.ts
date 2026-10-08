@@ -88,4 +88,10 @@ export const queryKeys = {
     all: ["addons"] as const,
     detail: (id: string) => ["addons", "detail", id] as const,
   },
+  feedback: {
+    all: ["feedback"] as const,
+    byCustomer: (customerId: string) =>
+      ["feedback", "customer", customerId] as const,
+    adminComplaints: ["admin", "complaints"] as const,
+  },
 } as const;

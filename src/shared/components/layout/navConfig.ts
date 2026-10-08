@@ -117,6 +117,11 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
           icon: CreditCard,
         },
         {
+          label: "My Feedback",
+          to: "/customer/feedback",
+          icon: MessageSquare,
+        },
+        {
           label: "Notifications",
           to: "/customer/notifications",
           icon: Activity,

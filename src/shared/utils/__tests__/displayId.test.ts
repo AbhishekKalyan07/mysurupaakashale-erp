@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { formatAllottedId, isFormattedDisplayId } from "../displayId";
+import {
+  formatAllottedId,
+  formatTicketId,
+  isFormattedDisplayId,
+} from "../displayId";
 
 describe("displayId utility", () => {
   describe("isFormattedDisplayId", () => {
@@ -15,6 +19,11 @@ describe("displayId utility", () => {
       expect(isFormattedDisplayId("DLVY-1005")).toBe(true);
       expect(isFormattedDisplayId("ACCT-1003")).toBe(true);
       expect(isFormattedDisplayId("STAFF-101")).toBe(true);
+    });
+
+    it("recognizes ticket display IDs", () => {
+      expect(isFormattedDisplayId("TKT-1001")).toBe(true);
+      expect(isFormattedDisplayId("TKT-B8F9A1")).toBe(true);
     });
 
     it("rejects raw Firebase UIDs and UUIDs", () => {
@@ -54,6 +63,25 @@ describe("displayId utility", () => {
       expect(formatAllottedId(null, null)).toBe("N/A");
       expect(formatAllottedId("", "")).toBe("N/A");
       expect(formatAllottedId(undefined, undefined)).toBe("N/A");
+    });
+  });
+
+  describe("formatTicketId", () => {
+    it("preserves already-formatted ticket IDs", () => {
+      expect(formatTicketId("TKT-1001")).toBe("TKT-1001");
+      expect(formatTicketId("tkt-ab12cd")).toBe("TKT-AB12CD");
+    });
+
+    it("formats short 6-character clean display codes from raw document IDs", () => {
+      expect(formatTicketId("fb_78a1bc90d4e5f")).toBe("TKT-FB78A1");
+      expect(formatTicketId("wtea9lQtgPVLLrrUEZVu")).toBe("TKT-WTEA9L");
+    });
+
+    it("handles null, undefined, and empty string safely", () => {
+      expect(formatTicketId(null)).toBe("TKT-UNKNOWN");
+      expect(formatTicketId(undefined)).toBe("TKT-UNKNOWN");
+      expect(formatTicketId("")).toBe("TKT-UNKNOWN");
+      expect(formatTicketId("   ")).toBe("TKT-UNKNOWN");
     });
   });
 });
