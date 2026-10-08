@@ -3,72 +3,56 @@ import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { subscriptionService } from "@/shared/services/business/subscriptionService";
 import { orderService } from "@/shared/services/business/orderService";
+import { operationalSettingsService } from "@/shared/services/business/operationalSettingsService";
 import { db } from "@/shared/lib/firebase";
 import { doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/queryKeys";
 import { toast } from "react-hot-toast";
 import type { Subscription, MealType } from "@/shared/types";
-import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
+import { getTodayInTimezone } from "@/shared/lib/date";
+import { getModifiableMeals } from "@/shared/utils/dateUtils";
 import { XCircle } from "lucide-react";
 
 interface ResumeDeliveryModalProps {
   subscription: Subscription;
   onClose: () => void;
+  nowOverride?: Date;
 }
 
 export function ResumeDeliveryModal({
   subscription,
   onClose,
+  nowOverride,
 }: ResumeDeliveryModalProps) {
-  const [resumeDate, setResumeDate] = useState<"today" | "tomorrow">("today");
+  const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
+  const cutoffs = operationalSettingsService.getOperationalSettingsSync().cutoffs;
+
+  // Canonical order: breakfast, lunch, dinner
+  const allMealTypes: MealType[] = ["breakfast", "lunch", "dinner"];
+  const preferredMeals = allMealTypes.filter((meal) =>
+    (subscription.mealPreferences || []).some((pref) => pref.mealType === meal),
+  );
+
+  const modifiableMealsToday = getModifiableMeals(
+    today,
+    preferredMeals,
+    nowOverride,
+  ) as MealType[];
+
+  const resumedMealsToday = preferredMeals.filter((meal) =>
+    modifiableMealsToday.includes(meal),
+  );
+  const skippedMealsToday = preferredMeals.filter(
+    (meal) => !modifiableMealsToday.includes(meal),
+  );
+  const canResumeToday = resumedMealsToday.length > 0;
+
+  const [resumeDate, setResumeDate] = useState<"today" | "tomorrow">(() =>
+    canResumeToday ? "today" : "tomorrow",
+  );
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
-
-  const today = getTodayInTimezone();
-  const now = new Date();
-  const parts = getCachedDateTimeFormatter("en-US", {
-    timeZone: "Asia/Kolkata",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
-  const minute = parseInt(
-    parts.find((p) => p.type === "minute")?.value || "0",
-    10,
-  );
-  const currentHour = hour + minute / 60; // e.g. 9.5 for 9:30 AM in IST
-
-  // Calculate cutoffs for today
-  // Before 9:00 AM -> All meals
-  // 9:00 AM to 12:30 PM -> Skip breakfast, resume lunch & dinner
-  // 12:30 PM to 7:00 PM -> Skip breakfast & lunch, resume dinner
-  // After 7:00 PM -> Cannot resume today
-  let skippedMealsToday: MealType[] = [];
-  let resumedMealsToday: MealType[] = [];
-  let canResumeToday = true;
-
-  if (currentHour >= 19) {
-    canResumeToday = false;
-  } else if (currentHour >= 12.5) {
-    skippedMealsToday = ["breakfast", "lunch"];
-    resumedMealsToday = ["dinner"];
-  } else if (currentHour >= 9) {
-    skippedMealsToday = ["breakfast"];
-    resumedMealsToday = ["lunch", "dinner"];
-  } else {
-    skippedMealsToday = [];
-    resumedMealsToday = ["breakfast", "lunch", "dinner"];
-  }
-
-  // Filter based on subscription preferences
-  skippedMealsToday = skippedMealsToday.filter((meal) =>
-    subscription.mealPreferences.some((pref) => pref.mealType === meal),
-  );
-  resumedMealsToday = resumedMealsToday.filter((meal) =>
-    subscription.mealPreferences.some((pref) => pref.mealType === meal),
-  );
 
   const handleResume = async () => {
     setLoading(true);
@@ -161,7 +145,7 @@ export function ResumeDeliveryModal({
           When would you like your meal deliveries to restart?
         </p>
 
-        <div className="space-y-4 mb-6">
+        <div className="space-y-4 mb-4">
           {canResumeToday && (
             <label
               className={`block p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -182,21 +166,23 @@ export function ResumeDeliveryModal({
                   <h4 className="font-sans font-bold text-ink-900 text-sm">
                     Resume Today
                   </h4>
-                  {resumedMealsToday.length > 0 ? (
-                    <p className="text-ink-500 text-xs mt-1">
-                      You will receive:{" "}
+                  <div className="text-ink-500 text-xs mt-1 space-y-1">
+                    <p>
+                      Resuming today:{" "}
                       <span className="font-bold text-emerald-700 capitalize">
                         {resumedMealsToday.join(" & ")}
-                      </span>{" "}
-                      today.
-                      {skippedMealsToday.length > 0 &&
-                        ` (Missed ${skippedMealsToday.join(" & ")})`}
+                      </span>
                     </p>
-                  ) : (
-                    <p className="text-rose-600 text-xs mt-1">
-                      No more selected meals left for today based on cutoffs.
-                    </p>
-                  )}
+                    {skippedMealsToday.length > 0 && (
+                      <p className="text-amber-700">
+                        Beginning tomorrow:{" "}
+                        <span className="font-bold capitalize">
+                          {skippedMealsToday.join(" & ")}
+                        </span>{" "}
+                        (past cutoff: {skippedMealsToday.map((m) => `${m} at ${cutoffs[m]} IST`).join(", ")})
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </label>
@@ -204,7 +190,7 @@ export function ResumeDeliveryModal({
 
           {!canResumeToday && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-sans mb-4">
-              It is too late to resume deliveries for today.
+              It is too late to resume deliveries for today. Operational cutoffs have passed (Breakfast: {cutoffs.breakfast} IST, Lunch: {cutoffs.lunch} IST, Dinner: {cutoffs.dinner} IST). All deliveries will begin tomorrow.
             </div>
           )}
 
@@ -229,12 +215,37 @@ export function ResumeDeliveryModal({
                   Resume Tomorrow
                 </h4>
                 <p className="text-ink-500 text-xs mt-1">
-                  Deliveries will restart automatically starting tomorrow
-                  morning.
+                  Deliveries will restart automatically starting tomorrow morning.
                 </p>
               </div>
             </div>
           </label>
+        </div>
+
+        <div className="mb-6 p-3 bg-rice-50 border border-rice-200 rounded-xl text-[11px] text-ink-600 font-sans">
+          <div className="font-semibold text-ink-800 mb-1">
+            Authoritative Order Cutoffs (IST):
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="bg-white p-1.5 rounded border border-rice-200">
+              <div className="font-medium text-ink-500 text-[10px] uppercase">
+                Breakfast
+              </div>
+              <div className="font-bold text-ink-900">{cutoffs.breakfast} IST</div>
+            </div>
+            <div className="bg-white p-1.5 rounded border border-rice-200">
+              <div className="font-medium text-ink-500 text-[10px] uppercase">
+                Lunch
+              </div>
+              <div className="font-bold text-ink-900">{cutoffs.lunch} IST</div>
+            </div>
+            <div className="bg-white p-1.5 rounded border border-rice-200">
+              <div className="font-medium text-ink-500 text-[10px] uppercase">
+                Dinner
+              </div>
+              <div className="font-bold text-ink-900">{cutoffs.dinner} IST</div>
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-3">
@@ -250,9 +261,8 @@ export function ResumeDeliveryModal({
             onClick={handleResume}
             isLoading={loading}
             disabled={
-              resumeDate === "today" &&
-              resumedMealsToday.length === 0 &&
-              canResumeToday
+              loading ||
+              (resumeDate === "today" && (!canResumeToday || resumedMealsToday.length === 0))
             }
           >
             Confirm Resume

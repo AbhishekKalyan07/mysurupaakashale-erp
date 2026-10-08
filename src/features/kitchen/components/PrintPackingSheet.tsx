@@ -5,19 +5,37 @@ interface Props {
   rows: PrintPackingRow[];
 }
 
+function normalizeMealSection(
+  mealType?: string,
+): "Breakfast" | "Lunch" | "Dinner" | null {
+  if (!mealType) return null;
+  const lower = mealType.trim().toLowerCase();
+  if (lower === "breakfast") return "Breakfast";
+  if (lower === "lunch") return "Lunch";
+  if (lower === "dinner") return "Dinner";
+  return null;
+}
+
 export function PrintPackingSheet({ date, rows }: Props) {
-  // Group by Meal, then by Area
+  // Group by Canonical Meal ("Breakfast" | "Lunch" | "Dinner"), then by Area
   const grouped = rows.reduce(
     (acc, row) => {
-      if (!acc[row.meal]) acc[row.meal] = {};
-      if (!acc[row.meal][row.area]) acc[row.meal][row.area] = [];
-      acc[row.meal][row.area].push(row);
+      const section = normalizeMealSection(row.mealType || row.meal);
+      if (!section) return acc;
+      if (!acc[section]) acc[section] = {};
+      if (!acc[section][row.area]) acc[section][row.area] = [];
+      acc[section][row.area].push(row);
       return acc;
     },
-    {} as Record<string, Record<string, PrintPackingRow[]>>,
+    {} as Record<
+      "Breakfast" | "Lunch" | "Dinner",
+      Record<string, PrintPackingRow[]>
+    >,
   );
 
-  const meals = ["Breakfast", "Lunch", "Dinner"].filter((m) => grouped[m]);
+  const meals = (["Breakfast", "Lunch", "Dinner"] as const).filter(
+    (m) => grouped[m] && Object.keys(grouped[m]).length > 0,
+  );
 
   return (
     <div className="hidden print:block text-black bg-white p-8 absolute inset-0 z-50 min-h-screen font-sans">
@@ -95,6 +113,11 @@ export function PrintPackingSheet({ date, rows }: Props) {
                             <div className="font-semibold text-gray-500 uppercase tracking-wider text-[10px]">
                               {row.plan}
                             </div>
+                            {row.meal && (
+                              <div className="font-medium text-gray-800 text-xs">
+                                {row.meal}
+                              </div>
+                            )}
                             {row.specialInstructions && (
                               <div className="font-bold text-red-600">
                                 ⚠️ {row.specialInstructions}

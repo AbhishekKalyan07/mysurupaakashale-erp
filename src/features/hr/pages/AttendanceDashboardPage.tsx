@@ -16,10 +16,11 @@ import {
   useCheckOut,
 } from "../hooks/useAttendance";
 import { useStaffUsers } from "@/features/admin/hooks/useAdmin";
+import { getTodayInTimezone } from "@/shared/lib/date";
 import { Calendar, LogIn, LogOut, CheckCircle, Users } from "lucide-react";
 
 export function AttendanceDashboardPage() {
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => getTodayInTimezone("Asia/Kolkata"));
   const { data: staff, isLoading: isLoadingStaff } = useStaffUsers();
   const { data: attendance, isLoading: isLoadingAttendance } =
     useAttendanceByDate(date);

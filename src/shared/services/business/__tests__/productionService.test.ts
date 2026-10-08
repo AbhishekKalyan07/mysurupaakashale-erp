@@ -167,11 +167,75 @@ describe("productionService", () => {
         expect.objectContaining({
           area: "z2", // z2 not in zoneMap, falls back to id
           customerName: "Customer 1",
+          mealType: "breakfast",
           meal: "Dose",
           plan: "One-Time",
           deliveryPartner: "Partner 1",
         }),
       );
+    });
+
+    it("getPrintPackingSheet normalizes canonical mealType and preserves dish/item label", () => {
+      const customOrders = [
+        {
+          id: "ord_101",
+          displayId: "MP-101",
+          mealType: "  BREAKFAST  ",
+          status: "scheduled",
+          source: "subscription",
+          planTier: "basic",
+          itemsLabel: "Idli, Vada (2 pcs)",
+          customerId: "c101",
+          customerName: "Ramesh Kumar",
+          zoneId: "zone_south",
+          deliveryPartnerId: "dp_1",
+          mealQuantity: 2,
+        },
+        {
+          id: "ord_102",
+          displayId: "MP-102",
+          mealType: "Lunch",
+          status: "packing",
+          source: "subscription",
+          planTier: "regular",
+          itemsLabel: "South Indian Thali",
+          customerId: "c102",
+          customerName: "Suresh Gowda",
+          zoneId: "zone_north",
+          mealQuantity: 1,
+        },
+      ] as any[];
+
+      const zoneMap = new Map([
+        ["zone_south", "South Zone"],
+        ["zone_north", "North Zone"],
+      ]);
+      const partnerMap = new Map([["dp_1", "Ravi Delivery"]]);
+      const customerMap = new Map();
+
+      const rows = ProductionService.getPrintPackingSheet(
+        customOrders,
+        zoneMap,
+        partnerMap,
+        customerMap,
+      );
+
+      expect(rows).toHaveLength(2);
+
+      const r1 = rows.find((r) => r.displayId === "MP-101");
+      expect(r1).toBeDefined();
+      expect(r1?.mealType).toBe("breakfast"); // normalized canonical
+      expect(r1?.meal).toBe("Idli, Vada (2 pcs)"); // preserved dish label
+      expect(r1?.quantity).toBe(2);
+      expect(r1?.area).toBe("South Zone");
+      expect(r1?.deliveryPartner).toBe("Ravi Delivery");
+
+      const r2 = rows.find((r) => r.displayId === "MP-102");
+      expect(r2).toBeDefined();
+      expect(r2?.mealType).toBe("lunch"); // normalized canonical
+      expect(r2?.meal).toBe("South Indian Thali"); // preserved dish label
+      expect(r2?.quantity).toBe(1);
+      expect(r2?.area).toBe("North Zone");
     });
   });
 

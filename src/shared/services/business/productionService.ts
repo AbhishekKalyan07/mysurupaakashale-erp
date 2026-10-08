@@ -293,7 +293,10 @@ export class ProductionService {
         plan = o.planTier.charAt(0).toUpperCase() + o.planTier.slice(1);
       }
 
-      const meal = o.itemsLabel || o.mealType;
+      const canonicalMealType = o.mealType
+        ? String(o.mealType).trim().toLowerCase()
+        : "";
+      const meal = o.itemsLabel || o.mealType || "";
 
       const displayId =
         o.displayId ||
@@ -306,7 +309,7 @@ export class ProductionService {
         displayId,
         area: areaName,
         customerName,
-        mealType: o.mealType,
+        mealType: canonicalMealType,
         meal,
         quantity: o.mealQuantity || 1,
         plan,
