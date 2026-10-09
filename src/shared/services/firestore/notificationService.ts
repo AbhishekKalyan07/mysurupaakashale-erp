@@ -505,6 +505,215 @@ export async function notifyDailyOrdersGenerated(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Operational cancellation notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatCancellationCustomerLabel(order: {
+  customerName?: string;
+  displayId?: string;
+  customerCode?: string;
+}): string {
+  if (order.customerName) {
+    const code = order.displayId || order.customerCode;
+    return code ? `${order.customerName} (${code})` : order.customerName;
+  }
+  return "Customer";
+}
+
+function formatMealLabel(mealType: string): string {
+  if (!mealType) return "Meal";
+  return mealType.charAt(0).toUpperCase() + mealType.slice(1);
+}
+
+export async function notifyMealCancelledToDriver(
+  driverId: string,
+  order: {
+    id: string;
+    customerName?: string;
+    displayId?: string;
+    customerCode?: string;
+    mealType: string;
+    date: string;
+  },
+  reason?: string,
+): Promise<void> {
+  const customerLabel = formatCancellationCustomerLabel(order);
+  const mealLabel = formatMealLabel(order.mealType);
+  const reasonText = reason ? ` Reason: ${reason}` : "";
+
+  await send(
+    driverId,
+    "delivery_partner",
+    "meal_cancelled",
+    `Meal Cancelled: ${mealLabel}`,
+    `${customerLabel}'s ${mealLabel} for today (${order.date}) has been cancelled.${reasonText}`,
+    {
+      priority: "high",
+      relatedEntityType: "order",
+      relatedEntityId: order.id,
+      metadata: {
+        orderId: order.id,
+        date: order.date,
+        mealType: order.mealType,
+      },
+    },
+  );
+}
+
+export async function notifyMealCancelledToKitchen(
+  staffId: string,
+  order: {
+    id: string;
+    customerName?: string;
+    displayId?: string;
+    customerCode?: string;
+    mealType: string;
+    date: string;
+  },
+  reason?: string,
+): Promise<void> {
+  const customerLabel = formatCancellationCustomerLabel(order);
+  const mealLabel = formatMealLabel(order.mealType);
+  const reasonText = reason ? ` Reason: ${reason}` : "";
+
+  await send(
+    staffId,
+    "kitchen",
+    "meal_cancelled",
+    `Meal Cancelled: ${mealLabel}`,
+    `${customerLabel}'s ${mealLabel} for today (${order.date}) has been cancelled.${reasonText}`,
+    {
+      priority: "high",
+      relatedEntityType: "order",
+      relatedEntityId: order.id,
+      metadata: {
+        orderId: order.id,
+        date: order.date,
+        mealType: order.mealType,
+      },
+    },
+  );
+}
+
+export async function notifyMealCancelledToAdmin(
+  adminId: string,
+  order: {
+    id: string;
+    customerName?: string;
+    displayId?: string;
+    customerCode?: string;
+    mealType: string;
+    date: string;
+  },
+  reason?: string,
+): Promise<void> {
+  const customerLabel = formatCancellationCustomerLabel(order);
+  const mealLabel = formatMealLabel(order.mealType);
+  const reasonText = reason ? ` Reason: ${reason}` : "";
+
+  await send(
+    adminId,
+    "admin",
+    "meal_cancelled",
+    `Meal Cancelled: ${mealLabel}`,
+    `${customerLabel}'s ${mealLabel} for today (${order.date}) was cancelled.${reasonText}`,
+    {
+      priority: "normal",
+      relatedEntityType: "order",
+      relatedEntityId: order.id,
+      metadata: {
+        orderId: order.id,
+        date: order.date,
+        mealType: order.mealType,
+      },
+    },
+  );
+}
+
+export async function dispatchOperationalCancellationNotifications(
+  cancelledOrders: Array<{
+    id: string;
+    customerId?: string;
+    customerName?: string;
+    customerCode?: string;
+    displayId?: string;
+    date: string;
+    mealType: string;
+    deliveryPartnerId?: string | null;
+    operatorId?: string | null;
+  }>,
+  reason?: string,
+  _actor?: { uid: string; role: string; name?: string },
+  nowOverride?: Date,
+): Promise<void> {
+  if (!cancelledOrders || cancelledOrders.length === 0) return;
+
+  const { getTodayInTimezone } = await import("@/shared/lib/date");
+  const todayIST = getTodayInTimezone("Asia/Kolkata", nowOverride);
+
+  // Filter: operational shift alerts ONLY apply to today's date in Asia/Kolkata
+  const todaysOrders = cancelledOrders.filter((o) => o.date === todayIST);
+  if (todaysOrders.length === 0) {
+    return;
+  }
+
+  // 1. Notify assigned staff per order
+  for (const order of todaysOrders) {
+    // Notify assigned delivery partner if assigned
+    if (order.deliveryPartnerId) {
+      try {
+        await notifyMealCancelledToDriver(
+          order.deliveryPartnerId,
+          order,
+          reason,
+        );
+      } catch (err) {
+        console.error(
+          `[notificationService] Failed to notify driver ${order.deliveryPartnerId}:`,
+          err,
+        );
+      }
+    }
+
+    // Notify assigned kitchen operator if assigned
+    if (order.operatorId) {
+      try {
+        await notifyMealCancelledToKitchen(order.operatorId, order, reason);
+      } catch (err) {
+        console.error(
+          `[notificationService] Failed to notify kitchen operator ${order.operatorId}:`,
+          err,
+        );
+      }
+    }
+  }
+
+  // 2. Best-effort notify admins
+  try {
+    const { userRepository } = await import(
+      "@/shared/services/firestore/userRepository"
+    );
+    const { where } = await import("firebase/firestore");
+    const admins = await userRepository.list(where("role", "==", "admin"));
+    const adminIds = admins.map((a) => a.id);
+    for (const order of todaysOrders) {
+      await Promise.all(
+        adminIds.map((adminId) =>
+          notifyMealCancelledToAdmin(adminId, order, reason).catch((err) => {
+            console.error(
+              `[notificationService] Failed to notify admin ${adminId}:`,
+              err,
+            );
+          }),
+        ),
+      );
+    }
+  } catch {
+    // Non-blocking: customers cannot list other users under privacy security rules
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Staff / admin notifications
 // ─────────────────────────────────────────────────────────────────────────────
 

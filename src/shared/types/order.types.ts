@@ -56,6 +56,73 @@ export const HOLIDAY_CANCELLABLE_STATUSES = [
 export type HolidayCancellableStatus =
   (typeof HOLIDAY_CANCELLABLE_STATUSES)[number];
 
+/**
+ * Operational delivery statuses that represent dispatch or transit.
+ * Under no circumstances may an order in any of these states be overwritten
+ * with 'cancelled' by customer skip-day or meal-removal actions.
+ */
+export const PROTECTED_OPERATIONAL_STATUSES = [
+  "picked_up",
+  "out_for_delivery",
+  "delivered",
+  "failed_delivery",
+  "returned_delivery",
+] as const satisfies readonly OrderStatus[];
+
+export type ProtectedOperationalStatus =
+  (typeof PROTECTED_OPERATIONAL_STATUSES)[number];
+
+/**
+ * Kitchen states where preparation or packaging has advanced beyond cancellable stage.
+ */
+export const PROTECTED_KITCHEN_STATUSES = [
+  "packing",
+  "packed",
+  "ready_for_pickup",
+] as const satisfies readonly (KitchenStatus | OrderStatus)[];
+
+export type ProtectedKitchenStatus =
+  (typeof PROTECTED_KITCHEN_STATUSES)[number];
+
+/**
+ * Check whether an order's current operational or kitchen state protects it
+ * from cancellation.
+ */
+export function isOrderProtectedFromCancellation(order: {
+  status: OrderStatus;
+  kitchenStatus?: KitchenStatus | string;
+}): { protected: boolean; reason?: string } {
+  if (
+    order.kitchenStatus &&
+    (PROTECTED_KITCHEN_STATUSES as readonly string[]).includes(order.kitchenStatus)
+  ) {
+    return {
+      protected: true,
+      reason: "Order is already being prepared by the kitchen and cannot be cancelled.",
+    };
+  }
+
+  if (
+    (PROTECTED_KITCHEN_STATUSES as readonly string[]).includes(order.status)
+  ) {
+    return {
+      protected: true,
+      reason: "Order is already being prepared by the kitchen and cannot be cancelled.",
+    };
+  }
+
+  if (
+    (PROTECTED_OPERATIONAL_STATUSES as readonly string[]).includes(order.status)
+  ) {
+    return {
+      protected: true,
+      reason: "Order is already in delivery or delivered and cannot be modified.",
+    };
+  }
+
+  return { protected: false };
+}
+
 export type OrderSource = "subscription" | "one_time";
 
 export type KitchenStatus =

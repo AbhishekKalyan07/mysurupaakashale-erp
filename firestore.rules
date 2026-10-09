@@ -677,10 +677,25 @@ service cloud.firestore {
       // signed-in customer spam or impersonate system notifications to
       // any other user.
       function isCustomerTriggerableNotification() {
-        return request.resource.data.createdBy == request.auth.uid &&
-               (request.resource.data.recipientId == request.auth.uid ||
-                get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'admin') &&
-               request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'];
+        let isCreator = request.resource.data.createdBy == request.auth.uid;
+        let isSelfOrAdmin = (request.resource.data.recipientId == request.auth.uid ||
+                             get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'admin');
+        let isStandardCustomerType = request.resource.data.type in ['payment_submitted', 'subscription_created', 'subscription_pending_payment'];
+
+        // For cancellation notifications, customers can ONLY notify admin or their order's assigned delivery partner for their OWN order
+        let isOwnOrderCancellation =
+          request.resource.data.type in ['meal_cancelled', 'order_cancelled'] &&
+          request.resource.data.get('relatedEntityType', null) == 'order' &&
+          request.resource.data.get('relatedEntityId', null) is string &&
+          exists(/databases/$(database)/documents/orders/$(request.resource.data.relatedEntityId)) &&
+          get(/databases/$(database)/documents/orders/$(request.resource.data.relatedEntityId)).data.customerId == request.auth.uid &&
+          (
+            isSelfOrAdmin ||
+            (request.resource.data.recipientId == get(/databases/$(database)/documents/orders/$(request.resource.data.relatedEntityId)).data.deliveryPartnerId &&
+             get(/databases/$(database)/documents/users/$(request.resource.data.recipientId)).data.role == 'delivery_partner')
+          );
+
+        return isCreator && ((isSelfOrAdmin && isStandardCustomerType) || isOwnOrderCancellation);
       }
 
       function isStaffTriggerableNotification() {

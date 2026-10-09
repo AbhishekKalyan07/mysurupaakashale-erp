@@ -46,6 +46,8 @@ export type NotificationType =
   | "kitchen_production_ready"
   | "meal_paused"
   | "meal_resumed"
+  | "meal_cancelled"
+  | "order_cancelled"
   // Staff / admin
   | "staff_account_created"
   | "staff_disabled"

@@ -120,20 +120,12 @@ export function useSkipDay() {
     }) => {
       if (!firebaseUser?.uid) throw new Error("Not authenticated");
 
-      // Kitchen Lock: This will throw an error if orders are already being prepared
-      await orderService.cancelOrdersForSkipDay(
+      return orderService.skipSubscriptionDay(
         subscriptionId,
         firebaseUser.uid,
-        date,
-        mealTypes,
-      );
-
-      await subscriptionRepository.addSkip(
-        subscriptionId,
         date,
         mealTypes,
         reason,
-        firebaseUser.uid,
       );
     },
     onSuccess: async () => {
@@ -142,6 +134,12 @@ export function useSkipDay() {
       });
       await queryClient.invalidateQueries({
         queryKey: ["orderHistory", firebaseUser?.uid],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["todaysOrders"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["orders"],
       });
     },
   });

@@ -434,6 +434,33 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         status: 'cancelled', updatedAt: new Date(),
       }));
     });
+
+    it('DENY: Customer cannot cancel an order in ready_for_pickup status', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'cancelled', updatedAt: new Date(),
+      }));
+    });
+
+    it('DENY: Customer cannot cancel an order in picked_up status', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'orders', 'order-ready'), { status: 'picked_up' });
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'cancelled', updatedAt: new Date(),
+      }));
+    });
+
+    it('DENY: Customer cannot cancel an order in out_for_delivery status', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'orders', 'order-ready'), { status: 'out_for_delivery' });
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(updateDoc(doc(db, 'orders', 'order-ready'), {
+        status: 'cancelled', updatedAt: new Date(),
+      }));
+    });
   });
 
   // =========================================================================
@@ -1066,6 +1093,79 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
         type: 'system_alert',
         title: 'Cancel',
         message: 'Order cancelled',
+        createdBy: CUSTOMER_A_UID
+      }));
+    });
+
+    it('ALLOW: Customer can create meal_cancelled notification for assigned delivery partner on their own order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'notifications', 'notif-driver-cancel-1'), {
+        recipientId: DELIVERY_UID,
+        recipientRole: 'delivery_partner',
+        channel: 'in_app',
+        type: 'meal_cancelled',
+        title: 'Meal Cancelled: Lunch',
+        message: 'Customer cancelled lunch',
+        relatedEntityType: 'order',
+        relatedEntityId: 'order-scheduled-dp',
+        createdBy: CUSTOMER_A_UID
+      }));
+    });
+
+    it('DENY: Customer cannot create meal_cancelled notification for a driver NOT assigned to the order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'notifications', 'notif-driver-cancel-wrong'), {
+        recipientId: DELIVERY_B_UID,
+        recipientRole: 'delivery_partner',
+        channel: 'in_app',
+        type: 'meal_cancelled',
+        title: 'Meal Cancelled: Lunch',
+        message: 'Customer cancelled lunch',
+        relatedEntityType: 'order',
+        relatedEntityId: 'order-scheduled-dp',
+        createdBy: CUSTOMER_A_UID
+      }));
+    });
+
+    it('DENY: Customer cannot create meal_cancelled notification for another customer order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'notifications', 'notif-other-order-cancel'), {
+        recipientId: DELIVERY_B_UID,
+        recipientRole: 'delivery_partner',
+        channel: 'in_app',
+        type: 'meal_cancelled',
+        title: 'Meal Cancelled: Lunch',
+        message: 'Customer cancelled lunch',
+        relatedEntityType: 'order',
+        relatedEntityId: 'order-b',
+        createdBy: CUSTOMER_A_UID
+      }));
+    });
+
+    it('ALLOW: Customer can create meal_cancelled notification for admin on their own order', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(setDoc(doc(db, 'notifications', 'notif-admin-cancel-1'), {
+        recipientId: ADMIN_UID,
+        recipientRole: 'admin',
+        channel: 'in_app',
+        type: 'meal_cancelled',
+        title: 'Meal Cancelled: Lunch',
+        message: 'Customer cancelled lunch',
+        relatedEntityType: 'order',
+        relatedEntityId: 'order-scheduled-dp',
+        createdBy: CUSTOMER_A_UID
+      }));
+    });
+
+    it('DENY: Customer cannot use meal_cancelled to message admin without a valid order of their own', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(setDoc(doc(db, 'notifications', 'notif-admin-cancel-no-order'), {
+        recipientId: ADMIN_UID,
+        recipientRole: 'admin',
+        channel: 'in_app',
+        type: 'meal_cancelled',
+        title: 'Meal Cancelled: Lunch',
+        message: 'Unrelated message without order',
         createdBy: CUSTOMER_A_UID
       }));
     });

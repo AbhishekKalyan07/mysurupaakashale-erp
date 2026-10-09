@@ -20,7 +20,9 @@ import {
   notifyAdminAlert,
   notifyOrderGeneratedCustomer,
   notifyOrderGeneratedDriver,
+  dispatchOperationalCancellationNotifications,
 } from "../firestore/notificationService";
+import { isOrderProtectedFromCancellation } from "@/shared/types/order.types";
 import { auditRepository } from "../firestore/auditRepository";
 import { failureQueueRepository } from "../firestore/failureQueueRepository";
 import { holidayRepository } from "../firestore/holidayRepository";
@@ -1633,24 +1635,9 @@ class OrderService {
       };
     }
 
-    const lockedStatuses = ["packing", "packed", "ready_for_pickup"];
-    if (lockedStatuses.includes(order.kitchenStatus || "")) {
-      throw new Error(
-        "Order is already being prepared by the kitchen and cannot be cancelled.",
-      );
-    }
-
-    const OPERATIONAL_STATUSES = [
-      "picked_up",
-      "out_for_delivery",
-      "delivered",
-      "failed_delivery",
-      "returned_delivery",
-    ];
-    if (OPERATIONAL_STATUSES.includes(order.status)) {
-      throw new Error(
-        "Order is already in delivery or delivered and cannot be modified.",
-      );
+    const initialCheck = isOrderProtectedFromCancellation(order);
+    if (initialCheck.protected) {
+      throw new Error(initialCheck.reason);
     }
 
     // Atomic transaction for concurrency safety and idempotency
@@ -1668,15 +1655,9 @@ class OrderService {
       ) {
         return; // Already cancelled by concurrent request
       }
-      if (lockedStatuses.includes(currentData.kitchenStatus || "")) {
-        throw new Error(
-          "Order is already being prepared by the kitchen and cannot be cancelled.",
-        );
-      }
-      if (OPERATIONAL_STATUSES.includes(currentData.status)) {
-        throw new Error(
-          "Order is already in delivery or delivered and cannot be modified.",
-        );
+      const currentCheck = isOrderProtectedFromCancellation(currentData);
+      if (currentCheck.protected) {
+        throw new Error(currentCheck.reason);
       }
 
       t.update(orderRef, {
@@ -1698,13 +1679,49 @@ class OrderService {
     });
 
     if (didCancel) {
-      await subscriptionRepository.addSkip(
-        subscription.id,
-        today,
-        [mealType],
+      try {
+        await subscriptionRepository.addSkip(
+          subscription.id,
+          today,
+          [mealType],
+          "Customer cancelled today's meal",
+          actor.uid,
+        );
+      } catch (skipErr: any) {
+        console.error(
+          "[orderService] Failed to record skip in removeTodayMeal:",
+          skipErr,
+        );
+        try {
+          await failureQueueRepository.logFailure(
+            subscription.customerId,
+            subscription.id,
+            mealType,
+            today,
+            "Failed to record skip after cancelling order: " +
+              (skipErr?.message || String(skipErr)),
+            skipErr?.stack,
+          );
+        } catch (fqErr) {
+          console.error("[orderService] Failed to record in failureQueue:", fqErr);
+        }
+        throw new Error(
+          `Order was cancelled, but recording the skip failed: ${skipErr?.message || "Unknown error"}. Incident queued for admin review.`,
+        );
+      }
+
+      // Operational shift alerts for today's cancellations in IST
+      dispatchOperationalCancellationNotifications(
+        [order],
         "Customer cancelled today's meal",
-        actor.uid,
-      );
+        actor,
+        nowOverride,
+      ).catch((err) => {
+        console.error(
+          "[orderService] Failed to dispatch operational notification for meal removal:",
+          err,
+        );
+      });
 
       try {
         const { auditRepository } = await import(
@@ -2437,6 +2454,7 @@ class OrderService {
     customerId: string,
     date: string,
     mealTypes: string[],
+    nowOverride?: Date,
   ): Promise<void> {
     const batch = writeBatch(db);
     const cancelledOrders = await this.appendCancelOrdersToBatch(
@@ -2457,6 +2475,19 @@ class OrderService {
       const actorUid = caller?.uid || customerId;
       const actorRole = caller?.uid === customerId ? "customer" : "admin";
       const actorName = caller?.displayName || caller?.email || "Customer";
+
+      // Operational shift alerts for today's cancellations in IST
+      dispatchOperationalCancellationNotifications(
+        cancelledOrders,
+        "Customer skipped day",
+        { uid: actorUid, role: actorRole, name: actorName },
+        nowOverride,
+      ).catch((err) => {
+        console.error(
+          "[orderService] Failed to dispatch operational notifications for skip day:",
+          err,
+        );
+      });
 
       import("@/shared/services/firestore/auditRepository")
         .then((m) => {
@@ -2498,26 +2529,202 @@ class OrderService {
       mealTypes.includes(o.mealType || ""),
     );
 
-    const lockedStatuses = ["packing", "packed", "ready_for_pickup"];
-    const lockedOrders = orders.filter((o) =>
-      lockedStatuses.includes(o.kitchenStatus || ""),
-    );
-
-    if (lockedOrders.length > 0) {
-      throw new Error(
-        "Order is already being prepared by the kitchen and cannot be cancelled.",
-      );
+    // Enforce operational & kitchen cancellation invariants across all requested orders
+    for (const order of orders) {
+      const check = isOrderProtectedFromCancellation(order);
+      if (check.protected) {
+        throw new Error(check.reason);
+      }
     }
 
-    orders.forEach((order) => {
+    const eligibleOrders = orders.filter(
+      (o) => o.status !== "cancelled" && o.status !== "skipped",
+    );
+
+    for (const order of eligibleOrders) {
       const ref = doc(db, "orders", order.id!);
+      const freshSnap = await getDoc(ref);
+      if (freshSnap.exists()) {
+        const freshData = freshSnap.data() as Order;
+        const freshCheck = isOrderProtectedFromCancellation(freshData);
+        if (freshCheck.protected) {
+          throw new Error(freshCheck.reason);
+        }
+      }
       batch.update(ref, {
         status: "cancelled",
         updatedAt: serverTimestamp() as unknown as Timestamp,
       });
-    });
+    }
 
-    return orders;
+    return eligibleOrders;
+  }
+
+  /**
+   * Atomically records a subscription day skip and cancels all eligible orders
+   * for the specified meal types in a single Firestore write batch.
+   * Enforces:
+   *  - Meal cutoff window validation
+   *  - Cancellation invariants: protected kitchen and transit states block the entire skip
+   *  - Multi-order consistency: if any order is protected, nothing is cancelled
+   *  - Idempotency: already-cancelled orders produce no duplicate mutations or notifications
+   *  - Real-time operational notifications to assigned drivers/kitchen for today's cancellations
+   */
+  async skipSubscriptionDay(
+    subscriptionId: string,
+    customerId: string,
+    date: string,
+    mealTypes: ("breakfast" | "lunch" | "dinner")[],
+    reason: string = "Customer skipped day",
+    nowOverride?: Date,
+  ): Promise<{ success: boolean; cancelledCount: number; orderIds: string[] }> {
+    // 1. Enforce strict cutoff window
+    (subscriptionRepository as any).validateSkipWindow(
+      date,
+      mealTypes,
+      nowOverride,
+    );
+
+    // 2. Verify subscription existence
+    const subscription = await subscriptionRepository.getById(subscriptionId);
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+
+    const caller = auth.currentUser;
+    const actorUid = caller?.uid || customerId;
+    const actorRole = caller?.uid === customerId ? "customer" : "admin";
+    const actorName = caller?.displayName || caller?.email || "Customer";
+
+    // 3. Find matching orders
+    const allDailyOrders = await orderRepository.list(
+      where("subscriptionId", "==", subscriptionId),
+      where("customerId", "==", customerId),
+      where("date", "==", date),
+    );
+
+    const targetOrders = allDailyOrders.filter((o) =>
+      mealTypes.includes(o.mealType as any),
+    );
+
+    // 4. Verify operational safety invariants across all target orders
+    for (const order of targetOrders) {
+      const check = isOrderProtectedFromCancellation(order);
+      if (check.protected) {
+        throw new Error(
+          `Cannot skip day: ${order.mealType} order is already in delivery or being prepared (${check.reason}).`,
+        );
+      }
+    }
+
+    const eligibleOrders = targetOrders.filter(
+      (o) => o.status !== "cancelled" && o.status !== "skipped",
+    );
+
+    // 5. Read existing skip doc to merge meal types
+    const skipRef = doc(db, "subscriptions", subscriptionId, "skips", date);
+    const existingSkip = await getDoc(skipRef);
+
+    // 6. Build atomic WriteBatch combining skip record + order cancellations + workflowHistory
+    const batch = writeBatch(db);
+
+    if (existingSkip.exists()) {
+      const existingMeals = existingSkip.data().mealTypes || [];
+      const mergedMeals = [
+        ...new Set([...existingMeals, ...mealTypes]),
+      ];
+      batch.update(skipRef, {
+        mealTypes: mergedMeals,
+        reason,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+        updatedBy: actorUid,
+      });
+    } else {
+      batch.set(skipRef, {
+        date,
+        mealTypes,
+        reason,
+        createdAt: serverTimestamp() as unknown as Timestamp,
+        createdBy: actorUid,
+      });
+    }
+
+    for (const order of eligibleOrders) {
+      const orderRef = doc(db, "orders", order.id!);
+      const freshSnap = await getDoc(orderRef);
+      if (freshSnap.exists()) {
+        const freshData = freshSnap.data() as Order;
+        const freshCheck = isOrderProtectedFromCancellation(freshData);
+        if (freshCheck.protected) {
+          throw new Error(
+            `Cannot skip day: ${order.mealType} order is already in delivery or being prepared (${freshCheck.reason}).`,
+          );
+        }
+      }
+      batch.update(orderRef, {
+        status: "cancelled",
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      });
+
+      const historyRef = doc(
+        collection(db, "orders", order.id!, "workflowHistory"),
+      );
+      batch.set(historyRef, {
+        fromStatus: order.status,
+        toStatus: "cancelled",
+        notes: reason,
+        changedAt: serverTimestamp(),
+        changedBy: actorUid,
+      });
+    }
+
+    // Atomically commit all writes
+    await batch.commit();
+
+    // 7. Post-commit side effects: notifications and audit
+    if (eligibleOrders.length > 0) {
+      dispatchOperationalCancellationNotifications(
+        eligibleOrders,
+        reason,
+        { uid: actorUid, role: actorRole, name: actorName },
+        nowOverride,
+      ).catch((err) => {
+        console.error(
+          "[orderService] Failed to dispatch operational notifications for skip day:",
+          err,
+        );
+      });
+
+      import("@/shared/services/firestore/auditRepository")
+        .then((m) => {
+          eligibleOrders.forEach((o) => {
+            m.auditRepository
+              .logAction(
+                "meal_cancelled",
+                actorUid,
+                actorRole,
+                actorName,
+                o.id!,
+                "order",
+                {
+                  date,
+                  mealType: o.mealType,
+                  subscriptionId,
+                  customerId,
+                  reason,
+                },
+              )
+              .catch(console.error);
+          });
+        })
+        .catch(console.error);
+    }
+
+    return {
+      success: true,
+      cancelledCount: eligibleOrders.length,
+      orderIds: eligibleOrders.map((o) => o.id!),
+    };
   }
 
   /**

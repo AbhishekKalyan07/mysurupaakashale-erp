@@ -43,6 +43,13 @@ function NotificationTypeBadge({ type }: { type: string }) {
       </div>
     );
   }
+  if (type.includes("cancel")) {
+    return (
+      <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+        <X size={16} />
+      </div>
+    );
+  }
   return (
     <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
       <Info size={16} />

@@ -146,6 +146,16 @@ vi.mock("@/shared/services/firestore/userRepository", () => ({
   },
 }));
 
+vi.mock("@/shared/services/firestore/notificationService", () => ({
+  dispatchOperationalCancellationNotifications: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/shared/services/firestore/failureQueueRepository", () => ({
+  failureQueueRepository: {
+    logFailure: vi.fn().mockResolvedValue("mock-fq-id"),
+  },
+}));
+
 vi.mock("@/shared/services/firestore/auditRepository", () => ({
   auditRepository: {
     logAction: vi.fn(async (action, actorId, actorRole, actorName, entityId, entityType, details) => {
@@ -511,5 +521,73 @@ describe("Phase D.3 — removeTodayMeal Comprehensive Verification Suite", () =>
     expect(audit.entityId).toBe(breakfastOrder.id);
     expect(audit.details.mealType).toBe("breakfast");
     expect(audit.details.cancellationAmount).toBe(60);
+  });
+
+  // W. Operational statuses protection
+  it("W. protected operational statuses (picked_up, out_for_delivery, delivered, failed_delivery, returned_delivery) cannot be removed", async () => {
+    const operationalStatuses = [
+      "picked_up",
+      "out_for_delivery",
+      "delivered",
+      "failed_delivery",
+      "returned_delivery",
+    ];
+
+    for (const status of operationalStatuses) {
+      inMemoryOrders.set(breakfastOrder.id, {
+        ...breakfastOrder,
+        status: status as any,
+      });
+
+      await expect(
+        orderService.removeTodayMeal("sub-1", "breakfast", TIME_BREAKFAST_BEFORE),
+      ).rejects.toThrow("Order is already in delivery or delivered and cannot be modified.");
+    }
+  });
+
+  // X. Operational notification dispatch
+  it("X. successful meal removal dispatches operational cancellation notifications", async () => {
+    const { dispatchOperationalCancellationNotifications } = await import(
+      "@/shared/services/firestore/notificationService"
+    );
+    vi.mocked(dispatchOperationalCancellationNotifications).mockClear();
+
+    const result = await orderService.removeTodayMeal("sub-1", "breakfast", TIME_BREAKFAST_BEFORE);
+    expect(result.success).toBe(true);
+    expect(result.cancelled).toBe(true);
+
+    expect(dispatchOperationalCancellationNotifications).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: breakfastOrder.id, mealType: "breakfast" }),
+      ]),
+      "Customer cancelled today's meal",
+      expect.anything(),
+      TIME_BREAKFAST_BEFORE,
+    );
+  });
+
+  // Y. Failure queue logging when addSkip fails
+  it("Y. failure to record skip queues incident in failureQueue and throws actionable error", async () => {
+    const { failureQueueRepository } = await import(
+      "@/shared/services/firestore/failureQueueRepository"
+    );
+    vi.mocked(failureQueueRepository.logFailure).mockClear();
+
+    vi.mocked(subscriptionRepository.addSkip).mockRejectedValueOnce(
+      new Error("Simulated Firestore write failure"),
+    );
+
+    await expect(
+      orderService.removeTodayMeal("sub-1", "breakfast", TIME_BREAKFAST_BEFORE),
+    ).rejects.toThrow(/Order was cancelled, but recording the skip failed/);
+
+    expect(failureQueueRepository.logFailure).toHaveBeenCalledWith(
+      "cust-1",
+      "sub-1",
+      "breakfast",
+      TODAY,
+      expect.stringContaining("Simulated Firestore write failure"),
+      expect.anything(),
+    );
   });
 });

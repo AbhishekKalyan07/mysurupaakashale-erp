@@ -20,6 +20,7 @@ vi.mock("@/shared/services/firestore/notificationService", () => ({
   notifyOrderGeneratedCustomer: vi.fn().mockResolvedValue(undefined),
   notifyOrderGeneratedDriver: vi.fn().mockResolvedValue(undefined),
   notifyDailyOrdersGenerated: vi.fn().mockResolvedValue(undefined),
+  dispatchOperationalCancellationNotifications: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock Firebase Firestore
@@ -879,9 +880,72 @@ describe("orderService", () => {
       );
     });
 
-    it("does not dispatch privileged notifications directly from the customer client path", async () => {
+    it("throws error if any order is in protected operational delivery status", async () => {
+      const protectedStatuses = [
+        "picked_up",
+        "out_for_delivery",
+        "delivered",
+        "failed_delivery",
+        "returned_delivery",
+      ];
+
+      for (const status of protectedStatuses) {
+        vi.spyOn(orderRepository, "list").mockResolvedValue([
+          { id: "ord1", status, mealType: "lunch" },
+        ] as any);
+
+        await expect(
+          orderService.cancelOrdersForSkipDay("sub1", "c1", "2026-08-01", [
+            "lunch",
+          ]),
+        ).rejects.toThrow(
+          "Order is already in delivery or delivered and cannot be modified.",
+        );
+      }
+    });
+
+    it("rejects multi-order skip request if any one order is protected (no partial cancellation)", async () => {
       vi.spyOn(orderRepository, "list").mockResolvedValue([
-        { id: "ord1", kitchenStatus: "pending", mealType: "lunch" },
+        { id: "ord-lunch", status: "scheduled", mealType: "lunch" },
+        { id: "ord-dinner", status: "out_for_delivery", mealType: "dinner" },
+      ] as any);
+
+      const { writeBatch } = await import("firebase/firestore");
+      const batchCommit = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        update: vi.fn(),
+        commit: batchCommit,
+        set: vi.fn(),
+        delete: vi.fn(),
+      } as any);
+
+      await expect(
+        orderService.cancelOrdersForSkipDay("sub1", "c1", "2026-08-01", [
+          "lunch",
+          "dinner",
+        ]),
+      ).rejects.toThrow(
+        "Order is already in delivery or delivered and cannot be modified.",
+      );
+
+      // Verify transaction/batch commit was NEVER called
+      expect(batchCommit).not.toHaveBeenCalled();
+    });
+
+    it("dispatches operational cancellation notifications for today's cancellations", async () => {
+      const { dispatchOperationalCancellationNotifications } = await import(
+        "../../firestore/notificationService"
+      );
+      vi.mocked(dispatchOperationalCancellationNotifications).mockClear();
+
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord1",
+          status: "scheduled",
+          mealType: "lunch",
+          date: "2026-08-01",
+          deliveryPartnerId: "driver-1",
+        },
       ] as any);
 
       const { writeBatch } = await import("firebase/firestore");
@@ -893,11 +957,237 @@ describe("orderService", () => {
         delete: vi.fn(),
       } as any);
 
-      await orderService.cancelOrdersForSkipDay("sub1", "c1", "2026-08-01", [
-        "lunch",
-      ]);
+      await orderService.cancelOrdersForSkipDay(
+        "sub1",
+        "c1",
+        "2026-08-01",
+        ["lunch"],
+        new Date("2026-08-01T08:00:00+05:30"),
+      );
 
       expect(batchCommit).toHaveBeenCalled();
+      expect(dispatchOperationalCancellationNotifications).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "ord1", mealType: "lunch" }),
+        ]),
+        "Customer skipped day",
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+  });
+
+  describe("skipSubscriptionDay", () => {
+    it("atomically batches skip record and order cancellations", async () => {
+      const { subscriptionRepository } = await import(
+        "../../firestore/subscriptionRepository"
+      );
+      vi.spyOn(subscriptionRepository, "validateSkipWindow").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(subscriptionRepository, "getById").mockResolvedValue({
+        id: "sub1",
+        customerId: "c1",
+        status: "active",
+      } as any);
+
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord-lunch",
+          status: "scheduled",
+          mealType: "lunch",
+          date: "2026-08-05",
+          deliveryPartnerId: "driver-1",
+        },
+      ] as any);
+
+      const { getDoc, writeBatch } = await import("firebase/firestore");
+      vi.mocked(getDoc).mockResolvedValue({
+        exists: () => false,
+        data: () => ({}),
+      } as any);
+
+      const batchSet = vi.fn();
+      const batchUpdate = vi.fn();
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(writeBatch).mockReturnValue({
+        set: batchSet,
+        update: batchUpdate,
+        commit: batchCommit,
+      } as any);
+
+      const res = await orderService.skipSubscriptionDay(
+        "sub1",
+        "c1",
+        "2026-08-05",
+        ["lunch"],
+        "Vacation",
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.cancelledCount).toBe(1);
+      expect(batchCommit).toHaveBeenCalledTimes(1);
+      // Skip document was set
+      expect(batchSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          date: "2026-08-05",
+          mealTypes: ["lunch"],
+          reason: "Vacation",
+        }),
+      );
+      // Order status was updated to cancelled
+      expect(batchUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ status: "cancelled" }),
+      );
+    });
+
+    it("blocks skip and rolls back if any order is in protected operational state", async () => {
+      const { subscriptionRepository } = await import(
+        "../../firestore/subscriptionRepository"
+      );
+      vi.spyOn(subscriptionRepository, "validateSkipWindow").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(subscriptionRepository, "getById").mockResolvedValue({
+        id: "sub1",
+        customerId: "c1",
+        status: "active",
+      } as any);
+
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord-lunch",
+          status: "picked_up",
+          mealType: "lunch",
+          date: "2026-08-01",
+        },
+      ] as any);
+
+      const { writeBatch } = await import("firebase/firestore");
+      const batchCommit = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        set: vi.fn(),
+        update: vi.fn(),
+        commit: batchCommit,
+      } as any);
+
+      await expect(
+        orderService.skipSubscriptionDay(
+          "sub1",
+          "c1",
+          "2026-08-01",
+          ["lunch"],
+        ),
+      ).rejects.toThrow(/already in delivery/);
+
+      expect(batchCommit).not.toHaveBeenCalled();
+    });
+
+    it("blocks skip if order transitioned to picked_up concurrently before batch construction (concurrency guard)", async () => {
+      const { subscriptionRepository } = await import(
+        "../../firestore/subscriptionRepository"
+      );
+      vi.spyOn(subscriptionRepository, "validateSkipWindow").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(subscriptionRepository, "getById").mockResolvedValue({
+        id: "sub1",
+        customerId: "c1",
+        status: "active",
+      } as any);
+
+      // Initial query read order as scheduled
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord-lunch",
+          status: "scheduled",
+          mealType: "lunch",
+          date: "2026-08-01",
+        },
+      ] as any);
+
+      const { getDoc, writeBatch } = await import("firebase/firestore");
+      // Concurrent transition occurs: fresh snapshot re-read sees picked_up
+      vi.mocked(getDoc).mockImplementation(async (ref: any) => {
+        if (ref?.collection === "orders" || ref?.id === "ord-lunch") {
+          return {
+            exists: () => true,
+            data: () => ({ status: "picked_up", mealType: "lunch" }),
+          } as any;
+        }
+        return {
+          exists: () => false,
+          data: () => ({}),
+        } as any;
+      });
+
+      const batchCommit = vi.fn();
+      vi.mocked(writeBatch).mockReturnValue({
+        set: vi.fn(),
+        update: vi.fn(),
+        commit: batchCommit,
+      } as any);
+
+      await expect(
+        orderService.skipSubscriptionDay(
+          "sub1",
+          "c1",
+          "2026-08-01",
+          ["lunch"],
+        ),
+      ).rejects.toThrow(/already in delivery/);
+
+      expect(batchCommit).not.toHaveBeenCalled();
+    });
+
+    it("handles idempotency when all target orders are already cancelled", async () => {
+      const { subscriptionRepository } = await import(
+        "../../firestore/subscriptionRepository"
+      );
+      vi.spyOn(subscriptionRepository, "validateSkipWindow").mockImplementation(
+        () => {},
+      );
+      vi.spyOn(subscriptionRepository, "getById").mockResolvedValue({
+        id: "sub1",
+        customerId: "c1",
+        status: "active",
+      } as any);
+
+      vi.spyOn(orderRepository, "list").mockResolvedValue([
+        {
+          id: "ord-lunch",
+          status: "cancelled",
+          mealType: "lunch",
+          date: "2026-08-05",
+        },
+      ] as any);
+
+      const { getDoc, writeBatch } = await import("firebase/firestore");
+      vi.mocked(getDoc).mockResolvedValue({
+        exists: () => true,
+        data: () => ({ mealTypes: ["lunch"] }),
+      } as any);
+
+      const batchUpdate = vi.fn();
+      const batchCommit = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(writeBatch).mockReturnValue({
+        set: vi.fn(),
+        update: batchUpdate,
+        commit: batchCommit,
+      } as any);
+
+      const res = await orderService.skipSubscriptionDay(
+        "sub1",
+        "c1",
+        "2026-08-05",
+        ["lunch"],
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.cancelledCount).toBe(0);
+      expect(batchCommit).toHaveBeenCalledTimes(1);
     });
   });
 

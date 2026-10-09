@@ -536,6 +536,164 @@ describe("notificationService", () => {
     });
   });
 
+  describe("Operational Cancellation Notifications", () => {
+    const mockOrder = {
+      id: "ord_101",
+      customerName: "Ramesh Kumar",
+      displayId: "MP-042",
+      mealType: "lunch",
+      date: "2026-08-01",
+      deliveryPartnerId: "driver-88",
+      operatorId: "kitchen-55",
+    };
+
+    it("notifyMealCancelledToDriver sends formatted alert to assigned driver", async () => {
+      await notificationService.notifyMealCancelledToDriver(
+        "driver-88",
+        mockOrder,
+        "Customer skipped lunch",
+      );
+
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "driver-88",
+          recipientRole: "delivery_partner",
+          type: "meal_cancelled",
+          title: "Meal Cancelled: Lunch",
+          message: expect.stringContaining("Ramesh Kumar (MP-042)'s Lunch for today (2026-08-01) has been cancelled. Reason: Customer skipped lunch"),
+          priority: "high",
+          relatedEntityType: "order",
+          relatedEntityId: "ord_101",
+          metadata: expect.objectContaining({
+            orderId: "ord_101",
+            date: "2026-08-01",
+            mealType: "lunch",
+          }),
+        }),
+      );
+    });
+
+    it("notifyMealCancelledToKitchen sends formatted alert to kitchen operator", async () => {
+      await notificationService.notifyMealCancelledToKitchen(
+        "kitchen-55",
+        mockOrder,
+        "Customer request",
+      );
+
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "kitchen-55",
+          recipientRole: "kitchen",
+          type: "meal_cancelled",
+          title: "Meal Cancelled: Lunch",
+          message: expect.stringContaining("Ramesh Kumar (MP-042)'s Lunch for today (2026-08-01) has been cancelled"),
+          priority: "high",
+          relatedEntityType: "order",
+          relatedEntityId: "ord_101",
+        }),
+      );
+    });
+
+    it("notifyMealCancelledToAdmin sends formatted alert to admin", async () => {
+      await notificationService.notifyMealCancelledToAdmin(
+        "admin-1",
+        mockOrder,
+        "Customer request",
+      );
+
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "admin-1",
+          recipientRole: "admin",
+          type: "meal_cancelled",
+          title: "Meal Cancelled: Lunch",
+          priority: "normal",
+          relatedEntityType: "order",
+          relatedEntityId: "ord_101",
+        }),
+      );
+    });
+
+    it("dispatchOperationalCancellationNotifications notifies driver, kitchen, and admins for today's orders in IST", async () => {
+      vi.mocked(userRepository.list).mockResolvedValueOnce([
+        { id: "admin-1", role: "admin", isActive: true } as any,
+      ]);
+
+      const now = new Date("2026-08-01T09:00:00+05:30");
+      await notificationService.dispatchOperationalCancellationNotifications(
+        [mockOrder],
+        "Customer skipped lunch",
+        { uid: "c1", role: "customer" },
+        now,
+      );
+
+      // Driver notified
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "driver-88",
+          type: "meal_cancelled",
+        }),
+      );
+
+      // Kitchen operator notified
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "kitchen-55",
+          type: "meal_cancelled",
+        }),
+      );
+
+      // Admin notified
+      expect(notificationRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: "admin-1",
+          type: "meal_cancelled",
+        }),
+      );
+    });
+
+    it("dispatchOperationalCancellationNotifications ignores future-dated orders", async () => {
+      const futureOrder = {
+        ...mockOrder,
+        date: "2026-08-10",
+      };
+
+      const now = new Date("2026-08-01T09:00:00+05:30");
+      await notificationService.dispatchOperationalCancellationNotifications(
+        [futureOrder],
+        "Future skip",
+        { uid: "c1", role: "customer" },
+        now,
+      );
+
+      // No notifications sent for future-dated orders
+      expect(notificationRepository.createNotification).not.toHaveBeenCalled();
+    });
+
+    it("dispatchOperationalCancellationNotifications safely handles missing staff assignments", async () => {
+      vi.mocked(userRepository.list).mockResolvedValueOnce([]);
+
+      const unassignedOrder = {
+        ...mockOrder,
+        deliveryPartnerId: null,
+        operatorId: null,
+      };
+
+      const now = new Date("2026-08-01T09:00:00+05:30");
+      await expect(
+        notificationService.dispatchOperationalCancellationNotifications(
+          [unassignedOrder],
+          "Cancelled",
+          { uid: "c1", role: "customer" },
+          now,
+        ),
+      ).resolves.not.toThrow();
+
+      // No driver or kitchen notification sent because none were assigned
+      expect(notificationRepository.createNotification).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Error handling (Fire and Forget boundary test)", () => {
     it("surfaces repository errors (since service does not swallow them locally)", async () => {
       vi.mocked(
