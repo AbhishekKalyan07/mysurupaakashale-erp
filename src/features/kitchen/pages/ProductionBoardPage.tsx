@@ -188,7 +188,11 @@ export function ProductionBoardPage() {
       {/* ── Tab Content ── */}
       <div className="mt-4">
         {activeTab === "summary" && (
-          <KitchenProductionSummary orders={orders} />
+          <KitchenProductionSummary
+            orders={orders}
+            zoneMap={zoneMap}
+            customerMap={customerMap}
+          />
         )}
 
         {activeTab === "production" && (

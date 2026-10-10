@@ -237,6 +237,229 @@ describe("productionService", () => {
       expect(r2?.quantity).toBe(1);
       expect(r2?.area).toBe("North Zone");
     });
+
+    describe("Phase 4B — Special Handling & Privacy Invariants", () => {
+      const zoneMap = new Map([
+        ["z_north", "North Area"],
+        ["z_south", "South Area"],
+      ]);
+      const customerMap = new Map([
+        ["cust_1", "Asha Devi"],
+        ["cust_2", "Basavaraj"],
+        ["cust_3", "Chetan Kumar"],
+        ["cust_4", "Deepa Rao"],
+      ]);
+
+      const testOrders = [
+        {
+          id: "ord_sub_uuid_101",
+          customerCode: "MP-001",
+          customerId: "cust_1",
+          mealType: "breakfast",
+          itemsLabel: "Idli Sambar",
+          mealQuantity: 2,
+          zoneId: "z_north",
+          status: "scheduled",
+          specialInstructions: "Less spicy sambar",
+        },
+        {
+          id: "ord_sub_uuid_102",
+          customerCode: "MP-002",
+          customerId: "cust_2",
+          mealType: "breakfast",
+          itemsLabel: "Masala Dose",
+          mealQuantity: 1,
+          zoneId: "z_north",
+          status: "packing",
+          packingNotes: "Pack chutney separately",
+        },
+        {
+          id: "ord_sub_uuid_103",
+          customerCode: "MP-003",
+          customerId: "cust_3",
+          mealType: "lunch",
+          itemsLabel: "South Indian Thali",
+          mealQuantity: 1,
+          zoneId: "z_south",
+          status: "scheduled",
+          specialInstructions: "No onion / garlic",
+          packingNotes: "Extra papad",
+        },
+        {
+          id: "ord_sub_uuid_104",
+          customerCode: "MP-004",
+          customerId: "cust_4",
+          mealType: "dinner",
+          itemsLabel: "Chapati Curry",
+          mealQuantity: 3,
+          zoneId: "z_south",
+          status: "scheduled",
+          // No specialInstructions and no packingNotes
+        },
+        {
+          id: "ord_sub_uuid_cancelled",
+          customerCode: "MP-005",
+          customerId: "cust_5",
+          mealType: "breakfast",
+          itemsLabel: "Poori Saagu",
+          mealQuantity: 1,
+          zoneId: "z_north",
+          status: "cancelled",
+          specialInstructions: "Hot water needed",
+        },
+        {
+          id: "ord_sub_uuid_skipped",
+          customerCode: "MP-006",
+          customerId: "cust_6",
+          mealType: "lunch",
+          itemsLabel: "Veg Meals",
+          mealQuantity: 1,
+          zoneId: "z_south",
+          status: "skipped",
+          packingNotes: "Pack curd separately",
+        },
+      ] as any[];
+
+      it("getSpecialHandlingOrders identifies orders with specialInstructions only", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        const match = special.find((s) => s.id === "ord_sub_uuid_101");
+        expect(match).toBeDefined();
+        expect(match?.specialInstructions).toBe("Less spicy sambar");
+        expect(match?.packingNotes).toBeUndefined();
+        expect(match?.displayId).toBe("MP-001");
+        expect(match?.mealName).toBe("Idli Sambar");
+        expect(match?.quantity).toBe(2);
+        expect(match?.area).toBe("North Area");
+      });
+
+      it("getSpecialHandlingOrders identifies orders with packingNotes only", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        const match = special.find((s) => s.id === "ord_sub_uuid_102");
+        expect(match).toBeDefined();
+        expect(match?.packingNotes).toBe("Pack chutney separately");
+        expect(match?.specialInstructions).toBeUndefined();
+        expect(match?.displayId).toBe("MP-002");
+      });
+
+      it("orders containing both note fields appear only once (no duplicates)", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        const matches = special.filter((s) => s.id === "ord_sub_uuid_103");
+        expect(matches).toHaveLength(1);
+        expect(matches[0].specialInstructions).toBe("No onion / garlic");
+        expect(matches[0].packingNotes).toBe("Extra papad");
+      });
+
+      it("orders without any notes are excluded", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        const match = special.find((s) => s.id === "ord_sub_uuid_104");
+        expect(match).toBeUndefined();
+      });
+
+      it("cancelled and skipped orders are excluded from active special handling", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        expect(special.find((s) => s.id === "ord_sub_uuid_cancelled")).toBeUndefined();
+        expect(special.find((s) => s.id === "ord_sub_uuid_skipped")).toBeUndefined();
+      });
+
+      it("sorts special handling orders by canonical meal, then area, then customer", () => {
+        const special = ProductionService.getSpecialHandlingOrders(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        expect(special).toHaveLength(3); // 101 (breakfast), 102 (breakfast), 103 (lunch)
+        expect(special[0].mealType).toBe("breakfast");
+        expect(special[1].mealType).toBe("breakfast");
+        expect(special[2].mealType).toBe("lunch");
+      });
+
+      it("getAreaPacking adds accurate specialHandlingCount counting distinct eligible orders", () => {
+        const packing = ProductionService.getAreaPacking(
+          testOrders,
+          zoneMap,
+          customerMap,
+        );
+        const northGroup = packing.find((p) => p.areaName === "North Area");
+        expect(northGroup).toBeDefined();
+        // North has 101 (specialInstructions) and 102 (packingNotes) active. Cancelled order excluded.
+        expect(northGroup?.specialHandlingCount).toBe(2);
+
+        const southGroup = packing.find((p) => p.areaName === "South Area");
+        expect(southGroup).toBeDefined();
+        // South has 103 (both notes, counts as 1) and 104 (no notes). Skipped order excluded.
+        expect(southGroup?.specialHandlingCount).toBe(1);
+      });
+
+      it("displayId privacy fix: missing displayId uses canonical formatAllottedId and never leaks raw UUID fragments", () => {
+        const unformattedOrders = [
+          {
+            id: "ord_sub_123456789abcdef_20261010",
+            customerId: "wtea9lQtgPVLLrrUEZVu58392019",
+            mealType: "breakfast",
+            status: "scheduled",
+            itemsLabel: "Idli",
+            zoneId: "z_north",
+          },
+          {
+            id: "plain_order_doc_id_9999",
+            customerId: "abcxyz12345678901234567890",
+            mealType: "lunch",
+            status: "scheduled",
+            itemsLabel: "Meals",
+            zoneId: "z_south",
+          },
+        ] as any[];
+
+        const areaPacking = ProductionService.getAreaPacking(
+          unformattedOrders,
+          zoneMap,
+          new Map(),
+        );
+
+        for (const group of areaPacking) {
+          for (const order of group.orders) {
+            // Must be canonical allotted format (MP-XXXXXX), NEVER raw orderId substring like "sub" or "plain"
+            expect(order.displayId).toMatch(/^MP-[A-Z0-9]+$/);
+            expect(order.displayId).not.toContain("sub");
+            expect(order.displayId).not.toContain("plain");
+            expect(order.displayId).not.toContain("123456789");
+          }
+        }
+
+        const printRows = ProductionService.getPrintPackingSheet(
+          unformattedOrders,
+          zoneMap,
+          new Map(),
+          new Map(),
+        );
+
+        for (const row of printRows) {
+          expect(row.displayId).toMatch(/^MP-[A-Z0-9]+$/);
+          expect(row.displayId).not.toContain("sub");
+          expect(row.displayId).not.toContain("plain");
+        }
+      });
+    });
   });
 
   describe("Lifecycle Methods", () => {

@@ -43,6 +43,7 @@ function applyFiltersAndSort(
     statusFilter: StatusFilter;
     areaFilter: string;
     searchQuery: string;
+    specialNotesOnly?: boolean;
     zoneMap: Map<string, string>;
     customerMap: Map<string, string>;
   },
@@ -52,6 +53,7 @@ function applyFiltersAndSort(
     statusFilter,
     areaFilter,
     searchQuery,
+    specialNotesOnly,
     zoneMap,
     customerMap,
   } = opts;
@@ -67,6 +69,13 @@ function applyFiltersAndSort(
         ? zoneMap.get(o.zoneId) || o.zoneId
         : "Unassigned Area";
       if (areaFilter !== "all" && area !== areaFilter) return false;
+
+      if (specialNotesOnly) {
+        const hasNotes = Boolean(
+          o.specialInstructions?.trim() || o.packingNotes?.trim(),
+        );
+        if (!hasNotes) return false;
+      }
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -159,6 +168,7 @@ const defaultOpts = {
   statusFilter: "all" as StatusFilter,
   areaFilter: "all",
   searchQuery: "",
+  specialNotesOnly: false,
   zoneMap: new Map<string, string>(),
   customerMap,
 };
@@ -573,5 +583,313 @@ describe("Terminal Status Action Suppression", () => {
     for (const status of ACTIVE) {
       expect(isGreyedOut({ status })).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 4B — Special Instructions & Dietary Packing UX
+// ---------------------------------------------------------------------------
+
+describe("Phase 4B — Kitchen Special Notes Filter & Packing List UX", () => {
+  const zoneMap = new Map([
+    ["zNorth", "North Zone"],
+    ["zSouth", "South Zone"],
+  ]);
+
+  const p4bOrders: TestOrder[] = [
+    {
+      id: "ord_1",
+      status: "scheduled",
+      mealType: "breakfast",
+      source: "subscription",
+      customerId: "cAlice",
+      zoneId: "zNorth",
+      specialInstructions: "Less spicy sambar",
+    },
+    {
+      id: "ord_2",
+      status: "packing",
+      mealType: "breakfast",
+      source: "subscription",
+      customerId: "cBob",
+      zoneId: "zNorth",
+      packingNotes: "Pack chutney separately",
+    },
+    {
+      id: "ord_3",
+      status: "scheduled",
+      mealType: "lunch",
+      source: "subscription",
+      customerId: "cZara",
+      zoneId: "zSouth",
+      specialInstructions: "No onion",
+      packingNotes: "Extra pickle",
+    },
+    {
+      id: "ord_4",
+      status: "scheduled",
+      mealType: "lunch",
+      source: "one_time",
+      customerId: "cAlice",
+      zoneId: "zSouth",
+      // No notes
+    },
+    {
+      id: "ord_5",
+      status: "cancelled",
+      mealType: "breakfast",
+      source: "subscription",
+      customerId: "cBob",
+      zoneId: "zNorth",
+      specialInstructions: "Extra sambar",
+    },
+    {
+      id: "ord_6",
+      status: "skipped",
+      mealType: "lunch",
+      source: "subscription",
+      customerId: "cZara",
+      zoneId: "zSouth",
+      packingNotes: "Do not pack sweet",
+    },
+  ];
+
+  it("Special Notes Only filter isolates orders with specialInstructions or packingNotes", () => {
+    const results = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      specialNotesOnly: true,
+    });
+
+    // ord_1 (scheduled, cAlice), ord_3 (scheduled, cZara), ord_2 (packing, cBob). ord_4 has no notes.
+    expect(results.map((r) => r.id)).toEqual(["ord_1", "ord_3", "ord_2"]);
+  });
+
+  it("Special Notes Only composes correctly with mealFilter", () => {
+    const breakfastNotes = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      mealFilter: "breakfast",
+      specialNotesOnly: true,
+    });
+    expect(breakfastNotes.map((r) => r.id)).toEqual(["ord_1", "ord_2"]);
+
+    const lunchNotes = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      mealFilter: "lunch",
+      specialNotesOnly: true,
+    });
+    expect(lunchNotes.map((r) => r.id)).toEqual(["ord_3"]);
+
+    const dinnerNotes = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      mealFilter: "dinner",
+      specialNotesOnly: true,
+    });
+    expect(dinnerNotes).toHaveLength(0);
+  });
+
+  it("Special Notes Only composes correctly with statusFilter and areaFilter", () => {
+    const packingOnly = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      statusFilter: "packing",
+      specialNotesOnly: true,
+    });
+    expect(packingOnly.map((r) => r.id)).toEqual(["ord_2"]);
+
+    const southOnly = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      areaFilter: "South Zone",
+      specialNotesOnly: true,
+    });
+    expect(southOnly.map((r) => r.id)).toEqual(["ord_3"]);
+  });
+
+  it("clearing Special Notes Only filter restores the unfiltered active orders", () => {
+    const filtered = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      specialNotesOnly: true,
+    });
+    expect(filtered).toHaveLength(3);
+
+    const unfiltered = applyFiltersAndSort(p4bOrders, {
+      ...defaultOpts,
+      zoneMap,
+      specialNotesOnly: false,
+    });
+    expect(unfiltered).toHaveLength(4); // ord_1, ord_2, ord_3, ord_4
+    expect(unfiltered.map((r) => r.id)).toContain("ord_4");
+  });
+
+  it("calculates accurate count of matching orders with special notes", () => {
+    const matchingCount = p4bOrders.filter((o) => {
+      if (o.status === "skipped" || o.status === "cancelled") return false;
+      return Boolean(o.specialInstructions?.trim() || o.packingNotes?.trim());
+    }).length;
+
+    expect(matchingCount).toBe(3);
+  });
+
+  describe("PackingList UX Filters & Area Badges", () => {
+    const packingListGroups = [
+      {
+        areaName: "North Zone",
+        breakfast: 2,
+        lunch: 0,
+        dinner: 0,
+        specialHandlingCount: 2,
+        orders: [
+          {
+            id: "ord_1",
+            displayId: "MP-001",
+            customerName: "Alice",
+            mealType: "breakfast",
+            mealName: "Idli",
+            quantity: 1,
+            specialInstructions: "Less spicy",
+          },
+          {
+            id: "ord_2",
+            displayId: "MP-002",
+            customerName: "Bob",
+            mealType: "breakfast",
+            mealName: "Dose",
+            quantity: 1,
+            packingNotes: "Pack separately",
+          },
+        ],
+      },
+      {
+        areaName: "South Zone",
+        breakfast: 0,
+        lunch: 2,
+        dinner: 0,
+        specialHandlingCount: 1,
+        orders: [
+          {
+            id: "ord_3",
+            displayId: "MP-003",
+            customerName: "Zara",
+            mealType: "lunch",
+            mealName: "Thali",
+            quantity: 1,
+            specialInstructions: "No onion",
+            packingNotes: "Extra pickle",
+          },
+          {
+            id: "ord_4",
+            displayId: "MP-004",
+            customerName: "Alice",
+            mealType: "lunch",
+            mealName: "Biryani",
+            quantity: 1,
+          },
+        ],
+      },
+      {
+        areaName: "East Zone",
+        breakfast: 0,
+        lunch: 1,
+        dinner: 0,
+        specialHandlingCount: 0,
+        orders: [
+          {
+            id: "ord_7",
+            displayId: "MP-007",
+            customerName: "Dev",
+            mealType: "lunch",
+            mealName: "Roti",
+            quantity: 1,
+          },
+        ],
+      },
+    ];
+
+    function filterPackingList(
+      groups: typeof packingListGroups,
+      mealFilter: "all" | "breakfast" | "lunch" | "dinner",
+      notesOnly: boolean,
+    ) {
+      return groups
+        .map((group) => {
+          const filteredOrders = group.orders.filter((order) => {
+            if (mealFilter !== "all" && order.mealType !== mealFilter) {
+              return false;
+            }
+            if (notesOnly) {
+              const hasNotes = Boolean(
+                order.specialInstructions?.trim() || order.packingNotes?.trim(),
+              );
+              if (!hasNotes) return false;
+            }
+            return true;
+          });
+
+          const specialHandlingCount = filteredOrders.filter((o) =>
+            Boolean(o.specialInstructions?.trim() || o.packingNotes?.trim()),
+          ).length;
+
+          return {
+            ...group,
+            orders: filteredOrders,
+            filteredTotal: filteredOrders.reduce((sum, o) => sum + o.quantity, 0),
+            specialHandlingCount,
+          };
+        })
+        .filter((g) => g.orders.length > 0);
+    }
+
+    it("area badge appears only when special-handling orders exist", () => {
+      const allActive = filterPackingList(packingListGroups, "all", false);
+      const north = allActive.find((g) => g.areaName === "North Zone");
+      const south = allActive.find((g) => g.areaName === "South Zone");
+      const east = allActive.find((g) => g.areaName === "East Zone");
+
+      expect(north?.specialHandlingCount).toBe(2);
+      expect(south?.specialHandlingCount).toBe(1);
+      expect(east?.specialHandlingCount).toBe(0); // Badge omitted
+    });
+
+    it("area special count counts distinct orders rather than individual note fields", () => {
+      const allActive = filterPackingList(packingListGroups, "all", false);
+      const south = allActive.find((g) => g.areaName === "South Zone");
+      // ord_3 has BOTH specialInstructions and packingNotes, but counts as 1
+      expect(south?.specialHandlingCount).toBe(1);
+    });
+
+    it("meal filters isolate breakfast, lunch, and dinner without mixing unrelated meals", () => {
+      const breakfastOnly = filterPackingList(packingListGroups, "breakfast", false);
+      expect(breakfastOnly).toHaveLength(1);
+      expect(breakfastOnly[0].areaName).toBe("North Zone");
+      expect(breakfastOnly[0].orders.every((o) => o.mealType === "breakfast")).toBe(true);
+
+      const lunchOnly = filterPackingList(packingListGroups, "lunch", false);
+      expect(lunchOnly).toHaveLength(2);
+      expect(lunchOnly.every((g) => g.orders.every((o) => o.mealType === "lunch"))).toBe(true);
+
+      const dinnerOnly = filterPackingList(packingListGroups, "dinner", false);
+      expect(dinnerOnly).toHaveLength(0); // Clean empty state
+    });
+
+    it("notesOnly toggle shows only orders with notes and updates counts accurately", () => {
+      const notesOnly = filterPackingList(packingListGroups, "all", true);
+      const totalVisible = notesOnly.reduce((acc, g) => acc + g.orders.length, 0);
+      expect(totalVisible).toBe(3); // ord_1, ord_2, ord_3
+      // East zone has no notes so it is omitted from visible groups
+      expect(notesOnly.find((g) => g.areaName === "East Zone")).toBeUndefined();
+    });
+
+    it("combines meal filter and notesOnly filter correctly", () => {
+      const lunchNotes = filterPackingList(packingListGroups, "lunch", true);
+      expect(lunchNotes).toHaveLength(1);
+      expect(lunchNotes[0].areaName).toBe("South Zone");
+      expect(lunchNotes[0].orders).toHaveLength(1);
+      expect(lunchNotes[0].orders[0].id).toBe("ord_3");
+    });
   });
 });

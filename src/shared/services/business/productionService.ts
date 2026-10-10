@@ -1,4 +1,5 @@
 import type { Order, MealType } from "@/shared/types";
+import { formatAllottedId } from "@/shared/utils/displayId";
 
 import { orderRepository } from "../firestore/orderRepository";
 import { auditRepository } from "../firestore/auditRepository";
@@ -42,6 +43,19 @@ export interface OrderDetail {
   packingNotes?: string;
 }
 
+export interface SpecialHandlingOrderEntry {
+  id: string;
+  displayId: string;
+  customerName: string;
+  mealType: string;
+  mealName: string;
+  quantity: number;
+  area: string;
+  zoneId?: string | null;
+  specialInstructions?: string;
+  packingNotes?: string;
+}
+
 export interface AreaPackingGroup {
   areaName: string;
   breakfast: number;
@@ -50,6 +64,7 @@ export interface AreaPackingGroup {
   basic: number;
   regular: number;
   oneTime: number;
+  specialHandlingCount: number;
   orders: OrderDetail[];
 }
 
@@ -207,6 +222,7 @@ export class ProductionService {
           basic: 0,
           regular: 0,
           oneTime: 0,
+          specialHandlingCount: 0,
           orders: [],
         });
       }
@@ -223,16 +239,27 @@ export class ProductionService {
       else if (o.planTier === "basic") group.basic += qty;
       else if (o.planTier === "regular") group.regular += qty;
 
+      const hasSpecialHandling = Boolean(
+        o.specialInstructions?.trim() || o.packingNotes?.trim(),
+      );
+      if (hasSpecialHandling) {
+        group.specialHandlingCount += 1;
+      }
+
+      const displayId = formatAllottedId(
+        o.customerCode || o.displayId,
+        o.customerId,
+        "customer",
+      );
+
       const customerName =
-        o.customerName || customerMap.get(o.customerId) || o.customerId;
+        o.customerName ||
+        (o.customerId ? customerMap.get(o.customerId) : undefined) ||
+        displayId;
+
       group.orders.push({
         id: o.id,
-        displayId:
-          o.displayId ||
-          ((orderId) =>
-            orderId.split("_")[0] === "ord"
-              ? orderId.split("_").slice(1, 2).join("")
-              : orderId.slice(0, 8))(o.id),
+        displayId,
         customerName,
         mealType: o.mealType,
         mealName: o.mealName || o.itemsLabel || o.mealType,
@@ -262,6 +289,83 @@ export class ProductionService {
   }
 
   /**
+   * Consolidated special-handling data helper.
+   * Identifies orders with non-empty customer special instructions or menu packing notes.
+   * Excludes cancelled and skipped orders.
+   * Avoids duplicate entries when an order contains both kinds of notes.
+   * Returns structured entries sorted by canonical meal type, area, and customer name.
+   */
+  static getSpecialHandlingOrders(
+    orders: Order[],
+    zoneMap?: Map<string, string>,
+    customerMap?: Map<string, string>,
+  ): SpecialHandlingOrderEntry[] {
+    const entries: SpecialHandlingOrderEntry[] = [];
+
+    for (const o of orders) {
+      if (o.status === "cancelled" || o.status === "skipped") continue;
+
+      const specialInstructions = o.specialInstructions?.trim() || undefined;
+      const packingNotes = o.packingNotes?.trim() || undefined;
+
+      if (!specialInstructions && !packingNotes) continue;
+
+      const areaId = o.zoneId;
+      const areaName = areaId
+        ? (zoneMap?.get(areaId) || areaId)
+        : "Unassigned Area";
+
+      const displayId = formatAllottedId(
+        o.customerCode || o.displayId,
+        o.customerId,
+        "customer",
+      );
+
+      const customerName =
+        o.customerName ||
+        (o.customerId ? customerMap?.get(o.customerId) : undefined) ||
+        displayId;
+
+      const canonicalMealType = o.mealType
+        ? String(o.mealType).trim().toLowerCase()
+        : "";
+
+      const mealName =
+        o.itemsLabel || o.mealName || canonicalMealType || "Standard Meal";
+
+      entries.push({
+        id: o.id,
+        displayId,
+        customerName,
+        mealType: canonicalMealType,
+        mealName,
+        quantity: o.mealQuantity || 1,
+        area: areaName,
+        zoneId: areaId,
+        specialInstructions,
+        packingNotes,
+      });
+    }
+
+    const mealOrder: Record<string, number> = {
+      breakfast: 1,
+      lunch: 2,
+      dinner: 3,
+    };
+
+    return entries.sort((a, b) => {
+      const aMeal = mealOrder[a.mealType] || 99;
+      const bMeal = mealOrder[b.mealType] || 99;
+      if (aMeal !== bMeal) return aMeal - bMeal;
+
+      const areaCompare = a.area.localeCompare(b.area);
+      if (areaCompare !== 0) return areaCompare;
+
+      return a.customerName.localeCompare(b.customerName);
+    });
+  }
+
+  /**
    * Formats data specifically for the printable packing sheet.
    */
   static getPrintPackingSheet(
@@ -285,8 +389,16 @@ export class ProductionService {
         ? partnerMap.get(partnerId) || partnerId
         : "Unassigned";
 
+      const displayId = formatAllottedId(
+        o.customerCode || o.displayId,
+        o.customerId,
+        "customer",
+      );
+
       const customerName =
-        o.customerName || customerMap.get(o.customerId) || o.customerId;
+        o.customerName ||
+        (o.customerId ? customerMap.get(o.customerId) : undefined) ||
+        displayId;
 
       let plan = "One-Time";
       if (o.source === "subscription" && o.planTier) {
@@ -297,12 +409,6 @@ export class ProductionService {
         ? String(o.mealType).trim().toLowerCase()
         : "";
       const meal = o.itemsLabel || o.mealType || "";
-
-      const displayId =
-        o.displayId ||
-        (o.id.split("_")[0] === "ord"
-          ? o.id.split("_").slice(1, 2).join("")
-          : o.id.slice(0, 8));
 
       rows.push({
         orderId: o.id,

@@ -36,6 +36,7 @@ export function KitchenProductionTable({
   const [statusFilter, setStatusFilter] = useState<
     "all" | KitchenWorkflowStatus
   >("all");
+  const [specialNotesOnly, setSpecialNotesOnly] = useState(false);
 
   // Extract unique areas and partners for filter dropdowns (based on available orders)
   const uniqueAreas = useMemo(() => {
@@ -50,6 +51,47 @@ export function KitchenProductionTable({
   }, [orders, zoneMap]);
 
   const [areaFilter, setAreaFilter] = useState<"all" | string>("all");
+
+  // Count of matching orders with special instructions or packing notes
+  const specialNotesCount = useMemo(() => {
+    return orders.filter((o) => {
+      if (o.status === "skipped") return false;
+      if (statusFilter !== "all" && o.status !== statusFilter) return false;
+      if (statusFilter === "all" && o.status === "cancelled") return false;
+      if (mealFilter !== "all" && o.mealType !== mealFilter) return false;
+
+      const area = o.zoneId
+        ? zoneMap.get(o.zoneId) || o.zoneId
+        : "Unassigned Area";
+      if (areaFilter !== "all" && area !== areaFilter) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const customerName = (
+          customerMap.get(o.customerId) ||
+          formatAllottedId(
+            o.customerCode || o.displayId,
+            o.customerId,
+            "customer",
+          )
+        ).toLowerCase();
+        const idMatch =
+          o.displayId?.toLowerCase().includes(q) ||
+          o.id.toLowerCase().includes(q);
+        if (!customerName.includes(q) && !idMatch) return false;
+      }
+
+      return Boolean(o.specialInstructions?.trim() || o.packingNotes?.trim());
+    }).length;
+  }, [
+    orders,
+    statusFilter,
+    mealFilter,
+    areaFilter,
+    searchQuery,
+    zoneMap,
+    customerMap,
+  ]);
 
   // Filter Logic
   const filteredOrders = useMemo(() => {
@@ -67,6 +109,13 @@ export function KitchenProductionTable({
           ? zoneMap.get(o.zoneId) || o.zoneId
           : "Unassigned Area";
         if (areaFilter !== "all" && area !== areaFilter) return false;
+
+        if (specialNotesOnly) {
+          const hasNotes = Boolean(
+            o.specialInstructions?.trim() || o.packingNotes?.trim(),
+          );
+          if (!hasNotes) return false;
+        }
 
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -114,6 +163,7 @@ export function KitchenProductionTable({
     mealFilter,
     statusFilter,
     areaFilter,
+    specialNotesOnly,
     searchQuery,
     zoneMap,
     customerMap,
@@ -122,7 +172,7 @@ export function KitchenProductionTable({
   return (
     <Card className="flex flex-col border border-rice-200">
       {/* Filters Bar */}
-      <div className="p-4 border-b border-rice-200 bg-rice-25 flex flex-wrap gap-3">
+      <div className="p-4 border-b border-rice-200 bg-rice-25 flex flex-wrap gap-3 items-center">
         {/* Search */}
         <div className="relative flex-1 min-w-[220px]">
           <Search
@@ -154,6 +204,33 @@ export function KitchenProductionTable({
             </button>
           ))}
         </div>
+
+        {/* Special Notes Only Toggle */}
+        <button
+          type="button"
+          onClick={() => setSpecialNotesOnly((prev) => !prev)}
+          className={`min-h-[40px] px-3.5 py-1.5 rounded-full text-xs tracking-wider font-bold transition-all flex items-center gap-1.5 border uppercase ${
+            specialNotesOnly
+              ? "bg-amber-600 text-white border-amber-700 shadow-sm"
+              : "bg-surface-2 text-ink-600 border-border hover:bg-surface-3"
+          }`}
+          title={
+            specialNotesOnly
+              ? "Disable special notes filter"
+              : "Filter orders with special instructions or packing notes"
+          }
+        >
+          <span>⚠️ Special Notes Only</span>
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              specialNotesOnly
+                ? "bg-amber-800 text-white"
+                : "bg-rice-200 text-ink-700"
+            }`}
+          >
+            {specialNotesCount}
+          </span>
+        </button>
 
         {/* Status Filter */}
         <select
@@ -189,8 +266,23 @@ export function KitchenProductionTable({
         {filteredOrders.length === 0 ? (
           <EmptyState
             icon={<ChefHat size={40} className="text-primary/40" />}
-            title="No orders found"
-            description="No orders match the current filters. Adjust your search or check back later."
+            title={specialNotesOnly ? "No special notes found" : "No orders found"}
+            description={
+              specialNotesOnly
+                ? "No active orders match the special notes filter under current criteria."
+                : "No orders match the current filters. Adjust your search or check back later."
+            }
+            action={
+              specialNotesOnly ? (
+                <button
+                  type="button"
+                  onClick={() => setSpecialNotesOnly(false)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors"
+                >
+                  Clear Special Notes Filter
+                </button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

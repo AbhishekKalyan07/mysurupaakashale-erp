@@ -66,6 +66,97 @@ export function PrintPackingSheet({ date, rows }: Props) {
               </div>
             </div>
 
+            {/* Special Instructions & Handling Checklist (Monochrome Print-Safe) */}
+            {(() => {
+              const mealAllRows = Object.values(grouped[meal]).flat();
+              const specialRows = mealAllRows.filter((r) =>
+                Boolean(
+                  r.specialInstructions?.trim() || r.packingNotes?.trim(),
+                ),
+              );
+
+              if (specialRows.length === 0) return null;
+
+              return (
+                <div className="mb-6 p-3 border-2 border-black rounded avoid-page-break bg-gray-50">
+                  <div className="flex justify-between items-center border-b border-black pb-1.5 mb-2">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-black">
+                      ⚠️ Special Instructions Checklist — {meal} (
+                      {specialRows.length})
+                    </h3>
+                    <span className="text-[11px] text-gray-700 italic">
+                      Verify handling &amp; check off before packing
+                    </span>
+                  </div>
+
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-400 bg-gray-200/80 text-gray-800">
+                        <th className="py-1 px-2 w-10 text-center font-bold">
+                          Done
+                        </th>
+                        <th className="py-1 px-2 w-20 font-bold font-mono">
+                          ID
+                        </th>
+                        <th className="py-1 px-2 w-28 font-bold">Area</th>
+                        <th className="py-1 px-2 w-36 font-bold">
+                          Dish / Item
+                        </th>
+                        <th className="py-1 px-2 w-12 text-center font-bold">
+                          Qty
+                        </th>
+                        <th className="py-1 px-2 font-bold">
+                          Custom Handling &amp; Notes
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {specialRows.map((row, sIdx) => (
+                        <tr
+                          key={`special-${row.orderId}-${sIdx}`}
+                          className="border-b border-gray-300"
+                        >
+                          <td className="py-1.5 px-2 text-center">
+                            <div className="w-4 h-4 border-2 border-black mx-auto rounded-sm" />
+                          </td>
+                          <td className="py-1.5 px-2 font-mono font-bold text-gray-900">
+                            {row.displayId}
+                          </td>
+                          <td className="py-1.5 px-2 text-gray-700 font-medium">
+                            {row.area}
+                          </td>
+                          <td className="py-1.5 px-2 font-semibold text-gray-900">
+                            {row.meal}
+                          </td>
+                          <td className="py-1.5 px-2 text-center font-bold text-sm">
+                            {row.quantity}
+                          </td>
+                          <td className="py-1.5 px-2 space-y-0.5">
+                            {row.specialInstructions && (
+                              <div className="font-bold text-black">
+                                <span className="uppercase text-[10px] bg-gray-200 px-1 py-0.5 rounded mr-1">
+                                  Customer:
+                                </span>
+                                {row.specialInstructions}
+                              </div>
+                            )}
+                            {row.packingNotes && (
+                              <div className="font-medium text-gray-800">
+                                <span className="uppercase text-[10px] bg-gray-200 px-1 py-0.5 rounded mr-1">
+                                  Packing:
+                                </span>
+                                {row.packingNotes}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
             {/* Render Areas within this meal */}
             {Object.entries(grouped[meal])
               .sort(([a], [b]) => a.localeCompare(b))
