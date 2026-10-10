@@ -1,3 +1,6 @@
 ## 2024-09-15 - Caching Intl API Instantiations
 **Learning:** Instantiating `Intl.NumberFormat` (and likely other `Intl.*` APIs like `Intl.DateTimeFormat`) is an expensive operation in JavaScript, taking roughly 100x longer per call than using a cached instance (e.g. ~6.8ms vs ~0.06ms for 100k calls). In a React application, calling this frequently inside render loops or loops over data (like mapping lists of orders, invoices, or payments for a dashboard or table) can introduce noticeable main-thread overhead.
 **Action:** Always instantiate `Intl.NumberFormat` and `Intl.DateTimeFormat` once outside of functions/components (at module scope) or wrap them in a singleton pattern, and reuse the instance for formatting.
+## 2026-10-10 - Date Format Option Default Issue
+**Learning:** Calling `getCachedDateTimeFormatter().format()` when previously it was `toLocaleTimeString()` will output a Date (YYYY-MM-DD format) because `Intl.DateTimeFormat` defaults to outputting dates, not times. This caused UI regressions where times should have been displayed instead of Dates.
+**Action:** Always ensure that you define time formatting options for instances of `Intl.DateTimeFormat` being used to replace `toLocaleTimeString()`, such as passing `{ timeStyle: 'medium' }` or specific hour/minute parameters.

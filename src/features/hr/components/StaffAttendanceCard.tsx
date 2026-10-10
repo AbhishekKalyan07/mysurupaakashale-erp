@@ -7,7 +7,7 @@ import {
   useCheckOut,
 } from "@/features/hr/hooks/useAttendance";
 import { LogIn, LogOut, CheckCircle, Clock } from "lucide-react";
-import { getTodayInTimezone } from "@/shared/lib/date";
+import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export function StaffAttendanceCard() {
@@ -26,11 +26,11 @@ export function StaffAttendanceCard() {
   const isCheckedOut = !!myRecord?.checkOutTime;
 
   const handleCheckIn = async () => {
-    const time = new Date().toLocaleTimeString("en-US", {
+    const time = getCachedDateTimeFormatter("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(new Date());
     await checkIn.mutateAsync({
       staffId: user.uid,
       staffName: user.displayName || "Staff",
@@ -40,11 +40,11 @@ export function StaffAttendanceCard() {
   };
 
   const handleCheckOut = async () => {
-    const time = new Date().toLocaleTimeString("en-US", {
+    const time = getCachedDateTimeFormatter("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(new Date());
     await checkOut.mutateAsync({ staffId: user.uid, date, time });
   };
 

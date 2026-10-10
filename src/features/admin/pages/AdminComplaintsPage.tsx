@@ -12,6 +12,7 @@ import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import { formatAllottedId } from "@/shared/utils/displayId";
 import { serverTimestamp, type Timestamp } from "firebase/firestore";
 import { queryKeys } from "@/shared/lib/queryKeys";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function AdminComplaintsPage() {
   const queryClient = useQueryClient();
@@ -135,7 +136,9 @@ export function AdminComplaintsPage() {
                       {complaint.status}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {parseFirestoreDate(complaint.createdAt)?.toLocaleDateString("en-IN") ?? "—"}
+                      {parseFirestoreDate(complaint.createdAt)
+                        ? getCachedDateTimeFormatter("en-IN").format(parseFirestoreDate(complaint.createdAt)!)
+                        : "—"}
                     </span>
                   </div>
                   <h4 className="font-bold text-primary text-lg">

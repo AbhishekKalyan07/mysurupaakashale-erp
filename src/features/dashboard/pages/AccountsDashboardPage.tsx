@@ -14,6 +14,7 @@ import {
   useGenerateDailyReport,
   useGenerateMonthlyReport,
 } from "@/features/accounts/hooks/useAccounts";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import {
   FileText,
   IndianRupee,
@@ -265,7 +266,7 @@ export function AccountsDashboardPage() {
                 </PremiumTableCell>
                 <PremiumTableCell className="text-text-muted">
                   {inv.createdAt?.toDate
-                    ? inv.createdAt.toDate().toLocaleDateString()
+                    ? getCachedDateTimeFormatter().format(inv.createdAt.toDate())
                     : "N/A"}
                 </PremiumTableCell>
                 <PremiumTableCell className="font-semibold">

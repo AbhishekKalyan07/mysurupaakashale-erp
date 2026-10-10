@@ -19,6 +19,7 @@ import { PremiumInput as Input } from "@/shared/components/ui/PremiumInput";
 import { MetricCard } from "@/shared/components/ui/MetricCard";
 import { ErrorState } from "@/shared/components/feedback/ErrorState";
 import { holidayRepository } from "@/shared/services/firestore/holidayRepository";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import type { Holiday } from "@/shared/types";
 import toast from "react-hot-toast";
@@ -32,12 +33,12 @@ import { auth } from "@/shared/lib/firebase";
 function formatDate(dateStr: string): string {
   try {
     const [year, month, day] = dateStr.split("-").map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString("en-IN", {
+    return getCachedDateTimeFormatter("en-IN", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
-    });
+    }).format(new Date(year, month - 1, day));
   } catch {
     return dateStr;
   }

@@ -20,6 +20,7 @@ import { HeroBanner } from "@/shared/components/ui/HeroBanner";
 import { useNavigate } from "react-router-dom";
 import { useAdminDashboardMetrics } from "../hooks/useAdminDashboardMetrics";
 import { LoadingScreen } from "@/shared/components/feedback/LoadingScreen";
+import { getCachedDateTimeFormatter } from "@/shared/lib/date";
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -340,18 +341,16 @@ export function AdminDashboardPage() {
                       Started:{" "}
                       {run.startedAt
                         ? typeof run.startedAt === "string"
-                          ? new Date(run.startedAt).toLocaleTimeString()
-                          : (run.startedAt as any).toDate().toLocaleTimeString()
+                          ? getCachedDateTimeFormatter(undefined, { timeStyle: 'medium' }).format(new Date(run.startedAt))
+                          : getCachedDateTimeFormatter(undefined, { timeStyle: 'medium' }).format((run.startedAt as any).toDate())
                         : "N/A"}
                     </p>
                     {run.completedAt && (
                       <p>
                         Completed:{" "}
                         {typeof run.completedAt === "string"
-                          ? new Date(run.completedAt).toLocaleTimeString()
-                          : (run.completedAt as any)
-                              .toDate()
-                              .toLocaleTimeString()}
+                          ? getCachedDateTimeFormatter(undefined, { timeStyle: 'medium' }).format(new Date(run.completedAt))
+                          : getCachedDateTimeFormatter(undefined, { timeStyle: 'medium' }).format((run.completedAt as any).toDate())}
                       </p>
                     )}
                   </div>
