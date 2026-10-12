@@ -161,6 +161,7 @@ export const NAV_ITEMS_BY_ROLE: Record<Role, NavGroup[]> = {
           to: "/accounts/analytics",
           icon: TrendingUp,
         },
+        { label: "Accounts", to: "/admin/accounts", icon: ReceiptText },
         { label: "Payroll", to: "/admin/payroll", icon: ReceiptText },
         { label: "Advances", to: "/admin/salary-advances", icon: CreditCard },
       ],

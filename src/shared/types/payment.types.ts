@@ -29,6 +29,9 @@ export interface ManualPayment {
   // ── Subscription link ───────────────────────────────────────────────────────
   subscriptionId: ID;
 
+  /** Specific invoice this payment settles. Optional for general advance usage payments. */
+  invoiceId?: ID | null;
+
   // ── Financials ──────────────────────────────────────────────────────────────
   /** Amount in INR (rupees, NOT paise). */
   amount: number;
@@ -66,6 +69,8 @@ export interface ManualPayment {
  */
 export interface SubmitPaymentInput {
   subscriptionId: ID;
+  /** Specific invoice this payment settles (if paying for a generated invoice). */
+  invoiceId?: ID | null;
   amount: number;
   paymentMethod: PaymentMethod;
   referenceNumber: string | null;

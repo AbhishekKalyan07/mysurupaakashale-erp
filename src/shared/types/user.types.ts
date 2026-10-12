@@ -48,6 +48,8 @@ export interface CustomerProfile extends BaseUserProfile {
   } | null;
   /** Permanently assigned delivery zone. Copied to every generated order. (Priority 2, below Partner, above Pincode) */
   zoneId?: string | null;
+  /** Available ledger credit balance in INR. Defaults to 0 when unset. */
+  creditBalance?: number;
   assignedAt?: Timestamp | null;
   assignedBy?: string | null;
 }

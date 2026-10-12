@@ -47,8 +47,30 @@ class PaymentService {
       // Non-blocking lookup
     }
 
+    if (input.invoiceId) {
+      try {
+        const { accountsRepository } = await import(
+          "../firestore/accountsRepository"
+        );
+        const invoice = await accountsRepository.getInvoiceById(input.invoiceId);
+        if (invoice) {
+          if (invoice.customerId !== customerId) {
+            throw new Error("Payment invoice does not belong to this customer.");
+          }
+          if (invoice.status === "void") {
+            throw new Error("Cannot submit payment against a voided invoice.");
+          }
+        }
+      } catch (err: any) {
+        if (err?.message?.includes("voided") || err?.message?.includes("does not belong")) {
+          throw err;
+        }
+      }
+    }
+
     const paymentId = await paymentRepository.create({
       subscriptionId: input.subscriptionId,
+      invoiceId: input.invoiceId ?? null,
       customerId,
       customerName,
       customerDisplayId: customerDisplayId ?? null,
@@ -162,31 +184,65 @@ class PaymentService {
 
     let capturedPayment!: ManualPayment;
 
-    // Fetch payment snapshot beforehand to check purpose and any matching unpaid invoice
+    // 1. Fetch payment snapshot beforehand to inspect purpose and invoice reference
     const { getDoc } = await import("firebase/firestore");
     const prePaymentSnap = await getDoc(doc(db, "payments", paymentId));
     if (!prePaymentSnap.exists()) throw new Error("Payment not found");
     const prePayment = prePaymentSnap.data() as ManualPayment;
+    if (prePayment.status !== "pending") {
+      throw new Error(`Cannot approve payment with status ${prePayment.status}. Only pending payments can be approved.`);
+    }
 
-    let matchingUnpaidInvoiceId: string | null = null;
+    let targetInvoiceId: string | null = null;
     if (prePayment.purpose !== "security_deposit") {
-      try {
-        const { accountsRepository } = await import(
-          "../firestore/accountsRepository"
+      const { accountsRepository } = await import(
+        "../firestore/accountsRepository"
+      );
+      // Preference 1: Explicit invoice reference
+      if (prePayment.invoiceId) {
+        const explicitInv = await accountsRepository.getInvoiceById(
+          prePayment.invoiceId,
         );
-        const customerInvoices =
-          await accountsRepository.getInvoicesByCustomerId(prePayment.customerId);
-        const found = customerInvoices.find(
-          (inv) =>
-            inv.subscriptionId === prePayment.subscriptionId &&
-            (inv.status === "issued" || inv.status === "overdue"),
-        );
-        if (found) matchingUnpaidInvoiceId = found.id;
-      } catch (err) {
-        console.warn(
-          "[paymentService] Could not lookup matching unpaid invoice:",
-          err,
-        );
+        if (explicitInv) {
+          if (explicitInv.status === "void") {
+            throw new Error(
+              `Cannot approve payment linked to void invoice ${explicitInv.invoiceNumber || explicitInv.id}. The target invoice has been voided.`,
+            );
+          }
+          if (explicitInv.customerId === prePayment.customerId) {
+            targetInvoiceId = prePayment.invoiceId;
+          }
+        }
+      } else {
+        // Preference 2: Unambiguous fallback matching (only if not explicit and exactly 1 candidate matches)
+        try {
+          const customerInvoices =
+            await accountsRepository.getInvoicesByCustomerId(
+              prePayment.customerId,
+            );
+          const openCandidates = customerInvoices.filter(
+            (inv) => inv.status === "issued" || inv.status === "overdue",
+          );
+
+          if (
+            prePayment.subscriptionId &&
+            prePayment.subscriptionId !== "manual"
+          ) {
+            const subCandidates = openCandidates.filter(
+              (inv) => inv.subscriptionId === prePayment.subscriptionId,
+            );
+            if (subCandidates.length === 1) {
+              targetInvoiceId = subCandidates[0].id;
+            }
+          } else if (openCandidates.length === 1) {
+            targetInvoiceId = openCandidates[0].id;
+          }
+        } catch (err) {
+          console.warn(
+            "[paymentService] Could not lookup matching unpaid invoice:",
+            err,
+          );
+        }
       }
     }
 
@@ -225,13 +281,18 @@ class PaymentService {
         throw new Error("Activation requires a security deposit payment.");
       }
 
-      // Check matching unpaid invoice if applicable (read before write)
       let matchingInvoiceSnap: any = null;
       let matchingInvoiceRef: any = null;
-      if (matchingUnpaidInvoiceId) {
-        matchingInvoiceRef = doc(db, "invoices", matchingUnpaidInvoiceId);
+      if (targetInvoiceId) {
+        matchingInvoiceRef = doc(db, "invoices", targetInvoiceId);
         matchingInvoiceSnap = await t.get(matchingInvoiceRef);
+        if (matchingInvoiceSnap.exists() && matchingInvoiceSnap.data().status === "void") {
+          throw new Error("Cannot approve payment linked to a void invoice. The target invoice has been voided.");
+        }
       }
+
+      const userRef = doc(db, "users", payment.customerId);
+      const userSnap = await t.get(userRef);
 
       t.update(paymentRef, {
         status: "verified",
@@ -260,16 +321,112 @@ class PaymentService {
           matchingInvoiceSnap.data().status === "overdue")
       ) {
         const invData = matchingInvoiceSnap.data();
-        t.update(matchingInvoiceRef, {
-          status: "paid",
-          paidAt: serverTimestamp() as unknown as Timestamp,
-          paymentId: payment.id,
-          totalAmount: invData.totalAmount, // Ensure totalAmount present for rules
-          updatedAt:
-            serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-        });
-        (payment as any)._invoiceIdForLogging = matchingUnpaidInvoiceId;
-      } else {
+        const invTotal =
+          typeof invData.totalAmount === "number"
+            ? invData.totalAmount
+            : (invData.subtotal || 0);
+        const currentPaid = invData.paidAmount || 0;
+        const remainingDue = Math.max(0, invTotal - currentPaid);
+
+        if (payment.amount >= remainingDue) {
+          // Full payment or overpayment
+          const surplus = payment.amount - remainingDue;
+          t.update(matchingInvoiceRef, {
+            status: "paid",
+            paidAmount: invTotal,
+            paidAt: serverTimestamp() as unknown as Timestamp,
+            paymentId: payment.id,
+            totalAmount: invTotal, // Ensure totalAmount present for rules
+            updatedAt:
+              serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          });
+
+          // Credit surplus overpayment to customer ledger exactly once
+          if (surplus > 0 && userSnap.exists()) {
+            const currentCredit =
+              typeof userSnap.data()?.creditBalance === "number"
+                ? userSnap.data().creditBalance
+                : 0;
+            const newCredit = currentCredit + surplus;
+            t.update(userRef, {
+              creditBalance: newCredit,
+              updatedAt: serverTimestamp() as unknown as Timestamp,
+            });
+
+            const ledgerSurplusId = `surplus_${payment.id}`;
+            const ledgerRef = doc(
+              db,
+              `users/${payment.customerId}/ledger`,
+              ledgerSurplusId,
+            );
+            t.set(ledgerRef, {
+              id: ledgerSurplusId,
+              customerId: payment.customerId,
+              type: "manual_adjustment",
+              amount: surplus,
+              balanceAfter: newCredit,
+              reason: `Overpayment credit from payment ${payment.referenceNumber || payment.id} on invoice ${invData.invoiceNumber || invData.id}`,
+              referenceId: payment.id,
+              invoiceId: targetInvoiceId,
+              paymentId: payment.id,
+              actorId: adminUid,
+              actorRole: "admin",
+              createdAt: serverTimestamp(),
+            });
+          }
+        } else {
+          // Partial payment: status remains issued/overdue, paidAmount incremented
+          t.update(matchingInvoiceRef, {
+            status: invData.status,
+            paidAmount: currentPaid + payment.amount,
+            paymentId: payment.id,
+            totalAmount: invTotal,
+            updatedAt:
+              serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
+          });
+        }
+        (payment as any)._invoiceIdForLogging = targetInvoiceId;
+      } else if (
+        matchingInvoiceSnap?.exists() &&
+        matchingInvoiceSnap.data().status === "paid"
+      ) {
+        // Payment was targeted to an already settled invoice: entire amount credited as surplus
+        const invData = matchingInvoiceSnap.data();
+        if (userSnap.exists()) {
+          const currentCredit =
+            typeof userSnap.data()?.creditBalance === "number"
+              ? userSnap.data().creditBalance
+              : 0;
+          const newCredit = currentCredit + payment.amount;
+          t.update(userRef, {
+            creditBalance: newCredit,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          });
+
+          const ledgerSurplusId = `surplus_${payment.id}`;
+          const ledgerRef = doc(
+            db,
+            `users/${payment.customerId}/ledger`,
+            ledgerSurplusId,
+          );
+          t.set(ledgerRef, {
+            id: ledgerSurplusId,
+            customerId: payment.customerId,
+            type: "manual_adjustment",
+            amount: payment.amount,
+            balanceAfter: newCredit,
+            reason: `Surplus payment on already settled invoice ${invData.invoiceNumber || invData.id}`,
+            referenceId: payment.id,
+            invoiceId: targetInvoiceId,
+            paymentId: payment.id,
+            actorId: adminUid,
+            actorRole: "admin",
+            createdAt: serverTimestamp(),
+          });
+        }
+        (payment as any)._invoiceIdForLogging = targetInvoiceId;
+      } else if (!matchingInvoiceSnap?.exists()) {
+        // Only create receipt invoice if no matching invoice exists and it's not a security deposit
         const invoiceId = crypto.randomUUID();
         const invoiceRef = doc(db, "invoices", invoiceId);
         const invoiceNumber = `INV-${payment.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
@@ -293,6 +450,8 @@ class PaymentService {
           taxRate: 0,
           taxAmount: 0,
           totalAmount: payment.amount,
+          paidAmount: payment.amount,
+          creditApplied: 0,
           depositHeld: isDeposit ? payment.amount : 0,
           currency: "INR",
           status: "paid",

@@ -44,12 +44,14 @@ interface PaymentFormData {
 
 export function ManualPaymentPanel({
   subscriptionId,
+  invoiceId,
   amount,
   purpose,
   onClose,
   onSuccess,
 }: {
   subscriptionId: string;
+  invoiceId?: string;
   amount: number;
   purpose?: "usage" | "security_deposit";
   onClose?: () => void;
@@ -141,6 +143,7 @@ export function ManualPaymentPanel({
 
       await submitPayment.mutateAsync({
         subscriptionId,
+        invoiceId: invoiceId || null,
         amount,
         purpose: purpose || "usage",
         paymentMethod: form.paymentMethod,
@@ -174,12 +177,21 @@ export function ManualPaymentPanel({
             <h3 className="font-bold text-ink-900 font-sans text-base">
               {purpose === "security_deposit"
                 ? "Submit Security Deposit"
+                : invoiceId
+                ? "Pay Invoice"
                 : "Submit Advance Payment"}
             </h3>
             <p className="text-ink-600 font-sans text-sm mt-1">
               {purpose === "security_deposit" ? (
                 <>
                   Refundable Security Deposit —{" "}
+                  <span className="font-bold text-stone-950">
+                    ₹{amount.toLocaleString("en-IN")}
+                  </span>
+                </>
+              ) : invoiceId ? (
+                <>
+                  Payment against invoice —{" "}
                   <span className="font-bold text-stone-950">
                     ₹{amount.toLocaleString("en-IN")}
                   </span>

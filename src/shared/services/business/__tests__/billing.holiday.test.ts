@@ -206,8 +206,13 @@ describe("billing — holiday cancellation", () => {
     const invoiceData = mockSet.mock.calls[0][1];
     // Usage: 65 (1 delivered order)
     expect(invoiceData.subtotal).toBe(65);
-    // Payment applied: only pay-2 (65) — NOT the security deposit
-    expect(invoiceData.totalAmount).toBe(0); // balanceDue = 65 - 65 = 0
+    // Canonical totalAmount is full payable amount after credits (65)
+    expect(invoiceData.totalAmount).toBe(65);
+    // Advance payment applied: 65
+    expect(invoiceData.paidAmount).toBe(65);
+    // Remaining due is 0 -> paid
+    expect(Math.max(0, invoiceData.totalAmount - (invoiceData.paidAmount || 0))).toBe(0);
+    expect(invoiceData.status).toBe("paid");
     // Deposit held separately
     expect(invoiceData.depositHeld).toBe(1000);
   });

@@ -222,6 +222,257 @@ export class AccountsRepository {
   }
 
   /**
+   * Get all invoices, optionally filtered by status or customerId, ordered newest first.
+   */
+  async getAllInvoices(filter?: {
+    status?: string;
+    customerId?: string;
+  }): Promise<Invoice[]> {
+    let invoices: Invoice[] = [];
+
+    if (filter?.customerId) {
+      invoices = await this.getInvoicesByCustomerId(filter.customerId);
+    } else {
+      const q = query(collection(db, "invoices"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      invoices = snap.docs.map((doc) => doc.data() as Invoice);
+    }
+
+    if (filter?.status && filter.status !== "all") {
+      invoices = invoices.filter((inv) => inv.status === filter.status);
+    }
+
+    return invoices;
+  }
+
+  /**
+   * Get an invoice by its unique document ID.
+   */
+  async getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+    if (!invoiceId) return null;
+    const { getDoc } = await import("firebase/firestore");
+    const snap = await getDoc(doc(db, "invoices", invoiceId));
+    if (!snap.exists()) return null;
+    return snap.data() as Invoice;
+  }
+
+  /**
+   * Void an invoice with mandatory audit reason. Does not delete historical document.
+   */
+  async voidInvoice(
+    invoiceId: string,
+    reason: string,
+    adminUid: string,
+    adminName = "Admin",
+  ): Promise<void> {
+    if (!invoiceId) throw new Error("Invoice ID is required");
+    if (!reason || !reason.trim()) throw new Error("Void reason is mandatory");
+
+    const { runTransaction } = await import("firebase/firestore");
+    const invoiceRef = doc(db, "invoices", invoiceId);
+
+    await runTransaction(db, async (txn) => {
+      const snap = await txn.get(invoiceRef);
+      if (!snap.exists()) throw new Error("Invoice not found");
+      const inv = snap.data() as Invoice;
+      if (inv.status === "void") throw new Error("Invoice is already voided");
+      if (inv.status === "paid") {
+        throw new Error(
+          "Paid invoices cannot be voided directly. Refund or adjust payments first.",
+        );
+      }
+
+      txn.update(invoiceRef, {
+        status: "void",
+        voidedAt: serverTimestamp(),
+        voidedBy: adminUid,
+        voidReason: reason.trim(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    try {
+      const { auditRepository } = await import("./auditRepository");
+      await auditRepository.logAction(
+        "invoice_voided",
+        adminUid,
+        "admin",
+        adminName,
+        invoiceId,
+        "invoice",
+        { invoiceId, reason: reason.trim() },
+      );
+    } catch (err) {
+      console.warn("[accountsRepository] audit log failed for voidInvoice:", err);
+    }
+  }
+
+  /**
+   * Record an offline payment (cash, UPI, bank transfer) directly against an issued invoice.
+   */
+  async recordOfflinePayment(params: {
+    invoiceId: string;
+    amount: number;
+    paymentMethod: import("@/shared/types").PaymentMethod;
+    referenceNumber?: string;
+    paymentDate?: string;
+    notes?: string;
+    adminUid: string;
+    adminName?: string;
+  }): Promise<string> {
+    const {
+      invoiceId,
+      amount,
+      paymentMethod,
+      referenceNumber = null,
+      paymentDate = new Date().toISOString().split("T")[0],
+      notes = null,
+      adminUid,
+      adminName = "Admin",
+    } = params;
+
+    if (!invoiceId) throw new Error("Invoice ID is required");
+    if (typeof amount !== "number" || isNaN(amount) || amount <= 0) {
+      throw new Error("Payment amount must be a positive number");
+    }
+
+    const { runTransaction } = await import("firebase/firestore");
+    const invoiceRef = doc(db, "invoices", invoiceId);
+    const paymentId = crypto.randomUUID();
+    const paymentRef = doc(db, "payments", paymentId);
+
+    let customerId = "";
+    let surplusAmount = 0;
+
+    await runTransaction(db, async (txn) => {
+      const invSnap = await txn.get(invoiceRef);
+      if (!invSnap.exists()) throw new Error("Invoice not found");
+      const invoice = invSnap.data() as Invoice;
+
+      if (invoice.status === "paid") {
+        throw new Error("Invoice is already fully paid");
+      }
+      if (invoice.status === "void") {
+        throw new Error("Cannot record payment for a voided invoice");
+      }
+
+      customerId = invoice.customerId;
+      const currentPaid = invoice.paidAmount || 0;
+      const totalAmount = invoice.totalAmount;
+      const remainingDue = Math.max(0, totalAmount - currentPaid);
+      const newPaidAmount = currentPaid + amount;
+
+      // 1. Fetch customer details for denormalized payment record
+      const userRef = doc(db, "users", customerId);
+      const userSnap = await txn.get(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : null;
+      const customerName = userData?.fullName || "Customer";
+      const customerDisplayId = userData?.displayId || null;
+
+      // 2. Create verified payment record
+      txn.set(paymentRef, {
+        id: paymentId,
+        subscriptionId: invoice.subscriptionId || "manual",
+        invoiceId: invoice.id,
+        customerId,
+        customerName,
+        customerDisplayId,
+        amount,
+        currency: "INR",
+        purpose: "usage",
+        paymentMethod,
+        referenceNumber,
+        paymentDate,
+        status: "verified",
+        verifiedBy: adminUid,
+        verificationDate: serverTimestamp(),
+        verificationNotes: notes || `Recorded offline via admin (${adminName})`,
+        screenshotUrl: null,
+        billingMonth: paymentDate.substring(0, 7),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 3. Handle overpayment vs full payment vs partial payment
+      if (amount >= remainingDue) {
+        surplusAmount = amount - remainingDue;
+        txn.update(invoiceRef, {
+          status: "paid",
+          paidAmount: totalAmount,
+          paidAt: serverTimestamp(),
+          paymentId,
+          updatedAt: serverTimestamp(),
+        });
+
+        // Credit surplus overpayment to customer ledger
+        if (surplusAmount > 0 && userSnap.exists()) {
+          const currentCredit =
+            typeof userData?.creditBalance === "number"
+              ? userData.creditBalance
+              : 0;
+          const newCredit = currentCredit + surplusAmount;
+          txn.update(userRef, {
+            creditBalance: newCredit,
+            updatedAt: serverTimestamp(),
+          });
+
+          const ledgerEntryId = `surplus_${paymentId}`;
+          const ledgerRef = doc(
+            db,
+            `users/${customerId}/ledger`,
+            ledgerEntryId,
+          );
+          txn.set(ledgerRef, {
+            id: ledgerEntryId,
+            customerId,
+            type: "manual_adjustment",
+            amount: surplusAmount,
+            balanceAfter: newCredit,
+            reason: `Surplus overpayment from offline payment on invoice ${invoice.invoiceNumber || invoice.id}`,
+            referenceId: paymentId,
+            invoiceId: invoice.id,
+            paymentId,
+            actorId: adminUid,
+            actorRole: "admin",
+            createdAt: serverTimestamp(),
+          });
+        }
+      } else {
+        // Partial payment: status remains issued/overdue, paidAmount incremented
+        txn.update(invoiceRef, {
+          paidAmount: newPaidAmount,
+          paymentId,
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
+
+    try {
+      const { auditRepository } = await import("./auditRepository");
+      await auditRepository.logAction(
+        "offline_payment_recorded",
+        adminUid,
+        "admin",
+        adminName,
+        paymentId,
+        "payment",
+        {
+          paymentId,
+          invoiceId,
+          customerId,
+          amount,
+          paymentMethod,
+          surplusCredited: surplusAmount,
+        },
+      );
+    } catch (auditErr) {
+      console.warn("[accountsRepository] audit log failed for offline payment:", auditErr);
+    }
+
+    return paymentId;
+  }
+
+  /**
    * Generate a manual invoice (e.g. for one-time catering or adjustments).
    */
   async generateInvoice(payload: {
@@ -247,6 +498,8 @@ export class AccountsRepository {
       taxRate: 0,
       taxAmount: 0,
       totalAmount: payload.amount,
+      paidAmount: 0,
+      creditApplied: 0,
       currency: "INR",
       status: "issued",
       billingPeriodStart: new Date().toISOString().split("T")[0],

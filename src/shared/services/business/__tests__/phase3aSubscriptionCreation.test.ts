@@ -432,7 +432,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
       const subId = await subscriptionService.createSubscriptionByAdmin(adminActor, {
         ...baseInput,
         quantity: 2,
-        startDate: "2026-10-10",
+        startDate: "2026-10-15",
         endDate: "2026-10-31",
         negotiatedPricing: makePricing({
           breakfast: 40,
@@ -462,7 +462,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
       // Quantity preserved
       expect(updatedSub.quantity).toBe(2);
       // Dates preserved
-      expect(updatedSub.startDate).toBe("2026-10-10");
+      expect(updatedSub.startDate).toBe("2026-10-15");
       expect(updatedSub.endDate).toBe("2026-10-31");
       // Negotiated pricing preserved
       expect(updatedSub.negotiatedPricing.breakfast_lunch).toBe(85);
@@ -477,7 +477,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
         ...baseInput,
         planId: "regular-plan",
         quantity: 1,
-        startDate: "2026-10-10",
+        startDate: "2026-10-15",
         endDate: "2026-10-31",
       });
 
@@ -496,7 +496,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
       expect(updatedSub.planId).toBe("basic-plan");
       expect(updatedSub.planTier).toBe("basic");
       expect(updatedSub.quantity).toBe(1);
-      expect(updatedSub.startDate).toBe("2026-10-10");
+      expect(updatedSub.startDate).toBe("2026-10-15");
       expect(updatedSub.endDate).toBe("2026-10-31");
     });
 

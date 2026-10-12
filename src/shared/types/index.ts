@@ -64,7 +64,17 @@ export type {
   VerifyPaymentInput,
 } from "./payment.types";
 
-export type { InvoiceStatus, InvoiceLineItem, Invoice } from "./billing.types";
+export type {
+  InvoiceStatus,
+  InvoiceLineItem,
+  Invoice,
+  LedgerEntryType,
+  CustomerLedgerEntry,
+} from "./billing.types";
+export {
+  getInvoicePaidAmount,
+  getInvoiceRemainingDue,
+} from "./billing.types";
 
 export type {
   NotificationChannel,

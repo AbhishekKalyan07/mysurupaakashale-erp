@@ -411,9 +411,6 @@ class BillingService {
       0,
     );
 
-    const balanceDue = totalAmount - paymentsTotal;
-    const payableAmount = Math.max(0, balanceDue);
-
     let prefix = "INV";
     try {
       const { settingsRepository } = await import(
@@ -437,48 +434,139 @@ class BillingService {
         return; // Idempotent block
       }
 
+      // 1c. Fetch existing customer credit balance
+      const userRef = doc(db, "users", subscription.customerId);
+      const userSnap = await txn.get(userRef);
+      const existingCredit =
+        userSnap.exists() && typeof userSnap.data()?.creditBalance === "number"
+          ? Math.max(0, userSnap.data().creditBalance)
+          : 0;
+
+      // Canonical Settlement calculation:
+      // grossCycleCharge is the gross charge (standard meal plan + add-ons)
+      const grossCycleCharge = totalAmount;
+      const netBeforeCredit = Math.max(0, grossCycleCharge - paymentsTotal);
+      const creditToApply = Math.min(existingCredit, netBeforeCredit);
+      const invoiceTotalAmount = Math.max(0, grossCycleCharge - creditToApply);
+      const invoicePaidAmount = Math.min(paymentsTotal, invoiceTotalAmount);
+      const remainingDue = Math.max(0, invoiceTotalAmount - invoicePaidAmount);
+      const surplusGenerated = Math.max(0, paymentsTotal - grossCycleCharge);
+      const newCreditBalance =
+        existingCredit - creditToApply + surplusGenerated;
+      const isSettled = remainingDue <= 0;
+
+      const invoiceLineItems: any[] = [
+        {
+          description: `${(subscription.planTier || "regular").toUpperCase()} Plan (${subscription.billingCycle})`,
+          quantity: 1,
+          unitPrice: standardTotal,
+          amount: standardTotal,
+        },
+        ...allAddonOrders.map((ao) => ({
+          description: `Add-on: ${ao.mealName || ao.itemsLabel} (${ao.date})`,
+          quantity: ao.addonQuantity || 1,
+          unitPrice: ao.addonUnitPrice || ao.price,
+          amount: ao.price,
+          addonId: ao.addonId,
+          mealType: ao.mealType,
+          orderId: ao.id,
+        })),
+      ];
+
+      if (creditToApply > 0) {
+        invoiceLineItems.push({
+          description: "Less: Customer Credit Balance Applied",
+          quantity: 1,
+          unitPrice: -creditToApply,
+          amount: -creditToApply,
+        });
+      }
+
+      if (surplusGenerated > 0) {
+        invoiceLineItems.push({
+          description: `Surplus Advance Carried Forward to Credit: ₹${surplusGenerated}`,
+          quantity: 1,
+          unitPrice: 0,
+          amount: 0,
+        });
+      }
+
       txn.set(invoiceRef, {
         id: invoiceId,
         invoiceNumber,
         customerId: subscription.customerId,
         subscriptionId: subscription.id,
-        lineItems: [
-          {
-            description: `${(subscription.planTier || "regular").toUpperCase()} Plan (${subscription.billingCycle})`,
-            quantity: 1,
-            unitPrice: standardTotal,
-            amount: standardTotal,
-          },
-          ...allAddonOrders.map((ao) => ({
-            description: `Add-on: ${ao.mealName || ao.itemsLabel} (${ao.date})`,
-            quantity: ao.addonQuantity || 1,
-            unitPrice: ao.addonUnitPrice || ao.price,
-            amount: ao.price,
-            addonId: ao.addonId,
-            mealType: ao.mealType,
-            orderId: ao.id,
-          })),
-          {
-            description: "Less: Verified Payments Received",
-            quantity: 1,
-            unitPrice: -paymentsTotal,
-            amount: -paymentsTotal,
-          },
-        ],
-        subtotal: totalAmount,
+        lineItems: invoiceLineItems,
+        subtotal: grossCycleCharge,
         taxRate: 0,
         taxAmount: 0,
-        totalAmount: payableAmount,
+        totalAmount: invoiceTotalAmount,
+        paidAmount: invoicePaidAmount,
+        creditApplied: creditToApply,
         depositHeld,
         currency: "INR",
-        status: balanceDue <= 0 ? "paid" : "issued",
+        status: isSettled ? "paid" : "issued",
         billingPeriodStart: subscription.startDate,
         billingPeriodEnd: effectiveEndDate,
         dueDate: today, // due immediately on generation
-        paidAt: balanceDue <= 0 ? today : null,
-        paymentId: null,
+        paidAt: isSettled ? today : null,
+        paymentId: isSettled && verifiedUsagePayments.length > 0 ? verifiedUsagePayments[0].id : null,
         createdAt: serverTimestamp() as unknown as Timestamp,
       });
+
+      // Update customer credit balance and write ledger entries if balance changed
+      if (userSnap.exists() && (creditToApply > 0 || surplusGenerated > 0)) {
+        txn.update(userRef, {
+          creditBalance: newCreditBalance,
+          updatedAt: serverTimestamp(),
+        });
+
+        if (creditToApply > 0) {
+          const ledgerApplyId = `apply_${invoiceId}`;
+          const ledgerApplyRef = doc(
+            db,
+            `users/${subscription.customerId}/ledger`,
+            ledgerApplyId,
+          );
+          txn.set(ledgerApplyRef, {
+            id: ledgerApplyId,
+            customerId: subscription.customerId,
+            type: "credit_applied",
+            amount: -creditToApply,
+            balanceAfter: existingCredit - creditToApply,
+            reason: `Credit applied toward billing invoice ${invoiceNumber}`,
+            referenceId: invoiceId,
+            invoiceId,
+            paymentId: null,
+            actorId: "system",
+            actorRole: "system",
+            createdAt: serverTimestamp(),
+          });
+        }
+
+        if (surplusGenerated > 0) {
+          const ledgerCycleId = `cycle_${subscription.id}_${effectiveEndDate}`;
+          const ledgerCycleRef = doc(
+            db,
+            `users/${subscription.customerId}/ledger`,
+            ledgerCycleId,
+          );
+          txn.set(ledgerCycleRef, {
+            id: ledgerCycleId,
+            customerId: subscription.customerId,
+            type: "cycle_credit",
+            amount: surplusGenerated,
+            balanceAfter: newCreditBalance,
+            reason: `Surplus advance payment carried forward from cycle ending ${effectiveEndDate}`,
+            referenceId: invoiceId,
+            invoiceId,
+            paymentId: null,
+            actorId: "system",
+            actorRole: "system",
+            createdAt: serverTimestamp(),
+          });
+        }
+      }
 
       // 2. Auto-renew or Expire (record billing metadata if cancelled)
       const subRef = doc(db, "subscriptions", subscription.id);

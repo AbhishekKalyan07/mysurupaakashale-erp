@@ -207,8 +207,10 @@ describe("Bug 1: Subscription Renewal Billing & Payment Isolation", () => {
     const m2Invoice = mockCreatedInvoices["inv_sub-renewal-1_2026-09-30"];
     expect(m2Invoice).toBeDefined();
     expect(m2Invoice.subtotal).toBe(3000);
-    // ₹3,000 - ₹1,000 Month 2 payment = ₹2,000 remaining due
-    expect(m2Invoice.totalAmount).toBe(2000);
+    expect(m2Invoice.totalAmount).toBe(3000);
+    expect(m2Invoice.paidAmount).toBe(1000);
+    // Remaining due = totalAmount (3000) - paidAmount (1000) = 2000
+    expect(Math.max(0, m2Invoice.totalAmount - (m2Invoice.paidAmount || 0))).toBe(2000);
     expect(m2Invoice.status).toBe("issued");
   });
 
@@ -246,8 +248,10 @@ describe("Bug 1: Subscription Renewal Billing & Payment Isolation", () => {
 
     const m2Invoice = mockCreatedInvoices["inv_sub-renewal-1_2026-09-30"];
     expect(m2Invoice.subtotal).toBe(3000);
-    // ₹3000 - (1200 + 800) = ₹1000 remaining
-    expect(m2Invoice.totalAmount).toBe(1000);
+    expect(m2Invoice.totalAmount).toBe(3000);
+    expect(m2Invoice.paidAmount).toBe(2000);
+    // Remaining due = totalAmount (3000) - paidAmount (2000) = 1000
+    expect(Math.max(0, m2Invoice.totalAmount - (m2Invoice.paidAmount || 0))).toBe(1000);
     expect(m2Invoice.status).toBe("issued");
   });
 
@@ -358,7 +362,9 @@ describe("Bug 1: Subscription Renewal Billing & Payment Isolation", () => {
 
     const m1Invoice = mockCreatedInvoices["inv_sub-renewal-1_2026-08-31"];
     expect(m1Invoice.subtotal).toBe(3000);
-    expect(m1Invoice.totalAmount).toBe(0);
+    expect(m1Invoice.totalAmount).toBe(3000);
+    expect(m1Invoice.paidAmount).toBe(3000);
+    expect(Math.max(0, m1Invoice.totalAmount - (m1Invoice.paidAmount || 0))).toBe(0);
     expect(m1Invoice.status).toBe("paid");
   });
 

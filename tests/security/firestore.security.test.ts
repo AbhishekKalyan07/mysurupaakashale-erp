@@ -1456,4 +1456,317 @@ withEmulator('🔐 Firestore Security Rules — Full Penetration Suite', () => {
       await assertFails(deleteDoc(doc(customerDb, 'failureQueue', 'fq-admin')));
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 5: Accounts Invoicing, Ledger Credits & Payment Reconciliation
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('Phase 5: Accounts Invoicing, Ledger Credits & Payment Reconciliation Security', () => {
+    it('DENY: Customer cannot forge creditBalance during account creation', async () => {
+      const db = env.authenticatedContext('uid-new-customer').firestore();
+      await assertFails(
+        setDoc(doc(db, 'users', 'uid-new-customer'), {
+          id: 'uid-new-customer',
+          role: 'customer',
+          email: 'new@test.com',
+          creditBalance: 5000, // Attempting to forge free credit!
+        }),
+      );
+    });
+
+    it('DENY: Customer cannot modify their own creditBalance on profile update', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(
+        updateDoc(doc(db, 'users', CUSTOMER_A_UID), {
+          creditBalance: 10000,
+        }),
+      );
+    });
+
+    it('ALLOW: Customer can read their own ledger entries', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `users/${CUSTOMER_A_UID}/ledger`, 'entry-1'), {
+          id: 'entry-1',
+          customerId: CUSTOMER_A_UID,
+          type: 'cycle_credit',
+          amount: 500,
+          balanceAfter: 500,
+          reason: 'Surplus rollover',
+          actorId: ADMIN_UID,
+          actorRole: 'admin',
+          createdAt: serverTimestamp(),
+        });
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(getDoc(doc(db, `users/${CUSTOMER_A_UID}/ledger`, 'entry-1')));
+    });
+
+    it('DENY: Customer cannot read another customer’s ledger entries', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `users/${CUSTOMER_A_UID}/ledger`, 'entry-1'), {
+          id: 'entry-1',
+          customerId: CUSTOMER_A_UID,
+          type: 'cycle_credit',
+          amount: 500,
+          balanceAfter: 500,
+          reason: 'Surplus rollover',
+          actorId: ADMIN_UID,
+          actorRole: 'admin',
+          createdAt: serverTimestamp(),
+        });
+      });
+      const db = env.authenticatedContext(CUSTOMER_B_UID).firestore();
+      await assertFails(getDoc(doc(db, `users/${CUSTOMER_A_UID}/ledger`, 'entry-1')));
+    });
+
+    it('DENY: Customer cannot create or modify ledger entries', async () => {
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(
+        setDoc(doc(db, `users/${CUSTOMER_A_UID}/ledger`, 'entry-forged'), {
+          id: 'entry-forged',
+          customerId: CUSTOMER_A_UID,
+          type: 'cycle_credit',
+          amount: 10000,
+          balanceAfter: 10000,
+          reason: 'Free money',
+          actorId: CUSTOMER_A_UID,
+          actorRole: 'admin',
+          createdAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENY: Customer cannot delete ledger entries', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `users/${CUSTOMER_A_UID}/ledger`, 'entry-del'), {
+          id: 'entry-del',
+          customerId: CUSTOMER_A_UID,
+          type: 'cycle_credit',
+          amount: 100,
+          balanceAfter: 100,
+          reason: 'Test',
+          actorId: ADMIN_UID,
+          actorRole: 'admin',
+          createdAt: serverTimestamp(),
+        });
+      });
+      const db = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertFails(deleteDoc(doc(db, `users/${CUSTOMER_A_UID}/ledger`, 'entry-del')));
+    });
+
+    it('ALLOW: Admin can write to customer ledger and update customer credit balance', async () => {
+      const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+      await assertSucceeds(
+        setDoc(doc(adminDb, `users/${CUSTOMER_A_UID}/ledger`, 'entry-admin'), {
+          id: 'entry-admin',
+          customerId: CUSTOMER_A_UID,
+          type: 'manual_adjustment',
+          amount: 250,
+          balanceAfter: 250,
+          reason: 'Admin goodwill credit',
+          actorId: ADMIN_UID,
+          actorRole: 'admin',
+          createdAt: serverTimestamp(),
+        }),
+      );
+
+      await assertSucceeds(
+        updateDoc(doc(adminDb, 'users', CUSTOMER_A_UID), {
+          creditBalance: 250,
+        }),
+      );
+    });
+
+    it('DENY: Accounts cannot write to customer ledger', async () => {
+      const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+      await assertFails(
+        setDoc(doc(accountsDb, `users/${CUSTOMER_A_UID}/ledger`, 'entry-accounts'), {
+          id: 'entry-accounts',
+          customerId: CUSTOMER_A_UID,
+          type: 'manual_adjustment',
+          amount: 250,
+          balanceAfter: 250,
+          reason: 'Accounts credit attempt',
+          actorId: ACCOUNTS_UID,
+          actorRole: 'accounts',
+          createdAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENY: Payment submission with invoice belonging to another customer', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        // Customer B owns invoice-b
+        await setDoc(doc(ctx.firestore(), 'invoices', 'invoice-b'), {
+          id: 'invoice-b',
+          customerId: CUSTOMER_B_UID,
+          subscriptionId: 'sub-b',
+          totalAmount: 1200,
+          subtotal: 1200,
+          status: 'issued',
+          lineItems: [{ description: 'Meal', quantity: 1, unitPrice: 1200, amount: 1200 }],
+          currency: 'INR',
+        });
+        await setDoc(doc(ctx.firestore(), 'subscriptions', 'sub-a'), {
+          id: 'sub-a',
+          customerId: CUSTOMER_A_UID,
+          status: 'active',
+        });
+      });
+
+      const custADb = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      // Customer A tries to submit a payment referencing Customer B's invoice
+      await assertFails(
+        setDoc(doc(custADb, 'payments', 'pay-tampered'), {
+          id: 'pay-tampered',
+          customerId: CUSTOMER_A_UID,
+          subscriptionId: 'sub-a',
+          invoiceId: 'invoice-b', // FORGED foreign invoice reference!
+          amount: 1200,
+          currency: 'INR',
+          paymentMethod: 'upi',
+          referenceNumber: 'UTR-1234567890',
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('ALLOW: Payment submission referencing own invoice', async () => {
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'invoices', 'invoice-a'), {
+          id: 'invoice-a',
+          customerId: CUSTOMER_A_UID,
+          subscriptionId: 'sub-a',
+          totalAmount: 1200,
+          subtotal: 1200,
+          status: 'issued',
+          lineItems: [{ description: 'Meal', quantity: 1, unitPrice: 1200, amount: 1200 }],
+          currency: 'INR',
+        });
+        await setDoc(doc(ctx.firestore(), 'subscriptions', 'sub-a'), {
+          id: 'sub-a',
+          customerId: CUSTOMER_A_UID,
+          status: 'active',
+        });
+      });
+
+      const custADb = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+      await assertSucceeds(
+        setDoc(doc(custADb, 'payments', 'pay-valid-invoice'), {
+          id: 'pay-valid-invoice',
+          customerId: CUSTOMER_A_UID,
+          subscriptionId: 'sub-a',
+          invoiceId: 'invoice-a',
+          amount: 1200,
+          currency: 'INR',
+          paymentMethod: 'upi',
+          referenceNumber: 'UTR-1234567890',
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    // ── Finance Role Authorization Matrix (Admin vs Accounts) ────────────────
+    describe('Finance Role Authorization Matrix (Admin vs Accounts vs Customer)', () => {
+      it('ALLOW: Accounts role can read any customer invoice', async () => {
+        await env.withSecurityRulesDisabled(async (ctx) => {
+          await setDoc(doc(ctx.firestore(), 'invoices', 'inv-matrix-1'), {
+            id: 'inv-matrix-1',
+            customerId: CUSTOMER_A_UID,
+            totalAmount: 1500,
+            status: 'issued',
+          });
+        });
+        const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+        await assertSucceeds(getDoc(doc(accountsDb, 'invoices', 'inv-matrix-1')));
+      });
+
+      it('ALLOW: Accounts role can read any customer ledger entry', async () => {
+        await env.withSecurityRulesDisabled(async (ctx) => {
+          await setDoc(doc(ctx.firestore(), `users/${CUSTOMER_A_UID}/ledger`, 'led-matrix-1'), {
+            id: 'led-matrix-1',
+            customerId: CUSTOMER_A_UID,
+            type: 'cycle_credit',
+            amount: 200,
+            balanceAfter: 200,
+          });
+        });
+        const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+        await assertSucceeds(getDoc(doc(accountsDb, `users/${CUSTOMER_A_UID}/ledger`, 'led-matrix-1')));
+      });
+
+      it('DENY: Accounts role cannot record offline payment (payment creation is Admin only)', async () => {
+        const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+        await assertFails(
+          setDoc(doc(accountsDb, 'payments', 'pay-accounts-forged'), {
+            id: 'pay-accounts-forged',
+            customerId: CUSTOMER_A_UID,
+            subscriptionId: 'sub-a',
+            amount: 1000,
+            currency: 'INR',
+            paymentMethod: 'cash',
+            status: 'verified',
+            verifiedBy: ACCOUNTS_UID,
+            createdAt: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('DENY: Accounts role cannot approve/verify payments (payment status update is Admin only)', async () => {
+        await env.withSecurityRulesDisabled(async (ctx) => {
+          await setDoc(doc(ctx.firestore(), 'payments', 'pay-pending-1'), {
+            id: 'pay-pending-1',
+            customerId: CUSTOMER_A_UID,
+            subscriptionId: 'sub-a',
+            amount: 1000,
+            currency: 'INR',
+            status: 'pending',
+          });
+        });
+        const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+        await assertFails(
+          updateDoc(doc(accountsDb, 'payments', 'pay-pending-1'), {
+            status: 'verified',
+            verifiedBy: ACCOUNTS_UID,
+          }),
+        );
+      });
+
+      it('DENY: Accounts role cannot modify customer creditBalance', async () => {
+        const accountsDb = env.authenticatedContext(ACCOUNTS_UID).firestore();
+        await assertFails(
+          updateDoc(doc(accountsDb, 'users', CUSTOMER_A_UID), {
+            creditBalance: 500,
+          }),
+        );
+      });
+
+      it('ALLOW: Admin role can perform payment creation, approval, and credit balance updates', async () => {
+        const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+
+        // 1. Admin creates verified payment
+        await assertSucceeds(
+          setDoc(doc(adminDb, 'payments', 'pay-admin-recorded'), {
+            id: 'pay-admin-recorded',
+            customerId: CUSTOMER_A_UID,
+            subscriptionId: 'sub-a',
+            amount: 1500,
+            currency: 'INR',
+            paymentMethod: 'cash',
+            status: 'verified',
+            verifiedBy: ADMIN_UID,
+            createdAt: serverTimestamp(),
+          }),
+        );
+
+        // 2. Admin updates creditBalance
+        await assertSucceeds(
+          updateDoc(doc(adminDb, 'users', CUSTOMER_A_UID), {
+            creditBalance: 1500,
+          }),
+        );
+      });
+    });
+  });
 });

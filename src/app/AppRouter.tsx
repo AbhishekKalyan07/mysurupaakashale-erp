@@ -261,6 +261,10 @@ const router = createBrowserRouter([
             path: "/admin/salary-advances",
             element: withSuspense(SalaryAdvanceHistoryPage),
           },
+          {
+            path: "/admin/accounts",
+            element: withSuspense(AdminAccountsPage),
+          },
         ],
       },
     ],
@@ -292,7 +296,6 @@ const router = createBrowserRouter([
             path: "/admin/delivery",
             element: withSuspense(DeliveryDashboardPage),
           },
-          { path: "/admin/accounts", element: withSuspense(AdminAccountsPage) },
           {
             path: "/admin/complaints",
             element: withSuspense(AdminComplaintsPage),

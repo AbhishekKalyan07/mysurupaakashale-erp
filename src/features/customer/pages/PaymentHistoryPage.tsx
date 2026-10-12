@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMyPayments, useMyInvoices } from "../hooks/usePayments";
 import { useMySubscription } from "../hooks/useMySubscription";
 import { ManualPaymentPanel } from "../components/ManualPaymentPanel";
@@ -28,7 +29,9 @@ import type {
   PaymentMethod,
   Invoice,
   InvoiceStatus,
+  CustomerProfile,
 } from "@/shared/types";
+import { getInvoicePaidAmount, getInvoiceRemainingDue } from "@/shared/types";
 
 function statusBadgeVariant(
   status: ManualPaymentStatus,
@@ -107,6 +110,8 @@ function invoiceStatusBadgeVariant(
       return "warning";
     case "overdue":
       return "danger";
+    case "void":
+      return "default";
     default:
       return "default";
   }
@@ -131,8 +136,11 @@ function InvoiceRow({
   onPay?: (invoice: Invoice) => void;
 }) {
   const isPaid = invoice.status === "paid";
+  const isVoid = invoice.status === "void";
   const parsedPaidAt = invoice.paidAt ? parseFirestoreDate(invoice.paidAt) : null;
   const paidDateStr = parsedPaidAt ? format(parsedPaidAt, "MMM dd, yyyy") : null;
+  const paidAmount = getInvoicePaidAmount(invoice);
+  const remainingDue = getInvoiceRemainingDue(invoice);
 
   return (
     <tr className="block md:table-row bg-background md:bg-transparent hover:bg-primary/5 transition-colors border-b border-primary/10 last:border-0 p-4 md:p-0 space-y-3 md:space-y-0">
@@ -154,20 +162,37 @@ function InvoiceRow({
             <Calendar size={12} className="text-primary shrink-0" />
             {formatPeriod(invoice.billingPeriodStart, invoice.billingPeriodEnd)}
           </div>
-          {invoice.depositHeld && invoice.depositHeld > 0 ? (
-            <span className="text-[11px] text-emerald-600 font-sans">
-              (₹{invoice.depositHeld.toLocaleString("en-IN")} deposit applied)
+          {invoice.creditApplied && invoice.creditApplied > 0 ? (
+            <span className="text-[11px] text-emerald-600 font-sans block">
+              (₹{invoice.creditApplied.toLocaleString("en-IN")} credit applied)
             </span>
           ) : null}
+          {invoice.depositHeld && invoice.depositHeld > 0 ? (
+            <span className="text-[11px] text-blue-600 font-sans block">
+              (₹{invoice.depositHeld.toLocaleString("en-IN")} security deposit held)
+            </span>
+          ) : null}
+          {paidAmount > 0 && !isPaid && (
+            <span className="text-[11px] text-blue-600 font-sans block">
+              ₹{paidAmount.toLocaleString("en-IN")} paid
+            </span>
+          )}
         </div>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
         <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider font-sans">
-          Total Due
+          {remainingDue > 0 ? "Balance Due" : "Total Amount"}
         </span>
-        <span className="font-bold text-primary font-data text-base">
-          ₹{invoice.totalAmount.toLocaleString("en-IN")}
-        </span>
+        <div>
+          <span className="font-bold text-primary font-data text-base">
+            ₹{(remainingDue > 0 ? remainingDue : invoice.totalAmount).toLocaleString("en-IN")}
+          </span>
+          {remainingDue > 0 && remainingDue < invoice.totalAmount && (
+            <span className="text-xs text-text-muted block line-through">
+              ₹{invoice.totalAmount.toLocaleString("en-IN")}
+            </span>
+          )}
+        </div>
       </td>
       <td className="flex justify-between items-start md:items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
         <span className="md:hidden font-bold text-text-muted text-[10px] uppercase tracking-wider font-sans mt-0.5">
@@ -178,9 +203,9 @@ function InvoiceRow({
             variant={invoiceStatusBadgeVariant(invoice.status)}
             className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 shadow-sm"
           >
-            {invoice.status === "issued" ? "Due" : invoice.status}
+            {invoice.status === "issued" ? "Due" : invoice.status === "void" ? "Voided" : invoice.status}
           </Badge>
-          {!isPaid && onPay && invoice.totalAmount > 0 && (
+          {!isPaid && !isVoid && onPay && remainingDue > 0 && (
             <PremiumButton
               variant="primary"
               size="xs"
@@ -193,6 +218,11 @@ function InvoiceRow({
           {isPaid && paidDateStr && (
             <span className="text-[11px] text-text-muted hidden md:inline">
               Paid on {paidDateStr}
+            </span>
+          )}
+          {isVoid && invoice.voidReason && (
+            <span className="text-[11px] text-text-muted hidden md:inline truncate max-w-[120px]" title={invoice.voidReason}>
+              {invoice.voidReason}
             </span>
           )}
         </div>
@@ -240,6 +270,11 @@ function PaymentRow({ payment }: { payment: ManualPayment }) {
               {payment.referenceNumber}
             </div>
           )}
+          {payment.invoiceId && (
+            <div className="text-[11px] text-primary/70 font-sans mt-0.5">
+              Invoice #{payment.invoiceId.slice(0, 8)}
+            </div>
+          )}
         </div>
       </td>
       <td className="flex justify-between items-start md:items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
@@ -268,6 +303,7 @@ function PaymentRow({ payment }: { payment: ManualPayment }) {
 }
 
 export function PaymentHistoryPage() {
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<"invoices" | "payments">("invoices");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
@@ -313,9 +349,10 @@ export function PaymentHistoryPage() {
   );
   const paidInvoices = invoiceList.filter((inv) => inv.status === "paid");
   const totalOutstandingDue = dueInvoices.reduce(
-    (acc, inv) => acc + (inv.totalAmount || 0),
+    (acc, inv) => acc + getInvoiceRemainingDue(inv),
     0,
   );
+  const creditBalance = (profile as CustomerProfile | null)?.creditBalance ?? 0;
 
   // Payment calculations
   const paymentList = payments || [];
@@ -379,7 +416,7 @@ export function PaymentHistoryPage() {
         {activeTab === "invoices" && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card className="p-6 text-center border-primary/20 shadow-sm bg-gradient-to-b from-primary/5 to-transparent">
                 <div className="text-3xl font-bold font-data text-primary mb-2">
                   {invoiceList.length}
@@ -406,6 +443,18 @@ export function PaymentHistoryPage() {
 
               <Card className="p-6 text-center border-emerald-300 shadow-sm bg-gradient-to-b from-emerald-50 to-transparent">
                 <div className="text-3xl font-bold font-data text-emerald-800 mb-2">
+                  ₹{creditBalance.toLocaleString("en-IN")}
+                </div>
+                <Badge
+                  variant={creditBalance > 0 ? "success" : "default"}
+                  className="mt-1 text-[10px] uppercase font-bold tracking-widest shadow-sm"
+                >
+                  Available Credit
+                </Badge>
+              </Card>
+
+              <Card className="p-6 text-center border-slate-300 shadow-sm bg-gradient-to-b from-slate-50 to-transparent">
+                <div className="text-3xl font-bold font-data text-slate-800 mb-2">
                   {paidInvoices.length}
                 </div>
                 <Badge
@@ -439,7 +488,8 @@ export function PaymentHistoryPage() {
                     activeSubscription?.id ||
                     ""
                   }
-                  amount={selectedInvoice.totalAmount}
+                  invoiceId={selectedInvoice.id}
+                  amount={getInvoiceRemainingDue(selectedInvoice)}
                   purpose="usage"
                   onClose={() => setSelectedInvoice(null)}
                   onSuccess={() => {
