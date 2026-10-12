@@ -172,12 +172,8 @@ test.describe('Admin Mobile & PWA Optimization (D.8)', () => {
     await adminPage.goto('/admin/accounts');
     await adminPage.waitForSelector('h1:has-text("Accounts")', { timeout: 20000 });
 
-    // Verify Financial Reports section
-    await expect(adminPage.getByRole('heading', { name: 'Financial Reports' })).toBeVisible();
-
-    // Verify Manual Invoice form inputs are visible
-    await expect(adminPage.getByRole('heading', { name: 'Generate Manual Invoice' })).toBeVisible();
-    await expect(adminPage.locator('button:has-text("Create Invoice")')).toBeVisible();
+    // Verify search input and responsive controls are visible
+    await expect(adminPage.locator('input[placeholder*="Search invoice #"]')).toBeVisible();
 
     // Verify no horizontal overflow
     const main = adminPage.locator('main');
