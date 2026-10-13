@@ -17,7 +17,7 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
   // 1. ADMIN ROLE — Desktop (1280x800) & Mobile (375x667)
   // ---------------------------------------------------------------------------
   test.describe('Admin Role Walkthrough', () => {
-    test('desktop: dashboard loads, filters work, invoice details, offline payment, voiding & credit adjustments', async ({ adminPage }) => {
+    test('desktop: dashboard loads, filters work, invoice details, offline payment, voiding & ledger audit', async ({ adminPage }) => {
       await adminPage.setViewportSize({ width: 1280, height: 800 });
       await adminPage.goto('/admin/accounts');
 
@@ -112,27 +112,19 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       await confirmBtn.click();
       await expect(adminPage.getByText(/Invoice voided successfully/i)).toBeVisible({ timeout: 10000 });
 
-      // 6. Manual Credit Adjustment & Ledger History
+      // 6. Customer Ledger History & Credit Deprecation Notice
       const custSearchInput = adminPage.locator('input[placeholder*="Search MP-A001"]');
       await custSearchInput.fill('customer@test.com');
       await adminPage.locator('form').filter({ has: custSearchInput }).locator('button[type="submit"]').click();
 
-      // Verify customer details and credit ledger load
+      // Verify customer details, deprecation notice, and historical credit ledger load
       await expect(adminPage.getByRole('heading', { name: 'Customer Ledger History' })).toBeVisible({ timeout: 10000 });
+      await expect(adminPage.getByText('Historical Wallet Credit')).toBeVisible();
+      await expect(adminPage.getByText('Customer Wallet Credit Discontinued')).toBeVisible();
       await expect(adminPage.getByText('Initial credit balance setup')).toBeVisible();
 
-      // Apply ₹150 manual credit (scoped to Post Manual Credit/Debit Adjustment container)
-      const adjSection = adminPage.locator('div').filter({ hasText: 'Post Manual Credit/Debit Adjustment' }).last();
-      const adjAmountInput = adjSection.locator('input[type="number"]');
-      const adjReasonInput = adjSection.locator('input[placeholder*="Mandatory reason"]');
-      await adjAmountInput.fill('150');
-      await adjReasonInput.fill('Special courtesy promotion credit');
-
-      await adjSection.locator('button', { hasText: 'Apply Credit' }).click();
-      await expect(adminPage.getByText(/Successfully recorded ₹150 credit/i)).toBeVisible({ timeout: 10000 });
-
-      // Ledger history displays new entry
-      await expect(adminPage.getByText('Special courtesy promotion credit')).toBeVisible();
+      // Manual wallet credit adjustments are discontinued; no Apply Credit button exists
+      await expect(adminPage.locator('button', { hasText: 'Apply Credit' })).not.toBeVisible();
     });
 
     test('mobile: viewport 375x667 accounts dashboard renders responsive controls', async ({ adminPage }) => {
@@ -182,8 +174,8 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       await expect(accountsPage.getByRole('heading', { name: 'Customer Ledger History' })).toBeVisible({ timeout: 10000 });
       await expect(accountsPage.getByText('Initial credit balance setup')).toBeVisible();
 
-      // Form is replaced by read-only notice
-      await expect(accountsPage.getByText(/Restricted to administrators/i)).toBeVisible();
+      // Wallet adjustments discontinued notice displayed
+      await expect(accountsPage.getByText(/Customer Wallet Credit Discontinued/i)).toBeVisible();
       await expect(accountsPage.locator('button', { hasText: 'Apply Credit' })).not.toBeVisible();
     });
 
@@ -218,9 +210,9 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       // Total Outstanding Due = ₹1,500 (modern) + ₹2,500 (legacy issued) = ₹4,000
       await expect(customerPage.getByText('₹4,000')).toBeVisible();
-
-      // Available Credit = ₹200
-      await expect(customerPage.getByText('₹200')).toBeVisible();
+      await expect(customerPage.getByText('Outstanding Due')).toBeVisible();
+      await expect(customerPage.getByText('Total Invoices')).toBeVisible();
+      await expect(customerPage.getByText('Fully Settled')).toBeVisible();
 
       // 2. Verify Modern Invoice Row
       const modernRow = customerPage.locator('tr').filter({ hasText: 'INV-MODERN-2026-001' }).first();

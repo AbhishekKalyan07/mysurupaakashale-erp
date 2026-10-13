@@ -916,7 +916,7 @@ function CustomerDetailDialog({
   const [isCreateSubOpen, setIsCreateSubOpen] = useState(false);
 
   // Fetch customer subscriptions
-  const { data: subs = [] } = useQuery({
+  const { data: subs = [], isLoading: isLoadingSubs } = useQuery({
     queryKey: ["subscriptions", "customer", customer.id],
     queryFn: () => subscriptionRepository.getByCustomerId(customer.id),
   });
@@ -980,7 +980,9 @@ function CustomerDetailDialog({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {currentActiveSub ? (
+            {isLoadingSubs ? (
+              <div className="h-8 w-28 bg-primary/10 animate-pulse rounded-[14px]" />
+            ) : currentActiveSub ? (
               <Button
                 variant="success-tonal"
                 size="sm"
