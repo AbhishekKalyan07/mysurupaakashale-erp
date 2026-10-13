@@ -4,7 +4,13 @@ import { billingService } from "../billingService";
 import { paymentService } from "../paymentService";
 import { accountsRepository } from "../../firestore/accountsRepository";
 import type { Subscription, Invoice, ManualPayment } from "@/shared/types";
-import { getInvoicePaidAmount, getInvoiceRemainingDue } from "@/shared/types";
+import {
+  getInvoicePaidAmount,
+  getInvoiceRemainingDue,
+  getInvoiceCollectedAmount,
+  getInvoiceRemainingToRefund,
+  isInvoiceCollectedAmountKnown,
+} from "@/shared/types";
 
 /**
  * Phase 5B.1: Legacy Invoice Compatibility Test Suite
@@ -485,16 +491,16 @@ describe("Phase 5B.1: Legacy Invoice Compatibility & Accounting Contract", () =>
 
       await paymentService.approvePayment("pay-over-001", "admin-uid");
 
-      // Invoice settled at totalAmount (2000)
+      // Option A: Invoice settled with paidAmount capped at totalAmount and excess as remainingToRefund
       expect(invoiceUpdatePayload.status).toBe("paid");
       expect(invoiceUpdatePayload.paidAmount).toBe(2000);
+      expect(invoiceUpdatePayload.collectedAmount).toBe(2500);
+      expect(invoiceUpdatePayload.remainingToRefund).toBe(500);
       expect(invoiceUpdatePayload.totalAmount).toBe(2000);
 
-      // Surplus of ₹500 credited to customer: 100 + 500 = 600
-      expect(userUpdatePayload.creditBalance).toBe(600);
-      expect(ledgerEntryPayload.amount).toBe(500);
-      expect(ledgerEntryPayload.balanceAfter).toBe(600);
-      expect(ledgerEntryPayload.type).toBe("manual_adjustment");
+      // Phase 6C: No surplus credited to customer wallet or ledger
+      expect(userUpdatePayload).toBeNull();
+      expect(ledgerEntryPayload).toBeNull();
     });
   });
 
@@ -584,6 +590,96 @@ describe("Phase 5B.1: Legacy Invoice Compatibility & Accounting Contract", () =>
       const res = await billingService.processSubscriptionEnd(sub, "2026-06-30", "expired");
       expect(res).toBe(true);
       expect(subUpdated).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 7. Legacy Collection Fallbacks & Refund Safety (Phase 6F)
+  // ---------------------------------------------------------------------------
+  describe("7. Legacy Collection Fallbacks & Safety", () => {
+    it("legacy paid invoice without collectedAmount uses conservative paidAmount baseline and identifies collection as unknown", () => {
+      const legacyInvoice: Invoice = {
+        id: "inv-leg-col-1",
+        invoiceNumber: "INV-LEG-001",
+        customerId: "cust-leg-1",
+        subscriptionId: "sub-leg-1",
+        lineItems: [],
+        subtotal: 3000,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: 3000,
+        paidAmount: 3000,
+        currency: "INR",
+        status: "paid",
+        billingPeriodStart: "2026-06-01",
+        billingPeriodEnd: "2026-06-30",
+        dueDate: "2026-06-30",
+        paidAt: null,
+        paymentId: "pay-leg-1",
+        createdAt: { seconds: 1719705600, nanoseconds: 0 } as any,
+      };
+
+      expect(isInvoiceCollectedAmountKnown(legacyInvoice)).toBe(false);
+      expect(getInvoiceCollectedAmount(legacyInvoice)).toBe(3000);
+      expect(getInvoiceRemainingDue(legacyInvoice)).toBe(0);
+      expect(getInvoiceRemainingToRefund(legacyInvoice)).toBe(0);
+    });
+
+    it("legacy invoice with reduced totalAmount does not fabricate refund liability when gross collection is unknown", () => {
+      const legacyReducedInvoice: Invoice = {
+        id: "inv-leg-col-2",
+        invoiceNumber: "INV-LEG-002",
+        customerId: "cust-leg-2",
+        subscriptionId: "sub-leg-2",
+        lineItems: [],
+        subtotal: 2500,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: 2500,
+        paidAmount: 2500,
+        currency: "INR",
+        status: "paid",
+        billingPeriodStart: "2026-06-01",
+        billingPeriodEnd: "2026-06-30",
+        dueDate: "2026-06-30",
+        paidAt: null,
+        paymentId: null, // missing payment link
+        createdAt: { seconds: 1719705600, nanoseconds: 0 } as any,
+      };
+
+      expect(isInvoiceCollectedAmountKnown(legacyReducedInvoice)).toBe(false);
+      expect(getInvoiceCollectedAmount(legacyReducedInvoice)).toBe(2500);
+      expect(getInvoiceRemainingToRefund(legacyReducedInvoice)).toBe(0);
+    });
+
+    it("genuine new-format invoice with explicit collectedAmount accurately tracks collections and refund liability", () => {
+      const modernOverpaidInvoice: Invoice = {
+        id: "inv-mod-col-3",
+        invoiceNumber: "INV-MOD-003",
+        customerId: "cust-mod-3",
+        subscriptionId: "sub-mod-3",
+        lineItems: [],
+        subtotal: 3000,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: 3000,
+        paidAmount: 3000,
+        collectedAmount: 3500,
+        remainingToRefund: 500,
+        currency: "INR",
+        status: "paid",
+        billingPeriodStart: "2026-10-01",
+        billingPeriodEnd: "2026-10-31",
+        dueDate: "2026-10-31",
+        paidAt: null,
+        paymentId: "pay-mod-3",
+        createdAt: { seconds: 1729705600, nanoseconds: 0 } as any,
+      };
+
+      expect(isInvoiceCollectedAmountKnown(modernOverpaidInvoice)).toBe(true);
+      expect(getInvoiceCollectedAmount(modernOverpaidInvoice)).toBe(3500);
+      expect(getInvoiceRemainingDue(modernOverpaidInvoice)).toBe(0);
+      expect(getInvoiceRemainingToRefund(modernOverpaidInvoice)).toBe(500);
     });
   });
 });

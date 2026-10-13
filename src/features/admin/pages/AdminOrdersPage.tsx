@@ -163,7 +163,7 @@ function AdminOrderDetailDialog({
         order.mealType,
       );
       toast.success(
-        `Meal cancelled. ₹${result.cancellationAmount} credit applied to invoice.`,
+        `Meal cancelled. ₹${result.cancellationAmount} deducted from bill.`,
       );
       onRefresh();
       onClose();

@@ -1044,7 +1044,9 @@ class OrderService {
     }
 
     if (!kitchenId || !zoneId) {
-      throw new Error(`Missing kitchen configuration for customer ${customerId}`);
+      throw new Error(
+        `Cannot add meal: Customer address does not match an active delivery zone. Please assign a delivery zone in the Customer Profile.`,
+      );
     }
 
     // Partner resolution
@@ -1747,6 +1749,14 @@ class OrderService {
           "[orderService] Failed to record audit log for meal cancellation:",
           err,
         );
+      }
+
+      // Adjust any issued/open invoice for this cancelled meal
+      try {
+        const { billingService } = await import("./billingService");
+        await billingService.adjustInvoiceForCancelledOrders([order], subscription, actor.uid);
+      } catch (invErr) {
+        console.warn("[orderService] Failed to adjust invoice for cancelled meal:", invErr);
       }
     }
 
@@ -2509,6 +2519,17 @@ class OrderService {
           });
         })
         .catch(console.error);
+
+      // Adjust any issued/open invoice for skipped orders
+      try {
+        const sub = await subscriptionRepository.getById(subscriptionId);
+        if (sub) {
+          const { billingService } = await import("./billingService");
+          await billingService.adjustInvoiceForCancelledOrders(cancelledOrders, sub, actorUid);
+        }
+      } catch (invErr) {
+        console.warn("[orderService] Failed to adjust invoice for skip day:", invErr);
+      }
     }
   }
 
@@ -2718,6 +2739,17 @@ class OrderService {
           });
         })
         .catch(console.error);
+
+      // Adjust any issued/open invoice for atomic skipped orders
+      try {
+        const sub = await subscriptionRepository.getById(subscriptionId);
+        if (sub) {
+          const { billingService } = await import("./billingService");
+          await billingService.adjustInvoiceForCancelledOrders(eligibleOrders, sub, actorUid);
+        }
+      } catch (invErr) {
+        console.warn("[orderService] Failed to adjust invoice for atomic skip:", invErr);
+      }
     }
 
     return {

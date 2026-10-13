@@ -73,7 +73,10 @@ export type {
 } from "./billing.types";
 export {
   getInvoicePaidAmount,
+  getInvoiceCollectedAmount,
+  isInvoiceCollectedAmountKnown,
   getInvoiceRemainingDue,
+  getInvoiceRemainingToRefund,
 } from "./billing.types";
 
 export type {

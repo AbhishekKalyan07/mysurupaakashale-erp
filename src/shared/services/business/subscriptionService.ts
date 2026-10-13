@@ -815,6 +815,14 @@ class SubscriptionService {
             });
           })
           .catch(console.error);
+
+        // Adjust any issued/open invoice for paused orders
+        try {
+          const { billingService } = await import("./billingService");
+          await billingService.adjustInvoiceForCancelledOrders(cancelledOrders, subscription, actorUid);
+        } catch (invErr) {
+          console.warn("[subscriptionService] Failed to adjust invoice for paused orders:", invErr);
+        }
       }
     } else {
       await batch.commit();

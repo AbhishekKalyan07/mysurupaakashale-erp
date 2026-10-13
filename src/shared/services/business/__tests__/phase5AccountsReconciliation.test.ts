@@ -203,20 +203,18 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       await billingService.processSubscriptionEnd(mockSub, "2026-08-31");
 
-      // Gross 3000 - credit 500 = totalAmount 2500
+      // Gross 3000, Phase 6B: wallet credit is not applied to newly generated bills
       expect(savedInvoice.subtotal).toBe(3000);
-      expect(savedInvoice.creditApplied).toBe(500);
-      expect(savedInvoice.totalAmount).toBe(2500);
+      expect(savedInvoice.creditApplied).toBe(0);
+      expect(savedInvoice.totalAmount).toBe(3000);
       expect(savedInvoice.paidAmount).toBe(1000);
       const remainingDue = Math.max(0, savedInvoice.totalAmount - savedInvoice.paidAmount);
-      expect(remainingDue).toBe(1500);
+      expect(remainingDue).toBe(2000);
       expect(savedInvoice.status).toBe("issued");
 
-      // Credit balance deducted by 500 -> 0
-      expect(userUpdated.creditBalance).toBe(0);
-      expect(ledgerEntry.type).toBe("credit_applied");
-      expect(ledgerEntry.amount).toBe(-500);
-      expect(ledgerEntry.balanceAfter).toBe(0);
+      // Phase 6B: customer creditBalance untouched, no credit_applied ledger entry
+      expect(userUpdated).toBeNull();
+      expect(ledgerEntry).toBeNull();
     });
 
     it("Scenario D: Charge ₹3,000, advance payment ₹3,000 -> remaining due ₹0 with no duplicate charge or credit", async () => {
@@ -314,13 +312,13 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
       expect(savedInvoice.creditApplied).toBe(0);
       expect(savedInvoice.totalAmount).toBe(3000);
       expect(savedInvoice.paidAmount).toBe(3000);
+      expect(savedInvoice.collectedAmount).toBe(3500);
+      expect(savedInvoice.remainingToRefund).toBe(500);
       expect(savedInvoice.status).toBe("paid");
 
-      // Surplus 500 added to existing 200 balance -> 700
-      expect(userUpdated.creditBalance).toBe(700);
-      expect(ledgerEntry.type).toBe("cycle_credit");
-      expect(ledgerEntry.amount).toBe(500);
-      expect(ledgerEntry.balanceAfter).toBe(700);
+      // Phase 6B: Surplus 500 is NOT added to wallet credit
+      expect(userUpdated).toBeNull();
+      expect(ledgerEntry).toBeNull();
     });
 
     it("Scenario F: Charge ₹3,000, available credit ₹2,000, payment ₹1,000 -> remaining due ₹0 and no negative balance", async () => {
@@ -364,20 +362,18 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       await billingService.processSubscriptionEnd(mockSub, "2026-08-31");
 
-      // Gross 3000 - credit 2000 = totalAmount 1000
+      // Gross 3000, Phase 6B: credit is not automatically applied
       expect(savedInvoice.subtotal).toBe(3000);
-      expect(savedInvoice.creditApplied).toBe(2000);
-      expect(savedInvoice.totalAmount).toBe(1000);
+      expect(savedInvoice.creditApplied).toBe(0);
+      expect(savedInvoice.totalAmount).toBe(3000);
       expect(savedInvoice.paidAmount).toBe(1000);
       const remainingDue = Math.max(0, savedInvoice.totalAmount - savedInvoice.paidAmount);
-      expect(remainingDue).toBe(0);
-      expect(savedInvoice.status).toBe("paid");
+      expect(remainingDue).toBe(2000);
+      expect(savedInvoice.status).toBe("issued");
 
-      // Credit balance 2000 - 2000 = 0 (no negative balance)
-      expect(userUpdated.creditBalance).toBe(0);
-      expect(ledgerEntry.type).toBe("credit_applied");
-      expect(ledgerEntry.amount).toBe(-2000);
-      expect(ledgerEntry.balanceAfter).toBe(0);
+      // Credit balance is untouched
+      expect(userUpdated).toBeNull();
+      expect(ledgerEntry).toBeNull();
     });
   });
 
@@ -585,12 +581,13 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       await paymentService.approvePayment("pay-over-1", "admin-1", { role: "admin", fullName: "Admin" } as any);
 
+      // Phase 6E (Option A): paidAmount capped at totalAmount, gross cash in collectedAmount, surplus tracked as remainingToRefund, no wallet credit
       expect(invoiceUpdate.paidAmount).toBe(1000);
+      expect(invoiceUpdate.collectedAmount).toBe(1500);
+      expect(invoiceUpdate.remainingToRefund).toBe(500);
       expect(invoiceUpdate.status).toBe("paid");
-      expect(userUpdate.creditBalance).toBe(700); // 200 + 500
-      expect(ledgerEntry.amount).toBe(500);
-      expect(ledgerEntry.balanceAfter).toBe(700);
-      expect(ledgerEntry.type).toBe("manual_adjustment");
+      expect(userUpdate).toBeNull();
+      expect(ledgerEntry).toBeNull();
     });
 
     it("credits payment targeting an already settled invoice directly to customer credit balance", async () => {
@@ -623,6 +620,7 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => mockPayment } as any);
 
+      let invoiceUpdate: any = null;
       let userUpdate: any = null;
       let ledgerEntry: any = null;
 
@@ -642,6 +640,7 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
           }),
           update: vi.fn().mockImplementation((ref, data) => {
             const p = (ref as any)?.path || "";
+            if (p.includes("invoices")) invoiceUpdate = data;
             if (p.includes("users")) userUpdate = data;
           }),
         };
@@ -650,11 +649,12 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       await paymentService.approvePayment("pay-extra", "admin-1", { role: "admin", fullName: "Admin" } as any);
 
-      // Customer receives full 500 credit
-      expect(userUpdate.creditBalance).toBe(600); // 100 + 500
-      expect(ledgerEntry.amount).toBe(500);
-      expect(ledgerEntry.balanceAfter).toBe(600);
-      expect(ledgerEntry.type).toBe("manual_adjustment");
+      // Phase 6E (Option A): paidAmount capped at totalAmount, gross cash in collectedAmount, surplus tracked as remainingToRefund
+      expect(invoiceUpdate.paidAmount).toBe(1000);
+      expect(invoiceUpdate.collectedAmount).toBe(1500);
+      expect(invoiceUpdate.remainingToRefund).toBe(500);
+      expect(userUpdate).toBeNull();
+      expect(ledgerEntry).toBeNull();
     });
   });
 
@@ -1570,17 +1570,14 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       expect(createdInvoice).not.toBeNull();
       expect(createdInvoice.subtotal).toBe(3000);
-      expect(createdInvoice.creditApplied).toBe(1000);
-      // totalAmount is reduced by the released deposit credit
-      expect(createdInvoice.totalAmount).toBe(2000);
+      expect(createdInvoice.creditApplied).toBe(0);
+      expect(createdInvoice.totalAmount).toBe(3000);
       expect(createdInvoice.paidAmount).toBe(0);
-      expect(getInvoiceRemainingDue(createdInvoice)).toBe(2000);
+      expect(getInvoiceRemainingDue(createdInvoice)).toBe(3000);
 
-      // Customer balance is consumed: 1000 - 1000 = 0
-      expect(userUpdated.creditBalance).toBe(0);
-      expect(ledgerCreated.type).toBe("credit_applied");
-      expect(ledgerCreated.amount).toBe(-1000);
-      expect(ledgerCreated.balanceAfter).toBe(0);
+      // Phase 6B: Customer balance is untouched, no credit_applied entry
+      expect(userUpdated).toBeNull();
+      expect(ledgerCreated).toBeNull();
     });
 
     it("case 4: deposits represented by existing payment records partition cleanly and prevent double counting", async () => {
@@ -2001,19 +1998,17 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       expect(createdInvoice).not.toBeNull();
       expect(createdInvoice.subtotal).toBe(3000);
-      expect(createdInvoice.creditApplied).toBe(500);
-      expect(createdInvoice.totalAmount).toBe(2500);
+      expect(createdInvoice.creditApplied).toBe(0);
+      expect(createdInvoice.totalAmount).toBe(3000);
       expect(createdInvoice.paidAmount).toBe(0);
-      expect(getInvoiceRemainingDue(createdInvoice)).toBe(2500);
+      expect(getInvoiceRemainingDue(createdInvoice)).toBe(3000);
 
-      // Ledger effect
-      expect(userUpdated.creditBalance).toBe(0);
-      expect(ledgerCreated.type).toBe("credit_applied");
-      expect(ledgerCreated.amount).toBe(-500);
-      expect(ledgerCreated.balanceAfter).toBe(0);
+      // Phase 6B: Ledger effect - untouched
+      expect(userUpdated).toBeNull();
+      expect(ledgerCreated).toBeNull();
     });
 
-    // Scenario 5: The deposit is explicitly released to customer ledger credit and then applied to an invoice: verify the released deposit is not also deducted through depositHeld.
+    // Scenario 5: The deposit is not applied via wallet credit to newly generated bills.
     it("Scenario 5: deposit explicitly released to customer ledger credit and applied -> not also deducted through depositHeld", async () => {
       const sub = createMockSubscription({ id: "sub-5b5-5", customerId: "cust-5b5-5", depositAmount: 1500 });
       const orders = Array.from({ length: 30 }, (_, i) => ({
@@ -2065,19 +2060,14 @@ describe("Phase 5A: Financial Invariants, Canonical Ledger Credits & Payment Rec
 
       expect(createdInvoice).not.toBeNull();
       expect(createdInvoice.subtotal).toBe(3000);
-      expect(createdInvoice.creditApplied).toBe(1500);
-      // totalAmount is 3000 - 1500 (credit applied) = 1500.
-      expect(createdInvoice.totalAmount).toBe(1500);
+      expect(createdInvoice.creditApplied).toBe(0);
+      expect(createdInvoice.totalAmount).toBe(3000);
       expect(createdInvoice.paidAmount).toBe(0);
-      // Remaining due = 1500. It is NOT 0 (which would occur if depositHeld were also deducted).
-      expect(getInvoiceRemainingDue(createdInvoice)).toBe(1500);
-      expect(getInvoiceRemainingDue(createdInvoice)).not.toBe(0);
+      expect(getInvoiceRemainingDue(createdInvoice)).toBe(3000);
 
-      // Ledger effect
-      expect(userUpdated.creditBalance).toBe(0);
-      expect(ledgerCreated.type).toBe("credit_applied");
-      expect(ledgerCreated.amount).toBe(-1500);
-      expect(ledgerCreated.balanceAfter).toBe(0);
+      // Phase 6B: No ledger mutation
+      expect(userUpdated).toBeNull();
+      expect(ledgerCreated).toBeNull();
     });
 
     // Scenario 6: A void invoice rejects customer payment submission, online approval, and offline recording without reopening or silently reallocating funds.

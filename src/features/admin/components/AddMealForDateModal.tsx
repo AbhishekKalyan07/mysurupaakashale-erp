@@ -183,6 +183,16 @@ export function AddMealForDateModal({
             </div>
           )}
 
+          {/* Zone Coverage Notice if unassigned */}
+          {!customer.zoneId && !subscription?.zoneId && (
+            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 rounded-xl p-2.5 text-[11px] flex items-start gap-2">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                Customer has no explicit delivery zone. If their pincode is outside standard Mysuru coverage, assign a delivery zone in Customer Profile before ordering.
+              </span>
+            </div>
+          )}
+
           {/* Summary / Pricing Breakdown */}
           <div className="bg-surface-2 rounded-xl p-3.5 border border-border space-y-2 text-xs">
             <div className="flex items-center justify-between">

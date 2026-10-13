@@ -154,6 +154,7 @@ class BillingService {
   private async getOrdersForSubscription(
     subscription: Subscription,
     effectiveEndDate: string,
+    cycleStartDate?: string,
   ) {
     try {
       if (typeof orderRepository.getBySubscriptionId === "function") {
@@ -173,7 +174,7 @@ class BillingService {
 
     return await orderRepository.getCustomerOrdersInRange(
       subscription.customerId,
-      subscription.startDate,
+      cycleStartDate || subscription.startDate,
       effectiveEndDate,
     );
   }
@@ -189,6 +190,19 @@ class BillingService {
         : subscription.cancellationDate || subscription.endDate || today;
     const invoiceId = `inv_${subscription.id}_${effectiveEndDate}`;
     const invoiceRef = doc(db, "invoices", invoiceId);
+
+    // Determine the authoritative start date for the billing cycle currently being settled.
+    // If lastBilledDate is present, the current cycle begins strictly after that prior settlement boundary.
+    // Otherwise, the cycle begins at subscription.startDate.
+    let cycleStartDate = subscription.startDate;
+    if (subscription.lastBilledDate) {
+      const [ly, lm, ld] = subscription.lastBilledDate.split("-").map(Number);
+      const nextDay = new Date(Date.UTC(ly, lm - 1, ld + 1));
+      const nextDayStr = nextDay.toISOString().split("T")[0];
+      if (nextDayStr > cycleStartDate) {
+        cycleStartDate = nextDayStr;
+      }
+    }
 
     // Helper to compute next period dates (same logic as original)
     const computeNextPeriod = () => {
@@ -286,26 +300,18 @@ class BillingService {
     const customerOrders = await this.getOrdersForSubscription(
       subscription,
       effectiveEndDate,
+      cycleStartDate,
     );
 
-    // Calculate total bill for the ended cycle
-    const terminalStatuses = [
-      "scheduled",
-      "skipped",
-      "cancelled",
-      "failed_delivery",
-      "returned_delivery",
-    ];
+    // Under the delivery-first, bill-after-delivery model, only successfully delivered meals are billable.
+    // Scheduled, skipped, cancelled, failed_delivery, and returned_delivery meals are excluded.
     const billableOrders = customerOrders.filter(
       (o) =>
         o.subscriptionId === subscription.id &&
-        !terminalStatuses.includes(o.status) &&
-        o.date >= subscription.startDate &&
+        o.status === "delivered" &&
+        o.date >= cycleStartDate &&
         o.date <= effectiveEndDate,
     );
-
-    // Legacy PRICING_MATRIX removed; pricing now resolved via PricingService
-
 
     // Group by date
     const ordersByDate = new Map<string, typeof billableOrders>();
@@ -322,12 +328,24 @@ class BillingService {
       const standardOrders = dailyOrders.filter((o) => !o.isAddon);
       const addonOrders = dailyOrders.filter((o) => o.isAddon);
 
+      // De-duplicate add-on orders by order.id to prevent duplicate billing on retried delivery confirmations
+      const seenAddonOrderIds = new Set<string>();
       addonOrders.forEach((ao) => {
+        if (ao.id && seenAddonOrderIds.has(ao.id)) return;
+        if (ao.id) seenAddonOrderIds.add(ao.id);
         addonTotal += ao.price || 0;
         allAddonOrders.push(ao);
       });
 
-      const meals = standardOrders.map((o) => o.mealType);
+      // Ensure unique meal types per date to prevent duplicate billing if delivery confirmation was retried
+      const seenMealsForDay = new Set<string>();
+      const uniqueStandardOrders = standardOrders.filter((o) => {
+        if (seenMealsForDay.has(o.mealType)) return false;
+        seenMealsForDay.add(o.mealType);
+        return true;
+      });
+
+      const meals = uniqueStandardOrders.map((o) => o.mealType);
       let key = "";
       if (
         meals.includes("breakfast") &&
@@ -364,8 +382,11 @@ class BillingService {
     const payments = await paymentRepository.getByCustomerId(
       subscription.customerId,
     );
-    const cycleBillingMonth = subscription.startDate.slice(0, 7);
+    const cycleBillingMonth = cycleStartDate.slice(0, 7);
+    const seenPaymentIds = new Set<string>();
+
     const verifiedUsagePayments = payments.filter((p) => {
+      // 1. Must match subscription, be verified, and not be a security deposit
       if (
         p.subscriptionId !== subscription.id ||
         p.status !== "verified" ||
@@ -374,34 +395,65 @@ class BillingService {
         return false;
       }
 
-      if (subscription.billingCycle === "monthly") {
-        if (p.billingMonth) {
-          return p.billingMonth === cycleBillingMonth;
-        }
-        if (p.paymentDate) {
-          return (
-            p.paymentDate >= subscription.startDate &&
-            p.paymentDate <= effectiveEndDate
-          );
-        }
+      // 2. Prevent duplicate payment records from double-counting
+      if (seenPaymentIds.has(p.id)) {
+        return false;
+      }
+
+      // 3. If payment is already linked to another invoice, never re-attribute to this invoice
+      if (p.invoiceId && p.invoiceId !== invoiceId) {
+        return false;
+      }
+
+      // 4. If payment is explicitly linked to this cycle's invoice, attribute directly
+      if (p.invoiceId && p.invoiceId === invoiceId) {
+        seenPaymentIds.add(p.id);
         return true;
       }
 
-      // Weekly or custom cycles: match payments made for this cycle window
-      if (p.paymentDate) {
-        return (
-          p.paymentDate >= subscription.startDate &&
-          p.paymentDate <= effectiveEndDate
-        );
+      // 5. Scoped cycle attribution without guessing
+      let isEligible = false;
+      if (subscription.billingCycle === "monthly") {
+        if (p.billingMonth) {
+          isEligible = p.billingMonth === cycleBillingMonth;
+        } else if (p.paymentDate) {
+          isEligible =
+            p.paymentDate >= cycleStartDate &&
+            p.paymentDate <= effectiveEndDate;
+        } else {
+          isEligible = false; // Do not guess receipts lacking cycle or date attribution
+        }
+      } else {
+        // Weekly or custom cycles: match payments strictly within this cycle window
+        if (p.paymentDate) {
+          isEligible =
+            p.paymentDate >= cycleStartDate &&
+            p.paymentDate <= effectiveEndDate;
+        } else {
+          isEligible = false;
+        }
       }
-      return true;
+
+      if (isEligible) {
+        seenPaymentIds.add(p.id);
+        return true;
+      }
+      return false;
     });
-    const verifiedSecurityDeposits = payments.filter(
-      (p) =>
+
+    const seenDepositIds = new Set<string>();
+    const verifiedSecurityDeposits = payments.filter((p) => {
+      if (
         p.subscriptionId === subscription.id &&
         p.status === "verified" &&
-        p.purpose === "security_deposit",
-    );
+        p.purpose === "security_deposit"
+      ) {
+        if (seenDepositIds.has(p.id)) return false;
+        seenDepositIds.add(p.id);
+        return true;
+      }
+      return false;
+    });
     const paymentsTotal = verifiedUsagePayments.reduce(
       (sum, p) => sum + p.amount,
       0,
@@ -434,25 +486,15 @@ class BillingService {
         return; // Idempotent block
       }
 
-      // 1c. Fetch existing customer credit balance
-      const userRef = doc(db, "users", subscription.customerId);
-      const userSnap = await txn.get(userRef);
-      const existingCredit =
-        userSnap.exists() && typeof userSnap.data()?.creditBalance === "number"
-          ? Math.max(0, userSnap.data().creditBalance)
-          : 0;
-
-      // Canonical Settlement calculation:
-      // grossCycleCharge is the gross charge (standard meal plan + add-ons)
+      // Consumption-Based Billing (Phase 6B & 6E - Option A):
+      // Meal charges are billed strictly after delivery. Wallet credit is eliminated for meal billing.
+      // Do not apply legacy wallet balances automatically, and do not generate cycle_credit or wallet credit.
       const grossCycleCharge = totalAmount;
-      const netBeforeCredit = Math.max(0, grossCycleCharge - paymentsTotal);
-      const creditToApply = Math.min(existingCredit, netBeforeCredit);
-      const invoiceTotalAmount = Math.max(0, grossCycleCharge - creditToApply);
-      const invoicePaidAmount = Math.min(paymentsTotal, invoiceTotalAmount);
+      const invoiceTotalAmount = grossCycleCharge;
+      const invoiceCollectedAmount = paymentsTotal; // verified payments for this cycle
+      const invoicePaidAmount = Math.min(invoiceTotalAmount, invoiceCollectedAmount);
       const remainingDue = Math.max(0, invoiceTotalAmount - invoicePaidAmount);
-      const surplusGenerated = Math.max(0, paymentsTotal - grossCycleCharge);
-      const newCreditBalance =
-        existingCredit - creditToApply + surplusGenerated;
+      const remainingToRefund = Math.max(0, invoiceCollectedAmount - invoiceTotalAmount);
       const isSettled = remainingDue <= 0;
 
       const invoiceLineItems: any[] = [
@@ -473,24 +515,6 @@ class BillingService {
         })),
       ];
 
-      if (creditToApply > 0) {
-        invoiceLineItems.push({
-          description: "Less: Customer Credit Balance Applied",
-          quantity: 1,
-          unitPrice: -creditToApply,
-          amount: -creditToApply,
-        });
-      }
-
-      if (surplusGenerated > 0) {
-        invoiceLineItems.push({
-          description: `Surplus Advance Carried Forward to Credit: ₹${surplusGenerated}`,
-          quantity: 1,
-          unitPrice: 0,
-          amount: 0,
-        });
-      }
-
       txn.set(invoiceRef, {
         id: invoiceId,
         invoiceNumber,
@@ -502,11 +526,13 @@ class BillingService {
         taxAmount: 0,
         totalAmount: invoiceTotalAmount,
         paidAmount: invoicePaidAmount,
-        creditApplied: creditToApply,
+        collectedAmount: invoiceCollectedAmount,
+        creditApplied: 0,
         depositHeld,
+        remainingToRefund,
         currency: "INR",
         status: isSettled ? "paid" : "issued",
-        billingPeriodStart: subscription.startDate,
+        billingPeriodStart: cycleStartDate,
         billingPeriodEnd: effectiveEndDate,
         dueDate: today, // due immediately on generation
         paidAt: isSettled ? today : null,
@@ -514,59 +540,8 @@ class BillingService {
         createdAt: serverTimestamp() as unknown as Timestamp,
       });
 
-      // Update customer credit balance and write ledger entries if balance changed
-      if (userSnap.exists() && (creditToApply > 0 || surplusGenerated > 0)) {
-        txn.update(userRef, {
-          creditBalance: newCreditBalance,
-          updatedAt: serverTimestamp(),
-        });
-
-        if (creditToApply > 0) {
-          const ledgerApplyId = `apply_${invoiceId}`;
-          const ledgerApplyRef = doc(
-            db,
-            `users/${subscription.customerId}/ledger`,
-            ledgerApplyId,
-          );
-          txn.set(ledgerApplyRef, {
-            id: ledgerApplyId,
-            customerId: subscription.customerId,
-            type: "credit_applied",
-            amount: -creditToApply,
-            balanceAfter: existingCredit - creditToApply,
-            reason: `Credit applied toward billing invoice ${invoiceNumber}`,
-            referenceId: invoiceId,
-            invoiceId,
-            paymentId: null,
-            actorId: "system",
-            actorRole: "system",
-            createdAt: serverTimestamp(),
-          });
-        }
-
-        if (surplusGenerated > 0) {
-          const ledgerCycleId = `cycle_${subscription.id}_${effectiveEndDate}`;
-          const ledgerCycleRef = doc(
-            db,
-            `users/${subscription.customerId}/ledger`,
-            ledgerCycleId,
-          );
-          txn.set(ledgerCycleRef, {
-            id: ledgerCycleId,
-            customerId: subscription.customerId,
-            type: "cycle_credit",
-            amount: surplusGenerated,
-            balanceAfter: newCreditBalance,
-            reason: `Surplus advance payment carried forward from cycle ending ${effectiveEndDate}`,
-            referenceId: invoiceId,
-            invoiceId,
-            paymentId: null,
-            actorId: "system",
-            actorRole: "system",
-            createdAt: serverTimestamp(),
-          });
-        }
-      }
+      // Under Phase 6B, wallet credit is eliminated for meal billing:
+      // No creditApplied or cycle_credit ledger entries are generated, and user creditBalance is untouched.
 
       // 2. Auto-renew or Expire (record billing metadata if cancelled)
       const subRef = doc(db, "subscriptions", subscription.id);
@@ -650,6 +625,200 @@ class BillingService {
     });
 
     return true;
+  }
+
+  /**
+   * Adjusts any existing issued or open invoice when one or more meal orders are cancelled.
+   *
+   * Business rules:
+   * 1. Consumption-based billing: Cancelled meals directly reduce the invoice subtotal/total.
+   * 2. No wallet credits: Do NOT add funds to customer creditBalance or create cycle_credit entries.
+   * 3. Idempotency: Retrying cancellation cannot deduct the same meal twice.
+   * 4. Unpaid / partially-paid invoices: Recalculate totalAmount and reconcile remainingDue while
+   *    preserving payment history.
+   * 5. Fully paid invoices: Do NOT silently fabricate refunds or credit. Flag for explicit authorized decision.
+   * 6. Security deposits: Unaffected.
+   */
+  async adjustInvoiceForCancelledOrders(
+    orders: import("@/shared/types").Order[],
+    subscription: Subscription,
+    actorUid: string = "system",
+  ): Promise<{ adjusted: boolean; invoiceId?: string; deductedAmount: number; remainingToRefund?: number }> {
+    if (!orders || orders.length === 0) {
+      return { adjusted: false, deductedAmount: 0 };
+    }
+
+    // 1. Locate relevant invoice: check order.invoiceId or open invoice for subscription
+    const invoiceIdFromOrders = orders.find((o) => o.invoiceId)?.invoiceId;
+    let targetInvoice: import("@/shared/types").Invoice | null = null;
+
+    if (invoiceIdFromOrders) {
+      const invSnap = await getDoc(doc(db, "invoices", invoiceIdFromOrders));
+      if (invSnap.exists()) {
+        targetInvoice = invSnap.data() as import("@/shared/types").Invoice;
+      }
+    }
+
+    if (!targetInvoice) {
+      // Look for open / issued invoice for this subscription
+      try {
+        const { accountsRepository } = await import("../firestore/accountsRepository");
+        const customerInvoices = await accountsRepository.getInvoicesByCustomerId(subscription.customerId);
+        const openInv = customerInvoices.find(
+          (inv) =>
+            (inv.subscriptionId === subscription.id || !inv.subscriptionId) &&
+            (inv.status === "issued" || inv.status === "draft" || inv.status === "overdue" || inv.status === "paid"),
+        );
+        if (openInv) {
+          targetInvoice = openInv;
+        }
+      } catch {
+        // In mock unit test environments or if repository query fails, continue without open invoice
+      }
+    }
+
+    // If no existing invoice has been issued yet, cancellation is naturally handled
+    // at cycle-end by processSubscriptionEnd which excludes cancelled orders from billable consumption.
+    if (!targetInvoice) {
+      return { adjusted: false, deductedAmount: 0 };
+    }
+
+    // Do not modify void invoices
+    if (targetInvoice.status === "void") {
+      return { adjusted: false, invoiceId: targetInvoice.id, deductedAmount: 0 };
+    }
+
+    // Start transaction for atomic adjustment & idempotency
+    const invoiceRef = doc(db, "invoices", targetInvoice.id);
+    let finalDeducted = 0;
+    let finalRemainingToRefund = 0;
+
+    await runTransaction(db, async (txn) => {
+      const invSnap = await txn.get(invoiceRef);
+      if (!invSnap.exists()) return;
+      const currentInv = invSnap.data() as import("@/shared/types").Invoice;
+
+      if (currentInv.status === "void") return;
+
+      const existingLineItems = [...(currentInv.lineItems || [])];
+      const deductedOrderIds = new Set<string>((currentInv as any).deductedOrderIds || []);
+
+      let totalDeduction = 0;
+      const newLineItems = [...existingLineItems];
+
+      for (const order of orders) {
+        // Idempotency: skip if this order was already deducted
+        if (deductedOrderIds.has(order.id!)) {
+          continue;
+        }
+
+        // Also check if line items already contain this order's cancellation
+        const alreadyInLineItems = existingLineItems.some(
+          (li) => li.orderId === order.id && li.amount < 0,
+        );
+        if (alreadyInLineItems) {
+          deductedOrderIds.add(order.id!);
+          continue;
+        }
+
+        // Calculate authoritative price for this cancelled meal
+        let mealPrice = order.price || 0;
+        if (!mealPrice || mealPrice <= 0) {
+          if (order.isAddon) {
+            mealPrice = (order.addonUnitPrice || 0) * (order.addonQuantity || 1);
+          } else {
+            mealPrice = pricingService.calculateCancellationAmount(
+              subscription,
+              [order.mealType],
+            );
+          }
+        }
+
+        if (mealPrice > 0) {
+          totalDeduction += mealPrice;
+          deductedOrderIds.add(order.id!);
+          newLineItems.push({
+            description: `Cancelled meal: ${(order.mealType || "meal").toUpperCase()} (${order.date})`,
+            quantity: 1,
+            unitPrice: -mealPrice,
+            amount: -mealPrice,
+            mealType: order.mealType,
+            orderId: order.id,
+          });
+        }
+      }
+
+      if (totalDeduction <= 0) {
+        return; // Nothing new to deduct
+      }
+
+      finalDeducted = totalDeduction;
+      const newSubtotal = Math.max(0, (currentInv.subtotal || 0) - totalDeduction);
+      const newTotalAmount = Math.max(0, (currentInv.totalAmount || 0) - totalDeduction);
+
+      // Reconcile paidAmount and remainingDue while strictly preserving payment history (Phase 6E Option A)
+      const { getInvoiceCollectedAmount } = await import("@/shared/types");
+      const collected = getInvoiceCollectedAmount(currentInv);
+      const newPaidAmount = Math.min(newTotalAmount, collected);
+      const confirmedRefunds = Math.max(0, (currentInv as any).confirmedRefunds || 0);
+
+      let newStatus: import("@/shared/types").InvoiceStatus = currentInv.status;
+      let remainingToRefund = 0;
+
+      if (collected >= newTotalAmount) {
+        newStatus = "paid";
+        // Excess paid amount calculated as max(0, collectedAmount - revisedTotalAmount - confirmedRefunds)
+        remainingToRefund = Math.max(0, collected - newTotalAmount - confirmedRefunds);
+        finalRemainingToRefund = remainingToRefund;
+      } else {
+        newStatus = currentInv.status === "paid" ? "issued" : currentInv.status;
+        remainingToRefund = 0;
+        finalRemainingToRefund = 0;
+      }
+
+      txn.update(invoiceRef, {
+        lineItems: newLineItems,
+        subtotal: newSubtotal,
+        totalAmount: newTotalAmount,
+        paidAmount: newPaidAmount, // Strictly capped at newTotalAmount under Option A contract
+        collectedAmount: collected, // Explicitly preserve verified payment collections
+        status: newStatus,
+        remainingToRefund,
+        paidAt: newStatus === "paid" && !currentInv.paidAt ? serverTimestamp() : currentInv.paidAt || null,
+        deductedOrderIds: Array.from(deductedOrderIds),
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    if (finalDeducted > 0) {
+      try {
+        const { auditRepository } = await import("../firestore/auditRepository");
+        await auditRepository.logAction(
+          "invoice_adjusted_for_cancellation",
+          actorUid,
+          "system",
+          "BillingService",
+          targetInvoice.id,
+          "invoice",
+          {
+            invoiceId: targetInvoice.id,
+            deductedAmount: finalDeducted,
+            remainingToRefund: finalRemainingToRefund,
+            requiresManualRefundAction: finalRemainingToRefund > 0,
+            orderIds: orders.map((o) => o.id),
+            customerId: subscription.customerId,
+            subscriptionId: subscription.id,
+          },
+        );
+      } catch {}
+    }
+
+    return {
+      adjusted: finalDeducted > 0,
+      invoiceId: targetInvoice.id,
+      deductedAmount: finalDeducted,
+      remainingToRefund: finalRemainingToRefund,
+    };
   }
 }
 

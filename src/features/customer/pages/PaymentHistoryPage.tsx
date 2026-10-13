@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMyPayments, useMyInvoices } from "../hooks/usePayments";
 import { useMySubscription } from "../hooks/useMySubscription";
 import { ManualPaymentPanel } from "../components/ManualPaymentPanel";
@@ -29,9 +28,12 @@ import type {
   PaymentMethod,
   Invoice,
   InvoiceStatus,
-  CustomerProfile,
 } from "@/shared/types";
-import { getInvoicePaidAmount, getInvoiceRemainingDue } from "@/shared/types";
+import {
+  getInvoicePaidAmount,
+  getInvoiceRemainingDue,
+  getInvoiceRemainingToRefund,
+} from "@/shared/types";
 
 function statusBadgeVariant(
   status: ManualPaymentStatus,
@@ -141,6 +143,7 @@ function InvoiceRow({
   const paidDateStr = parsedPaidAt ? format(parsedPaidAt, "MMM dd, yyyy") : null;
   const paidAmount = getInvoicePaidAmount(invoice);
   const remainingDue = getInvoiceRemainingDue(invoice);
+  const remainingToRefund = getInvoiceRemainingToRefund(invoice);
 
   return (
     <tr className="block md:table-row bg-background md:bg-transparent hover:bg-primary/5 transition-colors border-b border-primary/10 last:border-0 p-4 md:p-0 space-y-3 md:space-y-0">
@@ -177,6 +180,11 @@ function InvoiceRow({
               ₹{paidAmount.toLocaleString("en-IN")} paid
             </span>
           )}
+          {remainingToRefund > 0 && (
+            <span className="text-[11px] text-amber-700 font-sans block font-semibold">
+              ₹{remainingToRefund.toLocaleString("en-IN")} remaining to refund
+            </span>
+          )}
         </div>
       </td>
       <td className="flex justify-between items-center md:table-cell px-0 py-1 md:px-6 md:py-4">
@@ -190,6 +198,11 @@ function InvoiceRow({
           {remainingDue > 0 && remainingDue < invoice.totalAmount && (
             <span className="text-xs text-text-muted block line-through">
               ₹{invoice.totalAmount.toLocaleString("en-IN")}
+            </span>
+          )}
+          {remainingToRefund > 0 && (
+            <span className="text-[10px] text-amber-700 font-sans block font-medium">
+              Refund Pending: ₹{remainingToRefund.toLocaleString("en-IN")}
             </span>
           )}
         </div>
@@ -303,7 +316,6 @@ function PaymentRow({ payment }: { payment: ManualPayment }) {
 }
 
 export function PaymentHistoryPage() {
-  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<"invoices" | "payments">("invoices");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
@@ -352,7 +364,6 @@ export function PaymentHistoryPage() {
     (acc, inv) => acc + getInvoiceRemainingDue(inv),
     0,
   );
-  const creditBalance = (profile as CustomerProfile | null)?.creditBalance ?? 0;
 
   // Payment calculations
   const paymentList = payments || [];
@@ -416,7 +427,7 @@ export function PaymentHistoryPage() {
         {activeTab === "invoices" && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
               <Card className="p-6 text-center border-primary/20 shadow-sm bg-gradient-to-b from-primary/5 to-transparent">
                 <div className="text-3xl font-bold font-data text-primary mb-2">
                   {invoiceList.length}
@@ -438,18 +449,6 @@ export function PaymentHistoryPage() {
                   className="mt-1 text-[10px] uppercase font-bold tracking-widest shadow-sm"
                 >
                   {totalOutstandingDue > 0 ? "Outstanding Due" : "All Clear"}
-                </Badge>
-              </Card>
-
-              <Card className="p-6 text-center border-emerald-300 shadow-sm bg-gradient-to-b from-emerald-50 to-transparent">
-                <div className="text-3xl font-bold font-data text-emerald-800 mb-2">
-                  ₹{creditBalance.toLocaleString("en-IN")}
-                </div>
-                <Badge
-                  variant={creditBalance > 0 ? "success" : "default"}
-                  className="mt-1 text-[10px] uppercase font-bold tracking-widest shadow-sm"
-                >
-                  Available Credit
                 </Badge>
               </Card>
 

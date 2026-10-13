@@ -193,7 +193,9 @@ describe("billing — holiday cancellation", () => {
         customerId: "cust-1",
         amount: 65,
         status: "verified",
-        purpose: "usage", // or missing purpose (backward compat)
+        purpose: "usage",
+        billingMonth: "2026-09",
+        paymentDate: "2026-09-15",
       },
     ] as any);
 

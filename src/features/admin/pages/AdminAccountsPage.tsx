@@ -38,7 +38,7 @@ import { format } from "date-fns";
 import { getAuth } from "firebase/auth";
 import toast from "react-hot-toast";
 import type { Invoice, InvoiceStatus, UserProfile, CustomerProfile, PaymentMethod } from "@/shared/types";
-import { getInvoicePaidAmount, getInvoiceRemainingDue } from "@/shared/types";
+import { getInvoicePaidAmount, isInvoiceCollectedAmountKnown, getInvoiceRemainingDue, getInvoiceRemainingToRefund } from "@/shared/types";
 
 // ----------------------------------------------------------------------------
 // Date Helpers
@@ -308,11 +308,6 @@ export function AdminAccountsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<UserProfile | null>(null);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
 
-  // Manual Adjustment Form
-  const [adjType, setAdjType] = useState<"credit" | "debit">("credit");
-  const [adjAmount, setAdjAmount] = useState("");
-  const [adjReason, setAdjReason] = useState("");
-
   const handleLookupCustomer = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const query = customerSearchId.trim();
@@ -345,66 +340,10 @@ export function AdminAccountsPage() {
   const {
     data: customerLedger = [],
     isLoading: isLoadingLedger,
-    refetch: refetchLedger,
   } = useQuery({
     queryKey: ["admin", "customerLedger", selectedCustomer?.id],
     queryFn: () => (selectedCustomer?.id ? ledgerRepository.getCustomerLedger(selectedCustomer.id) : []),
     enabled: !!selectedCustomer?.id,
-  });
-
-  const adjustCreditMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedCustomer) throw new Error("No customer selected");
-      const amt = parseFloat(adjAmount);
-      if (isNaN(amt) || amt <= 0) {
-        throw new Error("Adjustment amount must be a positive number");
-      }
-      if (!adjReason.trim()) {
-        throw new Error("A reason is mandatory for manual credit adjustments");
-      }
-
-      const signedAmount = adjType === "credit" ? amt : -amt;
-      await ledgerRepository.adjustCustomerCredit({
-        customerId: selectedCustomer.id,
-        amount: signedAmount,
-        reason: adjReason.trim(),
-        actorId: currentUser?.uid || "admin",
-        actorRole: "admin",
-        actorName: currentUser?.displayName || "Admin",
-        type: "manual_adjustment",
-      });
-
-      if (currentUser) {
-        await auditRepository.logAction(
-          "customer_credit_adjusted",
-          currentUser.uid,
-          "admin",
-          currentUser.displayName || "Admin",
-          selectedCustomer.id,
-          "user",
-          {
-            customerId: selectedCustomer.id,
-            adjustmentType: adjType,
-            amount: amt,
-            signedAmount,
-            reason: adjReason.trim(),
-          },
-        );
-      }
-    },
-    onSuccess: async () => {
-      toast.success(`Successfully recorded ₹${adjAmount} ${adjType}!`);
-      setAdjAmount("");
-      setAdjReason("");
-      refetchLedger();
-      if (selectedCustomer?.id) {
-        const fresh = await userRepository.getById(selectedCustomer.id);
-        if (fresh) setSelectedCustomer(fresh);
-      }
-    },
-    onError: (err: unknown) => {
-      toast.error((err as Error).message || "Failed to adjust credit");
-    },
   });
 
   // 7. Manual Invoicing State & Mutation
@@ -776,73 +715,24 @@ export function AdminAccountsPage() {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <span className="text-xs text-text-muted uppercase font-bold tracking-wider block">
-                    Available Credit
+                    Historical Wallet Credit
                   </span>
-                  <span className="font-data font-bold text-xl text-emerald-700">
+                  <span className="font-data font-bold text-lg text-stone-600">
                     ₹{((selectedCustomer as CustomerProfile).creditBalance ?? 0).toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Manual Adjustment Form */}
-            {isAdmin ? (
-              <div className="p-4 rounded-xl border border-gold/20 bg-background/50">
-                <h4 className="font-display font-bold text-sm text-primary mb-3">
-                  Post Manual Credit/Debit Adjustment
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div>
-                    <select
-                      value={adjType}
-                      onChange={(e) => setAdjType(e.target.value as "credit" | "debit")}
-                      className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-gold"
-                    >
-                      <option value="credit">Credit (+) Customer</option>
-                      <option value="debit">Debit (-) Customer</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      placeholder="Amount (₹)"
-                      value={adjAmount}
-                      onChange={(e) => setAdjAmount(e.target.value)}
-                      className="bg-background text-sm font-display"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      placeholder="Mandatory reason for audit log"
-                      value={adjReason}
-                      onChange={(e) => setAdjReason(e.target.value)}
-                      className="bg-background text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Button
-                      onClick={() => adjustCreditMutation.mutate()}
-                      disabled={adjustCreditMutation.isPending}
-                      variant={adjType === "credit" ? "primary" : "secondary"}
-                      className="w-full text-sm"
-                    >
-                      {adjustCreditMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                      ) : adjType === "credit" ? (
-                        "Apply Credit"
-                      ) : (
-                        "Apply Debit"
-                      )}
-                    </Button>
-                  </div>
-                </div>
+            {/* Wallet Credit Deprecation Notice */}
+            <div className="p-4 rounded-xl border border-border bg-stone-50/70 text-xs text-text-muted space-y-1">
+              <div className="font-semibold text-stone-800">
+                Customer Wallet Credit Discontinued
               </div>
-            ) : (
-              <div className="p-3.5 rounded-xl border border-border bg-stone-50 text-xs text-text-muted">
-                <span className="font-semibold text-stone-700">Manual Credit Adjustment: </span>
-                Restricted to administrators. Accounts role has read-only access to customer ledger history.
-              </div>
-            )}
+              <p>
+                Meal billing follows a strict consumption basis where cancelled meals reduce the bill directly. Wallet credit adjustments are discontinued. Historical ledger entries are preserved below for audit records.
+              </p>
+            </div>
 
             {/* Ledger History Table */}
             <div>
@@ -1015,11 +905,26 @@ export function AdminAccountsPage() {
                       </td>
                       <td className="px-4 py-3 font-data text-blue-700">
                         {paid > 0 ? `₹${paid.toLocaleString("en-IN")}` : "—"}
+                        {isInvoiceCollectedAmountKnown(inv) && (inv.collectedAmount ?? 0) > paid && (
+                          <div className="text-[10px] text-stone-600 font-semibold mt-0.5">
+                            Collected: ₹{(inv.collectedAmount ?? 0).toLocaleString("en-IN")}
+                          </div>
+                        )}
+                        {!isInvoiceCollectedAmountKnown(inv) && (
+                          <div className="text-[10px] text-stone-400 italic mt-0.5" title="Historical invoice created before separate gross collection tracking">
+                            Collected: Unknown (Legacy)
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 font-data font-bold">
                         <span className={remainingDue > 0 ? "text-amber-800" : "text-emerald-700"}>
                           ₹{remainingDue.toLocaleString("en-IN")}
                         </span>
+                        {getInvoiceRemainingToRefund(inv) > 0 && (
+                          <div className="text-[10px] text-amber-700 font-semibold mt-0.5">
+                            Remaining to Refund: ₹{getInvoiceRemainingToRefund(inv).toLocaleString("en-IN")}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <Badge
@@ -1157,9 +1062,17 @@ export function AdminAccountsPage() {
                 <span className="font-data text-sm">₹{viewInvoice.totalAmount.toLocaleString("en-IN")}</span>
               </div>
               <div className="flex justify-between text-blue-700">
-                <span>Paid Amount:</span>
+                <span>Applied Payment:</span>
                 <span className="font-data">
                   ₹{getInvoicePaidAmount(viewInvoice).toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="flex justify-between text-stone-700">
+                <span>Total Cash Collected:</span>
+                <span className="font-data">
+                  {isInvoiceCollectedAmountKnown(viewInvoice)
+                    ? `₹${(viewInvoice.collectedAmount ?? 0).toLocaleString("en-IN")}`
+                    : "Not recorded (Legacy invoice)"}
                 </span>
               </div>
               <div className="flex justify-between font-bold text-amber-800">
@@ -1168,6 +1081,14 @@ export function AdminAccountsPage() {
                   ₹{getInvoiceRemainingDue(viewInvoice).toLocaleString("en-IN")}
                 </span>
               </div>
+              {getInvoiceRemainingToRefund(viewInvoice) > 0 && (
+                <div className="flex justify-between font-bold text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                  <span>Remaining to Refund:</span>
+                  <span className="font-data">
+                    ₹{getInvoiceRemainingToRefund(viewInvoice).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Void information if voided */}

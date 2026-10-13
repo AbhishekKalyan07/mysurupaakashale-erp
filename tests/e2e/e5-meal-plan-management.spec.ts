@@ -186,8 +186,12 @@ test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management
 
     // 9. Verify disabled option is no longer selectable in new customer subscription creation
     await adminPage.goto('/admin/customers');
-    await adminPage.waitForSelector('h1:has-text("Customers")', { timeout: 20000 });
     await adminPage.locator('tbody tr', { hasText: 'Customer User' }).first().click();
+    // If customer already has an active subscription, open subscriptions tab via plan badge
+    const planBadge = adminPage.locator('button:has-text("Plan:")').first();
+    if (await planBadge.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await planBadge.click();
+    }
     await adminPage.locator('button:has-text("+ Create Subscription")').first().click();
     await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 10000 });
 

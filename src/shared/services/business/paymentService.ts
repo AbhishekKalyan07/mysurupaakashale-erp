@@ -291,9 +291,6 @@ class PaymentService {
         }
       }
 
-      const userRef = doc(db, "users", payment.customerId);
-      const userSnap = await t.get(userRef);
-
       t.update(paymentRef, {
         status: "verified",
         verificationDate: serverTimestamp(),
@@ -325,105 +322,56 @@ class PaymentService {
           typeof invData.totalAmount === "number"
             ? invData.totalAmount
             : (invData.subtotal || 0);
-        const currentPaid = invData.paidAmount || 0;
-        const remainingDue = Math.max(0, invTotal - currentPaid);
+        const currentCollected =
+          typeof invData.collectedAmount === "number"
+            ? invData.collectedAmount
+            : (invData.paidAmount || 0);
+        const newCollectedAmount = currentCollected + payment.amount;
+        const newPaidAmount = Math.min(invTotal, newCollectedAmount);
+        const isPaidInFull = newPaidAmount >= invTotal;
+        const confirmedRefunds = Math.max(0, (invData as any).confirmedRefunds || 0);
+        const remainingToRefund = Math.max(0, newCollectedAmount - invTotal - confirmedRefunds);
 
-        if (payment.amount >= remainingDue) {
-          // Full payment or overpayment
-          const surplus = payment.amount - remainingDue;
-          t.update(matchingInvoiceRef, {
-            status: "paid",
-            paidAmount: invTotal,
-            paidAt: serverTimestamp() as unknown as Timestamp,
-            paymentId: payment.id,
-            totalAmount: invTotal, // Ensure totalAmount present for rules
-            updatedAt:
-              serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-          });
+        t.update(matchingInvoiceRef, {
+          status: isPaidInFull ? "paid" : invData.status,
+          paidAmount: newPaidAmount, // Option A: strictly capped at invTotal
+          collectedAmount: newCollectedAmount, // Total gross cash collected
+          remainingToRefund,
+          paidAt:
+            isPaidInFull && !invData.paidAt
+              ? (serverTimestamp() as unknown as Timestamp)
+              : invData.paidAt || null,
+          paymentId: payment.id,
+          totalAmount: invTotal, // Ensure totalAmount present for rules
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        });
 
-          // Credit surplus overpayment to customer ledger exactly once
-          if (surplus > 0 && userSnap.exists()) {
-            const currentCredit =
-              typeof userSnap.data()?.creditBalance === "number"
-                ? userSnap.data().creditBalance
-                : 0;
-            const newCredit = currentCredit + surplus;
-            t.update(userRef, {
-              creditBalance: newCredit,
-              updatedAt: serverTimestamp() as unknown as Timestamp,
-            });
-
-            const ledgerSurplusId = `surplus_${payment.id}`;
-            const ledgerRef = doc(
-              db,
-              `users/${payment.customerId}/ledger`,
-              ledgerSurplusId,
-            );
-            t.set(ledgerRef, {
-              id: ledgerSurplusId,
-              customerId: payment.customerId,
-              type: "manual_adjustment",
-              amount: surplus,
-              balanceAfter: newCredit,
-              reason: `Overpayment credit from payment ${payment.referenceNumber || payment.id} on invoice ${invData.invoiceNumber || invData.id}`,
-              referenceId: payment.id,
-              invoiceId: targetInvoiceId,
-              paymentId: payment.id,
-              actorId: adminUid,
-              actorRole: "admin",
-              createdAt: serverTimestamp(),
-            });
-          }
-        } else {
-          // Partial payment: status remains issued/overdue, paidAmount incremented
-          t.update(matchingInvoiceRef, {
-            status: invData.status,
-            paidAmount: currentPaid + payment.amount,
-            paymentId: payment.id,
-            totalAmount: invTotal,
-            updatedAt:
-              serverTimestamp() as unknown as Timestamp as unknown as Timestamp,
-          });
-        }
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
       } else if (
         matchingInvoiceSnap?.exists() &&
         matchingInvoiceSnap.data().status === "paid"
       ) {
-        // Payment was targeted to an already settled invoice: entire amount credited as surplus
+        // Payment was targeted to an already settled invoice: record surplus on invoice as remainingToRefund without mutating customer wallet credit
         const invData = matchingInvoiceSnap.data();
-        if (userSnap.exists()) {
-          const currentCredit =
-            typeof userSnap.data()?.creditBalance === "number"
-              ? userSnap.data().creditBalance
-              : 0;
-          const newCredit = currentCredit + payment.amount;
-          t.update(userRef, {
-            creditBalance: newCredit,
-            updatedAt: serverTimestamp() as unknown as Timestamp,
-          });
+        const invTotal =
+          typeof invData.totalAmount === "number"
+            ? invData.totalAmount
+            : (invData.subtotal || 0);
+        const currentCollected =
+          typeof invData.collectedAmount === "number"
+            ? invData.collectedAmount
+            : (typeof invData.paidAmount === "number" ? invData.paidAmount : invTotal);
+        const newCollectedAmount = currentCollected + payment.amount;
+        const newPaidAmount = Math.min(invTotal, newCollectedAmount);
+        const confirmedRefunds = Math.max(0, (invData as any).confirmedRefunds || 0);
+        const remainingToRefund = Math.max(0, newCollectedAmount - invTotal - confirmedRefunds);
 
-          const ledgerSurplusId = `surplus_${payment.id}`;
-          const ledgerRef = doc(
-            db,
-            `users/${payment.customerId}/ledger`,
-            ledgerSurplusId,
-          );
-          t.set(ledgerRef, {
-            id: ledgerSurplusId,
-            customerId: payment.customerId,
-            type: "manual_adjustment",
-            amount: payment.amount,
-            balanceAfter: newCredit,
-            reason: `Surplus payment on already settled invoice ${invData.invoiceNumber || invData.id}`,
-            referenceId: payment.id,
-            invoiceId: targetInvoiceId,
-            paymentId: payment.id,
-            actorId: adminUid,
-            actorRole: "admin",
-            createdAt: serverTimestamp(),
-          });
-        }
+        t.update(matchingInvoiceRef, {
+          paidAmount: newPaidAmount,
+          collectedAmount: newCollectedAmount,
+          remainingToRefund,
+          updatedAt: serverTimestamp() as unknown as Timestamp,
+        });
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
       } else if (!matchingInvoiceSnap?.exists()) {
         // Only create receipt invoice if no matching invoice exists and it's not a security deposit
@@ -451,6 +399,7 @@ class PaymentService {
           taxAmount: 0,
           totalAmount: payment.amount,
           paidAmount: payment.amount,
+          collectedAmount: payment.amount,
           creditApplied: 0,
           depositHeld: isDeposit ? payment.amount : 0,
           currency: "INR",

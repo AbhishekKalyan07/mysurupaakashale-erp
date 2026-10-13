@@ -920,7 +920,9 @@ function CustomerDetailDialog({
     queryKey: ["subscriptions", "customer", customer.id],
     queryFn: () => subscriptionRepository.getByCustomerId(customer.id),
   });
-  const activeSub = subs.find((s) => s.status === "active") || subs[0] || null;
+  const currentActiveSub = subs.find((s) => s.status === "active") || null;
+  const currentPausedSub = subs.find((s) => s.status === "paused") || null;
+  const activeSub = currentActiveSub || currentPausedSub || subs[0] || null;
   const subIds = useMemo(() => subs.map((s) => s.id), [subs]);
 
   // Calculate standard plan price for active subscription
@@ -978,14 +980,38 @@ function CustomerDetailDialog({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateSubOpen(true)}
-              className="text-xs shrink-0"
-            >
-              + Create Subscription
-            </Button>
+            {currentActiveSub ? (
+              <Button
+                variant="success-tonal"
+                size="sm"
+                onClick={() => setActiveTab("subscriptions")}
+                className="text-xs shrink-0 font-semibold flex items-center gap-1.5 transition-colors"
+                title="View Active Subscription Plan"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0 animate-pulse" />
+                <span>Plan: {(currentActiveSub.planTier || "regular").toUpperCase()}</span>
+              </Button>
+            ) : currentPausedSub ? (
+              <Button
+                variant="warning-tonal"
+                size="sm"
+                onClick={() => setActiveTab("subscriptions")}
+                className="text-xs shrink-0 font-semibold flex items-center gap-1.5 transition-colors"
+                title="View Paused Subscription Plan"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block shrink-0" />
+                <span>Plan: {(currentPausedSub.planTier || "regular").toUpperCase()} (Paused)</span>
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreateSubOpen(true)}
+                className="text-xs shrink-0"
+              >
+                + Create Subscription
+              </Button>
+            )}
             <button
               onClick={onClose}
               aria-label="Close"
@@ -1553,7 +1579,7 @@ function CustomerCardView({
                 onSelect();
               }}
             >
-              + Create Subscription
+              Manage Subscriptions
             </button>
             <button
               className="text-left px-4 py-3 text-[13px] font-semibold hover:bg-surface-2 text-text transition-colors"

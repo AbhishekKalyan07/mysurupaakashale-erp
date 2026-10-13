@@ -1,6 +1,12 @@
 import { db } from "@/shared/lib/firebase";
 import type { Invoice, ManualPayment, Order } from "@/shared/types";
 import {
+  getInvoicePaidAmount,
+  isInvoiceCollectedAmountKnown,
+  getInvoiceRemainingDue,
+  getInvoiceRemainingToRefund,
+} from "@/shared/types";
+import {
   collection,
   query,
   where,
@@ -189,7 +195,7 @@ export class AccountsRepository {
 
     const invoices = await this.getInvoicesInRange(startDate, endDate);
     let csvContent =
-      "Invoice Number,Customer ID,Billing Period Start,Billing Period End,Subtotal,Deposit Held,Total Due,Status,Date\n";
+      "Invoice Number,Customer ID,Billing Period Start,Billing Period End,Subtotal,Deposit Held,Total Due,Paid Amount,Collected Amount,Remaining Due,Remaining to Refund,Status,Date\n";
     invoices.forEach((inv) => {
       const dateStr =
         inv.createdAt && (inv.createdAt as any).seconds
@@ -205,6 +211,10 @@ export class AccountsRepository {
         return str;
       };
 
+      const collectedStr = isInvoiceCollectedAmountKnown(inv)
+        ? inv.collectedAmount
+        : "Unknown (Legacy)";
+
       const row = [
         escapeCsv(inv.invoiceNumber || inv.id),
         escapeCsv(inv.customerId),
@@ -213,6 +223,10 @@ export class AccountsRepository {
         escapeCsv(inv.subtotal ?? inv.totalAmount),
         escapeCsv(inv.depositHeld ?? 0),
         escapeCsv(inv.totalAmount),
+        escapeCsv(getInvoicePaidAmount(inv)),
+        escapeCsv(collectedStr),
+        escapeCsv(getInvoiceRemainingDue(inv)),
+        escapeCsv(getInvoiceRemainingToRefund(inv)),
         escapeCsv(inv.status),
         escapeCsv(dateStr),
       ].join(",");
@@ -342,7 +356,9 @@ export class AccountsRepository {
     const paymentRef = doc(db, "payments", paymentId);
 
     let customerId = "";
-    let surplusAmount = 0;
+    let finalPaidAmount = 0;
+    let finalCollectedAmount = 0;
+    let finalRemainingToRefund = 0;
 
     await runTransaction(db, async (txn) => {
       const invSnap = await txn.get(invoiceRef);
@@ -357,10 +373,15 @@ export class AccountsRepository {
       }
 
       customerId = invoice.customerId;
-      const currentPaid = invoice.paidAmount || 0;
       const totalAmount = invoice.totalAmount;
-      const remainingDue = Math.max(0, totalAmount - currentPaid);
-      const newPaidAmount = currentPaid + amount;
+      const currentCollected = typeof (invoice as any).collectedAmount === "number"
+        ? (invoice as any).collectedAmount
+        : (typeof invoice.paidAmount === "number" ? invoice.paidAmount : 0);
+      const newCollectedAmount = currentCollected + amount;
+      finalCollectedAmount = newCollectedAmount;
+
+      const newPaidAmount = Math.min(totalAmount, newCollectedAmount);
+      finalPaidAmount = newPaidAmount;
 
       // 1. Fetch customer details for denormalized payment record
       const userRef = doc(db, "users", customerId);
@@ -393,58 +414,21 @@ export class AccountsRepository {
         updatedAt: serverTimestamp(),
       });
 
-      // 3. Handle overpayment vs full payment vs partial payment
-      if (amount >= remainingDue) {
-        surplusAmount = amount - remainingDue;
-        txn.update(invoiceRef, {
-          status: "paid",
-          paidAmount: totalAmount,
-          paidAt: serverTimestamp(),
-          paymentId,
-          updatedAt: serverTimestamp(),
-        });
+      // 3. Handle payment calculation and reconciliation (Phase 6E - Option A)
+      const isPaidInFull = newPaidAmount >= totalAmount;
+      const confirmedRefunds = Math.max(0, (invoice as any).confirmedRefunds || 0);
+      const remainingToRefund = Math.max(0, newCollectedAmount - totalAmount - confirmedRefunds);
+      finalRemainingToRefund = remainingToRefund;
 
-        // Credit surplus overpayment to customer ledger
-        if (surplusAmount > 0 && userSnap.exists()) {
-          const currentCredit =
-            typeof userData?.creditBalance === "number"
-              ? userData.creditBalance
-              : 0;
-          const newCredit = currentCredit + surplusAmount;
-          txn.update(userRef, {
-            creditBalance: newCredit,
-            updatedAt: serverTimestamp(),
-          });
-
-          const ledgerEntryId = `surplus_${paymentId}`;
-          const ledgerRef = doc(
-            db,
-            `users/${customerId}/ledger`,
-            ledgerEntryId,
-          );
-          txn.set(ledgerRef, {
-            id: ledgerEntryId,
-            customerId,
-            type: "manual_adjustment",
-            amount: surplusAmount,
-            balanceAfter: newCredit,
-            reason: `Surplus overpayment from offline payment on invoice ${invoice.invoiceNumber || invoice.id}`,
-            referenceId: paymentId,
-            invoiceId: invoice.id,
-            paymentId,
-            actorId: adminUid,
-            actorRole: "admin",
-            createdAt: serverTimestamp(),
-          });
-        }
-      } else {
-        // Partial payment: status remains issued/overdue, paidAmount incremented
-        txn.update(invoiceRef, {
-          paidAmount: newPaidAmount,
-          paymentId,
-          updatedAt: serverTimestamp(),
-        });
-      }
+      txn.update(invoiceRef, {
+        paidAmount: newPaidAmount, // Option A: strictly capped at totalAmount
+        collectedAmount: newCollectedAmount, // Total cash received
+        status: isPaidInFull ? "paid" : "issued",
+        remainingToRefund,
+        paidAt: isPaidInFull && !invoice.paidAt ? serverTimestamp() : invoice.paidAt || null,
+        paymentId,
+        updatedAt: serverTimestamp(),
+      });
     });
 
     try {
@@ -462,7 +446,9 @@ export class AccountsRepository {
           customerId,
           amount,
           paymentMethod,
-          surplusCredited: surplusAmount,
+          paidAmount: finalPaidAmount,
+          collectedAmount: finalCollectedAmount,
+          remainingToRefund: finalRemainingToRefund,
         },
       );
     } catch (auditErr) {
@@ -499,6 +485,8 @@ export class AccountsRepository {
       taxAmount: 0,
       totalAmount: payload.amount,
       paidAmount: 0,
+      collectedAmount: 0,
+      remainingToRefund: 0,
       creditApplied: 0,
       currency: "INR",
       status: "issued",
