@@ -53,14 +53,10 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       const modal = adminPage.locator('div.fixed').filter({ hasText: 'Invoice Details' });
       await expect(modal).toBeVisible();
-      await expect(modal.getByText('Subtotal:')).toBeVisible();
-      await expect(modal.getByText('₹3,000')).toBeVisible();
-      await expect(modal.getByText('Credit Applied:')).toBeVisible();
-      await expect(modal.getByText('-₹500')).toBeVisible();
-      await expect(modal.getByText('Applied Payment:')).toBeVisible();
-      await expect(modal.getByText('₹1,000')).toBeVisible();
-      await expect(modal.getByText('Remaining Balance Due:')).toBeVisible();
-      await expect(modal.getByText('₹1,500')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Subtotal:' }).getByText('₹3,000')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Credit Applied:' }).getByText('-₹500')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Applied Payment:' }).getByText('₹1,000')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Remaining Balance Due:' }).getByText('₹1,500')).toBeVisible();
 
       // Close modal
       await modal.locator('button', { hasText: 'Close' }).click();
@@ -88,10 +84,8 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       // Verify Invoice Details modal also reflects remaining balance of ₹1,000
       await modernRow.locator('button[title="View Invoice Details"]').click();
       await expect(modal).toBeVisible();
-      await expect(modal.getByText('Applied Payment:')).toBeVisible();
-      await expect(modal.getByText('₹1,500')).toBeVisible();
-      await expect(modal.getByText('Remaining Balance Due:')).toBeVisible();
-      await expect(modal.getByText('₹1,000')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Applied Payment:' }).getByText('₹1,500')).toBeVisible();
+      await expect(modal.locator('div').filter({ hasText: 'Remaining Balance Due:' }).getByText('₹1,000')).toBeVisible();
       await modal.locator('button', { hasText: 'Close' }).click();
       await expect(modal).not.toBeVisible();
 
@@ -212,7 +206,7 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       await expect(customerPage.getByText('₹4,000')).toBeVisible();
       await expect(customerPage.getByText('Outstanding Due', { exact: true })).toBeVisible();
       await expect(customerPage.getByText('Total Invoices', { exact: true })).toBeVisible();
-      await expect(customerPage.getByText('Fully Settled', { exact: true })).toBeVisible();
+      await expect(customerPage.getByText('Paid Invoices', { exact: true })).toBeVisible();
 
       // 2. Verify Modern Invoice Row
       const modernRow = customerPage.locator('tr').filter({ hasText: 'INV-MODERN-2026-001' }).first();
