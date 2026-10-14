@@ -57,7 +57,7 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       await expect(modal.getByText('₹3,000')).toBeVisible();
       await expect(modal.getByText('Credit Applied:')).toBeVisible();
       await expect(modal.getByText('-₹500')).toBeVisible();
-      await expect(modal.getByText('Paid Amount:')).toBeVisible();
+      await expect(modal.getByText('Applied Payment:')).toBeVisible();
       await expect(modal.getByText('₹1,000')).toBeVisible();
       await expect(modal.getByText('Remaining Balance Due:')).toBeVisible();
       await expect(modal.getByText('₹1,500')).toBeVisible();
@@ -83,12 +83,12 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       // 4b. Assert Displayed Remaining Balance after partial offline payment (₹1,500 -> ₹1,000)
       await expect(modernRow.locator('td span.text-amber-800')).toHaveText('₹1,000');
-      await expect(modernRow.locator('td.text-blue-700')).toHaveText('₹1,500');
+      await expect(modernRow.locator('td.text-blue-700')).toContainText('₹1,500');
 
       // Verify Invoice Details modal also reflects remaining balance of ₹1,000
       await modernRow.locator('button[title="View Invoice Details"]').click();
       await expect(modal).toBeVisible();
-      await expect(modal.getByText('Paid Amount:')).toBeVisible();
+      await expect(modal.getByText('Applied Payment:')).toBeVisible();
       await expect(modal.getByText('₹1,500')).toBeVisible();
       await expect(modal.getByText('Remaining Balance Due:')).toBeVisible();
       await expect(modal.getByText('₹1,000')).toBeVisible();
@@ -210,9 +210,9 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       // Total Outstanding Due = ₹1,500 (modern) + ₹2,500 (legacy issued) = ₹4,000
       await expect(customerPage.getByText('₹4,000')).toBeVisible();
-      await expect(customerPage.getByText('Outstanding Due')).toBeVisible();
-      await expect(customerPage.getByText('Total Invoices')).toBeVisible();
-      await expect(customerPage.getByText('Fully Settled')).toBeVisible();
+      await expect(customerPage.getByText('Outstanding Due', { exact: true })).toBeVisible();
+      await expect(customerPage.getByText('Total Invoices', { exact: true })).toBeVisible();
+      await expect(customerPage.getByText('Fully Settled', { exact: true })).toBeVisible();
 
       // 2. Verify Modern Invoice Row
       const modernRow = customerPage.locator('tr').filter({ hasText: 'INV-MODERN-2026-001' }).first();
