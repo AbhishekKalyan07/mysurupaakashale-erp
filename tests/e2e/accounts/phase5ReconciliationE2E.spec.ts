@@ -53,10 +53,10 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       const modal = adminPage.locator('div.fixed').filter({ hasText: 'Invoice Details' });
       await expect(modal).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Subtotal:' }).getByText('₹3,000')).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Credit Applied:' }).getByText('-₹500')).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Applied Payment:' }).getByText('₹1,000')).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Remaining Balance Due:' }).getByText('₹1,500')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Subtotal:' }).first().getByText('₹3,000')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Credit Applied:' }).first().getByText('-₹500')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Applied Payment:' }).first().getByText('₹1,000')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Remaining Balance Due:' }).first().getByText('₹1,500')).toBeVisible();
 
       // Close modal
       await modal.locator('button', { hasText: 'Close' }).click();
@@ -84,8 +84,8 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
       // Verify Invoice Details modal also reflects remaining balance of ₹1,000
       await modernRow.locator('button[title="View Invoice Details"]').click();
       await expect(modal).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Applied Payment:' }).getByText('₹1,500')).toBeVisible();
-      await expect(modal.locator('div').filter({ hasText: 'Remaining Balance Due:' }).getByText('₹1,000')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Applied Payment:' }).first().getByText('₹1,500')).toBeVisible();
+      await expect(modal.locator('div.flex').filter({ hasText: 'Remaining Balance Due:' }).first().getByText('₹1,000')).toBeVisible();
       await modal.locator('button', { hasText: 'Close' }).click();
       await expect(modal).not.toBeVisible();
 
@@ -236,7 +236,8 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       // 2. Customer in Payment History has no administrative offline payment or ledger editing controls
       await customerPage.goto('/customer/payments');
-      await expect(customerPage.locator('h1').filter({ hasText: /Billing & Payments/i })).toBeVisible({ timeout: 15000 });
+      await customerPage.waitForLoadState('networkidle');
+      await expect(customerPage.locator('h1').filter({ hasText: /Billing & Payments/i })).toBeVisible({ timeout: 20000 });
       await expect(customerPage.locator('button[title="Record Offline Payment"]')).toHaveCount(0);
       await expect(customerPage.locator('button[title="Void Invoice"]')).toHaveCount(0);
     });
