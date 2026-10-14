@@ -236,7 +236,7 @@ test.describe('Phase 5B.2: Accounts, Reconciliation & Role Authorization E2E', (
 
       // 2. Customer in Payment History has no administrative offline payment or ledger editing controls
       await customerPage.goto('/customer/payments');
-      await customerPage.waitForLoadState('networkidle');
+      await customerPage.waitForURL('**/customer/payments');
       await expect(customerPage.locator('h1').filter({ hasText: /Billing & Payments/i })).toBeVisible({ timeout: 20000 });
       await expect(customerPage.locator('button[title="Record Offline Payment"]')).toHaveCount(0);
       await expect(customerPage.locator('button[title="Void Invoice"]')).toHaveCount(0);
