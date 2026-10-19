@@ -11,6 +11,7 @@ import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import { pricingService } from "../pricingService";
 import { settingsRepository } from "@/shared/services/firestore/settingsRepository";
 import { isStandardPlan } from "@/features/customer/hooks/useMealPlans";
+import * as dateLib from "@/shared/lib/date";
 import { isSundayInTimezone } from "@/shared/lib/date";
 import type { CustomerProfile, MealPlan, Subscription, Order, MealPlanPricing } from "@/shared/types";
 
@@ -151,6 +152,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
     vi.spyOn(settingsRepository, "getBusinessSettings").mockResolvedValue({
       pricing: { securityDepositAmount: 1000 },
     } as any);
+    vi.spyOn(dateLib, "getTodayIST").mockReturnValue("2026-10-15");
   });
 
   const baseInput: AdminCreateSubscriptionInput = {
@@ -380,6 +382,17 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
       await expect(
         subscriptionService.createSubscriptionByAdmin(adminActor, input),
       ).rejects.toThrow(/Invalid end date format/);
+    });
+
+    it("rejects startDate earlier than today (in the past)", async () => {
+      const input: AdminCreateSubscriptionInput = {
+        ...baseInput,
+        startDate: "2026-10-14",
+      };
+
+      await expect(
+        subscriptionService.createSubscriptionByAdmin(adminActor, input),
+      ).rejects.toThrow(/Subscription start date cannot be in the past/);
     });
   });
 
