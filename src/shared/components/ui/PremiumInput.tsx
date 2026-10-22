@@ -84,6 +84,8 @@ export const PremiumInput = forwardRef<HTMLInputElement, PremiumInputProps>(
         {error ? (
           <p
             id={`${inputId}-error`}
+            role="alert"
+            aria-live="polite"
             className="text-xs text-danger flex items-center gap-1"
           >
             {error}

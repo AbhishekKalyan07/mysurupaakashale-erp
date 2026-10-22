@@ -1,8 +1,9 @@
 import { AlertTriangle, Trash2, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useId, useRef } from "react";
 import { PremiumButton as Button } from "./PremiumButton";
 import { cn } from "@/shared/lib/cn";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 export interface ConfirmDeleteDialogProps {
   /** Label for the entity being deleted, e.g. "customer", "order", "menu" */
@@ -47,18 +48,16 @@ export function ConfirmDeleteDialog({
   onCancel,
   className,
 }: ConfirmDeleteDialogProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  useScrollLock(true);
+  const titleId = useId();
+  const descId = useId();
 
-  // Auto-focus cancel (safe default) and close on Escape
-  useEffect(() => {
-    cancelRef.current?.focus();
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onCancel]);
+  useScrollLock(true);
+  useFocusTrap(panelRef, true, {
+    onEscape: onCancel,
+    initialFocusRef: cancelRef,
+  });
 
   const defaultDescription = entityName
     ? `Are you sure you want to delete the ${entityLabel} "${entityName}"? This action cannot be undone.`
@@ -66,16 +65,17 @@ export function ConfirmDeleteDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 pb-safe"
       role="alertdialog"
       aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-      aria-describedby="delete-dialog-desc"
+      aria-labelledby={titleId}
+      aria-describedby={descId}
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
       <div
+        ref={panelRef}
         className={cn(
           "w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-rice-200 p-6",
           className,
@@ -88,7 +88,7 @@ export function ConfirmDeleteDialog({
               <Trash2 size={18} className="text-danger" />
             </div>
             <h2
-              id="delete-dialog-title"
+              id={titleId}
               className="font-display text-lg font-bold text-ink-900"
             >
               Delete{" "}
@@ -110,7 +110,7 @@ export function ConfirmDeleteDialog({
         <div className="flex items-start gap-3 rounded-lg bg-danger-subtle border border-danger/20 px-3 py-3 mb-5">
           <AlertTriangle size={16} className="text-danger shrink-0 mt-0.5" />
           <p
-            id="delete-dialog-desc"
+            id={descId}
             className="text-sm text-ink-700 leading-relaxed"
           >
             {description ?? defaultDescription}

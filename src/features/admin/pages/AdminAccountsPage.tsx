@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import {
   CreditCard,
   Banknote,
@@ -210,6 +212,20 @@ export function AdminAccountsPage() {
   const [offlineRefNumber, setOfflineRefNumber] = useState("");
   const [offlineDate, setOfflineDate] = useState(getTodayIST());
   const [offlineNotes, setOfflineNotes] = useState("");
+
+  // Modal refs & IDs for accessibility and focus management
+  const viewInvoiceRef = useRef<HTMLDivElement>(null);
+  const voidInvoiceRef = useRef<HTMLDivElement>(null);
+  const offlinePaymentRef = useRef<HTMLDivElement>(null);
+
+  const viewInvoiceTitleId = useId();
+  const voidInvoiceTitleId = useId();
+  const offlinePaymentTitleId = useId();
+
+  useScrollLock(Boolean(viewInvoice || voidInvoiceTarget || offlinePaymentTarget));
+  useFocusTrap(viewInvoiceRef, Boolean(viewInvoice));
+  useFocusTrap(voidInvoiceRef, Boolean(voidInvoiceTarget));
+  useFocusTrap(offlinePaymentRef, Boolean(offlinePaymentTarget));
 
   // Mutations
   const voidInvoiceMutation = useMutation({
@@ -940,6 +956,7 @@ export function AdminAccountsPage() {
                             variant="ghost"
                             size="xs"
                             title="View Invoice Details"
+                            aria-label="View Invoice Details"
                             onClick={() => setViewInvoice(inv)}
                           >
                             <Eye size={14} />
@@ -951,6 +968,7 @@ export function AdminAccountsPage() {
                               size="xs"
                               className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
                               title="Record Offline Payment"
+                              aria-label="Record Offline Payment"
                               onClick={() => {
                                 setOfflinePaymentTarget(inv);
                                 setOfflineAmount(remainingDue.toString());
@@ -970,6 +988,7 @@ export function AdminAccountsPage() {
                               size="xs"
                               className="text-danger hover:text-danger hover:bg-danger/10"
                               title="Void Invoice"
+                              aria-label="Void Invoice"
                               onClick={() => {
                                 setVoidInvoiceTarget(inv);
                                 setVoidReason("");
@@ -991,11 +1010,22 @@ export function AdminAccountsPage() {
 
       {/* MODAL: Invoice Details */}
       {viewInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl max-w-xl w-full p-6 shadow-xl border border-border space-y-4 max-h-[90vh] overflow-y-auto">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={viewInvoiceTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-safe"
+        >
+          <div
+            ref={viewInvoiceRef}
+            className="bg-background rounded-2xl max-w-xl w-full p-6 shadow-xl border border-border space-y-4 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex justify-between items-center border-b border-border pb-3">
               <div>
-                <h3 className="font-display font-bold text-lg text-primary">
+                <h3
+                  id={viewInvoiceTitleId}
+                  className="font-display font-bold text-lg text-primary"
+                >
                   Invoice Details — {viewInvoice.invoiceNumber || viewInvoice.id}
                 </h3>
                 <p className="text-xs text-text-muted">
@@ -1004,6 +1034,7 @@ export function AdminAccountsPage() {
               </div>
               <button
                 onClick={() => setViewInvoice(null)}
+                aria-label="Close invoice details"
                 className="text-text-muted hover:text-stone-900"
               >
                 <X size={20} />
@@ -1111,11 +1142,24 @@ export function AdminAccountsPage() {
 
       {/* MODAL: Void Invoice Confirmation */}
       {voidInvoiceTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl max-w-md w-full p-6 shadow-xl border border-border space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={voidInvoiceTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-safe"
+        >
+          <div
+            ref={voidInvoiceRef}
+            className="bg-background rounded-2xl max-w-md w-full p-6 shadow-xl border border-border space-y-4"
+          >
             <div className="flex items-center gap-2 text-danger">
               <Ban size={22} />
-              <h3 className="font-display font-bold text-lg">Void Invoice</h3>
+              <h3
+                id={voidInvoiceTitleId}
+                className="font-display font-bold text-lg"
+              >
+                Void Invoice
+              </h3>
             </div>
             <p className="text-xs text-text-muted">
               You are voiding invoice <span className="font-bold text-stone-900">{voidInvoiceTarget.invoiceNumber || voidInvoiceTarget.id}</span>.
@@ -1162,11 +1206,24 @@ export function AdminAccountsPage() {
 
       {/* MODAL: Record Offline Payment */}
       {offlinePaymentTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl max-w-md w-full p-6 shadow-xl border border-border space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={offlinePaymentTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 pb-safe"
+        >
+          <div
+            ref={offlinePaymentRef}
+            className="bg-background rounded-2xl max-w-md w-full p-6 shadow-xl border border-border space-y-4"
+          >
             <div className="flex items-center gap-2 text-emerald-700">
               <IndianRupee size={22} />
-              <h3 className="font-display font-bold text-lg">Record Offline Payment</h3>
+              <h3
+                id={offlinePaymentTitleId}
+                className="font-display font-bold text-lg"
+              >
+                Record Offline Payment
+              </h3>
             </div>
             <p className="text-xs text-text-muted">
               Record a payment received in cash, direct UPI, or bank transfer against invoice{" "}

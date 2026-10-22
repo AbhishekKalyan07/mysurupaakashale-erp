@@ -1,7 +1,8 @@
 import { FileWarning, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useId, useRef } from "react";
 import { PremiumButton as Button } from "./PremiumButton";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 export interface UnsavedChangesDialogProps {
   /** Called when the user decides to stay on the page */
@@ -29,30 +30,32 @@ export function UnsavedChangesDialog({
   onStay,
   onLeave,
 }: UnsavedChangesDialogProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
-  useScrollLock(true);
+  const titleId = useId();
+  const descId = useId();
 
-  useEffect(() => {
-    stayRef.current?.focus();
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onStay();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onStay]);
+  useScrollLock(true);
+  useFocusTrap(panelRef, true, {
+    onEscape: onStay,
+    initialFocusRef: stayRef,
+  });
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 pb-safe"
       role="alertdialog"
       aria-modal="true"
-      aria-labelledby="unsaved-dialog-title"
-      aria-describedby="unsaved-dialog-desc"
+      aria-labelledby={titleId}
+      aria-describedby={descId}
       onClick={(e) => {
         if (e.target === e.currentTarget) onStay();
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-rice-200 p-6">
+      <div
+        ref={panelRef}
+        className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-rice-200 p-6"
+      >
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -60,7 +63,7 @@ export function UnsavedChangesDialog({
               <FileWarning size={18} className="text-warning" />
             </div>
             <h2
-              id="unsaved-dialog-title"
+              id={titleId}
               className="font-display text-lg font-bold text-ink-900"
             >
               Leave this page?
@@ -76,7 +79,7 @@ export function UnsavedChangesDialog({
         </div>
 
         <p
-          id="unsaved-dialog-desc"
+          id={descId}
           className="text-sm text-ink-500 leading-relaxed mb-6"
         >
           You have unsaved changes that will be lost if you leave this page. Are

@@ -239,7 +239,7 @@
 
   /* Bottom safe area for mobile nav */
   .pb-safe {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 
   /* Slide-up animation utility */
@@ -251,4 +251,8 @@
   .animate-fade-in {
     animation: fade-in 0.2s ease-out;
   }
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
 }

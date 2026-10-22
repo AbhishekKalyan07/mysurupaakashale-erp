@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useState, useRef, useId } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { getTodayIST, getModifiableMeals } from "@/shared/utils/dateUtils";
 import { toast } from "react-hot-toast";
 import { X } from "lucide-react";
 import { pricingService } from "@/shared/services/business/pricingService";
 import { useRemoveTodayMeal } from "@/features/customer/hooks/useMySubscription";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 
 export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useScrollLock(true);
+  useFocusTrap(modalRef, true);
+
   const todayStr = getTodayIST();
   const removeTodayMeal = useRemoveTodayMeal();
 
@@ -36,10 +43,21 @@ export function CancelTodayModal({ subscription, onClose, skipDay }: any) {
   };
 
   return (
-    <div role="dialog" className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-background rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4 pb-safe"
+    >
+      <div
+        ref={modalRef}
+        className="relative bg-background rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold font-display text-danger">
+          <h2
+            id={titleId}
+            className="text-xl sm:text-2xl font-bold font-display text-danger"
+          >
             Cancel Today's Meals
           </h2>
           <button

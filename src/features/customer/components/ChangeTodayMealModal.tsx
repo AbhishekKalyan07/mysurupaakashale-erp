@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useId } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { getTodayIST, getModifiableMeals } from "@/shared/utils/dateUtils";
 import { toast } from "react-hot-toast";
@@ -6,6 +6,8 @@ import { X, Check, UtensilsCrossed, Clock, AlertCircle } from "lucide-react";
 import { useChangeTodayMealOption } from "@/features/customer/hooks/useMySubscription";
 import { useMealPlans } from "@/features/customer/hooks/useMealPlans";
 import { operationalSettingsService } from "@/shared/services/business/operationalSettingsService";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import type { Subscription, Order, MealPlan, MealOption } from "@/shared/types";
 
 interface ChangeTodayMealModalProps {
@@ -21,6 +23,11 @@ export function ChangeTodayMealModal({
   plan: initialPlan,
   onClose,
 }: ChangeTodayMealModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useScrollLock(true);
+  useFocusTrap(modalRef, true);
+
   const todayStr = getTodayIST();
   const changeMutation = useChangeTodayMealOption();
   const { data: plans } = useMealPlans();
@@ -75,10 +82,14 @@ export function ChangeTodayMealModal({
   return (
     <div
       role="dialog"
-      aria-labelledby="change-meal-modal-title"
-      className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-4 pb-safe"
     >
-      <div className="relative bg-background rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="relative bg-background rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-7 border border-primary/20 max-h-[90dvh] overflow-y-auto"
+      >
         {/* Header */}
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2.5">
@@ -87,7 +98,7 @@ export function ChangeTodayMealModal({
             </div>
             <div>
               <h2
-                id="change-meal-modal-title"
+                id={titleId}
                 className="text-xl sm:text-2xl font-bold font-display text-primary capitalize"
               >
                 Change Today's {mealType}

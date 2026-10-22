@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useId } from "react";
 import { PremiumButton as Button } from "@/shared/components/ui/PremiumButton";
 import { PremiumCard as Card } from "@/shared/components/ui/PremiumCard";
 import { subscriptionService } from "@/shared/services/business/subscriptionService";
@@ -12,6 +12,8 @@ import { toast } from "react-hot-toast";
 import type { Subscription, MealType } from "@/shared/types";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { getModifiableMeals } from "@/shared/utils/dateUtils";
+import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { XCircle } from "lucide-react";
 
 interface ResumeDeliveryModalProps {
@@ -25,6 +27,11 @@ export function ResumeDeliveryModal({
   onClose,
   nowOverride,
 }: ResumeDeliveryModalProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useScrollLock(true);
+  useFocusTrap(cardRef, true);
+
   const today = getTodayInTimezone("Asia/Kolkata", nowOverride);
   const cutoffs = operationalSettingsService.getOperationalSettingsSync().cutoffs;
 
@@ -129,8 +136,16 @@ export function ResumeDeliveryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <Card className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 relative max-h-[90dvh] overflow-y-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 pb-safe"
+    >
+      <Card
+        ref={cardRef}
+        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 relative max-h-[90dvh] overflow-y-auto"
+      >
         <button
           onClick={onClose}
           aria-label="Close dialog"
@@ -138,7 +153,10 @@ export function ResumeDeliveryModal({
         >
           <XCircle size={20} />
         </button>
-        <h2 className="text-xl font-bold font-serif text-ink-900 mb-2">
+        <h2
+          id={titleId}
+          className="text-xl font-bold font-serif text-ink-900 mb-2"
+        >
           Resume Subscription
         </h2>
         <p className="text-sm font-sans text-ink-600 mb-6">

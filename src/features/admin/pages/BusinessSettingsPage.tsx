@@ -507,7 +507,7 @@ export function BusinessSettingsPage() {
       </form>
 
       {/* Floating Save Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] z-40 transition-all">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe bg-background/80 backdrop-blur-md border-t border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] z-40 transition-all">
         <div className="max-w-4xl mx-auto flex justify-end">
           <Button
             type="submit"
