@@ -2,11 +2,12 @@ import { OrderCard } from "@/shared/components/ui/OrderCard";
 
 import { User, MapPin } from "lucide-react";
 import { PremiumBadge as Badge } from "@/shared/components/ui/PremiumBadge";
+import type { CustomerProfile } from "@/shared/types";
 import type { DeliveryPartnerGroup } from "@/shared/services/business/deliveryService";
 
 interface Props {
   groupedOrders: DeliveryPartnerGroup[];
-  customerMap: Map<string, any>;
+  customerMap: Map<string, CustomerProfile>;
   onReassign: (orderId: string, partnerId: string | null) => void;
   partners: any[];
   canReassign?: boolean;
@@ -92,11 +93,17 @@ export function DeliveryDispatchTable({
                         (() => {
                           if (!order.deliveryAddressId) return null;
                           const addr = customer?.addresses?.find(
-                            (a: any) => a.id === order.deliveryAddressId,
+                            (a) => a.id === order.deliveryAddressId,
                           );
-                          return addr?.lat && addr?.lng
-                            ? { lat: addr.lat, lng: addr.lng }
-                            : null;
+                          if (
+                            typeof addr?.lat === "number" &&
+                            typeof addr?.lng === "number" &&
+                            Number.isFinite(addr.lat) &&
+                            Number.isFinite(addr.lng)
+                          ) {
+                            return { lat: addr.lat, lng: addr.lng };
+                          }
+                          return null;
                         })(),
                     }}
                     partnerName={
