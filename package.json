@@ -51,7 +51,7 @@
     "recharts": "^3.10.1",
     "rollup-plugin-visualizer": "^7.1.1",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
@@ -89,6 +89,6 @@
     "brace-expansion": ">=2.1.5",
     "fast-uri": ">=3.1.8",
     "@grpc/grpc-js": "^1.14.5",
-    "dompurify": "^3.4.16"
+    "dompurify": "^3.4.17"
   }
 }
