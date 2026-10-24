@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { usePartnerBoard } from "../hooks/usePartnerBoard";
 import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
@@ -50,7 +50,42 @@ export function DeliveryPartnerPage() {
       ? profile.zoneIds.map((id: string) => zoneMap.get(id) || id).join(", ")
       : "None";
 
-  const uniqueCustomersToday = new Set(orders.map((o) => o.customerId)).size;
+  const {
+    uniqueCustomersToday,
+    pendingOrdersCount,
+    deliveredOrdersCount,
+    failedOrdersCount,
+  } = useMemo(() => {
+    const customers = new Set<string>();
+    let pending = 0;
+    let delivered = 0;
+    let failed = 0;
+
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i];
+      if (order.customerId) {
+        customers.add(order.customerId);
+      }
+
+      if (order.status === "delivered") {
+        delivered++;
+      } else if (
+        order.status === "failed_delivery" ||
+        order.status === "returned_delivery"
+      ) {
+        failed++;
+      } else if (order.status !== "cancelled" && order.status !== "skipped") {
+        pending++;
+      }
+    }
+
+    return {
+      uniqueCustomersToday: customers.size,
+      pendingOrdersCount: pending,
+      deliveredOrdersCount: delivered,
+      failedOrdersCount: failed,
+    };
+  }, [orders]);
 
   // Customer details are denormalized onto the order document itself.
   // Firestore rules correctly block delivery partners from querying the entire users collection.
@@ -138,38 +173,17 @@ export function DeliveryPartnerPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-surface rounded-xl p-3 border border-border">
           <p className="text-xs text-text-muted font-medium">Pending</p>
-          <p className="text-lg font-bold text-text">
-            {
-              orders.filter(
-                (o) =>
-                  ![
-                    "delivered",
-                    "failed_delivery",
-                    "returned_delivery",
-                    "cancelled",
-                    "skipped",
-                  ].includes(o.status),
-              ).length
-            }
-          </p>
+          <p className="text-lg font-bold text-text">{pendingOrdersCount}</p>
         </div>
         <div className="bg-success-subtle rounded-xl p-3 border border-success/20">
           <p className="text-xs text-success-dark font-medium">Delivered</p>
-          <p className="text-lg font-bold text-success-dark">
-            {orders.filter((o) => o.status === "delivered").length}
-          </p>
+          <p className="text-lg font-bold text-success-dark">{deliveredOrdersCount}</p>
         </div>
         <div className="bg-danger-subtle rounded-xl p-3 border border-danger/20">
           <p className="text-xs text-danger-dark font-medium">
             Failed / Returned
           </p>
-          <p className="text-lg font-bold text-danger-dark">
-            {
-              orders.filter((o) =>
-                ["failed_delivery", "returned_delivery"].includes(o.status),
-              ).length
-            }
-          </p>
+          <p className="text-lg font-bold text-danger-dark">{failedOrdersCount}</p>
         </div>
       </div>
 
