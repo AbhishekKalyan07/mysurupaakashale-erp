@@ -4,6 +4,7 @@ import {
   OperationalSettingsService,
   DEFAULT_CUTOFFS,
   DEFAULT_DELIVERY_WINDOWS,
+  type OperationalSettings,
 } from "../operationalSettingsService";
 import { orderService } from "../orderService";
 import type { Order, Subscription, AddonItem } from "@/shared/types";
@@ -742,6 +743,283 @@ describe("PHASE E6 — Authoritative Operational Settings Service & Runtime Enfo
       // MUST NOT reset to default "05:00", MUST retain "04:30"
       expect(afterErrorSettings.cutoffs.breakfast).toBe("04:30");
       expect(afterErrorSettings.cutoffs.lunch).toBe("11:00");
+    });
+  });
+
+  describe("Phase 7D-S-A4 — OperationalSettingsService Authentication Lifecycle Regression Tests", () => {
+    it("1. Importing/constructing the service while unauthenticated does not trigger Firestore read or realtime listener", async () => {
+      const { getDoc, onSnapshot } = await import("firebase/firestore");
+      const getDocSpy = vi.mocked(getDoc);
+      const onSnapshotSpy = vi.mocked(onSnapshot);
+      getDocSpy.mockClear();
+      onSnapshotSpy.mockClear();
+
+      const unauthedAuth = { currentUser: null };
+      const guestService = new OperationalSettingsService(unauthedAuth);
+
+      expect(getDocSpy).not.toHaveBeenCalled();
+      expect(onSnapshotSpy).not.toHaveBeenCalled();
+      expect(guestService.isLoadedFromFirestore()).toBe(false);
+      expect(guestService.isRealtimeSyncActive()).toBe(false);
+    });
+
+    it("2. A guest initially receives existing fallback behavior", async () => {
+      const { getDoc } = await import("firebase/firestore");
+      const getDocSpy = vi.mocked(getDoc);
+      getDocSpy.mockClear();
+
+      const unauthedAuth = { currentUser: null };
+      const guestService = new OperationalSettingsService(unauthedAuth);
+
+      // Synchronous getter returns defaults
+      const syncSettings = guestService.getOperationalSettingsSync();
+      expect(syncSettings.cutoffs).toEqual(DEFAULT_CUTOFFS);
+      expect(syncSettings.deliveryWindows).toEqual(DEFAULT_DELIVERY_WINDOWS);
+      expect(guestService.getMealCutoffSync("breakfast")).toBe("05:00");
+      expect(guestService.getMealCutoffSync("lunch")).toBe("10:30");
+      expect(guestService.getMealCutoffSync("dinner")).toBe("16:00");
+      expect(guestService.getDeliveryWindowSync("lunch")).toEqual(DEFAULT_DELIVERY_WINDOWS.lunch);
+
+      // Async getter returns defaults without attempting protected Firestore read
+      const asyncSettings = await guestService.getOperationalSettings();
+      expect(asyncSettings.cutoffs).toEqual(DEFAULT_CUTOFFS);
+      expect(getDocSpy).not.toHaveBeenCalled();
+      expect(guestService.isLoadedFromFirestore()).toBe(false);
+    });
+
+    it("3. On the first authenticated session, the service successfully loads real settings", async () => {
+      inMemoryFirestoreSettings.set("business", {
+        id: "business",
+        operations: {
+          cancellationCutoffTimes: { breakfast: "05:15", lunch: "11:15", dinner: "16:45" },
+          deliveryWindows: {
+            breakfast: { start: "07:00", end: "08:30" },
+            lunch: { start: "12:00", end: "13:30" },
+            dinner: { start: "19:00", end: "20:30" },
+          },
+        },
+      });
+
+      const dynamicAuth = { currentUser: null as any };
+      const service = new OperationalSettingsService(dynamicAuth);
+      expect(service.isLoadedFromFirestore()).toBe(false);
+
+      // Transition to authenticated user
+      dynamicAuth.currentUser = { uid: "user-session-1" };
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+
+      expect(service.isLoadedFromFirestore()).toBe(true);
+      expect(service.getCurrentUserId()).toBe("user-session-1");
+      expect(service.getMealCutoffSync("lunch")).toBe("11:15");
+      expect(service.getDeliveryWindowSync("lunch")).toEqual({ start: "12:00", end: "13:30" });
+    });
+
+    it("4. A prior permission failure does not permanently block loading after sign-in", async () => {
+      inMemoryFirestoreSettings.set("business", {
+        id: "business",
+        operations: {
+          cancellationCutoffTimes: { breakfast: "05:00", lunch: "11:30", dinner: "16:00" },
+          deliveryWindows: { ...DEFAULT_DELIVERY_WINDOWS },
+        },
+      });
+
+      const dynamicAuth = { currentUser: { uid: "user-initially-denied" } };
+      const service = new OperationalSettingsService(dynamicAuth);
+
+      // Simulate a transient permission denial
+      const { getDoc } = await import("firebase/firestore");
+      const getDocSpy = vi.mocked(getDoc);
+      getDocSpy.mockRejectedValueOnce(new Error("Missing or insufficient permissions"));
+
+      const failedSettings = await service.getOperationalSettings(true);
+      expect(failedSettings.cutoffs.lunch).toBe(DEFAULT_CUTOFFS.lunch);
+      expect(service.isLoadedFromFirestore()).toBe(false);
+
+      // Now verify that subsequent authenticated call succeeds and does not remain permanently latched
+      const recoveredSettings = await service.getOperationalSettings();
+      expect(recoveredSettings.cutoffs.lunch).toBe("11:30");
+      expect(service.isLoadedFromFirestore()).toBe(true);
+    });
+
+    it("5. A failed realtime listener can be retried according to the existing lifecycle", async () => {
+      const { onSnapshot } = await import("firebase/firestore");
+      const onSnapshotSpy = vi.mocked(onSnapshot);
+      let capturedErrorCb: ((err: any) => void) | null = null;
+      let mockUnsubCalled = false;
+
+      onSnapshotSpy.mockImplementationOnce((_docRef: any, _nextCb: any, errCb: any) => {
+        capturedErrorCb = errCb;
+        return vi.fn(() => {
+          mockUnsubCalled = true;
+        });
+      });
+
+      const authedAuth = { currentUser: { uid: "user-retry-listener" } };
+      const service = new OperationalSettingsService(authedAuth);
+      await service.startRealtimeSync();
+
+      expect(service.isRealtimeSyncActive()).toBe(true);
+
+      // Simulate snapshot listener error
+      expect(capturedErrorCb).toBeDefined();
+      capturedErrorCb!(new Error("Missing or insufficient permissions"));
+
+      // Listener should be cleaned up and marked inactive
+      expect(service.isRealtimeSyncActive()).toBe(false);
+      expect(mockUnsubCalled).toBe(true);
+
+      // Retry should now successfully attach a new listener rather than being blocked
+      await service.startRealtimeSync();
+      expect(service.isRealtimeSyncActive()).toBe(true);
+      service.stopRealtimeSync();
+    });
+
+    it("6. Sign-out cleans up the active listener and reverts to fallback defaults", async () => {
+      const dynamicAuth = { currentUser: { uid: "user-signout-test" } as { uid: string } | null };
+      const service = new OperationalSettingsService(dynamicAuth);
+      await service.startRealtimeSync();
+      expect(service.isRealtimeSyncActive()).toBe(true);
+
+      // User signs out
+      dynamicAuth.currentUser = null;
+      await service.handleAuthStateChanged(null);
+
+      expect(service.isRealtimeSyncActive()).toBe(false);
+      expect(service.isLoadedFromFirestore()).toBe(false);
+      expect(service.getCurrentUserId()).toBeNull();
+      expect(service.getOperationalSettingsSync().cutoffs).toEqual(DEFAULT_CUTOFFS);
+    });
+
+    it("7. A subsequent sign-in establishes the appropriate listener and refreshes settings", async () => {
+      inMemoryFirestoreSettings.set("business", {
+        id: "business",
+        operations: {
+          cancellationCutoffTimes: { breakfast: "05:00", lunch: "11:50", dinner: "16:00" },
+          deliveryWindows: { ...DEFAULT_DELIVERY_WINDOWS },
+        },
+      });
+
+      const dynamicAuth = { currentUser: null as any };
+      const service = new OperationalSettingsService(dynamicAuth);
+
+      // 1. Initial sign-in
+      dynamicAuth.currentUser = { uid: "user-first" };
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+      await service.startRealtimeSync();
+      expect(service.isLoadedFromFirestore()).toBe(true);
+      expect(service.isRealtimeSyncActive()).toBe(true);
+      expect(service.getMealCutoffSync("lunch")).toBe("11:50");
+
+      // 2. Sign-out
+      dynamicAuth.currentUser = null;
+      await service.handleAuthStateChanged(null);
+      expect(service.isRealtimeSyncActive()).toBe(false);
+      expect(service.isLoadedFromFirestore()).toBe(false);
+      expect(service.getMealCutoffSync("lunch")).toBe("10:30"); // Reverted to default
+
+      // 3. New sign-in
+      dynamicAuth.currentUser = { uid: "user-second" };
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+      await service.startRealtimeSync();
+      expect(service.isLoadedFromFirestore()).toBe(true);
+      expect(service.isRealtimeSyncActive()).toBe(true);
+      expect(service.getCurrentUserId()).toBe("user-second");
+      expect(service.getMealCutoffSync("lunch")).toBe("11:50");
+      service.stopRealtimeSync();
+    });
+
+    it("8. Duplicate auth notifications do not create duplicate listeners or concurrent loads", async () => {
+      const { getDoc, onSnapshot } = await import("firebase/firestore");
+      const getDocSpy = vi.mocked(getDoc);
+      const onSnapshotSpy = vi.mocked(onSnapshot);
+
+      const dynamicAuth = { currentUser: { uid: "user-dedup" } };
+      const service = new OperationalSettingsService(dynamicAuth);
+
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+      await service.startRealtimeSync();
+
+      const initialGetDocCount = getDocSpy.mock.calls.length;
+      const initialOnSnapshotCount = onSnapshotSpy.mock.calls.length;
+
+      // Duplicate notification with identical user
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+
+      expect(getDocSpy.mock.calls.length).toBe(initialGetDocCount);
+      expect(onSnapshotSpy.mock.calls.length).toBe(initialOnSnapshotCount);
+      service.stopRealtimeSync();
+    });
+
+    it("9. Callbacks from an obsolete session cannot overwrite current settings", async () => {
+      const dynamicAuth = { currentUser: { uid: "user-session-A" } as { uid: string } | null };
+      const service = new OperationalSettingsService(dynamicAuth);
+
+      // Simulate onSnapshot callback for session A
+      let snapshotCallback: ((snap: any) => void) | null = null;
+      const { onSnapshot } = await import("firebase/firestore");
+      vi.mocked(onSnapshot).mockImplementationOnce((_docRef: any, nextCb: any) => {
+        snapshotCallback = nextCb;
+        return vi.fn();
+      });
+
+      await service.startRealtimeSync();
+
+      // Sign out / switch to Session B before Session A's snapshot callback arrives
+      dynamicAuth.currentUser = null;
+      await service.handleAuthStateChanged(null);
+
+      // Now delayed callback arrives from old session A
+      expect(snapshotCallback).toBeDefined();
+      snapshotCallback!({
+        exists: () => true,
+        data: () => ({
+          operations: {
+            cancellationCutoffTimes: { breakfast: "04:00", lunch: "09:00", dinner: "15:00" },
+          },
+        }),
+      });
+
+      // Settings must NOT have been overwritten by obsolete session A
+      expect(service.getMealCutoffSync("lunch")).toBe(DEFAULT_CUTOFFS.lunch);
+      expect(service.isLoadedFromFirestore()).toBe(false);
+    });
+
+    it("10. Subscriber notification receives loaded settings and unregisters cleanly", async () => {
+      inMemoryFirestoreSettings.set("business", {
+        id: "business",
+        operations: {
+          cancellationCutoffTimes: { breakfast: "05:00", lunch: "11:20", dinner: "16:00" },
+          deliveryWindows: { ...DEFAULT_DELIVERY_WINDOWS },
+        },
+      });
+
+      const dynamicAuth = { currentUser: null as any };
+      const service = new OperationalSettingsService(dynamicAuth);
+
+      const receivedSnapshots: OperationalSettings[] = [];
+      const unsubSubscriber = service.subscribe((settings) => {
+        receivedSnapshots.push(settings);
+      });
+
+      // Initial call on subscribe: receives default settings
+      expect(receivedSnapshots.length).toBe(1);
+      expect(receivedSnapshots[0].cutoffs.lunch).toBe(DEFAULT_CUTOFFS.lunch);
+
+      // User logs in and settings load
+      dynamicAuth.currentUser = { uid: "user-sub-test" };
+      await service.handleAuthStateChanged(dynamicAuth.currentUser);
+
+      // Subscriber notified with loaded settings
+      expect(receivedSnapshots.length).toBe(2);
+      expect(receivedSnapshots[1].cutoffs.lunch).toBe("11:20");
+
+      // Unsubscribe and sign out
+      unsubSubscriber();
+      dynamicAuth.currentUser = null;
+      await service.handleAuthStateChanged(null);
+
+      // No new notifications after unsubscribe
+      expect(receivedSnapshots.length).toBe(2);
     });
   });
 });

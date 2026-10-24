@@ -161,4 +161,100 @@ describe("PWA Security & Hardening Suite", () => {
       expect(viteConfig).toContain("'**/*.map'");
     });
   });
+
+  describe("5. Content Security Policy (CSP) & External PWA Install Prompt Script", () => {
+    it("confirms index.html contains no inline executable script tags violating CSP script-src 'self'", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+
+      // Extract all <script ...> tags
+      const scriptTags = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      expect(scriptTags.length).toBeGreaterThan(0);
+
+      // Verify NO script tag contains inline executable code
+      for (const tag of scriptTags) {
+        const hasSrc = /src=["'][^"']+["']/i.test(tag);
+        const innerContent = tag.replace(/<script\b[^>]*>/i, "").replace(/<\/script>/i, "").trim();
+        expect(hasSrc).toBe(true);
+        expect(innerContent).toBe("");
+      }
+    });
+
+    it("confirms index.html references /pwa-install-prompt.js synchronously in <head>", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const html = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+
+      expect(html).toContain('<script src="/pwa-install-prompt.js"></script>');
+      // Must not be deferred or async to avoid race conditions capturing beforeinstallprompt
+      expect(html).not.toMatch(/<script[^>]*src="\/pwa-install-prompt\.js"[^>]*(async|defer)/i);
+    });
+
+    it("confirms public/pwa-install-prompt.js exists and correctly implements beforeinstallprompt and appinstalled behavior", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const scriptPath = path.resolve(process.cwd(), "public/pwa-install-prompt.js");
+      expect(fs.existsSync(scriptPath)).toBe(true);
+
+      const code = fs.readFileSync(scriptPath, "utf-8");
+      expect(code).toContain("beforeinstallprompt");
+      expect(code).toContain("preventDefault");
+      expect(code).toContain("__pwaInstallPrompt");
+      expect(code).toContain("pwa-prompt-available");
+      expect(code).toContain("appinstalled");
+      expect(code).toContain("pwa-installed");
+
+      // Directly evaluate the script in this JSDOM environment and verify behavioral execution
+      delete (window as any).__pwaInstallPrompt;
+      localStorage.removeItem("pwa-installed");
+
+      // Execute script in current window
+      new Function(code)();
+
+      // Test beforeinstallprompt handling
+      let eventDetail: any = null;
+      const promptAvailableListener = (e: Event) => {
+        eventDetail = (e as CustomEvent).detail;
+      };
+      window.addEventListener("pwa-prompt-available", promptAvailableListener);
+
+      const mockPromptEvent = new Event("beforeinstallprompt", { cancelable: true });
+      let preventDefaultCalled = false;
+      mockPromptEvent.preventDefault = () => {
+        preventDefaultCalled = true;
+      };
+
+      window.dispatchEvent(mockPromptEvent);
+
+      expect(preventDefaultCalled).toBe(true);
+      expect((window as any).__pwaInstallPrompt).toBe(mockPromptEvent);
+      expect(eventDetail).toBe(mockPromptEvent);
+      window.removeEventListener("pwa-prompt-available", promptAvailableListener);
+
+      // Test appinstalled handling
+      window.dispatchEvent(new Event("appinstalled"));
+      expect((window as any).__pwaInstallPrompt).toBeNull();
+      expect(localStorage.getItem("pwa-installed")).toBe("true");
+    });
+
+    it("safely handles localStorage errors during appinstalled without throwing", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const code = fs.readFileSync(path.resolve(process.cwd(), "public/pwa-install-prompt.js"), "utf-8");
+      new Function(code)();
+
+      (window as any).__pwaInstallPrompt = { dummy: true };
+      const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("QuotaExceededError or SecurityError in private browsing");
+      });
+
+      expect(() => {
+        window.dispatchEvent(new Event("appinstalled"));
+      }).not.toThrow();
+
+      expect((window as any).__pwaInstallPrompt).toBeNull();
+      setItemSpy.mockRestore();
+    });
+  });
 });

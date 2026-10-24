@@ -1,9 +1,25 @@
 import { doc } from "firebase/firestore";
-import { db } from "@/shared/lib/firebase";
+import * as firebaseLib from "@/shared/lib/firebase";
 import { getTodayInTimezone, getCachedDateTimeFormatter } from "@/shared/lib/date";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import type { MealType, TimeWindow, BusinessSettings } from "@/shared/types";
 import { AUTHORITATIVE_OPERATIONAL_CUTOFFS } from "@/shared/types";
+
+function getFallbackAuth(): any {
+  try {
+    return (firebaseLib as Record<string, any>).auth ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getFallbackDb(): any {
+  try {
+    return (firebaseLib as Record<string, any>).db ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export interface OperationalCutoffTimes {
   breakfast: string; // "HH:mm"
@@ -47,16 +63,180 @@ export class OperationalSettingsService {
   private hasSuccessfullyLoadedFromFirestore = false;
   private loadPromise: Promise<OperationalSettings> | null = null;
   private unsubscribeRealtime: (() => void) | null = null;
+  private authUnsubscribe: (() => void) | null = null;
+  private currentSessionId = 0;
+  private currentUserId: string | null = null;
+  private subscribers = new Set<(settings: OperationalSettings) => void>();
+  private readonly customAuth?: any;
+  private readonly customDb?: any;
+  private authSessionResolved = false;
 
-  constructor() {
-    // Eagerly initiate background load from Firestore
-    this.getOperationalSettings().catch(() => {});
-    if (
-      typeof window !== "undefined" &&
-      (typeof process === "undefined" || process.env.NODE_ENV !== "test")
-    ) {
-      this.startRealtimeSync().catch(() => {});
+  constructor(customAuth?: any, customDb?: any) {
+    this.customAuth = customAuth;
+    this.customDb = customDb;
+
+    const authInst = this.getAuth();
+    if (authInst && typeof authInst.onAuthStateChanged === "function") {
+      // Dynamic auth provider with lifecycle observation
+      if (
+        customAuth !== undefined ||
+        (typeof window !== "undefined" && (typeof process === "undefined" || process.env.NODE_ENV !== "test"))
+      ) {
+        this.initAuthLifecycle();
+      }
+      // authSessionResolved remains false until onAuthStateChanged or handleAuthStateChanged fires
+    } else {
+      // Static auth provider (e.g. test mock without onAuthStateChanged): session is immediately resolved
+      this.authSessionResolved = true;
     }
+  }
+
+  private getAuth(): any {
+    if (this.customAuth !== undefined) {
+      return this.customAuth;
+    }
+    return getFallbackAuth();
+  }
+
+  private getDb(): any {
+    if (this.customDb !== undefined) {
+      return this.customDb;
+    }
+    return getFallbackDb();
+  }
+
+  /**
+   * Initializes the Firebase Auth observer to track sign-in/sign-out transitions.
+   */
+  initAuthLifecycle(): void {
+    if (this.authUnsubscribe) return;
+    const authInst = this.getAuth();
+    if (!authInst) return;
+
+    try {
+      import("firebase/auth")
+        .then((authMod) => {
+          const onAuth =
+            authMod?.onAuthStateChanged ||
+            authInst?.onAuthStateChanged;
+          if (typeof onAuth === "function") {
+            this.authUnsubscribe = onAuth(authInst, (user: any) => {
+              this.authSessionResolved = true;
+              this.handleAuthStateChanged(user).catch(() => {});
+            });
+          } else if (authInst?.currentUser) {
+            this.authSessionResolved = true;
+            this.handleAuthStateChanged(authInst.currentUser).catch(() => {});
+          }
+        })
+        .catch(() => {
+          if (authInst?.currentUser) {
+            this.authSessionResolved = true;
+            this.handleAuthStateChanged(authInst.currentUser).catch(() => {});
+          }
+        });
+    } catch {
+      if (authInst?.currentUser) {
+        this.authSessionResolved = true;
+        this.handleAuthStateChanged(authInst.currentUser).catch(() => {});
+      }
+    }
+  }
+
+  /**
+   * Handles authentication state changes.
+   * If a user is signed in, loads settings from Firestore and begins realtime sync.
+   * If signed out, stops realtime sync, resets cache to defaults, and notifies subscribers.
+   */
+  async handleAuthStateChanged(user: any): Promise<void> {
+    if (user && user.uid) {
+      if (this.currentUserId === user.uid && this.hasSuccessfullyLoadedFromFirestore) {
+        // Already loaded and active for this exact user.
+        // Ensure realtime sync is running if supported.
+        if (
+          !this.unsubscribeRealtime &&
+          typeof window !== "undefined" &&
+          (typeof process === "undefined" || process.env.NODE_ENV !== "test")
+        ) {
+          this.startRealtimeSync().catch(() => {});
+        }
+        return;
+      }
+
+      const sessionId = ++this.currentSessionId;
+      this.currentUserId = user.uid;
+
+      // Clean up previous realtime listener before starting a new one
+      this.stopRealtimeSync();
+
+      try {
+        await this.getOperationalSettings(true);
+      } catch {
+        // Errors are logged and handled inside getOperationalSettings without latching
+      }
+
+      // Check if session changed while load was in flight
+      if (this.currentSessionId !== sessionId) return;
+
+      if (
+        typeof window !== "undefined" &&
+        (typeof process === "undefined" || process.env.NODE_ENV !== "test")
+      ) {
+        this.startRealtimeSync().catch(() => {});
+      }
+    } else {
+      // User signed out or guest: clean up listeners and revert to fallback defaults
+      this.currentSessionId++;
+      this.currentUserId = null;
+      this.stopRealtimeSync();
+      this.clearCache();
+      this.notifySubscribers();
+    }
+  }
+
+  /**
+   * Subscribes to operational settings updates.
+   * Immediately calls the subscriber with the current settings snapshot.
+   * Returns an unsubscribe function.
+   */
+  subscribe(callback: (settings: OperationalSettings) => void): () => void {
+    this.subscribers.add(callback);
+    try {
+      callback(this.getOperationalSettingsSync());
+    } catch (err) {
+      console.error("[OperationalSettingsService] Error in subscriber callback:", err);
+    }
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  /**
+   * Broadcasts the current cached settings to all registered subscribers.
+   */
+  private notifySubscribers(): void {
+    const current = this.getOperationalSettingsSync();
+    for (const sub of this.subscribers) {
+      try {
+        sub(current);
+      } catch (err) {
+        console.error("[OperationalSettingsService] Error in subscriber callback:", err);
+      }
+    }
+  }
+
+  /**
+   * Returns whether a realtime Firestore listener is currently active.
+   */
+  isRealtimeSyncActive(): boolean {
+    return this.unsubscribeRealtime !== null;
+  }
+
+  /**
+   * Returns the user ID of the currently active authenticated session, if any.
+   */
+  getCurrentUserId(): string | null {
+    return this.currentUserId;
   }
 
   /**
@@ -65,13 +245,25 @@ export class OperationalSettingsService {
    */
   async startRealtimeSync(): Promise<void> {
     if (this.unsubscribeRealtime) return;
+
+    // Do not attempt realtime sync if unauthenticated or session unresolved
+    const authInst = this.getAuth();
+    const currentUser = authInst?.currentUser;
+    if (!this.authSessionResolved || (!currentUser && !this.currentUserId)) return;
+
+    const dbInst = this.getDb();
+    if (!dbInst) return;
+
+    const sessionId = this.currentSessionId;
     try {
       const firestore = await import("firebase/firestore");
       if (typeof firestore.onSnapshot !== "function") return;
-      const docRef = doc(db, "settings", "business");
+      const docRef = doc(dbInst, "settings", "business");
       this.unsubscribeRealtime = firestore.onSnapshot(
         docRef,
         (snap: any) => {
+          if (this.currentSessionId !== sessionId) return;
+
           if (snap && typeof snap.exists === "function" && snap.exists()) {
             const data = snap.data() as Partial<BusinessSettings>;
             const ops = data.operations;
@@ -95,15 +287,19 @@ export class OperationalSettingsService {
               this.cache = { cutoffs, deliveryWindows };
               this.cacheLoaded = true;
               this.hasSuccessfullyLoadedFromFirestore = true;
+              this.notifySubscribers();
             }
           }
         },
         (err: any) => {
           console.warn("[OperationalSettingsService] Realtime sync listener warning:", err);
+          // Clean up on error so subsequent attempts can re-subscribe
+          this.stopRealtimeSync();
         },
       );
     } catch (err) {
       console.warn("[OperationalSettingsService] Failed to start realtime sync:", err);
+      this.unsubscribeRealtime = null;
     }
   }
 
@@ -112,7 +308,9 @@ export class OperationalSettingsService {
    */
   stopRealtimeSync(): void {
     if (this.unsubscribeRealtime) {
-      this.unsubscribeRealtime();
+      try {
+        this.unsubscribeRealtime();
+      } catch {}
       this.unsubscribeRealtime = null;
     }
   }
@@ -167,14 +365,31 @@ export class OperationalSettingsService {
       return this.loadPromise;
     }
 
+    const authInst = this.getAuth();
+    const currentUser = authInst?.currentUser;
+    if (!this.authSessionResolved || (!currentUser && !this.currentUserId)) {
+      // Unauthenticated or session unresolved: do not attempt protected Firestore read
+      return this.getOperationalSettingsSync();
+    }
+
     this.loadPromise = (async () => {
+      const sessionId = this.currentSessionId;
       try {
+        const dbInst = this.getDb();
+        if (!dbInst) {
+          return this.getOperationalSettingsSync();
+        }
+
         const firestore = await import("firebase/firestore");
         if (typeof firestore.getDoc !== "function") {
           return this.getOperationalSettingsSync();
         }
-        const docRef = firestore.doc(db, "settings", "business");
+        const docRef = doc(dbInst, "settings", "business");
         const snap = await firestore.getDoc(docRef);
+
+        if (this.currentSessionId !== sessionId) {
+          return this.getOperationalSettingsSync();
+        }
 
         if (snap && typeof snap.exists === "function" && snap.exists()) {
           const data = snap.data() as Partial<BusinessSettings>;
@@ -199,7 +414,9 @@ export class OperationalSettingsService {
           };
 
           this.cache = { cutoffs, deliveryWindows };
+          this.cacheLoaded = true;
           this.hasSuccessfullyLoadedFromFirestore = true;
+          this.notifySubscribers();
         } else {
           // Document genuinely missing in Firestore - use baseline defaults
           if (!this.hasSuccessfullyLoadedFromFirestore) {
@@ -212,6 +429,8 @@ export class OperationalSettingsService {
               },
             };
           }
+          this.cacheLoaded = true;
+          this.notifySubscribers();
         }
       } catch (err) {
         // Fallback safety: if Firestore temporarily fails, retain the last successfully loaded configuration
@@ -227,9 +446,10 @@ export class OperationalSettingsService {
               dinner: { ...DEFAULT_DELIVERY_WINDOWS.dinner },
             },
           };
+          // Do not latch cacheLoaded to true on failure when unseeded, allowing subsequent retries
+          this.cacheLoaded = false;
         }
       } finally {
-        this.cacheLoaded = true;
         this.loadPromise = null;
       }
       return this.getOperationalSettingsSync();
@@ -394,8 +614,12 @@ export class OperationalSettingsService {
     };
 
     // Save to Firestore under /settings/business
+    const dbInst = this.getDb();
+    if (!dbInst) {
+      throw new Error("Firestore instance not available");
+    }
     const firestore = await import("firebase/firestore");
-    const docRef = doc(db, "settings", "business");
+    const docRef = doc(dbInst, "settings", "business");
     const existingSnap = typeof firestore.getDoc === "function" ? await firestore.getDoc(docRef) : null;
     const existingData = existingSnap && typeof existingSnap.exists === "function" && existingSnap.exists()
       ? (existingSnap.data() as Partial<BusinessSettings>)
@@ -422,6 +646,7 @@ export class OperationalSettingsService {
     };
     this.cacheLoaded = true;
     this.hasSuccessfullyLoadedFromFirestore = true;
+    this.notifySubscribers();
 
     // Log structured audit event
     try {
@@ -479,6 +704,22 @@ export class OperationalSettingsService {
    * Resets the cache to baseline defaults (used in test tear-down).
    */
   resetToDefaults(): void {
+    this.clearCache();
+    this.stopRealtimeSync();
+  }
+
+  /**
+   * Fully cleans up authentication and Firestore observers.
+   */
+  destroy(): void {
+    this.stopRealtimeSync();
+    if (this.authUnsubscribe) {
+      try {
+        this.authUnsubscribe();
+      } catch {}
+      this.authUnsubscribe = null;
+    }
+    this.subscribers.clear();
     this.clearCache();
   }
 }
