@@ -19,28 +19,52 @@
  * browser app (Vite replaces import.meta.env at build time there).
  */
 
-// import.meta.env is a plain object in vite-node — we can safely
-// assign new properties onto it for public Firebase client configuration only.
-const metaEnv = import.meta.env as Record<string, string | undefined>;
+export function bootstrapAutomationEnv(
+  sourceEnv: Record<string, string | undefined> = process.env,
+  metaEnv: Record<string, string | undefined> = (import.meta as any).env ?? {}
+): void {
+  // 1. Copy all VITE_* keys from process.env into import.meta.env
+  for (const [key, value] of Object.entries(sourceEnv)) {
+    if (key.startsWith('VITE_') && value !== undefined) {
+      metaEnv[key] = value;
+    }
+  }
 
-for (const [key, value] of Object.entries(process.env)) {
-  if (key.startsWith('VITE_') && value !== undefined) {
-    metaEnv[key] = value;
+  // 2. Ensure keys in metaEnv are reflected in process.env so Node SDKs can see them
+  for (const [key, value] of Object.entries(metaEnv)) {
+    if (key.startsWith('VITE_') && value !== undefined && sourceEnv[key] === undefined) {
+      sourceEnv[key] = value;
+    }
+  }
+
+  // 3. Determine if running in emulator or test mode
+  const isEmulatorOrTest =
+    sourceEnv.VITE_USE_FIREBASE_EMULATORS === 'true' ||
+    sourceEnv.NODE_ENV === 'test' ||
+    metaEnv.MODE === 'test';
+
+  // 4. Handle dedicated automation API key
+  const automationApiKey = sourceEnv.FIREBASE_AUTOMATION_API_KEY?.trim();
+
+  if (automationApiKey) {
+    metaEnv.VITE_FIREBASE_API_KEY = automationApiKey;
+    sourceEnv.VITE_FIREBASE_API_KEY = automationApiKey;
+  } else if (!isEmulatorOrTest) {
+    // Non-emulator production automation: fail fast immediately.
+    // Never silently fall back to VITE_FIREBASE_API_KEY because the browser key
+    // has HTTP website referrer restrictions that reject Node.js requests (<empty> referer).
+    throw new Error(
+      '[Automation Bootstrap] Missing required secret: FIREBASE_AUTOMATION_API_KEY. ' +
+      'Production Node.js automation requires a dedicated, non-website-restricted API key. ' +
+      'Falling back to VITE_FIREBASE_API_KEY is blocked because the browser key is restricted to HTTP website referrers.'
+    );
+  }
+
+  // 5. App Check debug token
+  if (sourceEnv.APPCHECK_DEBUG_TOKEN) {
+    (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = sourceEnv.APPCHECK_DEBUG_TOKEN;
   }
 }
 
-// Ensure keys loaded by Vite from .env / .env.local into import.meta.env
-// are also reflected in process.env so Node SDKs (firebase-admin) can see them.
-for (const [key, value] of Object.entries(metaEnv)) {
-  if (key.startsWith('VITE_') && value !== undefined && process.env[key] === undefined) {
-    process.env[key] = value;
-  }
-}
-
-// In Node.js automation runs, set the official App Check global debug token
-// directly on globalThis so the Firebase App Check SDK debug provider consumes it
-// without exposing it through import.meta.env.
-if (process.env.APPCHECK_DEBUG_TOKEN) {
-  (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = process.env.APPCHECK_DEBUG_TOKEN;
-}
-
+// Execute bootstrap immediately upon import in Node.js runtime
+bootstrapAutomationEnv();

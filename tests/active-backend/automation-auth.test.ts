@@ -79,12 +79,8 @@ vi.mock('firebase/auth', () => ({
   signInWithCustomToken: mocks.mockSignInWithCustomToken,
 }));
 
-// env.ts is a side-effect shim — mock it as a no-op
-vi.mock('../../scripts/automation/env', () => ({}));
-
-// ---------------------------------------------------------------------------
-// Import subject under test (after mocks are in place)
-// ---------------------------------------------------------------------------
+// env.ts bootstrap helper is exported for direct testing
+import { bootstrapAutomationEnv } from '../../scripts/automation/env';
 import { authenticateForAutomation } from '../../scripts/automation/auth';
 
 // ---------------------------------------------------------------------------
@@ -329,5 +325,93 @@ describe('authenticateForAutomation()', () => {
       expect.not.objectContaining({ createdAt: expect.anything() }),
       { merge: true }
     );
+  });
+
+  // ── 11. Diagnostic error on API key referer restriction ──────────────────
+  it('throws a helpful diagnostic error when signInWithCustomToken fails with referer restriction', async () => {
+    restoreEnv = setEnv({ FIREBASE_SERVICE_ACCOUNT: VALID_SA_JSON, VITE_USE_FIREBASE_EMULATORS: undefined });
+    mocks.mockSignInWithCustomToken.mockRejectedValueOnce({
+      code: 'auth/requests-from-referer-<empty>-are-blocked',
+      message: 'Requests from referer <empty> are blocked.',
+    });
+
+    await expect(authenticateForAutomation()).rejects.toThrow(
+      '[Automation Auth] Authentication blocked: requests from referer <empty> are blocked. Ensure FIREBASE_AUTOMATION_API_KEY is configured in GitHub Secrets'
+    );
+  });
+
+  // ── 12. bootstrapAutomationEnv tests ─────────────────────────────────────
+  describe('bootstrapAutomationEnv()', () => {
+    it('maps FIREBASE_AUTOMATION_API_KEY to VITE_FIREBASE_API_KEY in metaEnv and sourceEnv', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+        FIREBASE_AUTOMATION_API_KEY: 'test-automation-key-123',
+        VITE_FIREBASE_PROJECT_ID: 'my-project',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      bootstrapAutomationEnv(mockSource, mockMeta);
+
+      expect(mockMeta.VITE_FIREBASE_API_KEY).toBe('test-automation-key-123');
+      expect(mockSource.VITE_FIREBASE_API_KEY).toBe('test-automation-key-123');
+      expect(mockMeta.VITE_FIREBASE_PROJECT_ID).toBe('my-project');
+    });
+
+    it('fails fast in non-emulator mode if FIREBASE_AUTOMATION_API_KEY is missing, preventing silent fallback', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+        VITE_FIREBASE_API_KEY: 'browser-restricted-key',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      expect(() => bootstrapAutomationEnv(mockSource, mockMeta)).toThrow(
+        '[Automation Bootstrap] Missing required secret: FIREBASE_AUTOMATION_API_KEY. Production Node.js automation requires a dedicated, non-website-restricted API key.'
+      );
+    });
+
+    it('fails fast if FIREBASE_AUTOMATION_API_KEY is whitespace only', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+        FIREBASE_AUTOMATION_API_KEY: '   ',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      expect(() => bootstrapAutomationEnv(mockSource, mockMeta)).toThrow(
+        '[Automation Bootstrap] Missing required secret: FIREBASE_AUTOMATION_API_KEY'
+      );
+    });
+
+    it('does not throw in test mode when FIREBASE_AUTOMATION_API_KEY is absent', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'test',
+        VITE_FIREBASE_API_KEY: 'mock-key',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      expect(() => bootstrapAutomationEnv(mockSource, mockMeta)).not.toThrow();
+      expect(mockMeta.VITE_FIREBASE_API_KEY).toBe('mock-key');
+    });
+
+    it('does not throw in emulator mode when FIREBASE_AUTOMATION_API_KEY is absent', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+        VITE_USE_FIREBASE_EMULATORS: 'true',
+        VITE_FIREBASE_API_KEY: 'mock-key',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      expect(() => bootstrapAutomationEnv(mockSource, mockMeta)).not.toThrow();
+    });
+
+    it('sanitizes and trims the API key string without logging key content', () => {
+      const mockSource: Record<string, string | undefined> = {
+        NODE_ENV: 'production',
+        FIREBASE_AUTOMATION_API_KEY: '  trimmed-key-456  ',
+      };
+      const mockMeta: Record<string, string | undefined> = {};
+
+      bootstrapAutomationEnv(mockSource, mockMeta);
+      expect(mockMeta.VITE_FIREBASE_API_KEY).toBe('trimmed-key-456');
+    });
   });
 });

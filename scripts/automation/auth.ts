@@ -92,8 +92,21 @@ export async function authenticateForAutomation() {
   // Authenticate the Firebase client SDK with that custom token.
   // The client SDK is used by all the existing services (automationService, billingService,
   // orderService, etc.) so this gives them an authenticated context that passes
-  // Firestore security rules.
-  const userCred = await signInWithCustomToken(auth, customToken);
+  let userCred;
+  try {
+    userCred = await signInWithCustomToken(auth, customToken);
+  } catch (err: any) {
+    if (
+      err?.code === 'auth/requests-from-referer-<empty>-are-blocked' ||
+      err?.message?.includes('requests-from-referer-<empty>-are-blocked')
+    ) {
+      throw new Error(
+        '[Automation Auth] Authentication blocked: requests from referer <empty> are blocked. ' +
+        'Ensure FIREBASE_AUTOMATION_API_KEY is configured in GitHub Secrets with a dedicated API key that does not have HTTP website referrer restrictions.'
+      );
+    }
+    throw err;
+  }
 
   // Ensure the automation user has an admin role document in Firestore so
   // security rules (which do a live document lookup via callerDoc()) grant access.
