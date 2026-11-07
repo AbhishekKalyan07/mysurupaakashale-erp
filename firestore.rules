@@ -509,7 +509,7 @@ service cloud.firestore {
         return request.resource.data.id == subscriptionId &&
                request.resource.data.customerId is string &&
                request.resource.data.customerId.size() > 0 &&
-               request.resource.data.status in ['draft', 'pending_payment'] &&
+               request.resource.data.status in ['active', 'draft', 'pending_payment'] &&
                request.resource.data.get('latestPaymentId', null) == null &&
                request.resource.data.quantity is number &&
                request.resource.data.quantity > 0 &&

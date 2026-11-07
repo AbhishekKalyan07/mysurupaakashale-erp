@@ -282,10 +282,10 @@ withEmulator('🔐 Phase E3 — Admin-Assisted Subscription Security Rules', () 
     );
   });
 
-  it('DENY: Admin cannot create subscription directly with active status (bypassing activation)', async (ctx) => {
+  it('ALLOW: Authorized admin can create valid active subscription directly for customer', async (ctx) => {
     if (!env) return ctx.skip();
     const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
-    await assertFails(
+    await assertSucceeds(
       setDoc(doc(adminDb, 'subscriptions', 'sub-admin-active-direct'), {
         id: 'sub-admin-active-direct',
         customerId: CUSTOMER_A_UID,
@@ -307,6 +307,142 @@ withEmulator('🔐 Phase E3 — Admin-Assisted Subscription Security Rules', () 
         deliveryPartnerId: null,
         pauseStartDate: null,
         pauseEndDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    );
+  });
+
+  it('ALLOW: Authorized admin can create draft subscription for customer', async (ctx) => {
+    if (!env) return ctx.skip();
+    const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+    await assertSucceeds(
+      setDoc(doc(adminDb, 'subscriptions', 'sub-admin-draft-direct'), {
+        id: 'sub-admin-draft-direct',
+        customerId: CUSTOMER_A_UID,
+        planId: 'plan-std',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 140,
+        pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
+        deliveryAddressId: 'addr-1',
+        zoneId: null,
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
+        status: 'draft',
+        startDate: '2026-10-01',
+        endDate: null,
+        billingCycle: 'monthly',
+        autoRenew: true,
+        depositAmount: 1000,
+        latestPaymentId: null,
+        deliveryPartnerId: null,
+        pauseStartDate: null,
+        pauseEndDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    );
+  });
+
+  it('DENY: Customer cannot create subscription directly with active status', async (ctx) => {
+    if (!env) return ctx.skip();
+    const custDb = env.authenticatedContext(CUSTOMER_A_UID).firestore();
+    await assertFails(
+      setDoc(doc(custDb, 'subscriptions', 'sub-cust-active-direct'), {
+        id: 'sub-cust-active-direct',
+        customerId: CUSTOMER_A_UID,
+        planId: 'plan-std',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 140,
+        pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
+        deliveryAddressId: 'addr-1',
+        zoneId: null,
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
+        status: 'active',
+        startDate: '2026-10-01',
+        endDate: null,
+        billingCycle: 'monthly',
+        autoRenew: true,
+        depositAmount: 1000,
+        latestPaymentId: null,
+        deliveryPartnerId: null,
+        pauseStartDate: null,
+        pauseEndDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    );
+  });
+
+  it('DENY: Unauthenticated user cannot create subscription', async (ctx) => {
+    if (!env) return ctx.skip();
+    const unauthDb = env.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(doc(unauthDb, 'subscriptions', 'sub-unauth-create'), {
+        id: 'sub-unauth-create',
+        customerId: CUSTOMER_A_UID,
+        planId: 'plan-std',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 140,
+        deliveryAddressId: 'addr-1',
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
+        status: 'pending_payment',
+        startDate: '2026-10-01',
+        endDate: null,
+        billingCycle: 'monthly',
+        autoRenew: true,
+        depositAmount: 1000,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    );
+  });
+
+  it('DENY: Admin cannot create subscription with empty customerId', async (ctx) => {
+    if (!env) return ctx.skip();
+    const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+    await assertFails(
+      setDoc(doc(adminDb, 'subscriptions', 'sub-admin-empty-cust'), {
+        id: 'sub-admin-empty-cust',
+        customerId: '',
+        planId: 'plan-std',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 140,
+        deliveryAddressId: 'addr-1',
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
+        status: 'active',
+        startDate: '2026-10-01',
+        endDate: null,
+        billingCycle: 'monthly',
+        autoRenew: true,
+        depositAmount: 1000,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    );
+  });
+
+  it('DENY: Admin cannot create subscription missing required deliveryAddressId', async (ctx) => {
+    if (!env) return ctx.skip();
+    const adminDb = env.authenticatedContext(ADMIN_UID).firestore();
+    await assertFails(
+      setDoc(doc(adminDb, 'subscriptions', 'sub-admin-missing-addr'), {
+        id: 'sub-admin-missing-addr',
+        customerId: CUSTOMER_A_UID,
+        planId: 'plan-std',
+        planTier: 'standard',
+        quantity: 1,
+        pricePerDaySnapshot: 140,
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
+        status: 'active',
+        startDate: '2026-10-01',
+        endDate: null,
+        billingCycle: 'monthly',
+        autoRenew: true,
+        depositAmount: 1000,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
