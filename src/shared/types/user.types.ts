@@ -37,6 +37,12 @@ interface BaseUserProfile {
 export interface CustomerProfile extends BaseUserProfile {
   role: "customer";
   addresses: Address[];
+  /** Flat index of address IDs for Firestore security rule validation.
+   *  Kept in sync with `addresses[].id` by all atomic write paths.
+   *  Required on all new profiles; existing profiles must be backfilled
+   *  before the strict subscription rule is deployed.
+   */
+  addressIds: string[];
   defaultAddressId: string | null;
   /** Permanently assigned delivery partner. Copied to every generated order. */
   deliveryPartnerId?: string | null;

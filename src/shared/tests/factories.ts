@@ -48,6 +48,7 @@ export const CustomerFactory = {
         isDefault: true,
       },
     ],
+    addressIds: ["addr-1"],
     defaultAddressId: "addr-1",
     ...overrides,
   }),

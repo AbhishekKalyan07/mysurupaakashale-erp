@@ -59,12 +59,21 @@ withEmulator('🔐 Phase D.6 — Admin Management & Authorization Security Rules
       await setDoc(doc(db, 'subscriptions', 'sub-alice'), {
         id: 'sub-alice',
         customerId: CUSTOMER_A_UID,
-        status: 'active',
+        planId: 'plan-1',
         planTier: 'standard',
+        quantity: 1,
         pricePerDaySnapshot: 140,
+        deliveryAddressId: 'addr-1',
+        zoneId: null,
+        mealPreferences: [{ mealType: 'lunch' }],
+        status: 'active',
         startDate: '2026-01-01',
         endDate: '2099-12-31',
-        mealPreferences: [{ mealType: 'lunch' }],
+        billingCycle: 'monthly',
+        autoRenew: true,
+        latestPaymentId: null,
+        depositAmount: 1000,
+        createdAt: new Date(),
         updatedAt: new Date(),
       });
       await setDoc(doc(db, 'subscriptions', 'sub-bob-pending'), {

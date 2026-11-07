@@ -361,6 +361,20 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       return slot;
     });
 
+    const optionIds: string[] = [];
+    const lunchOptionIds: string[] = [];
+    const dinnerOptionIds: string[] = [];
+    for (const slot of sanitizedSlots) {
+      if (slot.isCustomerSelectable === false) continue;
+      for (const opt of slot.options || []) {
+        if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
+          optionIds.push(opt.id);
+          if (slot.mealType === 'lunch') lunchOptionIds.push(opt.id);
+          if (slot.mealType === 'dinner') dinnerOptionIds.push(opt.id);
+        }
+      }
+    }
+
     const newPlan: MealPlan = {
       id: planId,
       tier: input.tier || "basic",
@@ -381,6 +395,9 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       isActive: input.isActive !== false,
       sortOrder: input.sortOrder || (MealPlanRepository.cachedPlans.length + 1),
       mealSlots: sanitizedSlots,
+      optionIds,
+      lunchOptionIds,
+      dinnerOptionIds,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     };
@@ -465,6 +482,22 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
         }
         return slot;
       });
+      const optionIds: string[] = [];
+      const lunchOptionIds: string[] = [];
+      const dinnerOptionIds: string[] = [];
+      for (const slot of payload.mealSlots) {
+        if (slot.isCustomerSelectable === false) continue;
+        for (const opt of slot.options || []) {
+          if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
+            optionIds.push(opt.id);
+            if (slot.mealType === 'lunch') lunchOptionIds.push(opt.id);
+            if (slot.mealType === 'dinner') dinnerOptionIds.push(opt.id);
+          }
+        }
+      }
+      payload.optionIds = optionIds;
+      payload.lunchOptionIds = lunchOptionIds;
+      payload.dinnerOptionIds = dinnerOptionIds;
     }
 
     const docRef = doc(this.collectionRef, id);

@@ -39,6 +39,7 @@ describe("PHASE E3 — Admin-Assisted Subscription Creation & Lifecycle Integrat
         isDefault: true,
       },
     ],
+    addressIds: ["addr-home"],
     defaultAddressId: "addr-home",
     createdAt: new Date() as any,
     updatedAt: new Date() as any,

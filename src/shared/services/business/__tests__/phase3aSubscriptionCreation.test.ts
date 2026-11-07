@@ -43,6 +43,7 @@ describe("Phase 3A: Subscription Creation Core Business Logic", () => {
         lng: 76.6,
       },
     ],
+    addressIds: ["addr-1"],
     defaultAddressId: "addr-1",
     createdAt: new Date() as any,
     updatedAt: new Date() as any,

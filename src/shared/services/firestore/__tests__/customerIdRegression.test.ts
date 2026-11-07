@@ -117,6 +117,7 @@ describe("Customer ID generator (continuous MP-001 format)", () => {
       phone: "+919876543210",
       photoUrl: null,
       addresses: [],
+      addressIds: [],
       defaultAddressId: null,
       role: "customer",
       isActive: true,
