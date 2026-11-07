@@ -35,8 +35,8 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
-      await setDoc(doc(db, 'users', CUSTOMER_UID), { id: CUSTOMER_UID, role: 'customer', isActive: true });
-      await setDoc(doc(db, 'users', CUSTOMER_B_UID), { id: CUSTOMER_B_UID, role: 'customer', isActive: true });
+      await setDoc(doc(db, 'users', CUSTOMER_UID), { id: CUSTOMER_UID, role: 'customer', isActive: true, addressIds: ['addr-1'] });
+      await setDoc(doc(db, 'users', CUSTOMER_B_UID), { id: CUSTOMER_B_UID, role: 'customer', isActive: true, addressIds: ['addr-b'] });
       await setDoc(doc(db, 'users', ADMIN_UID), { id: ADMIN_UID, role: 'admin', isActive: true });
       await setDoc(doc(db, 'users', KITCHEN_UID), { id: KITCHEN_UID, role: 'kitchen', isActive: true, kitchenId: 'kitchen-1' });
       await setDoc(doc(db, 'users', DELIVERY_UID), { id: DELIVERY_UID, role: 'delivery_partner', isActive: true });
@@ -45,8 +45,25 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       await setDoc(doc(db, 'mealPlans', 'plan-1'), {
         id: 'plan-1',
         name: 'Standard Plan',
+        tier: 'standard',
         pricePerDay: 100,
         pricingMatrix: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 }
+      });
+
+      await setDoc(doc(db, 'users', CUSTOMER_UID, 'addresses', 'addr-1'), {
+        id: 'addr-1',
+        line1: '123 Main St',
+        city: 'Mysuru',
+        pincode: '570001',
+        zoneId: 'zone-1'
+      });
+
+      await setDoc(doc(db, 'deliveryZones', 'zone-1'), {
+        id: 'zone-1',
+        name: 'Zone 1',
+        pincodes: ['570001'],
+        kitchenId: 'kitchen-1',
+        isActive: true
       });
 
       await setDoc(doc(db, 'settings', 'business'), {
@@ -58,7 +75,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
         customerId: CUSTOMER_UID,
         status: 'active',
         quantity: 1,
-        mealPreferences: [{ mealType: 'breakfast' }],
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
         pauseStartDate: null,
         pauseEndDate: null,
         updatedAt: new Date()
@@ -69,7 +86,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
         customerId: CUSTOMER_B_UID,
         status: 'active',
         quantity: 1,
-        mealPreferences: [{ mealType: 'breakfast' }],
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
         pauseStartDate: null,
         pauseEndDate: null,
         updatedAt: new Date()
@@ -93,7 +110,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -121,7 +138,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -149,7 +166,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -177,7 +194,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 1, lunch: 2, dinner: 3, breakfast_lunch_dinner: 6 }, // Tampered
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -205,7 +222,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -233,7 +250,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -261,7 +278,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
     const db = env.authenticatedContext(CUSTOMER_UID).firestore();
     await assertSucceeds(updateDoc(doc(db, 'subscriptions', 'sub-active'), {
       quantity: 2,
-      mealPreferences: [{ mealType: 'lunch' }],
+      mealPreferences: [{ mealType: 'lunch', selectedOptionId: null }],
       updatedAt: new Date()
     }));
   });
@@ -278,7 +295,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -314,7 +331,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -342,7 +359,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -370,7 +387,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -398,7 +415,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -426,7 +443,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'active', // Rejected: customers cannot self-activate to bypass payment verification
       startDate: '2025-01-01',
       endDate: null,
@@ -454,7 +471,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
       pricingMatrixSnapshot: { breakfast: 40, lunch: 60, dinner: 60, breakfast_lunch_dinner: 140 },
       deliveryAddressId: 'addr-1',
       zoneId: 'zone-1',
-      mealPreferences: [{ mealType: 'breakfast' }, { mealType: 'lunch' }, { mealType: 'dinner' }],
+      mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }, { mealType: 'lunch', selectedOptionId: null }, { mealType: 'dinner', selectedOptionId: null }],
       status: 'pending_payment',
       startDate: '2025-01-01',
       endDate: null,
@@ -498,7 +515,7 @@ withEmulator('🔐 Subscriptions Security Rules', () => {
         customerId: CUSTOMER_UID,
         status: 'pending_payment',
         quantity: 1,
-        mealPreferences: [{ mealType: 'breakfast' }],
+        mealPreferences: [{ mealType: 'breakfast', selectedOptionId: null }],
         pauseStartDate: null,
         pauseEndDate: null,
         updatedAt: new Date()

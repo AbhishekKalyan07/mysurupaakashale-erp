@@ -27,16 +27,30 @@ export function useCustomerAddresses() {
       };
 
       const updatedAddresses = [...addresses, newAddress];
+      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const updatedAddressIds = [...existingAddressIds, newAddress.id];
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
+        addressIds: updatedAddressIds,
       };
 
       if (!defaultAddressId || addresses.length === 0) {
         updates.defaultAddressId = newAddress.id;
       }
 
-      await userRepository.update(uid, updates);
+      const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
+      const { db } = await import("@/shared/lib/firebase");
+      const batch = writeBatch(db);
+      const userRef = doc(db, "users", uid);
+      const addrRef = doc(db, "users", uid, "addresses", newAddress.id);
 
+      batch.update(userRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(addrRef, newAddress);
+
+      await batch.commit();
 
       return newAddress;
     },
@@ -49,11 +63,25 @@ export function useCustomerAddresses() {
       const updatedAddresses = addresses.map((addr) =>
         addr.id === updated.id ? updated : addr,
       );
+      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const updatedAddressIds = existingAddressIds.includes(updated.id)
+        ? existingAddressIds
+        : [...existingAddressIds, updated.id];
 
-      await userRepository.update(uid, {
+      const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
+      const { db } = await import("@/shared/lib/firebase");
+      const batch = writeBatch(db);
+      const userRef = doc(db, "users", uid);
+      const addrRef = doc(db, "users", uid, "addresses", updated.id);
+
+      batch.update(userRef, {
         addresses: updatedAddresses,
+        addressIds: updatedAddressIds,
+        updatedAt: serverTimestamp(),
       });
+      batch.set(addrRef, updated);
 
+      await batch.commit();
     },
   });
 
@@ -64,8 +92,11 @@ export function useCustomerAddresses() {
       const updatedAddresses = addresses.filter(
         (addr) => addr.id !== addressId,
       );
+      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const updatedAddressIds = existingAddressIds.filter((id) => id !== addressId);
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
+        addressIds: updatedAddressIds,
       };
 
       if (defaultAddressId === addressId) {
@@ -73,9 +104,19 @@ export function useCustomerAddresses() {
           updatedAddresses.length > 0 ? updatedAddresses[0].id : null;
       }
 
-      await userRepository.update(uid, updates);
+      const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
+      const { db } = await import("@/shared/lib/firebase");
+      const batch = writeBatch(db);
+      const userRef = doc(db, "users", uid);
+      const addrRef = doc(db, "users", uid, "addresses", addressId);
 
+      batch.update(userRef, {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      });
+      batch.delete(addrRef);
 
+      await batch.commit();
     },
   });
 
@@ -85,13 +126,12 @@ export function useCustomerAddresses() {
       await userRepository.update(uid, {
         defaultAddressId: addressId,
       });
-
-
     },
   });
 
   return {
     addresses,
+    addressIds: customerProfile?.addressIds || addresses.map((a) => a.id),
     defaultAddressId,
     addAddress: addAddressMutation.mutateAsync,
     isAdding: addAddressMutation.isPending,

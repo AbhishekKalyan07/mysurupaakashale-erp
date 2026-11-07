@@ -51,6 +51,7 @@ function createMockCustomer(
     createdAt: { seconds: 1700000000, nanoseconds: 0 } as any,
     updatedAt: { seconds: 1700000000, nanoseconds: 0 } as any,
     defaultAddressId: "addr_1",
+    addressIds: overrides.addressIds || ["addr_1"],
     addresses: [
       {
         id: "addr_1",

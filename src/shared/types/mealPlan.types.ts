@@ -95,6 +95,10 @@ export interface MealPlan {
   pricingMatrix?: MealPlanPricing; // Exact combination pricing (INR)
   currency: "INR";
   mealSlots: MealSlotConfig[];
+  /** Flattened list of valid selectable option IDs for Firestore security rule validation */
+  optionIds?: string[];
+  lunchOptionIds?: string[];
+  dinnerOptionIds?: string[];
   deliveryIncluded: boolean;
   isActive: boolean;
   sortOrder: number;

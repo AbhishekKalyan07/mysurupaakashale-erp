@@ -265,6 +265,9 @@ class PaymentService {
       }
 
       const subscription = subSnap.data();
+      if (subscription.customerId && payment.customerId !== subscription.customerId) {
+        throw new Error("Payment customer does not match subscription customer.");
+      }
       const isDeposit = payment.purpose === "security_deposit";
       isDepositPayment = isDeposit;
 

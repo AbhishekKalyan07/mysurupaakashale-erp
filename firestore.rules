@@ -117,6 +117,60 @@ service cloud.firestore {
               (addonId == 'addon_chapati' && unitPrice == 25));
     }
 
+    function isValidUserAddressIdsUpdate(userId) {
+      // Firestore Rules functions support up to 10 let bindings and must end with
+      // a single return expression. No if/else blocks or multiple returns allowed.
+      let oldIds = resource.data.get('addressIds', []);
+      let newIds = request.resource.data.get('addressIds', null);
+      let isList = newIds is list;
+      // addedIds  = IDs in newIds absent from oldIds (genuinely new, position-independent).
+      // removedIds = IDs in oldIds absent from newIds (genuinely removed, position-independent).
+      // removeAll() works for lists of any length and any position — no index bounds.
+      let addedIds   = isList ? newIds.removeAll(oldIds) : [];
+      let removedIds = isList ? oldIds.removeAll(newIds) : [];
+      // Duplicate guard: toSet() collapses duplicates; a size drop means duplicates existed.
+      let noDupes = isList && oldIds.toSet().size() == oldIds.size() &&
+                              newIds.toSet().size() == newIds.size();
+      let oldAddrs = resource.data.get('addresses', []);
+      let newAddrs = request.resource.data.get('addresses', null);
+      let changedAddrs = (newAddrs is list && oldAddrs is list) ? newAddrs.removeAll(oldAddrs) : [];
+      let removedAddrs = (newAddrs is list && oldAddrs is list) ? oldAddrs.removeAll(newAddrs) : [];
+
+      return (unchanged('addresses') && unchanged('addressIds')) || (
+        isList && noDupes && (newAddrs is list) && (oldAddrs is list) && newAddrs.size() == newIds.size() && (
+          // Single addition: exactly 1 new ID, 1 added address, 0 removed, matching ID, mirror created & data matching
+          (addedIds.size() == 1 && removedIds.size() == 0 && changedAddrs.size() == 1 && removedAddrs.size() == 0 &&
+           changedAddrs[0].get('id', '') == addedIds[0] &&
+           !exists(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])) &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])).data == changedAddrs[0]) ||
+          // Dual addition: exactly 2 new IDs, 2 added addresses, 0 removed, both IDs match, both mirrors created & matching
+          (addedIds.size() == 2 && removedIds.size() == 0 && changedAddrs.size() == 2 && removedAddrs.size() == 0 &&
+           addedIds.hasAll([changedAddrs[0].get('id', ''), changedAddrs[1].get('id', '')]) &&
+           changedAddrs[0].get('id', '') != changedAddrs[1].get('id', '') &&
+           !exists(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])) &&
+           !exists(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[1])) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[1])) &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])).data.get('id', '') == addedIds[0] &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[1])).data.get('id', '') == addedIds[1] &&
+           changedAddrs.hasAll([getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])).data,
+                                getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[1])).data])) ||
+          // Single deletion: exactly 1 ID removed, 1 address removed, 0 added, exact matching ID, mirror deleted
+          (removedIds.size() == 1 && addedIds.size() == 0 && changedAddrs.size() == 0 && removedAddrs.size() == 1 &&
+           removedAddrs[0].get('id', '') == removedIds[0] &&
+           !existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(removedIds[0]))) ||
+          // Single existing-address edit: 0 IDs added/removed, exactly 1 address modified with preserved ID, mirror updated & data matching
+          (addedIds.size() == 0 && removedIds.size() == 0 && changedAddrs.size() == 1 && removedAddrs.size() == 1 &&
+           changedAddrs[0].get('id', '') == removedAddrs[0].get('id', '') &&
+           newIds.hasAll([changedAddrs[0].get('id', '')]) &&
+           exists(/databases/$(database)/documents/users/$(userId)/addresses/$(changedAddrs[0].get('id', ''))) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(changedAddrs[0].get('id', ''))) &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(changedAddrs[0].get('id', ''))).data == changedAddrs[0])
+        )
+      );
+    }
+
 
     // ---------- users/{userId} ----------
     match /users/{userId} {
@@ -131,6 +185,7 @@ service cloud.firestore {
       // Owner may update their own profile, but never their own role or
       // id (that would be a privilege escalation) — role changes only
       // ever happen through createStaffUser. Delivery assignments are Admin only.
+      // Customer address index updates must maintain atomic pairing with mirror documents.
       allow update: if (isOwner(userId) &&
                         unchanged('role') &&
                         unchanged('id') &&
@@ -141,14 +196,69 @@ service cloud.firestore {
                         unchanged('kitchenId') &&
                         unchanged('assignedAt') &&
                         unchanged('assignedBy') &&
-                         (resource.data.get('displayId', null) == null || unchanged('displayId'))) || isAdmin();
+                        isValidUserAddressIdsUpdate(userId) &&
+                        (resource.data.get('displayId', null) == null || unchanged('displayId'))) || isAdmin();
 
       // Staff are deactivated (isActive: false), never deleted — this
       // preserves order/invoice/audit history that references their uid.
       allow delete: if false;
 
       match /addresses/{addressId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read: if isOwner(userId) || isAdmin();
+
+        // Paired Address Creation:
+        // Must be owner or admin, ID must match document path, and root user doc must existAfter
+        // with addressId included in getAfter(userPath).data.addressIds AND address object in addresses.
+        // Standalone creation for a previously unpaired index entry is rejected by ensuring
+        // addressId was absent from root addressIds before this atomic operation.
+        allow create: if isAdmin() || (
+          isOwner(userId) &&
+          request.resource.data.id == addressId &&
+          existsAfter(/databases/$(database)/documents/users/$(userId)) &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addressIds', null) != null &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addressIds is list &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addressIds.hasAny([addressId]) &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addresses', null) != null &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addresses is list &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addresses.hasAny([request.resource.data]) &&
+          (
+            !exists(/databases/$(database)/documents/users/$(userId)) ||
+            !get(/databases/$(database)/documents/users/$(userId)).data.get('addressIds', []).hasAny([addressId])
+          )
+        );
+
+        // Paired Address Update:
+        // Must be owner or admin, ID must be preserved in doc and match addressId, and root user doc must existAfter
+        // with addressId still in addressIds AND updated address object in root addresses.
+        allow update: if isAdmin() || (
+          isOwner(userId) &&
+          request.resource.data.id == addressId &&
+          resource.data.id == addressId &&
+          existsAfter(/databases/$(database)/documents/users/$(userId)) &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addressIds', null) != null &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addressIds is list &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addressIds.hasAny([addressId]) &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addresses', null) != null &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addresses is list &&
+          getAfter(/databases/$(database)/documents/users/$(userId)).data.addresses.hasAny([request.resource.data])
+        );
+
+        // Paired Address Deletion:
+        // Must be owner or admin, document ID must match path, and root user doc must existAfter
+        // with addressId removed from addressIds AND address object removed from root addresses.
+        allow delete: if isAdmin() || (
+          isOwner(userId) &&
+          resource.data.get('id', '') == addressId &&
+          existsAfter(/databases/$(database)/documents/users/$(userId)) &&
+          (
+            getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addressIds', null) == null ||
+            !getAfter(/databases/$(database)/documents/users/$(userId)).data.addressIds.hasAny([addressId])
+          ) &&
+          (
+            getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addresses', null) == null ||
+            !getAfter(/databases/$(database)/documents/users/$(userId)).data.addresses.hasAny([resource.data])
+          )
+        );
       }
 
       match /ledger/{entryId} {
@@ -263,9 +373,6 @@ service cloud.firestore {
       function isAllowedCustomerTransition() {
         let from = resource.data.status;
         let to = request.resource.data.status;
-        // Use affectedKeys() — the same proven mechanism as onlyChangedFields() —
-        // to detect schedule changes. The previous .get(field, null) != .get(field, null)
-        // approach had inconsistent behavior across emulator versions (Windows vs Linux).
         let scheduleChanged = request.resource.data.diff(resource.data).affectedKeys().hasAny(['pauseStartDate', 'pauseEndDate']);
         return (from == 'active' && to == 'paused') ||
                (from == 'paused' && to == 'active') ||
@@ -275,33 +382,259 @@ service cloud.firestore {
                (from == to && (from == 'active' || from == 'paused') && scheduleChanged);
       }
 
+      function isValidPlanPrice(planPath, comboKey, pricePerDaySnapshot) {
+        return exists(planPath) &&
+               get(planPath).data.get('pricingMatrix', null) != null &&
+               pricePerDaySnapshot == get(planPath).data.pricingMatrix.get(comboKey, -1) &&
+               get(planPath).data.pricingMatrix.get(comboKey, -1) > 0;
+      }
+
+      function isValidPricingSnapshot(planPath, comboKey, snapshot, pricePerDaySnapshot) {
+        return snapshot is map &&
+               exists(planPath) &&
+               get(planPath).data.get('pricingMatrix', null) != null &&
+               snapshot == get(planPath).data.pricingMatrix &&
+               pricePerDaySnapshot == snapshot.get(comboKey, -1);
+      }
+
+      function isValidCustomerAddressAndZone(customerId, addressId, zoneId) {
+        let userPath = /databases/$(database)/documents/users/$(customerId);
+        let addrPath = /databases/$(database)/documents/users/$(customerId)/addresses/$(addressId);
+        let zonePath = /databases/$(database)/documents/deliveryZones/$(zoneId);
+        return addressId is string &&
+               addressId.size() > 0 &&
+               exists(userPath) &&
+               get(userPath).data.get('addressIds', null) != null &&
+               get(userPath).data.addressIds is list &&
+               get(userPath).data.addressIds.hasAny([addressId]) &&
+               exists(addrPath) &&
+               (zoneId == null || (
+                 zoneId is string &&
+                 zoneId.size() > 0 &&
+                 exists(zonePath) &&
+                 (
+                   get(addrPath).data.get('zoneId', null) == zoneId ||
+                   (
+                     get(addrPath).data.get('pincode', null) != null &&
+                     get(zonePath).data.get('pincodes', null) != null &&
+                     get(zonePath).data.pincodes.hasAny([get(addrPath).data.pincode]) &&
+                     (get(addrPath).data.get('zoneId', null) == null || get(addrPath).data.zoneId == zoneId)
+                   )
+                 )
+               ));
+      }
+
+      function isValidMealPreference(pref, planPath) {
+        let planData = exists(planPath) ? get(planPath).data : null;
+        return pref is map &&
+               pref.keys().hasAll(['mealType', 'selectedOptionId']) &&
+               pref.keys().hasOnly(['mealType', 'selectedOptionId']) &&
+               pref.mealType in ['breakfast', 'lunch', 'dinner'] &&
+               (pref.selectedOptionId == null || (
+                 // Non-null option ID: strict closed validation
+                 pref.mealType != 'breakfast' &&
+                 pref.selectedOptionId is string &&
+                 pref.selectedOptionId.size() > 0 &&
+                 planData != null &&
+                 // Global optionIds must exist and contain the selected ID
+                 planData.get('optionIds', null) != null &&
+                 planData.optionIds is list &&
+                 planData.optionIds.hasAny([pref.selectedOptionId]) &&
+                 // Lunch: lunchOptionIds MUST exist (non-null, non-empty list) and contain the ID
+                 (pref.mealType != 'lunch' || (
+                   planData.get('lunchOptionIds', null) != null &&
+                   planData.lunchOptionIds is list &&
+                   planData.lunchOptionIds.size() > 0 &&
+                   planData.lunchOptionIds.hasAny([pref.selectedOptionId])
+                 )) &&
+                 // Dinner: dinnerOptionIds MUST exist (non-null, non-empty list) and contain the ID
+                 (pref.mealType != 'dinner' || (
+                   planData.get('dinnerOptionIds', null) != null &&
+                   planData.dinnerOptionIds is list &&
+                   planData.dinnerOptionIds.size() > 0 &&
+                   planData.dinnerOptionIds.hasAny([pref.selectedOptionId])
+                 ))
+               ));
+      }
+
+      function isValidMealPreferencesList(prefs, planPath) {
+        return prefs is list &&
+               prefs.size() > 0 &&
+               prefs.size() <= 3 &&
+               isValidMealPreference(prefs[0], planPath) &&
+               (prefs.size() <= 1 || (
+                 isValidMealPreference(prefs[1], planPath) &&
+                 prefs[0].mealType != prefs[1].mealType
+               )) &&
+               (prefs.size() <= 2 || (
+                 isValidMealPreference(prefs[2], planPath) &&
+                 prefs[0].mealType != prefs[2].mealType &&
+                 prefs[1].mealType != prefs[2].mealType
+               ));
+      }
+
+      function isValidCustomerSubscriptionCreate() {
+        let planPath = /databases/$(database)/documents/mealPlans/$(request.resource.data.planId);
+        let comboKey = getCombinationKey(request.resource.data.mealPreferences);
+
+        return request.resource.data.customerId == request.auth.uid &&
+               request.resource.data.id == subscriptionId &&
+               request.resource.data.status in ['draft', 'pending_payment'] &&
+               request.resource.data.get('deliveryPartnerId', null) == null &&
+               request.resource.data.get('latestPaymentId', null) == null &&
+               exists(planPath) &&
+               get(planPath).data.get('tier', request.resource.data.planTier) == request.resource.data.planTier &&
+               isValidPlanPrice(planPath, comboKey, request.resource.data.pricePerDaySnapshot) &&
+               (!('pricingMatrixSnapshot' in request.resource.data) || isValidPricingSnapshot(planPath, comboKey, request.resource.data.pricingMatrixSnapshot, request.resource.data.pricePerDaySnapshot)) &&
+               isValidCustomerAddressAndZone(request.resource.data.customerId, request.resource.data.deliveryAddressId, request.resource.data.get('zoneId', null)) &&
+               isValidMealPreferencesList(request.resource.data.mealPreferences, planPath) &&
+               request.resource.data.quantity is number &&
+               request.resource.data.quantity > 0 &&
+               request.resource.data.planTier is string &&
+               request.resource.data.planTier.size() > 0 &&
+               request.resource.data.billingCycle in ['weekly', 'monthly'] &&
+               request.resource.data.autoRenew is bool &&
+               request.resource.data.startDate is string &&
+               request.resource.data.startDate.size() == 10 &&
+               (request.resource.data.get('endDate', null) == null || (request.resource.data.endDate is string && request.resource.data.endDate.size() == 10)) &&
+               request.resource.data.depositAmount == (exists(/databases/$(database)/documents/settings/business) ? get(/databases/$(database)/documents/settings/business).data.get('pricing', {}).get('securityDepositAmount', 1000) : 1000) &&
+               request.resource.data.createdAt is timestamp &&
+               request.resource.data.updatedAt is timestamp &&
+               request.resource.data.keys().hasAll(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'createdAt', 'updatedAt']) &&
+               request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'createdAt', 'updatedAt']);
+      }
+
+      function isValidAdminSubscriptionCreate() {
+        let planPath = /databases/$(database)/documents/mealPlans/$(request.resource.data.planId);
+        return request.resource.data.id == subscriptionId &&
+               request.resource.data.customerId is string &&
+               request.resource.data.customerId.size() > 0 &&
+               request.resource.data.status in ['draft', 'pending_payment'] &&
+               request.resource.data.get('latestPaymentId', null) == null &&
+               request.resource.data.quantity is number &&
+               request.resource.data.quantity > 0 &&
+               request.resource.data.pricePerDaySnapshot is number &&
+               request.resource.data.pricePerDaySnapshot > 0 &&
+               request.resource.data.depositAmount is number &&
+               request.resource.data.depositAmount >= 0 &&
+               request.resource.data.planTier is string &&
+               request.resource.data.planTier.size() > 0 &&
+               (!exists(planPath) ||
+                get(planPath).data.get('tier', request.resource.data.planTier) == request.resource.data.planTier) &&
+               request.resource.data.billingCycle in ['weekly', 'monthly'] &&
+               request.resource.data.autoRenew is bool &&
+               request.resource.data.startDate is string &&
+               request.resource.data.startDate.size() == 10 &&
+               (request.resource.data.get('endDate', null) == null || (request.resource.data.endDate is string && request.resource.data.endDate.size() == 10)) &&
+               request.resource.data.deliveryAddressId is string &&
+               request.resource.data.deliveryAddressId.size() > 0 &&
+               (request.resource.data.get('zoneId', null) == null || (request.resource.data.zoneId is string && request.resource.data.zoneId.size() > 0)) &&
+               request.resource.data.mealPreferences is list &&
+               request.resource.data.mealPreferences.size() > 0 &&
+               request.resource.data.mealPreferences.size() <= 3 &&
+               request.resource.data.createdAt is timestamp &&
+               request.resource.data.updatedAt is timestamp &&
+               (!('pricingMatrixSnapshot' in request.resource.data) || request.resource.data.pricingMatrixSnapshot is map) &&
+               (!('negotiatedPricing' in request.resource.data) || request.resource.data.negotiatedPricing is map) &&
+               request.resource.data.keys().hasAll(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'createdAt', 'updatedAt']) &&
+               request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'negotiatedPricing', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'cancellationDate', 'lastBilledDate', 'lastInvoiceId', 'createdAt', 'updatedAt']);
+      }
+
+      function isPaidActivation() {
+        let from = resource.data.status;
+        let to = request.resource.data.status;
+        let pId = request.resource.data.latestPaymentId;
+        let pPath = /databases/$(database)/documents/payments/$(pId);
+        return (from in ['draft', 'pending_payment']) && to == 'active' &&
+               pId is string && pId != '' &&
+               exists(pPath) &&
+               get(pPath).data.customerId == resource.data.customerId &&
+               get(pPath).data.subscriptionId == subscriptionId &&
+               existsAfter(pPath) &&
+               getAfter(pPath).data.status == 'verified' &&
+               getAfter(pPath).data.customerId == resource.data.customerId &&
+               getAfter(pPath).data.subscriptionId == subscriptionId &&
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'latestPaymentId', 'updatedAt']);
+      }
+
+      function isUnpaidActivation() {
+        let from = resource.data.status;
+        let to = request.resource.data.status;
+        let auditPath = /databases/$(database)/documents/auditLogs/$('unpaid_act_' + subscriptionId + '_' + resource.data.startDate);
+        return (from in ['draft', 'pending_payment']) && to == 'active' &&
+               request.resource.data.get('latestPaymentId', null) == null &&
+               !exists(auditPath) &&
+               existsAfter(auditPath) &&
+               getAfter(auditPath).data.action == 'admin_subscription_unpaid_activation' &&
+               getAfter(auditPath).data.entityId == subscriptionId &&
+               getAfter(auditPath).data.entityType == 'subscription' &&
+               getAfter(auditPath).data.performedBy == request.auth.uid &&
+               getAfter(auditPath).data.performedByRole == 'admin' &&
+               getAfter(auditPath).data.details.customerId == resource.data.customerId &&
+               getAfter(auditPath).data.details.unpaidConfirmed == true &&
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      }
+
+      function isAdminGeneralManagement() {
+        return !(resource.data.status in ['draft', 'pending_payment'] && request.resource.data.status == 'active') &&
+               request.resource.data.id == resource.data.id &&
+               request.resource.data.customerId == resource.data.customerId &&
+               request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+               request.resource.data.get('latestPaymentId', null) == resource.data.get('latestPaymentId', null) &&
+               request.resource.data.id is string &&
+               request.resource.data.id.size() > 0 &&
+               request.resource.data.customerId is string &&
+               request.resource.data.customerId.size() > 0 &&
+               request.resource.data.status in ['draft', 'pending_payment', 'active', 'paused', 'cancelled', 'expired'] &&
+               request.resource.data.quantity is number &&
+               request.resource.data.quantity > 0 &&
+               request.resource.data.pricePerDaySnapshot is number &&
+               request.resource.data.pricePerDaySnapshot > 0 &&
+               request.resource.data.planTier is string &&
+               request.resource.data.planTier.size() > 0 &&
+               request.resource.data.planId is string &&
+               request.resource.data.planId.size() > 0 &&
+               request.resource.data.deliveryAddressId is string &&
+               request.resource.data.deliveryAddressId.size() > 0 &&
+               (request.resource.data.get('zoneId', null) == null || (request.resource.data.zoneId is string && request.resource.data.zoneId.size() > 0)) &&
+               request.resource.data.billingCycle in ['weekly', 'monthly'] &&
+               request.resource.data.autoRenew is bool &&
+               request.resource.data.startDate is string &&
+               request.resource.data.startDate.size() == 10 &&
+               (request.resource.data.get('endDate', null) == null || (request.resource.data.endDate is string && request.resource.data.endDate.size() == 10)) &&
+               (request.resource.data.get('latestPaymentId', null) == null || (request.resource.data.latestPaymentId is string && request.resource.data.latestPaymentId.size() > 0)) &&
+               request.resource.data.depositAmount is number &&
+               request.resource.data.depositAmount >= 0 &&
+               request.resource.data.mealPreferences is list &&
+               request.resource.data.mealPreferences.size() > 0 &&
+               request.resource.data.mealPreferences.size() <= 3 &&
+               request.resource.data.createdAt is timestamp &&
+               request.resource.data.updatedAt is timestamp &&
+               (!('pricingMatrixSnapshot' in request.resource.data) || request.resource.data.pricingMatrixSnapshot is map) &&
+               (!('negotiatedPricing' in request.resource.data) || request.resource.data.negotiatedPricing is map) &&
+               (request.resource.data.get('deliveryPartnerId', null) == null || (request.resource.data.deliveryPartnerId is string && request.resource.data.deliveryPartnerId.size() > 0)) &&
+               (request.resource.data.get('pauseStartDate', null) == null || (request.resource.data.pauseStartDate is string && request.resource.data.pauseStartDate.size() == 10)) &&
+               (request.resource.data.get('pauseEndDate', null) == null || (request.resource.data.pauseEndDate is string && request.resource.data.pauseEndDate.size() == 10)) &&
+               (request.resource.data.get('cancellationDate', null) == null || (request.resource.data.cancellationDate is string && request.resource.data.cancellationDate.size() == 10)) &&
+               (request.resource.data.get('lastBilledDate', null) == null || (request.resource.data.lastBilledDate is string && request.resource.data.lastBilledDate.size() == 10)) &&
+               (request.resource.data.get('lastInvoiceId', null) == null || (request.resource.data.lastInvoiceId is string && request.resource.data.lastInvoiceId.size() > 0)) &&
+               request.resource.data.keys().hasAll(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'createdAt', 'updatedAt']) &&
+               request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'negotiatedPricing', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'cancellationDate', 'lastBilledDate', 'lastInvoiceId', 'createdAt', 'updatedAt']);
+      }
+
       allow read: if isSignedIn() &&
                      (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts() || isKitchen());
 
-      // Phase 5: Admins can create/update subscriptions, customers can create pending drafts
-      allow create: if isAdmin() ||
-                      (isCustomer() &&
-                       request.resource.data.customerId == request.auth.uid &&
-                       request.resource.data.status == 'pending_payment' &&
-                       request.resource.data.get('quantity', 1) is number &&
-                       request.resource.data.get('quantity', 1) > 0 &&
-                       request.resource.data.pricePerDaySnapshot is number &&
-                       request.resource.data.pricePerDaySnapshot > 0 &&
-                       request.resource.data.pricePerDaySnapshot == request.resource.data.pricingMatrixSnapshot[getCombinationKey(request.resource.data.mealPreferences)] &&
-                       request.resource.data.get('deliveryPartnerId', null) == null &&
-                       request.resource.data.get('latestPaymentId', null) == null &&
-                       (get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.get('pricingMatrix', null) == null ||
-                        request.resource.data.pricingMatrixSnapshot == get(/databases/$(database)/documents/mealPlans/$(request.resource.data.planId)).data.pricingMatrix) &&
-                       request.resource.data.depositAmount == (exists(/databases/$(database)/documents/settings/business) ? get(/databases/$(database)/documents/settings/business).data.get('pricing', {}).get('securityDepositAmount', 1000) : 1000) &&
-                       request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'createdAt', 'updatedAt']));
+      allow create: if (isAdmin() && isValidAdminSubscriptionCreate()) ||
+                      (isCustomer() && isValidCustomerSubscriptionCreate());
 
-      // Phase 5: Admins have full access; customers are limited to isAllowedCustomerTransition() above, plus legitimate customer edits.
-      allow update: if isAdmin() ||
-                       (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences', 'autoRenew', 'cancellationDate']) &&
-                        request.resource.data.get('quantity', 1) > 0 &&
-                        (isAllowedCustomerTransition() || 
-                         ((resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
-                          request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate', 'autoRenew', 'cancellationDate']))));
+      allow update: if
+        (isAdmin() && (isPaidActivation() || isUnpaidActivation() || isAdminGeneralManagement())) ||
+        (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences', 'autoRenew', 'cancellationDate']) &&
+         request.resource.data.get('quantity', 1) > 0 &&
+         (isAllowedCustomerTransition() ||
+          ((resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
+           request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate', 'autoRenew', 'cancellationDate']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
 
@@ -786,13 +1119,47 @@ service cloud.firestore {
 
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      // Allow any authenticated user to create an audit log, but only Admins may create admin_* action records
+
+      // Dedicated rule for unpaid activation audit integrity
+      allow create: if isAdmin() &&
+                       request.resource.data.action == 'admin_subscription_unpaid_activation' &&
+                       request.resource.data.performedBy == request.auth.uid &&
+                       request.resource.data.performedByRole == 'admin' &&
+                       request.resource.data.entityType == 'subscription' &&
+                       request.resource.data.entityId is string &&
+                       request.resource.data.entityId.size() > 0 &&
+                       request.resource.data.timestamp is timestamp &&
+                       request.resource.data.details is map &&
+                       request.resource.data.details.get('unpaidConfirmed', false) == true &&
+                       request.resource.data.details.get('customerId', '') is string &&
+                       request.resource.data.details.customerId.size() > 0 &&
+                       (!('performedByName' in request.resource.data) || (request.resource.data.performedByName is string && request.resource.data.performedByName.size() > 0)) &&
+                       (!('previousValue' in request.resource.data) || request.resource.data.previousValue is map) &&
+                       (!('newValue' in request.resource.data) || request.resource.data.newValue is map) &&
+                       (!('reason' in request.resource.data) || request.resource.data.reason is string) &&
+                       (request.resource.data.get('ipAddress', null) == null || request.resource.data.ipAddress is string) &&
+                       (!('activationMode' in request.resource.data.details) || request.resource.data.details.activationMode is string) &&
+                       (!('previousStatus' in request.resource.data.details) || request.resource.data.details.previousStatus in ['draft', 'pending_payment']) &&
+                       logId == ('unpaid_act_' + request.resource.data.entityId + '_' + get(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.startDate) &&
+                       get(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.customerId == request.resource.data.details.customerId &&
+                       get(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.status in ['draft', 'pending_payment'] &&
+                       get(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.get('latestPaymentId', null) == null &&
+                       getAfter(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.status == 'active' &&
+                       getAfter(/databases/$(database)/documents/subscriptions/$(request.resource.data.entityId)).data.get('latestPaymentId', null) == null &&
+                       request.resource.data.details.keys().hasAll(['customerId', 'unpaidConfirmed']) &&
+                       request.resource.data.details.keys().hasOnly(['customerId', 'unpaidConfirmed', 'activationMode', 'previousStatus']) &&
+                       request.resource.data.keys().hasAll(['action', 'entityType', 'entityId', 'performedBy', 'performedByRole', 'timestamp', 'details']) &&
+                       request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
+
+      // Regular audit logs: any other action (excluding admin_subscription_unpaid_activation)
       allow create: if isSignedIn() &&
+                       request.resource.data.action != 'admin_subscription_unpaid_activation' &&
                        ('performedBy' in request.resource.data) &&
                        request.resource.data.performedBy == request.auth.uid &&
                        request.resource.data.performedByRole == role() &&
                        (!request.resource.data.action.matches('^admin_.*') || isAdmin()) &&
                        request.resource.data.keys().hasOnly(['performedBy', 'performedByRole', 'performedByName', 'action', 'entityType', 'entityId', 'timestamp', 'details', 'previousValue', 'newValue', 'reason', 'ipAddress']);
+
       allow update, delete: if false; // Audit logs must be immutable
     }
 

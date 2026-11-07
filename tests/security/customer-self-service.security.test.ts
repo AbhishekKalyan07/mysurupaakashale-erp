@@ -3,7 +3,7 @@ import {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, getDoc, writeBatch } from "firebase/firestore";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -45,6 +45,7 @@ describe("Customer Self-Service Security Regression", () => {
         role: "customer",
         isActive: true,
         addresses: [],
+        addressIds: [],
       });
 
       // Setup Other Customer Profile
@@ -53,6 +54,7 @@ describe("Customer Self-Service Security Regression", () => {
         role: "customer",
         isActive: true,
         addresses: [],
+        addressIds: [],
       });
 
       // Setup an active scheduled order for the customer today (mocked to a valid open date)
@@ -99,11 +101,20 @@ describe("Customer Self-Service Security Regression", () => {
 
   it("Customer CAN update legitimate own profile/address data", async () => {
     const custDb = testEnv.authenticatedContext(CUSTOMER_UID).firestore();
+    const batch = writeBatch(custDb);
     const ref = doc(custDb, "users", CUSTOMER_UID);
+    const addr = { id: "addr_1", line1: "123 Main St", city: "Mysuru", pincode: "570001" };
+    const addrRef = doc(custDb, "users", CUSTOMER_UID, "addresses", "addr_1");
 
-    await expect(updateDoc(ref, {
-      addresses: [{ id: "addr_1", line1: "123 Main St", city: "Mysuru", pincode: "570001" }]
-    })).resolves.not.toThrow();
+    batch.update(ref, {
+      fullName: "Updated Customer Name",
+      addresses: [addr],
+      addressIds: ["addr_1"],
+      defaultAddressId: "addr_1",
+    });
+    batch.set(addrRef, addr);
+
+    await expect(batch.commit()).resolves.not.toThrow();
   });
 
   it("Customer CAN cancel eligible own order", async () => {

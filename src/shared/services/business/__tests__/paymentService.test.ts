@@ -313,6 +313,132 @@ describe("paymentService", () => {
         paymentService.approvePayment("pay1", "admin1"),
       ).rejects.toThrow("Activation requires a security deposit payment.");
     });
+
+    it("rejects when payment customerId does not match subscription customerId and performs no transaction writes", async () => {
+      vi.mocked(getDoc).mockImplementation(
+        async () =>
+          ({
+            exists: () => true,
+            data: () => ({
+              id: "pay1",
+              status: "pending",
+              subscriptionId: "sub1",
+              purpose: "usage",
+              amount: 500,
+              customerId: "cust-attacker",
+            }),
+          }) as any,
+      );
+
+      let mockTransaction: any;
+      vi.mocked(runTransaction).mockImplementation(async (_db: any, cb: any) => {
+        mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            const refPath = (ref as any)?.path || "";
+            if (refPath.includes("payments") || (ref as any)?.id === "pay1") {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({
+                  id: "pay1",
+                  status: "pending",
+                  subscriptionId: "sub1",
+                  purpose: "usage",
+                  amount: 500,
+                  customerId: "cust-attacker",
+                }),
+              });
+            }
+            if (refPath.includes("subscriptions") || (ref as any)?.id === "sub1") {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({
+                  id: "sub1",
+                  status: "active",
+                  customerId: "cust-victim",
+                  depositAmount: 1000,
+                }),
+              });
+            }
+            return Promise.resolve({ exists: () => false });
+          }),
+          update: vi.fn(),
+          set: vi.fn(),
+          delete: vi.fn(),
+        };
+        await cb(mockTransaction);
+      });
+
+      await expect(
+        paymentService.approvePayment("pay1", "admin1"),
+      ).rejects.toThrow("Payment customer does not match subscription customer.");
+
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+      expect(mockTransaction.set).not.toHaveBeenCalled();
+      expect(mockTransaction.delete).not.toHaveBeenCalled();
+    });
+
+    it("rejects when payment customerId is missing and subscription has a customerId", async () => {
+      vi.mocked(getDoc).mockImplementation(
+        async () =>
+          ({
+            exists: () => true,
+            data: () => ({
+              id: "pay1",
+              status: "pending",
+              subscriptionId: "sub1",
+              purpose: "usage",
+              amount: 500,
+              // customerId is intentionally omitted
+            }),
+          }) as any,
+      );
+
+      let mockTransaction: any;
+      vi.mocked(runTransaction).mockImplementation(async (_db: any, cb: any) => {
+        mockTransaction = {
+          get: vi.fn().mockImplementation((ref) => {
+            const refPath = (ref as any)?.path || "";
+            if (refPath.includes("payments") || (ref as any)?.id === "pay1") {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({
+                  id: "pay1",
+                  status: "pending",
+                  subscriptionId: "sub1",
+                  purpose: "usage",
+                  amount: 500,
+                  // customerId is intentionally omitted
+                }),
+              });
+            }
+            if (refPath.includes("subscriptions") || (ref as any)?.id === "sub1") {
+              return Promise.resolve({
+                exists: () => true,
+                data: () => ({
+                  id: "sub1",
+                  status: "active",
+                  customerId: "cust-victim",
+                  depositAmount: 1000,
+                }),
+              });
+            }
+            return Promise.resolve({ exists: () => false });
+          }),
+          update: vi.fn(),
+          set: vi.fn(),
+          delete: vi.fn(),
+        };
+        await cb(mockTransaction);
+      });
+
+      await expect(
+        paymentService.approvePayment("pay1", "admin1"),
+      ).rejects.toThrow("Payment customer does not match subscription customer.");
+
+      expect(mockTransaction.update).not.toHaveBeenCalled();
+      expect(mockTransaction.set).not.toHaveBeenCalled();
+      expect(mockTransaction.delete).not.toHaveBeenCalled();
+    });
   });
 
   describe("rejectPayment", () => {
