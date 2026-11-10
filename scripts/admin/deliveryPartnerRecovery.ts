@@ -634,6 +634,13 @@ export async function initializeAdminContext(
          Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST) ||
          Boolean(process.env.FIRESTORE_EMULATOR_HOST));
 
+  if (!isEmulator && (Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST) || Boolean(process.env.FIRESTORE_EMULATOR_HOST))) {
+    throw new SafetyAbortError(
+      'Cannot initialize production credentials while emulator host environment variables ' +
+      '(FIREBASE_AUTH_EMULATOR_HOST, FIRESTORE_EMULATOR_HOST) are set. Unset them before running against live project.'
+    );
+  }
+
   // Strategy 1: Local Emulator Mode
   if (isEmulator) {
     if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {

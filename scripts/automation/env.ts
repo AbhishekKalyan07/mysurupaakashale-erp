@@ -19,6 +19,17 @@
  * browser app (Vite replaces import.meta.env at build time there).
  */
 
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Attempt to load .env.local and .env before environment mapping runs
+try {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+} catch {
+  // Ignore in environments where dotenv or filesystem is restricted
+}
+
 export function bootstrapAutomationEnv(
   sourceEnv: Record<string, string | undefined> = process.env,
   metaEnv: Record<string, string | undefined> = (import.meta as any).env ?? {}

@@ -58,6 +58,7 @@ export interface UserMigrationAssessment {
   calculatedAddressIds: string[];
   plannedUpdate?: {
     addressIds: string[];
+    mirrorsToCreate?: Array<{ addressId: string; address: RawAddress }>;
   };
 }
 
@@ -169,6 +170,7 @@ export function inspectUserProfiles(users: UserDocRaw[]): UserMigrationReport {
       status = 'CAN_MIGRATE';
       plannedUpdate = {
         addressIds: derivedIds,
+        mirrorsToCreate: [],
       };
     }
 

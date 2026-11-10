@@ -28,7 +28,7 @@ export function deriveMealPlanOptionIds(mealSlots: MealSlotConfig[] = []): {
   const lunchOptionIds: string[] = [];
   const dinnerOptionIds: string[] = [];
   for (const slot of mealSlots) {
-    if (slot.isCustomerSelectable === false) continue;
+    if (slot.mealType === "breakfast" || slot.isCustomerSelectable === false) continue;
     for (const opt of slot.options || []) {
       if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
         optionIds.push(opt.id);

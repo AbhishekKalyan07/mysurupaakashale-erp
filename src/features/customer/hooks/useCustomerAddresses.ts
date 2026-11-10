@@ -44,9 +44,6 @@ export function useCustomerAddresses() {
       const existingAddressIds = localAddressIdsRef.current;
       const updatedAddressIds = [...existingAddressIds, newAddress.id];
 
-      localAddressesRef.current = updatedAddresses;
-      localAddressIdsRef.current = updatedAddressIds;
-
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
         addressIds: updatedAddressIds,
@@ -70,6 +67,9 @@ export function useCustomerAddresses() {
 
       await batch.commit();
 
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
+
       return newAddress;
     },
   });
@@ -87,9 +87,6 @@ export function useCustomerAddresses() {
         ? existingAddressIds
         : [...existingAddressIds, updated.id];
 
-      localAddressesRef.current = updatedAddresses;
-      localAddressIdsRef.current = updatedAddressIds;
-
       const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
       const { db } = await import("@/shared/lib/firebase");
       const batch = writeBatch(db);
@@ -104,6 +101,9 @@ export function useCustomerAddresses() {
       batch.set(addrRef, updated);
 
       await batch.commit();
+
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
     },
   });
 
@@ -117,9 +117,6 @@ export function useCustomerAddresses() {
       );
       const existingAddressIds = localAddressIdsRef.current;
       const updatedAddressIds = existingAddressIds.filter((id) => id !== addressId);
-
-      localAddressesRef.current = updatedAddresses;
-      localAddressIdsRef.current = updatedAddressIds;
 
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
@@ -144,6 +141,9 @@ export function useCustomerAddresses() {
       batch.delete(addrRef);
 
       await batch.commit();
+
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
     },
   });
 

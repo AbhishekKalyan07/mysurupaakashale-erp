@@ -245,13 +245,12 @@ export class SubscriptionCleanupService {
       // Check whether delivery address can be resolved
       let addressResolves = false;
       if (customer && Array.isArray(customer.addresses) && customer.addresses.length > 0) {
-        const addr =
-          customer.addresses.find((a: any) => a.id === sub.deliveryAddressId) ||
-          customer.addresses.find((a: any) => a.isDefault) ||
-          customer.addresses[0];
+        const addr = sub.deliveryAddressId
+          ? customer.addresses.find((a: any) => a.id === sub.deliveryAddressId)
+          : customer.addresses.find((a: any) => a.isDefault) || customer.addresses[0];
         addressResolves = Boolean(
           addr &&
-          (addr.street || addr.addressLine1) &&
+          (addr.line1 || addr.street || addr.addressLine1) &&
           addr.pincode &&
           String(addr.pincode).trim().length > 0,
         );

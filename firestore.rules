@@ -577,11 +577,27 @@ service cloud.firestore {
                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
       }
 
+      function isPaymentLinkUpdate() {
+        let pId = request.resource.data.latestPaymentId;
+        let pPath = /databases/$(database)/documents/payments/$(pId);
+        return resource.data.status == request.resource.data.status &&
+               pId is string && pId != '' &&
+               exists(pPath) &&
+               get(pPath).data.customerId == resource.data.customerId &&
+               get(pPath).data.subscriptionId == subscriptionId &&
+               existsAfter(pPath) &&
+               getAfter(pPath).data.status == 'verified' &&
+               getAfter(pPath).data.customerId == resource.data.customerId &&
+               getAfter(pPath).data.subscriptionId == subscriptionId &&
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['latestPaymentId', 'updatedAt']);
+      }
+
       function isAdminGeneralManagement() {
         return !(resource.data.status in ['draft', 'pending_payment'] && request.resource.data.status == 'active') &&
-               request.resource.data.id == resource.data.id &&
+               (resource.data.get('id', null) == null || request.resource.data.id == resource.data.id) &&
+               request.resource.data.id == subscriptionId &&
                request.resource.data.customerId == resource.data.customerId &&
-               request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+               (resource.data.get('createdAt', null) == null || request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)) &&
                request.resource.data.get('latestPaymentId', null) == resource.data.get('latestPaymentId', null) &&
                request.resource.data.id is string &&
                request.resource.data.id.size() > 0 &&
@@ -590,8 +606,7 @@ service cloud.firestore {
                request.resource.data.status in ['draft', 'pending_payment', 'active', 'paused', 'cancelled', 'expired'] &&
                request.resource.data.quantity is number &&
                request.resource.data.quantity > 0 &&
-               request.resource.data.pricePerDaySnapshot is number &&
-               request.resource.data.pricePerDaySnapshot > 0 &&
+               (resource.data.get('pricePerDaySnapshot', null) == null || (request.resource.data.pricePerDaySnapshot is number && request.resource.data.pricePerDaySnapshot > 0)) &&
                request.resource.data.planTier is string &&
                request.resource.data.planTier.size() > 0 &&
                request.resource.data.planId is string &&
@@ -605,12 +620,11 @@ service cloud.firestore {
                request.resource.data.startDate.size() == 10 &&
                (request.resource.data.get('endDate', null) == null || (request.resource.data.endDate is string && request.resource.data.endDate.size() == 10)) &&
                (request.resource.data.get('latestPaymentId', null) == null || (request.resource.data.latestPaymentId is string && request.resource.data.latestPaymentId.size() > 0)) &&
-               request.resource.data.depositAmount is number &&
-               request.resource.data.depositAmount >= 0 &&
+               (resource.data.get('depositAmount', null) == null || (request.resource.data.depositAmount is number && request.resource.data.depositAmount >= 0)) &&
                request.resource.data.mealPreferences is list &&
                request.resource.data.mealPreferences.size() > 0 &&
                request.resource.data.mealPreferences.size() <= 3 &&
-               request.resource.data.createdAt is timestamp &&
+               (resource.data.get('createdAt', null) == null || request.resource.data.createdAt is timestamp) &&
                request.resource.data.updatedAt is timestamp &&
                (!('pricingMatrixSnapshot' in request.resource.data) || request.resource.data.pricingMatrixSnapshot is map) &&
                (!('negotiatedPricing' in request.resource.data) || request.resource.data.negotiatedPricing is map) &&
@@ -620,7 +634,7 @@ service cloud.firestore {
                (request.resource.data.get('cancellationDate', null) == null || (request.resource.data.cancellationDate is string && request.resource.data.cancellationDate.size() == 10)) &&
                (request.resource.data.get('lastBilledDate', null) == null || (request.resource.data.lastBilledDate is string && request.resource.data.lastBilledDate.size() == 10)) &&
                (request.resource.data.get('lastInvoiceId', null) == null || (request.resource.data.lastInvoiceId is string && request.resource.data.lastInvoiceId.size() > 0)) &&
-               request.resource.data.keys().hasAll(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'createdAt', 'updatedAt']) &&
+               request.resource.data.keys().hasAll(['customerId', 'planId', 'planTier', 'quantity', 'deliveryAddressId', 'mealPreferences', 'status', 'startDate', 'billingCycle', 'autoRenew', 'updatedAt']) &&
                request.resource.data.keys().hasOnly(['id', 'customerId', 'planId', 'planTier', 'quantity', 'pricePerDaySnapshot', 'pricingMatrixSnapshot', 'negotiatedPricing', 'deliveryAddressId', 'zoneId', 'mealPreferences', 'status', 'startDate', 'endDate', 'billingCycle', 'autoRenew', 'latestPaymentId', 'depositAmount', 'deliveryPartnerId', 'pauseStartDate', 'pauseEndDate', 'cancellationDate', 'lastBilledDate', 'lastInvoiceId', 'createdAt', 'updatedAt']);
       }
 
@@ -631,7 +645,7 @@ service cloud.firestore {
                       (isCustomer() && isValidCustomerSubscriptionCreate());
 
       allow update: if
-        (isAdmin() && (isPaidActivation() || isUnpaidActivation() || isAdminGeneralManagement())) ||
+        (isAdmin() && (isPaidActivation() || isUnpaidActivation() || isPaymentLinkUpdate() || isAdminGeneralManagement())) ||
         (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences', 'autoRenew', 'cancellationDate']) &&
          request.resource.data.get('quantity', 1) > 0 &&
          (isAllowedCustomerTransition() ||

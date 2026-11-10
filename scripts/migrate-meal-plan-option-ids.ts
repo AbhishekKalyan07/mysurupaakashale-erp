@@ -24,6 +24,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface MealOptionRaw {
   id?: string;
@@ -354,4 +355,11 @@ export function runMealPlanCli(): void {
   }
 }
 
-runMealPlanCli();
+const isDirectExecution =
+  process.argv[1] &&
+  (process.argv[1] === fileURLToPath(import.meta.url) ||
+    process.argv[1].endsWith('migrate-meal-plan-option-ids.ts'));
+
+if (isDirectExecution) {
+  runMealPlanCli();
+}

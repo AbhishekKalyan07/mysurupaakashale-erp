@@ -1,10 +1,4 @@
 import './automation/env';
-import * as path from 'path';
-import * as dotenv from 'dotenv';
-
-// Load .env.local if present
-dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
-
 import { subscriptionCleanupService } from '../src/shared/services/business/subscriptionCleanupService';
 import { authenticateReadOnlyForAudit } from './automation/auditAuth';
 
@@ -40,16 +34,9 @@ async function main() {
   console.log(`--- Starting Strictly Read-Only Orphan Subscription Audit (Target: ${targetProjectId}) ---`);
 
   try {
-    const hasServiceAccount = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
-    const isEmulator = process.env.VITE_USE_FIREBASE_EMULATORS === 'true';
-
-    if (hasServiceAccount || isEmulator) {
-      console.log(`[Audit CLI] Authenticating via read-only identity preflight...`);
-      await authenticateReadOnlyForAudit(targetProjectId);
-      console.log(`[Audit CLI] Authenticated successfully as read-only automation admin.`);
-    } else {
-      console.log(`[Audit CLI] No service account or emulator configuration provided; relying on active client context.`);
-    }
+    console.log(`[Audit CLI] Authenticating via read-only identity preflight...`);
+    await authenticateReadOnlyForAudit(targetProjectId);
+    console.log(`[Audit CLI] Authenticated successfully as read-only automation admin.`);
 
     const report = await subscriptionCleanupService.auditOrphanSubscriptions({
       targetProjectId,
