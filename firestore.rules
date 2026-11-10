@@ -136,7 +136,7 @@ service cloud.firestore {
       let changedAddrs = (newAddrs is list && oldAddrs is list) ? newAddrs.removeAll(oldAddrs) : [];
       let removedAddrs = (newAddrs is list && oldAddrs is list) ? oldAddrs.removeAll(newAddrs) : [];
 
-      return (unchanged('addresses') && unchanged('addressIds')) || (
+      return (unchanged('addresses') && (unchanged('addressIds') || (isList && newIds == oldIds))) || (
         isList && noDupes && (newAddrs is list) && (oldAddrs is list) && newAddrs.size() == newIds.size() && (
           // Single addition: exactly 1 new ID, 1 added address, 0 removed, matching ID, mirror created & data matching
           (addedIds.size() == 1 && removedIds.size() == 0 && changedAddrs.size() == 1 && removedAddrs.size() == 0 &&
@@ -157,9 +157,13 @@ service cloud.firestore {
            changedAddrs.hasAll([getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[0])).data,
                                 getAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(addedIds[1])).data])) ||
           // Single deletion: exactly 1 ID removed, 1 address removed, 0 added, exact matching ID, mirror deleted
-          (removedIds.size() == 1 && addedIds.size() == 0 && changedAddrs.size() == 0 && removedAddrs.size() == 1 &&
-           removedAddrs[0].get('id', '') == removedIds[0] &&
-           !existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(removedIds[0]))) ||
+          ((removedIds.size() == 1 && addedIds.size() == 0 && changedAddrs.size() == 0 && removedAddrs.size() == 1 &&
+            removedAddrs[0].get('id', '') == removedIds[0] &&
+            !existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(removedIds[0]))) ||
+           // Legacy profile deletion: profile lacked addressIds, deletion empties both addresses and addressIds, mirror deleted
+           (resource.data.get('addressIds', null) == null && isList && newIds.size() == 0 &&
+            newAddrs.size() == 0 && removedAddrs.size() == 1 &&
+            !existsAfter(/databases/$(database)/documents/users/$(userId)/addresses/$(removedAddrs[0].get('id', ''))))) ||
           // Single existing-address edit: 0 IDs added/removed, exactly 1 address modified with preserved ID, mirror updated & data matching
           (addedIds.size() == 0 && removedIds.size() == 0 && changedAddrs.size() == 1 && removedAddrs.size() == 1 &&
            changedAddrs[0].get('id', '') == removedAddrs[0].get('id', '') &&

@@ -29,6 +29,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { deriveMealPlanOptionIds } from '../../src/shared/services/firestore/mealPlanRepository';
+import type { MealSlotConfig } from '../../src/shared/types/mealPlan.types';
 
 export interface TargetPlanConfig {
   name: string;
@@ -169,24 +171,27 @@ export function analyzePlans(allPlans: PlanDocData[]): DryRunAuditResult {
     const doc = matches[0];
     const docId = doc.id;
 
-    // 2. Inspect existing mealSlots
+    // 2. Inspect existing mealSlots using deriveMealPlanOptionIds
     const slotOptions = extractSlotOptionIds(doc);
-    const expectedLunch = target.targetLunchOptionIds;
-    const expectedDinner = target.targetDinnerOptionIds;
+    const derived = deriveMealPlanOptionIds((doc.mealSlots || []) as MealSlotConfig[]);
+    const lunchSet = new Set(derived.lunchOptionIds);
+    const expectedLunchSet = new Set(target.targetLunchOptionIds);
+    const dinnerSet = new Set(derived.dinnerOptionIds);
+    const expectedDinnerSet = new Set(target.targetDinnerOptionIds);
 
-    const lunchMissingInSlots = expectedLunch.filter((id) => !slotOptions.lunch.includes(id));
-    const dinnerMissingInSlots = expectedDinner.filter((id) => !slotOptions.dinner.includes(id));
+    const setsEqual = (s1: Set<string>, s2: Set<string>) =>
+      s1.size === s2.size && [...s1].every((id) => s2.has(id));
 
     let mealSlotsValidated = true;
-    if (lunchMissingInSlots.length > 0) {
+    if (!setsEqual(lunchSet, expectedLunchSet)) {
       errors.push(
-        `Doc "${docId}" (${target.name}): mealSlots lunch does not contain expected option ID(s): ${JSON.stringify(lunchMissingInSlots)}.`
+        `Doc "${docId}" (${target.name}): derived lunchOptionIds ${JSON.stringify([...lunchSet])} does not match expected target ${JSON.stringify([...expectedLunchSet])}.`
       );
       mealSlotsValidated = false;
     }
-    if (dinnerMissingInSlots.length > 0) {
+    if (!setsEqual(dinnerSet, expectedDinnerSet)) {
       errors.push(
-        `Doc "${docId}" (${target.name}): mealSlots dinner does not contain expected option ID(s): ${JSON.stringify(dinnerMissingInSlots)}.`
+        `Doc "${docId}" (${target.name}): derived dinnerOptionIds ${JSON.stringify([...dinnerSet])} does not match expected target ${JSON.stringify([...expectedDinnerSet])}.`
       );
       mealSlotsValidated = false;
     }
@@ -285,6 +290,16 @@ export async function runPatchCli(): Promise<void> {
   const inputArg = args.find((a) => a.startsWith('--input='));
   const isApply = args.includes('--apply');
   const isConfirmed = args.includes('--confirm');
+  const projectArgIdx = args.findIndex((a) => a === '--project' || a.startsWith('--project='));
+  let operatorProjectId = '';
+  if (projectArgIdx !== -1) {
+    const arg = args[projectArgIdx];
+    if (arg.startsWith('--project=')) {
+      operatorProjectId = arg.split('=')[1].trim();
+    } else if (projectArgIdx + 1 < args.length) {
+      operatorProjectId = args[projectArgIdx + 1].trim();
+    }
+  }
 
   // Case A: Reading from supplied export file
   if (inputArg) {
@@ -371,8 +386,15 @@ export async function runPatchCli(): Promise<void> {
 
     if (!isApply || !isConfirmed) {
       console.log('ℹ️  To apply these targeted updates to production, re-run with explicit approval:');
-      console.log('   npx vite-node scripts/admin/patchProductionMealPlans.ts --apply --confirm\n');
+      console.log('   npx vite-node scripts/admin/patchProductionMealPlans.ts --apply --confirm --project=<projectId>\n');
       return;
+    }
+
+    if (!operatorProjectId || operatorProjectId !== resolvedProjectId || resolvedProjectId === 'unknown') {
+      throw new Error(
+        `Safety abort: The operator-supplied project ID ("${operatorProjectId || '<missing>'}") ` +
+        `does not match the resolved Admin SDK project ID ("${resolvedProjectId}"). Write aborted.`
+      );
     }
 
     // Apply targeted updates only after explicit approval gate

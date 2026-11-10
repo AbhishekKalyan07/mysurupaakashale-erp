@@ -772,6 +772,18 @@ class SubscriptionService {
           `Subscription ${subscription.id} failed to transition to active after payment approval.`,
         );
       }
+
+      try {
+        const { notifySubscriptionApproved } = await import("../firestore/notificationService");
+        await notifySubscriptionApproved(
+          subscription.customerId,
+          subscription.id,
+          subscription.planTier,
+          subscription.startDate,
+        );
+      } catch (err) {
+        console.warn("[SubscriptionService] Failed to send approval notification:", err);
+      }
     } else {
       throw new Error(
         `Cannot activate subscription with payment status '${payment.status}'. Payment must be verified or pending.`,
