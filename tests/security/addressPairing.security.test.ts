@@ -2184,6 +2184,33 @@ withEmulator('🔐 Direct SDK Address Pairing & Integrity Security Rules', () =>
       });
     });
 
+    it('ALLOW: Deletion of address from a legacy profile without addressIds field succeeds atomically when mirror is deleted', async (ctx) => {
+      if (!env) return ctx.skip();
+      const legacyDb = env.authenticatedContext(LEGACY_SINGLE_UID).firestore();
+
+      // Seed the mirror subcollection doc for the legacy address
+      await env.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'users', LEGACY_SINGLE_UID, 'addresses', 'legacy-addr-1'), legacyAddr1);
+      });
+
+      const batch = writeBatch(legacyDb);
+      batch.update(doc(legacyDb, 'users', LEGACY_SINGLE_UID), {
+        addresses: [],
+        addressIds: [],
+      });
+      batch.delete(doc(legacyDb, 'users', LEGACY_SINGLE_UID, 'addresses', 'legacy-addr-1'));
+
+      await assertSucceeds(batch.commit());
+
+      await env.withSecurityRulesDisabled(async (context) => {
+        const userSnap = await getDoc(doc(context.firestore(), 'users', LEGACY_SINGLE_UID));
+        expect(userSnap.data()?.addresses).toEqual([]);
+        expect(userSnap.data()?.addressIds).toEqual([]);
+        const mirrorSnap = await getDoc(doc(context.firestore(), 'users', LEGACY_SINGLE_UID, 'addresses', 'legacy-addr-1'));
+        expect(mirrorSnap.exists()).toBe(false);
+      });
+    });
+
     it('ALLOW (Section 5.6): Indexed customer - unrelated profile update succeeds', async (ctx) => {
       if (!env) return ctx.skip();
       const custDb = env.authenticatedContext(CUSTOMER_A_UID).firestore();

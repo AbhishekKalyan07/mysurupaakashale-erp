@@ -196,7 +196,10 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
         subscription.id,
       );
       return payments.filter(
-        (p) => p.status === "pending" || p.status === "verified",
+        (p) =>
+          p.purpose === "security_deposit" &&
+          (p.status === "pending" ||
+            (p.status === "verified" && p.amount === subscription.depositAmount)),
       );
     },
     enabled: confirmAction === "approve",

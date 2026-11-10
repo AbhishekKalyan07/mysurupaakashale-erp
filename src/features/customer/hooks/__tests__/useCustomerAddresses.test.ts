@@ -216,6 +216,26 @@ describe("useCustomerAddresses — Atomic Batch Synchronization", () => {
 
     expect(caughtError).toBeDefined();
     expect(caughtError.message).toContain("Firestore batch commit failed");
+
+    // Extend test with subsequent add:
+    // Verify that because the previous write failed and refs were not mutated,
+    // a subsequent successful add succeeds cleanly.
+    let successfulAddr: any;
+    await act(async () => {
+      successfulAddr = await hook.addAddress({
+        label: "Branch Recovered",
+        line1: "789 High St",
+        city: "Mysuru",
+        state: "KA",
+        isDefault: false,
+        lat: null,
+        lng: null,
+      });
+    });
+
+    expect(successfulAddr).toBeDefined();
+    expect(successfulAddr.label).toBe("Branch Recovered");
+    expect(mockBatchCommit).toHaveBeenCalledTimes(2);
   });
 
   it("Concurrent address operations do not silently lose another address", async () => {
