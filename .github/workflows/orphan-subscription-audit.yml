@@ -20,6 +20,7 @@ jobs:
   run-audit:
     name: Execute Read-Only Orphan Subscription Audit
     runs-on: ubuntu-latest
+    environment: production-audit
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

@@ -28,6 +28,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface TargetPlanConfig {
   name: string;
@@ -131,10 +132,10 @@ export function extractSlotOptionIds(doc: PlanDocData): { lunch: string[]; dinne
   const slots = doc.mealSlots || [];
 
   for (const slot of slots) {
-    if (slot.isCustomerSelectable === false) continue;
+    if (slot.mealType === 'breakfast' || slot.isCustomerSelectable === false) continue;
     const options = slot.options || [];
     for (const opt of options) {
-      if (opt.id) {
+      if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
         if (slot.mealType === 'lunch') lunch.push(opt.id);
         if (slot.mealType === 'dinner') dinner.push(opt.id);
       }
@@ -376,13 +377,18 @@ export async function runPatchCli(): Promise<void> {
 
     // Apply targeted updates only after explicit approval gate
     console.log('🚀 EXECUTING TARGETED PRODUCTION DOCUMENT UPDATES...\n');
+    const batch = db.batch();
     for (const diff of result.diffs) {
       const docRef = db.collection('mealPlans').doc(diff.docId);
-      await docRef.update({
+      batch.update(docRef, {
         optionIds: diff.after.optionIds,
         lunchOptionIds: diff.after.lunchOptionIds,
         dinnerOptionIds: diff.after.dinnerOptionIds,
       });
+    }
+    await batch.commit();
+
+    for (const diff of result.diffs) {
       console.log(`✅ Updated document [${diff.docId}] (${diff.planName}).`);
     }
 
@@ -408,8 +414,15 @@ export async function runPatchCli(): Promise<void> {
   }
 }
 
-runPatchCli().catch((err) => {
-  console.error('Fatal error during execution:', err);
-  process.exit(1);
-});
+const isDirectExecution =
+  process.argv[1] &&
+  (process.argv[1] === fileURLToPath(import.meta.url) ||
+    process.argv[1].endsWith('patchProductionMealPlans.ts'));
+
+if (isDirectExecution) {
+  runPatchCli().catch((err) => {
+    console.error('Fatal error during execution:', err);
+    process.exit(1);
+  });
+}
 

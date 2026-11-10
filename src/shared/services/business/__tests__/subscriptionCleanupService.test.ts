@@ -26,9 +26,15 @@ vi.mock("firebase/firestore", async (importOriginal) => {
 });
 
 describe("Remediated Subscription Cleanup Audit Service Tests", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    vi.restoreAllMocks();
     process.env.VITE_FIREBASE_PROJECT_ID = "mysuru-paakashale-erp";
+    const firestore = await import("firebase/firestore");
+    vi.mocked(firestore.getDocs).mockReset().mockResolvedValue({ size: 0, docs: [] } as any);
+    vi.mocked(firestore.getDoc).mockReset().mockResolvedValue({
+      exists: () => true,
+      data: () => ({ role: "admin", isActive: true, customer: 1 }),
+    } as any);
   });
 
   // 1. Invoice/history query failure aborts audit or marks it failed

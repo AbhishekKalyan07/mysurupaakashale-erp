@@ -67,18 +67,21 @@ function parseArgs(): CliArgs {
       emulator = true;
     } else if (arg === '--prod') {
       prod = true;
-    } else if (arg === '--project' && i + 1 < args.length) {
+    } else if (arg === '--project') {
+      if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
+        console.error('Error: Flag --project requires a valid projectId argument.');
+        process.exit(1);
+      }
       projectId = args[++i].trim();
-    } else if (arg === '--uid' && i + 1 < args.length) {
+    } else if (arg === '--uid') {
+      if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
+        console.error('Error: Flag --uid requires a valid targetUid argument.');
+        process.exit(1);
+      }
       targetUid = args[++i].trim();
     } else if (!arg.startsWith('--') && !targetUid) {
       targetUid = arg.trim();
     }
-  }
-
-  // Fallback to environment variable if project flag is not explicitly passed
-  if (!projectId) {
-    projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '';
   }
 
   return { targetUid, projectId, confirm, dryRun, help, emulator, prod };
@@ -170,6 +173,13 @@ Flags:
       process.exit(0);
     }
 
+    if (!dryRun && autoConfirm && !process.stdout.isTTY) {
+      console.error('\n❌ LIVE RECOVERY ABORTED:');
+      console.error('Non-interactive live password reset (--confirm) is forbidden when stdout is redirected to a non-TTY.');
+      console.error('Temporary credentials cannot be piped or logged to file.\n');
+      process.exit(1);
+    }
+
     // 3. Interactive confirmation
     let isConfirmed = autoConfirm;
     if (!isConfirmed) {
@@ -198,6 +208,7 @@ Flags:
       });
     } catch (err: any) {
       if (err instanceof IndeterminateRecoveryError) {
+        const isStderrTTY = Boolean(process.stderr.isTTY);
         console.error('\n===================================================================');
         console.error('⚠️  CRITICAL WARNING: INDETERMINATE RECOVERY OUTCOME');
         console.error('===================================================================');
@@ -209,7 +220,7 @@ Flags:
         console.error(`  ${err.originalError.message}`);
         console.error('\nIt CANNOT BE DETERMINED whether the password mutation took effect.');
         console.error('-------------------------------------------------------------------');
-        console.error(`GENERATED CREDENTIAL   : ${err.temporaryPassword}`);
+        console.error(`GENERATED CREDENTIAL   : ${isStderrTTY ? err.temporaryPassword : '[SUPPRESSED — stderr redirected to non-TTY]'}`);
         console.error('-------------------------------------------------------------------');
         console.error('SAFE OPERATOR RECOVERY PROCEDURE:');
         console.error('1. DO NOT BLINDLY RETRY THE RESET.');
@@ -228,6 +239,7 @@ Flags:
 
     // 5. Handle Partial Failure (SUCCESS_AUDIT_FAILED)
     if (result.outcome === 'SUCCESS_AUDIT_FAILED') {
+      const isStdoutTTY = Boolean(process.stdout.isTTY);
       console.log('\n===================================================================');
       console.log('⚠️  CRITICAL NOTICE: PASSWORD RESET WITH AUDIT WRITE FAILURE');
       console.log('===================================================================');
@@ -239,7 +251,7 @@ Flags:
       console.log('2. Firestore Audit Log     : ❌ FAILED — Completion audit write failed.');
       console.log(`   Reason: ${result.auditError}`);
       console.log('-------------------------------------------------------------------');
-      console.log(`TEMPORARY PASSWORD     : ${result.temporaryPassword}`);
+      console.log(`TEMPORARY PASSWORD     : ${isStdoutTTY ? result.temporaryPassword : '[SUPPRESSED — stdout redirected to non-TTY]'}`);
       console.log('-------------------------------------------------------------------');
       console.log('MANDATORY OPERATOR RECOVERY PROCEDURE:');
       console.log('1. DO NOT RUN PASSWORD RESET AGAIN. Repeating the reset would overwrite');
@@ -255,13 +267,14 @@ Flags:
     }
 
     // 6. Standard SUCCESS_COMPLETE
+    const isStdoutTTY = Boolean(process.stdout.isTTY);
     console.log('\n===================================================================');
     console.log('             PASSWORD RESET COMPLETED SUCCESSFULLY');
     console.log('===================================================================');
     console.log(`Delivery Partner       : ${profile.displayName} (${profile.staffId})`);
     console.log(`Target UID             : ${profile.uid}`);
     console.log('-------------------------------------------------------------------');
-    console.log(`TEMPORARY PASSWORD     : ${result.temporaryPassword}`);
+    console.log(`TEMPORARY PASSWORD     : ${isStdoutTTY ? result.temporaryPassword : '[SUPPRESSED — stdout redirected to non-TTY]'}`);
     console.log('-------------------------------------------------------------------');
     console.log('OPERATIONAL GUIDELINES:');
     console.log('1. Securely deliver this temporary password to the delivery partner in person');

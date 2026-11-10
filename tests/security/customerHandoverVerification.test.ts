@@ -133,7 +133,10 @@ describe("Client Handover Verification: Customer IDs & Operational Routing", () 
       });
     });
 
-    // Helper to simulate the exact client runTransaction in userRepository.ts
+    // NOTE: This helper copies production logic from userRepository.generateNextDisplayId('customer')
+    // and must be kept in sync with userRepository.ts. It cannot call userRepository directly because
+    // rules-unit-testing requires executing transactions against the test persona's authenticated
+    // context (testEnv.authenticatedContext(callerUid).firestore()) to verify security rule authorization.
     const allocateCustomerId = async (callerUid: string): Promise<string> => {
       const client = testEnv.authenticatedContext(callerUid, { role: "customer" });
       const db = client.firestore();
@@ -261,6 +264,8 @@ describe("Client Handover Verification: Customer IDs & Operational Routing", () 
       });
     });
 
+    // NOTE: This helper copies production logic from userRepository.generateNextDisplayId('customer')
+    // wrapped with retry logic, and must be kept in sync with userRepository.ts.
     const allocateCustomerIdWithRetry = async (callerUid: string): Promise<string> => {
       const client = testEnv.authenticatedContext(callerUid, { role: "customer" });
       const db = client.firestore();
@@ -334,6 +339,8 @@ describe("Client Handover Verification: Customer IDs & Operational Routing", () 
       });
     });
 
+    // NOTE: This helper copies production logic from userRepository.generateNextDisplayId for staff roles
+    // and must be kept in sync with userRepository.ts.
     const allocateStaffId = async (role: "kitchen" | "delivery_partner"): Promise<string> => {
       const admin = testEnv.authenticatedContext("admin1", { role: "admin" });
       const db = admin.firestore();

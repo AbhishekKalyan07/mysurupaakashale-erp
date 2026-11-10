@@ -49,6 +49,7 @@ import {
   OrderDataIntegrityError,
   isOrderDataIntegrityError,
   type SubscriptionIntegrityIssue,
+  type OrderDataIntegrityErrorCode,
 } from "./orderErrors";
 
 export interface RemoveTodayMealResult {
@@ -457,6 +458,9 @@ class OrderService {
       // Preflight validation to detect data-integrity issues early without mutating DB
       const preflightIssues: SubscriptionIntegrityIssue[] = [];
       for (const sub of allSubscriptions) {
+        if (!this.isSubscriptionEligibleForMealOrder(sub, mealType, today).eligible) {
+          continue;
+        }
         try {
           const issue = this.validateSubscriptionPreflight(
             sub,
@@ -473,7 +477,7 @@ class OrderService {
           );
           preflightIssues.push({
             subscriptionId: sub?.id || "unknown",
-            issueCode: "PREFLIGHT_VALIDATION_EXCEPTION" as any,
+            issueCode: "PREFLIGHT_VALIDATION_EXCEPTION",
             details: `Preflight validation threw an unexpected exception: ${err instanceof Error ? err.message : String(err)}`,
             isFatal: false,
           });
@@ -489,25 +493,7 @@ class OrderService {
       }
 
       for (const sub of allSubscriptions) {
-        if (sub.endDate && sub.endDate < today) {
-          ordersSkipped++;
-          continue;
-        }
-        if (sub.startDate > today) {
-          ordersSkipped++;
-          continue;
-        }
-        // Exclude subscription if it is within a valid scheduled pause window for today.
-        // Stale past pauseStartDate with no pauseEndDate on an active subscription must not skip generation.
-        const isWithinScheduledPause = Boolean(
-          (sub.pauseStartDate &&
-            sub.pauseEndDate &&
-            sub.pauseStartDate <= today &&
-            sub.pauseEndDate >= today) ||
-            (sub.pauseStartDate === today &&
-              (!sub.pauseEndDate || sub.pauseEndDate >= today)),
-        );
-        if (isWithinScheduledPause) {
+        if (!this.isSubscriptionEligibleForMealOrder(sub, mealType, today).eligible) {
           ordersSkipped++;
           continue;
         }
@@ -2943,6 +2929,104 @@ class OrderService {
   }
 
   /**
+   * Evaluates whether an active subscription is eligible to generate an order for a meal on a given date.
+   * Shared between the preflight integrity check and the generation loop to maintain identical eligibility semantics.
+   */
+  isSubscriptionEligibleForMealOrder(
+    sub: Subscription,
+    mealType: "breakfast" | "lunch" | "dinner",
+    today: string,
+  ): { eligible: boolean; reason?: string } {
+    if (sub.endDate && sub.endDate < today) {
+      return { eligible: false, reason: "endDate_passed" };
+    }
+    if (sub.startDate > today) {
+      return { eligible: false, reason: "startDate_future" };
+    }
+    const isWithinScheduledPause = Boolean(
+      (sub.pauseStartDate &&
+        sub.pauseEndDate &&
+        sub.pauseStartDate <= today &&
+        sub.pauseEndDate >= today) ||
+        (sub.pauseStartDate === today &&
+          (!sub.pauseEndDate || sub.pauseEndDate >= today)),
+    );
+    if (isWithinScheduledPause) {
+      return { eligible: false, reason: "scheduled_pause" };
+    }
+    const pref = (sub.mealPreferences || []).find(
+      (p) => p.mealType === mealType,
+    );
+    if (!pref) {
+      return { eligible: false, reason: "mealType_not_subscribed" };
+    }
+    return { eligible: true };
+  }
+
+  /**
+   * Resolves delivery zone and kitchen for a subscription address with deterministic error classification.
+   * Shared by validateSubscriptionPreflight and buildOrderSnapshot to ensure identical validation and error codes.
+   */
+  resolveRoutingForSubscription(
+    addr: any,
+    allZones: any[],
+    subId: string,
+    mealType?: string,
+  ): { zoneId: string; kitchenId: string } {
+    if (!addr) {
+      throw new OrderDataIntegrityError(
+        `Subscription ${subId}${mealType ? ` (${mealType.toUpperCase()})` : ""}: Customer delivery address not found.`,
+        {
+          code: "DELIVERY_ADDRESS_NOT_FOUND",
+          subscriptionId: subId,
+          mealType,
+        },
+      );
+    }
+
+    const pincode = addr.pincode ? String(addr.pincode).trim() : "";
+    if (!pincode) {
+      throw new OrderDataIntegrityError(
+        `Subscription ${subId}${mealType ? ` (${mealType.toUpperCase()})` : ""}: Cannot route order: Address pincode is empty.`,
+        {
+          code: "INVALID_PINCODE",
+          subscriptionId: subId,
+          mealType,
+        },
+      );
+    }
+
+    if (!allZones || allZones.length === 0) {
+      throw new OrderDataIntegrityError(
+        `Subscription ${subId}${mealType ? ` (${mealType.toUpperCase()})` : ""}: No active delivery zones configured in the system.`,
+        {
+          code: "NO_ACTIVE_ZONES",
+          subscriptionId: subId,
+          mealType,
+        },
+      );
+    }
+
+    try {
+      return resolveOperationalZoneAndKitchen(addr, allZones);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      const code: OrderDataIntegrityErrorCode = msg.includes("has no assigned kitchen")
+        ? "ZONE_KITCHEN_NOT_CONFIGURED"
+        : "ZONE_ROUTING_FAILED";
+      throw new OrderDataIntegrityError(
+        `Subscription ${subId}${mealType ? ` (${mealType.toUpperCase()})` : ""}: ${msg}`,
+        {
+          code,
+          subscriptionId: subId,
+          mealType,
+          cause: err,
+        },
+      );
+    }
+  }
+
+  /**
    * Preflight integrity check for a subscription without generating an order or mutating data.
    * Reports missing customer profiles, missing addresses, or delivery zone routing problems.
    */
@@ -2984,51 +3068,18 @@ class OrderService {
       }
     }
 
-    if (!addr) {
-      return {
-        subscriptionId: sub.id,
-        issueCode: "DELIVERY_ADDRESS_NOT_FOUND",
-        details: "Customer delivery address not found.",
-        isFatal: true,
-      };
-    }
-
-    if (!addr.pincode || !addr.pincode.trim()) {
-      return {
-        subscriptionId: sub.id,
-        issueCode: "INVALID_PINCODE",
-        details: "Customer delivery address lacks a valid pincode.",
-        isFatal: true,
-      };
-    }
-
-    if (!allZones || allZones.length === 0) {
-      return {
-        subscriptionId: sub.id,
-        issueCode: "NO_ACTIVE_ZONES",
-        details: "No active delivery zones configured in the system.",
-        isFatal: true,
-      };
-    }
-
     try {
-      resolveOperationalZoneAndKitchen(addr, allZones);
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      if (msg.includes("has no assigned kitchen")) {
+      this.resolveRoutingForSubscription(addr, allZones, sub.id);
+    } catch (err) {
+      if (err instanceof OrderDataIntegrityError) {
         return {
           subscriptionId: sub.id,
-          issueCode: "ZONE_KITCHEN_NOT_CONFIGURED",
-          details: msg,
+          issueCode: err.code,
+          details: err.message,
           isFatal: true,
         };
       }
-      return {
-        subscriptionId: sub.id,
-        issueCode: "ZONE_ROUTING_FAILED",
-        details: msg,
-        isFatal: true,
-      };
+      throw err;
     }
 
     return null;
@@ -3091,32 +3142,14 @@ class OrderService {
     }
 
     if (!zoneId || !kitchenId) {
-      if (!addr) {
-        throw new OrderDataIntegrityError(
-          `Subscription ${sub.id} (${mealType.toUpperCase()}): Customer delivery address not found.`,
-          {
-            code: "DELIVERY_ADDRESS_NOT_FOUND",
-            subscriptionId: sub.id,
-            mealType,
-          },
-        );
-      }
-
-      try {
-        const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
-        zoneId = resolved.zoneId;
-        kitchenId = resolved.kitchenId;
-      } catch (routingErr: any) {
-        throw new OrderDataIntegrityError(
-          `Subscription ${sub.id} (${mealType.toUpperCase()}): ${routingErr?.message || String(routingErr)}`,
-          {
-            code: "ZONE_ROUTING_FAILED",
-            subscriptionId: sub.id,
-            mealType,
-            cause: routingErr,
-          },
-        );
-      }
+      const resolved = this.resolveRoutingForSubscription(
+        addr,
+        allZones,
+        sub.id,
+        mealType,
+      );
+      zoneId = resolved.zoneId;
+      kitchenId = resolved.kitchenId;
     }
 
     if (!kitchenId || !zoneId) {

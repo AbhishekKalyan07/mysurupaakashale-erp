@@ -403,10 +403,16 @@ describe("Orphan Subscription & Order Generation Regression Suite (Scenarios 1-1
     vi.spyOn(userRepository, "getByIds").mockResolvedValue([]);
     vi.spyOn(orderRepository, "list").mockResolvedValue([]);
 
+    const firestore = await import("firebase/firestore");
+    vi.mocked(firestore.getDoc).mockClear();
+
     const result = await orderService.generateBreakfastOrders(TEST_DATE);
 
     expect(result.failed).toBe(1);
     expect(result.generated).toBe(0);
+
+    // Verify exactly one getDoc call occurred (for dailyMenu) with zero retry iterations
+    expect(firestore.getDoc).toHaveBeenCalledTimes(1);
 
     // Check console logged the permanent failure note
     expect(consoleSpy).toHaveBeenCalledWith(

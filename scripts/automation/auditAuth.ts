@@ -159,9 +159,9 @@ export async function authenticateReadOnlyForAudit(expectedProjectId: string): P
 
   // Verify client SDK project alignment
   const clientProjectId = (db as any)?.app?.options?.projectId || process.env.VITE_FIREBASE_PROJECT_ID;
-  if (clientProjectId && clientProjectId !== expectedProject) {
+  if (!clientProjectId || clientProjectId !== expectedProject) {
     throw new Error(
-      `[Audit Auth] Safety abort: Client SDK projectId '${clientProjectId}' does not match expected target project '${expectedProject}'.`
+      `[Audit Auth] Safety abort: Client SDK projectId '${clientProjectId || '<unset>'}' does not match expected target project '${expectedProject}'.`
     );
   }
 

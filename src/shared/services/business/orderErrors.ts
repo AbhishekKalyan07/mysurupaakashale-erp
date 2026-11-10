@@ -11,7 +11,8 @@ export type OrderDataIntegrityErrorCode =
   | "ZONE_ROUTING_FAILED"
   | "ZONE_KITCHEN_NOT_CONFIGURED"
   | "MISSING_KITCHEN_CONFIG"
-  | "GENERAL_DATA_INTEGRITY_ERROR";
+  | "GENERAL_DATA_INTEGRITY_ERROR"
+  | "PREFLIGHT_VALIDATION_EXCEPTION";
 
 export interface OrderDataIntegrityErrorOptions {
   code?: OrderDataIntegrityErrorCode;
@@ -60,9 +61,7 @@ export function isOrderDataIntegrityError(
   if (
     error &&
     typeof error === "object" &&
-    ((error as any).isPermanent === true ||
-      (error as any).isRetryable === false ||
-      (error as any).name === "OrderDataIntegrityError")
+    (error as any).name === "OrderDataIntegrityError"
   ) {
     return true;
   }
