@@ -251,6 +251,7 @@ describe("useCustomerAddresses — Atomic Batch Synchronization", () => {
 
     // Second call updated addressIds and addresses
     const secondCallPayload = mockBatchUpdate.mock.calls[1][1];
+    expect(secondCallPayload.addressIds).toContain(addr1.id);
     expect(secondCallPayload.addressIds).toContain(addr2.id);
   });
 });

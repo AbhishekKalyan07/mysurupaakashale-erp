@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { userRepository } from "@/shared/services/firestore/userRepository";
@@ -11,6 +12,18 @@ export function useCustomerAddresses() {
     profile?.role === "customer" ? (profile as CustomerProfile) : null;
   const addresses = customerProfile?.addresses || [];
   const defaultAddressId = customerProfile?.defaultAddressId || null;
+
+  const localAddressesRef = useRef<Address[]>(addresses);
+  const localAddressIdsRef = useRef<string[]>(
+    Array.isArray(customerProfile?.addressIds) ? customerProfile.addressIds : []
+  );
+
+  useEffect(() => {
+    localAddressesRef.current = customerProfile?.addresses || [];
+    localAddressIdsRef.current = Array.isArray(customerProfile?.addressIds)
+      ? customerProfile.addressIds
+      : [];
+  }, [customerProfile]);
 
   const addAddressMutation = useMutation({
     mutationFn: async (addressInput: Omit<Address, "id">) => {
@@ -26,15 +39,20 @@ export function useCustomerAddresses() {
         lng: addressInput.lng ?? null,
       };
 
-      const updatedAddresses = [...addresses, newAddress];
-      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const baseAddresses = localAddressesRef.current;
+      const updatedAddresses = [...baseAddresses, newAddress];
+      const existingAddressIds = localAddressIdsRef.current;
       const updatedAddressIds = [...existingAddressIds, newAddress.id];
+
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
+
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
         addressIds: updatedAddressIds,
       };
 
-      if (!defaultAddressId || addresses.length === 0) {
+      if (!defaultAddressId || baseAddresses.length === 0) {
         updates.defaultAddressId = newAddress.id;
       }
 
@@ -60,13 +78,17 @@ export function useCustomerAddresses() {
     mutationFn: async (updated: Address) => {
       if (!uid || !customerProfile) throw new Error("Not authenticated");
 
-      const updatedAddresses = addresses.map((addr) =>
+      const baseAddresses = localAddressesRef.current;
+      const updatedAddresses = baseAddresses.map((addr) =>
         addr.id === updated.id ? updated : addr,
       );
-      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const existingAddressIds = localAddressIdsRef.current;
       const updatedAddressIds = existingAddressIds.includes(updated.id)
         ? existingAddressIds
         : [...existingAddressIds, updated.id];
+
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
 
       const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
       const { db } = await import("@/shared/lib/firebase");
@@ -89,11 +111,16 @@ export function useCustomerAddresses() {
     mutationFn: async (addressId: string) => {
       if (!uid || !customerProfile) throw new Error("Not authenticated");
 
-      const updatedAddresses = addresses.filter(
+      const baseAddresses = localAddressesRef.current;
+      const updatedAddresses = baseAddresses.filter(
         (addr) => addr.id !== addressId,
       );
-      const existingAddressIds = customerProfile.addressIds || addresses.map((a) => a.id);
+      const existingAddressIds = localAddressIdsRef.current;
       const updatedAddressIds = existingAddressIds.filter((id) => id !== addressId);
+
+      localAddressesRef.current = updatedAddresses;
+      localAddressIdsRef.current = updatedAddressIds;
+
       const updates: Partial<CustomerProfile> = {
         addresses: updatedAddresses,
         addressIds: updatedAddressIds,

@@ -16,7 +16,6 @@ import { userRepository } from "@/shared/services/firestore/userRepository";
 import { mealPlanRepository } from "@/shared/services/firestore/mealPlanRepository";
 import { auditRepository } from "@/shared/services/firestore/auditRepository";
 import {
-  notifySubscriptionActivated,
   notifySubscriptionRejected,
   notifySubscriptionPaused,
   notifySubscriptionResumed,
@@ -198,35 +197,39 @@ function invalidateSubscriptionLists(
   queryClient.invalidateQueries({ queryKey: ["customer-today-orders"] });
 }
 
+export interface ApproveSubscriptionParams {
+  subscription: Subscription;
+  paymentId?: string;
+  confirmation?: { confirmedUnpaid: boolean };
+  reason?: string;
+}
+
 // ── Admin: approve a pending/draft subscription ─────────────────────────────────
 export function useApproveSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (subscription: Subscription) => {
-      await subscriptionService.approveSubscription(subscription);
+    mutationFn: async (args: Subscription | ApproveSubscriptionParams) => {
+      const subscription = 'subscription' in args ? args.subscription : args;
+      const paymentId = 'paymentId' in args ? args.paymentId : undefined;
+      const confirmation = 'confirmation' in args ? args.confirmation : undefined;
+      const reason = 'reason' in args ? args.reason : undefined;
 
       const admin = getAuth().currentUser;
-      if (admin) {
-        await auditRepository.logAction(
-          "subscription_approved",
-          admin.uid,
-          "admin",
-          admin.displayName || "Admin",
-          subscription.id,
-          "subscription",
-          { previousStatus: subscription.status },
-        );
-      }
+      const adminActor = admin
+        ? {
+            uid: admin.uid,
+            role: "admin" as const,
+            name: admin.displayName || "Admin",
+          }
+        : { uid: "admin", role: "admin" as const, name: "Admin" };
 
-      notifySubscriptionActivated(
-        subscription.customerId,
-        subscription.id,
-        subscription.planTier,
-        subscription.startDate,
-      ).catch((err) =>
-        console.error("[useApproveSubscription] notification failed:", err),
-      );
+      await subscriptionService.approveSubscription(subscription, {
+        adminActor,
+        paymentId,
+        confirmation,
+        reason,
+      });
 
       return subscription;
     },
@@ -235,6 +238,7 @@ export function useApproveSubscription() {
       queryClient.invalidateQueries({ queryKey: ["admin", "orders"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.kitchen.base });
       queryClient.invalidateQueries({ queryKey: queryKeys.delivery.base });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       toast.success("Subscription approved and activated.");
     },
     onError: (err: unknown) => {

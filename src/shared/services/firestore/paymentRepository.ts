@@ -31,6 +31,17 @@ class PaymentRepository extends BaseRepository<ManualPayment> {
     );
   }
 
+  /** All payments matching a customer and subscription ID. */
+  async getByCustomerAndSubscription(
+    customerId: string,
+    subscriptionId: string,
+  ): Promise<ManualPayment[]> {
+    return this.list(
+      where("customerId", "==", customerId),
+      where("subscriptionId", "==", subscriptionId),
+    );
+  }
+
   /** Real-time subscription to customer payments. */
   subscribeToCustomerPayments(
     customerId: string,

@@ -398,21 +398,6 @@ export function SubscriptionWizardPage() {
         }
       }
 
-      // Ensure address subcollection document exists for Firestore Rules verification
-      if (currentAddress && firebaseUser) {
-        try {
-          const { doc, getDoc, setDoc } = await import("firebase/firestore");
-          const { db } = await import("@/shared/lib/firebase");
-          const addrRef = doc(db, "users", firebaseUser.uid, "addresses", selectedAddressId);
-          const addrSnap = await getDoc(addrRef);
-          if (!addrSnap.exists()) {
-            await setDoc(addrRef, currentAddress);
-          }
-        } catch (e) {
-          console.warn("[SubscriptionWizard] sync address doc check:", e);
-        }
-      }
-
       // Phase 3: Create subscription via Business Service
       const subscriptionId = await subscriptionService.createSubscription(
         firebaseUser!.uid,
