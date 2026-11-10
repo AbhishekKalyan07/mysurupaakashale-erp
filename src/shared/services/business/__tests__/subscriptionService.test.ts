@@ -14,6 +14,12 @@ vi.mock("../../firestore/paymentRepository", () => ({
   },
 }));
 
+vi.mock("../paymentService", () => ({
+  paymentService: {
+    approvePayment: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock("../orderService", () => ({
   orderService: {
     generateOrdersForSubscription: vi.fn(),
@@ -224,51 +230,75 @@ describe("subscriptionService", () => {
       );
     });
 
-    it("approves subscription and verifies pending payments", async () => {
-      vi.spyOn(subscriptionRepository, "updateStatus").mockResolvedValue(
-        undefined,
-      );
+    it("approves subscription and verifies pending payments via paymentService", async () => {
+      const { paymentService } = await import("../paymentService");
       vi.mocked(paymentRepository.getPaymentsPaginated).mockResolvedValue({
         payments: [
-          { id: "p1", subscriptionId: "sub1", status: "pending" } as any,
+          { id: "p1", subscriptionId: "sub1", customerId: "c1", status: "pending" } as any,
         ],
         lastDoc: null,
       });
 
+      const firestore = await import("firebase/firestore");
+      vi.spyOn(firestore, "getDoc")
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => ({
+            id: "p1",
+            subscriptionId: "sub1",
+            customerId: "c1",
+            status: "pending",
+            purpose: "security_deposit",
+            amount: 500,
+          }),
+        } as any)
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => ({
+            id: "sub1",
+            customerId: "c1",
+            status: "active",
+          }),
+        } as any);
+
       await subscriptionService.approveSubscription({
         id: "sub1",
+        customerId: "c1",
+        depositAmount: 500,
         status: "pending_payment",
         startDate: "2099-01-01",
         mealPreferences: [],
       } as any);
 
-      expect(subscriptionRepository.updateStatus).toHaveBeenCalledWith(
-        "sub1",
-        "active",
-      );
-      expect(paymentRepository.update).toHaveBeenCalledWith(
+      expect(paymentService.approvePayment).toHaveBeenCalledWith(
         "p1",
-        expect.objectContaining({ status: "verified" }),
+        expect.any(String),
+        undefined,
       );
     });
 
-    it("generates orders if start date is today or earlier", async () => {
-      vi.spyOn(subscriptionRepository, "updateStatus").mockResolvedValue(
-        undefined,
-      );
-      vi.mocked(paymentRepository.getPaymentsPaginated).mockResolvedValue({
-        payments: [],
-        lastDoc: null,
-      });
-
+    it("generates orders if start date is today or earlier via unpaid activation", async () => {
       const today = getTodayInTimezone();
+      const mockBatch = {
+        update: vi.fn(),
+        set: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      };
+      const firestore = await import("firebase/firestore");
+      vi.spyOn(firestore, "writeBatch").mockReturnValue(mockBatch as any);
 
-      await subscriptionService.approveSubscription({
-        id: "sub1",
-        status: "pending_payment",
-        startDate: today,
-        mealPreferences: [{ mealType: "lunch", selectedOptionId: "opt1" }],
-      } as any);
+      await subscriptionService.approveSubscription(
+        {
+          id: "sub1",
+          customerId: "c1",
+          status: "pending_payment",
+          startDate: today,
+          mealPreferences: [{ mealType: "lunch", selectedOptionId: "opt1" }],
+        } as any,
+        {
+          confirmation: { confirmedUnpaid: true },
+        },
+      );
 
       expect(orderService.generateOrdersForSubscription).toHaveBeenCalled();
     });

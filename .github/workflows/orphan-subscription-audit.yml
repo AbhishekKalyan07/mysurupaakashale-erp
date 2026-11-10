@@ -1,0 +1,45 @@
+name: Orphan Subscription Read-Only Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_project_id:
+        description: 'Expected Firebase Project ID (must match active project, e.g. mysuru-paakashale-erp)'
+        required: true
+        type: string
+        default: 'mysuru-paakashale-erp'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orphan-subscription-audit
+  cancel-in-progress: false
+
+jobs:
+  run-audit:
+    name: Execute Read-Only Orphan Subscription Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Orphan Subscription Audit (Strictly Read-Only)
+        env:
+          FIREBASE_AUTOMATION_API_KEY: ${{ secrets.FIREBASE_AUTOMATION_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EXPECTED_PROJECT_ID: ${{ inputs.expected_project_id }}
+        run: npx vite-node --config vite.config.ts scripts/auditOrphanSubscriptions.ts --project "$EXPECTED_PROJECT_ID"

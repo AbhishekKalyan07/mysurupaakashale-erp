@@ -547,7 +547,6 @@ withEmulator('🔐 Compatibility Gate: Old/New Frontend & Rules Matrix', () => {
         city: 'Mysuru',
         pincode: '570001',
         isDefault: true,
-        zoneId: 'zone-1',
       };
 
       batch.update(userRef, {

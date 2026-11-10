@@ -213,6 +213,7 @@ service cloud.firestore {
         // addressId was absent from root addressIds before this atomic operation.
         allow create: if isAdmin() || (
           isOwner(userId) &&
+          request.resource.data.keys().hasOnly(['id', 'label', 'line1', 'line2', 'city', 'state', 'pincode', 'lat', 'lng', 'isDefault']) &&
           request.resource.data.id == addressId &&
           existsAfter(/databases/$(database)/documents/users/$(userId)) &&
           getAfter(/databases/$(database)/documents/users/$(userId)).data.get('addressIds', null) != null &&
@@ -232,6 +233,7 @@ service cloud.firestore {
         // with addressId still in addressIds AND updated address object in root addresses.
         allow update: if isAdmin() || (
           isOwner(userId) &&
+          request.resource.data.keys().hasOnly(['id', 'label', 'line1', 'line2', 'city', 'state', 'pincode', 'lat', 'lng', 'isDefault']) &&
           request.resource.data.id == addressId &&
           resource.data.id == addressId &&
           existsAfter(/databases/$(database)/documents/users/$(userId)) &&

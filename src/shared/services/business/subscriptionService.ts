@@ -26,6 +26,7 @@ export interface AdminActor {
   uid: string;
   role: string;
   fullName?: string;
+  name?: string;
 }
 
 export interface AdminCreateSubscriptionInput {
@@ -573,25 +574,62 @@ class SubscriptionService {
   }
 
   /**
-   * Admin fast-path activation for a subscription that's still in
-   * 'draft' or 'pending_payment'
+   * Activates a subscription without payment (Option B).
+   * Atomically commits subscription status -> 'active' and an immutable audit log.
    */
-  async approveSubscription(subscription: Subscription): Promise<void> {
-    if (!subscription || !subscription.id) {
-      throw new Error("Valid subscription object is required.");
+  async activateSubscriptionUnpaid(
+    adminActor: AdminActor,
+    subscription: Subscription,
+    confirmation: { confirmedUnpaid: boolean },
+    reason?: string,
+  ): Promise<void> {
+    if (!adminActor || adminActor.role !== "admin") {
+      throw new Error("Unauthorized: Only Admin can perform unpaid subscription activation.");
+    }
+    if (!confirmation || confirmation.confirmedUnpaid !== true) {
+      throw new Error("Unpaid activation requires explicit confirmation: confirmedUnpaid must be true.");
     }
     if (subscription.status === "active") {
-      return; // Idempotency: Already active
+      return; // Idempotency
     }
-    if (
-      subscription.status === "cancelled" ||
-      subscription.status === "expired"
-    ) {
-      throw new Error(
-        `Cannot approve a ${subscription.status} subscription — use renew instead.`,
-      );
+    if (subscription.status !== "draft" && subscription.status !== "pending_payment") {
+      throw new Error(`Cannot activate subscription with status '${subscription.status}'. Only draft or pending_payment subscriptions can be activated.`);
     }
-    await subscriptionRepository.updateStatus(subscription.id, "active");
+
+    const { doc, writeBatch, serverTimestamp } = await import("firebase/firestore");
+    const { db } = await import("@/shared/lib/firebase");
+    const batch = writeBatch(db);
+    const subRef = doc(db, "subscriptions", subscription.id);
+    const auditId = `unpaid_act_${subscription.id}_${subscription.startDate}`;
+    const auditRef = doc(db, "auditLogs", auditId);
+
+    batch.update(subRef, {
+      status: "active",
+      updatedAt: serverTimestamp(),
+    });
+
+    batch.set(auditRef, {
+      action: "admin_subscription_unpaid_activation",
+      entityType: "subscription",
+      entityId: subscription.id,
+      performedBy: adminActor.uid,
+      performedByRole: "admin",
+      performedByName: adminActor.fullName || adminActor.name || "Admin",
+      details: {
+        customerId: subscription.customerId,
+        unpaidConfirmed: true,
+        activationMode: "unpaid_manual_override",
+        previousStatus: subscription.status,
+      },
+      previousValue: { status: subscription.status },
+      newValue: { status: "active" },
+      reason: reason || "Unpaid administrative activation override",
+      timestamp: serverTimestamp(),
+      ipAddress: null,
+    });
+
+    await batch.commit();
+
     if (subscription.pauseStartDate || subscription.pauseEndDate) {
       await subscriptionRepository.update(subscription.id, {
         pauseStartDate: null,
@@ -599,75 +637,200 @@ class SubscriptionService {
       });
     }
 
-    // Verify any pending payments associated with this subscription
-    const { paymentRepository } =
-      await import("../firestore/paymentRepository");
-    const { payments } = await paymentRepository.getPaymentsPaginated(
-      { status: "pending" },
-      100,
-    );
-    const relatedPayments = payments.filter(
-      (p) => p.subscriptionId === subscription.id,
-    );
-
-    for (const payment of relatedPayments) {
-      await paymentRepository.update(payment.id, {
-        status: "verified",
-        verificationNotes: "Verified via subscription fast-path activation.",
-      });
-    }
-
     // Immediately generate initial orders for start date (or today if already started)
-    const { orderService } = await import("./orderService");
-    const today = getTodayInTimezone();
-    const targetDate =
-      subscription.startDate <= today ? today : subscription.startDate;
-
-    const mealTypes = (subscription.mealPreferences || []).map(
-      (p) => p.mealType,
-    );
-    console.log(
-      `[SubscriptionService] Subscription ${subscription.id} activated. Generating initial orders for ${targetDate}...`,
-    );
-
     try {
-      await orderService.generateOrdersForSubscription(
-        subscription,
-        targetDate,
-        mealTypes,
-      );
+      const { orderService } = await import("./orderService");
+      const today = getTodayInTimezone();
+      const targetDate = subscription.startDate <= today ? today : subscription.startDate;
+      const mealTypes = (subscription.mealPreferences || []).map((p) => p.mealType);
+      console.log(`[SubscriptionService] Subscription ${subscription.id} activated (unpaid). Generating initial orders for ${targetDate}...`);
+      await orderService.generateOrdersForSubscription(subscription, targetDate, mealTypes);
     } catch (err) {
-      console.error(
-        `[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`,
-        err,
-      );
+      console.error(`[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`, err);
     }
 
     try {
-      const { notifySubscriptionApproved } =
-        await import("../firestore/notificationService");
-      const { auditRepository } = await import("../firestore/auditRepository");
-      const { auth } = await import("@/shared/lib/firebase");
+      const { notifySubscriptionApproved } = await import("../firestore/notificationService");
       await notifySubscriptionApproved(
         subscription.customerId,
         subscription.id,
         subscription.planTier,
         subscription.startDate,
       );
-      await auditRepository.logAction(
-        "subscription_approved",
-        auth.currentUser?.uid || "system",
-        "admin",
-        "Admin",
-        subscription.id,
-        "subscription",
-      );
     } catch (err) {
-      console.warn(
-        "[SubscriptionService] Failed to send notification or audit:",
-        err,
+      console.warn("[SubscriptionService] Failed to send approval notification:", err);
+    }
+  }
+
+  /**
+   * Activates a subscription with verified payment (Option A).
+   * Verifies the specific payment document matches customer & subscription, and verifies it atomically.
+   */
+  async activateSubscriptionPaid(
+    adminActor: AdminActor,
+    subscription: Subscription,
+    paymentId: string,
+    notes?: string,
+  ): Promise<void> {
+    if (!adminActor || adminActor.role !== "admin") {
+      throw new Error("Unauthorized: Only Admin can approve subscription payment.");
+    }
+    if (!paymentId) {
+      throw new Error("Payment ID is required for paid subscription activation.");
+    }
+    if (subscription.status === "active") {
+      return; // Idempotency
+    }
+    if (subscription.status !== "draft" && subscription.status !== "pending_payment") {
+      throw new Error(`Cannot activate subscription with status '${subscription.status}'. Only draft or pending_payment subscriptions can be activated.`);
+    }
+
+    const { doc, getDoc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+    const { db } = await import("@/shared/lib/firebase");
+    const pSnap = await getDoc(doc(db, "payments", paymentId));
+    if (!pSnap || typeof pSnap.exists !== "function" || !pSnap.exists()) {
+      throw new Error(`Payment ${paymentId} not found.`);
+    }
+
+    const payment = pSnap.data();
+    if (
+      !payment.customerId ||
+      payment.customerId !== subscription.customerId ||
+      !payment.subscriptionId ||
+      payment.subscriptionId !== subscription.id
+    ) {
+      throw new Error("Payment does not match subscription or customer.");
+    }
+
+    if (payment.status === "verified") {
+      if (payment.purpose !== "security_deposit") {
+        throw new Error(
+          `Cannot activate subscription with payment purpose '${payment.purpose}'. Purpose must be 'security_deposit'.`,
+        );
+      }
+      if (payment.amount !== subscription.depositAmount) {
+        throw new Error(
+          `Payment amount (₹${payment.amount}) does not match required subscription deposit (₹${subscription.depositAmount}).`,
+        );
+      }
+
+      await updateDoc(doc(db, "subscriptions", subscription.id), {
+        status: "active",
+        latestPaymentId: paymentId,
+        updatedAt: serverTimestamp(),
+      });
+
+      if (subscription.pauseStartDate || subscription.pauseEndDate) {
+        await subscriptionRepository.update(subscription.id, {
+          pauseStartDate: null,
+          pauseEndDate: null,
+        });
+      }
+
+      const { orderService } = await import("./orderService");
+      const { getTodayInTimezone } = await import("@/shared/lib/date");
+      const today = getTodayInTimezone();
+      const targetDate = subscription.startDate <= today ? today : subscription.startDate;
+      const mealTypes = (subscription.mealPreferences || []).map((p) => p.mealType);
+      try {
+        await orderService.generateOrdersForSubscription(subscription, targetDate, mealTypes);
+      } catch (err) {
+        console.error(`[SubscriptionService] Failed to generate initial orders for subscription ${subscription.id}:`, err);
+      }
+
+      try {
+        const { notifySubscriptionApproved } = await import("../firestore/notificationService");
+        await notifySubscriptionApproved(
+          subscription.customerId,
+          subscription.id,
+          subscription.planTier,
+          subscription.startDate,
+        );
+      } catch (err) {
+        console.warn("[SubscriptionService] Failed to send approval notification:", err);
+      }
+      return;
+    } else if (payment.status === "pending") {
+      if (subscription.status !== "pending_payment") {
+        throw new Error(
+          `Cannot approve pending payment for subscription with status '${subscription.status}'. Subscription must be pending_payment.`,
+        );
+      }
+      if (payment.purpose !== "security_deposit") {
+        throw new Error(
+          `Cannot activate subscription with payment purpose '${payment.purpose}'. Purpose must be 'security_deposit'.`,
+        );
+      }
+
+      const { paymentService } = await import("./paymentService");
+      await paymentService.approvePayment(paymentId, adminActor.uid, notes);
+
+      const updatedSubSnap = await getDoc(doc(db, "subscriptions", subscription.id));
+      const updatedSub = updatedSubSnap.data();
+      if (!updatedSub || updatedSub.status !== "active") {
+        throw new Error(
+          `Subscription ${subscription.id} failed to transition to active after payment approval.`,
+        );
+      }
+    } else {
+      throw new Error(
+        `Cannot activate subscription with payment status '${payment.status}'. Payment must be verified or pending.`,
       );
     }
+  }
+
+  async approveSubscription(
+    subscription: Subscription,
+    options?: {
+      adminActor?: AdminActor;
+      paymentId?: string;
+      confirmation?: { confirmedUnpaid: boolean };
+      reason?: string;
+    },
+  ): Promise<void> {
+    if (!subscription || !subscription.id) {
+      throw new Error("Valid subscription object is required.");
+    }
+    if (subscription.status === "active") {
+      return; // Idempotency: Already active
+    }
+    if (subscription.status === "cancelled" || subscription.status === "expired") {
+      throw new Error(`Cannot approve a ${subscription.status} subscription — use renew instead.`);
+    }
+
+    const { getAuth } = await import("firebase/auth");
+    const currentAuth = getAuth().currentUser;
+    const adminActor: AdminActor = options?.adminActor || {
+      uid: currentAuth?.uid || "admin",
+      role: "admin",
+      fullName: currentAuth?.displayName || "Admin",
+      name: currentAuth?.displayName || "Admin",
+    };
+
+    if (options?.paymentId) {
+      await this.activateSubscriptionPaid(adminActor, subscription, options.paymentId, options?.reason);
+      return;
+    }
+
+    if (options?.confirmation?.confirmedUnpaid) {
+      await this.activateSubscriptionUnpaid(adminActor, subscription, options.confirmation, options?.reason);
+      return;
+    }
+
+    // Check if there is a matching pending payment for this subscription & customer
+    const { paymentRepository } = await import("../firestore/paymentRepository");
+    const { payments } = await paymentRepository.getPaymentsPaginated({ status: "pending" }, 100);
+    const matchingPayment = payments.find(
+      (p) => p.subscriptionId === subscription.id && p.customerId === subscription.customerId,
+    );
+
+    if (matchingPayment) {
+      await this.activateSubscriptionPaid(adminActor, subscription, matchingPayment.id, options?.reason);
+      return;
+    }
+
+    // Fail closed: neither valid payment nor unpaid confirmation provided
+    throw new Error("Subscription activation requires payment verification or explicit unpaid activation confirmation.");
   }
 
   /** Cancels a subscription and rejects any pending payments. */

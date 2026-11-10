@@ -10,6 +10,7 @@ import { db } from "@/shared/lib/firebase";
 import type {
   MealPlan,
   MealType,
+  MealSlotConfig,
   CreateMealPlanInput,
   UpdateMealPlanInput,
   CreateMealOptionInput,
@@ -17,6 +18,27 @@ import type {
 } from "@/shared/types/mealPlan.types";
 import { BaseRepository, createConverter } from "./BaseRepository";
 import { auditRepository } from "./auditRepository";
+
+export function deriveMealPlanOptionIds(mealSlots: MealSlotConfig[] = []): {
+  optionIds: string[];
+  lunchOptionIds: string[];
+  dinnerOptionIds: string[];
+} {
+  const optionIds: string[] = [];
+  const lunchOptionIds: string[] = [];
+  const dinnerOptionIds: string[] = [];
+  for (const slot of mealSlots) {
+    if (slot.isCustomerSelectable === false) continue;
+    for (const opt of slot.options || []) {
+      if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
+        optionIds.push(opt.id);
+        if (slot.mealType === "lunch") lunchOptionIds.push(opt.id);
+        if (slot.mealType === "dinner") dinnerOptionIds.push(opt.id);
+      }
+    }
+  }
+  return { optionIds, lunchOptionIds, dinnerOptionIds };
+}
 
 export const INITIAL_MEAL_PLANS: MealPlan[] = [
   {
@@ -248,8 +270,10 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
         const docRef = doc(this.collectionRef, plan.id);
         const snap = await getDoc(docRef);
         if (!snap.exists()) {
+          const derived = deriveMealPlanOptionIds(plan.mealSlots);
           await setDoc(docRef, {
             ...plan,
+            ...derived,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
@@ -361,19 +385,8 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       return slot;
     });
 
-    const optionIds: string[] = [];
-    const lunchOptionIds: string[] = [];
-    const dinnerOptionIds: string[] = [];
-    for (const slot of sanitizedSlots) {
-      if (slot.isCustomerSelectable === false) continue;
-      for (const opt of slot.options || []) {
-        if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
-          optionIds.push(opt.id);
-          if (slot.mealType === 'lunch') lunchOptionIds.push(opt.id);
-          if (slot.mealType === 'dinner') dinnerOptionIds.push(opt.id);
-        }
-      }
-    }
+    const { optionIds, lunchOptionIds, dinnerOptionIds } =
+      deriveMealPlanOptionIds(sanitizedSlots);
 
     const newPlan: MealPlan = {
       id: planId,
@@ -482,22 +495,10 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
         }
         return slot;
       });
-      const optionIds: string[] = [];
-      const lunchOptionIds: string[] = [];
-      const dinnerOptionIds: string[] = [];
-      for (const slot of payload.mealSlots) {
-        if (slot.isCustomerSelectable === false) continue;
-        for (const opt of slot.options || []) {
-          if (opt.id && opt.isActive !== false && opt.isCustomerSelectable !== false) {
-            optionIds.push(opt.id);
-            if (slot.mealType === 'lunch') lunchOptionIds.push(opt.id);
-            if (slot.mealType === 'dinner') dinnerOptionIds.push(opt.id);
-          }
-        }
-      }
-      payload.optionIds = optionIds;
-      payload.lunchOptionIds = lunchOptionIds;
-      payload.dinnerOptionIds = dinnerOptionIds;
+      const derived = deriveMealPlanOptionIds(payload.mealSlots);
+      payload.optionIds = derived.optionIds;
+      payload.lunchOptionIds = derived.lunchOptionIds;
+      payload.dinnerOptionIds = derived.dinnerOptionIds;
     }
 
     const docRef = doc(this.collectionRef, id);
@@ -657,15 +658,19 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       });
     }
 
+    const derived = deriveMealPlanOptionIds(updatedSlots);
+
     const docRef = doc(this.collectionRef, planId);
     await updateDoc(docRef, {
       mealSlots: updatedSlots,
+      ...derived,
       updatedAt: serverTimestamp(),
     });
 
     const updatedPlan: MealPlan = {
       ...plan,
       mealSlots: updatedSlots,
+      ...derived,
     };
 
     const cacheIndex = MealPlanRepository.cachedPlans.findIndex((p) => p.id === planId);
@@ -758,15 +763,19 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       return s;
     });
 
+    const derived = deriveMealPlanOptionIds(updatedSlots);
+
     const docRef = doc(this.collectionRef, planId);
     await updateDoc(docRef, {
       mealSlots: updatedSlots,
+      ...derived,
       updatedAt: serverTimestamp(),
     });
 
     const updatedPlan: MealPlan = {
       ...plan,
       mealSlots: updatedSlots,
+      ...derived,
     };
 
     const cacheIndex = MealPlanRepository.cachedPlans.findIndex((p) => p.id === planId);
@@ -842,15 +851,19 @@ export class MealPlanRepository extends BaseRepository<MealPlan> {
       return s;
     });
 
+    const derived = deriveMealPlanOptionIds(updatedSlots);
+
     const docRef = doc(this.collectionRef, planId);
     await updateDoc(docRef, {
       mealSlots: updatedSlots,
+      ...derived,
       updatedAt: serverTimestamp(),
     });
 
     const updatedPlan: MealPlan = {
       ...plan,
       mealSlots: updatedSlots,
+      ...derived,
     };
 
     const cacheIndex = MealPlanRepository.cachedPlans.findIndex((p) => p.id === planId);

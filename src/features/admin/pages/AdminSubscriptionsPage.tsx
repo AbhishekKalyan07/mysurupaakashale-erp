@@ -85,6 +85,9 @@ function SubscriptionDetailDialog({
   const [confirmAction, setConfirmAction] = useState<
     "approve" | "reject" | "pause" | "resume" | null
   >(null);
+  const [activationChoice, setActivationChoice] = useState<"paid" | "unpaid" | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>("");
+  const [confirmedUnpaid, setConfirmedUnpaid] = useState<boolean>(false);
 
   const [isEditingDates, setIsEditingDates] = useState(false);
   const [editStartDate, setEditStartDate] = useState(subscription.startDate || "");
@@ -182,6 +185,23 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
     staleTime: 5 * 60_000,
   });
 
+  const { data: pendingPayments = [] } = useQuery({
+    queryKey: ["payments", "selectable", subscription.id, subscription.customerId],
+    queryFn: async () => {
+      const { paymentRepository } = await import(
+        "@/shared/services/firestore/paymentRepository"
+      );
+      const payments = await paymentRepository.getByCustomerAndSubscription(
+        subscription.customerId,
+        subscription.id,
+      );
+      return payments.filter(
+        (p) => p.status === "pending" || p.status === "verified",
+      );
+    },
+    enabled: confirmAction === "approve",
+  });
+
   const isLoading =
     approve.isPending ||
     reject.isPending ||
@@ -195,8 +215,32 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
   const canResume = subscription.status === "paused";
 
   const handleConfirm = async () => {
-    if (confirmAction === "approve") await approve.mutateAsync(subscription);
-    else if (confirmAction === "reject")
+    if (confirmAction === "approve") {
+      if (activationChoice === "paid") {
+        if (!selectedPaymentId) {
+          toast.error("Please select a pending payment to verify.");
+          return;
+        }
+        await approve.mutateAsync({
+          subscription,
+          paymentId: selectedPaymentId,
+          reason,
+        });
+      } else if (activationChoice === "unpaid") {
+        if (!confirmedUnpaid) {
+          toast.error("Please confirm activating this subscription without payment.");
+          return;
+        }
+        await approve.mutateAsync({
+          subscription,
+          confirmation: { confirmedUnpaid: true },
+          reason,
+        });
+      } else {
+        toast.error("Please specify whether the customer has paid.");
+        return;
+      }
+    } else if (confirmAction === "reject")
       await reject.mutateAsync({ subscription, reason: reason || undefined });
     else if (confirmAction === "pause") {
       const today = getTodayInTimezone();
@@ -615,21 +659,107 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
                   >
                     <AlertTriangle size={20} />
                     <span className="font-display font-bold text-base capitalize">
-                      Confirm {confirmAction}
+                      {confirmAction === "approve" ? "Activate Subscription" : `Confirm ${confirmAction}`}
                     </span>
                   </div>
-                  <p
-                    className={`text-sm font-sans mb-5 font-medium ${confirmAction === "approve" || confirmAction === "resume" ? "text-emerald-800" : confirmAction === "reject" ? "text-red-800" : "text-amber-800"}`}
-                  >
-                    {confirmAction === "approve" &&
-                      "This activates the subscription immediately without a linked payment record. Use this for confirmed off-platform payments — otherwise verify their payment from the Payments page instead."}
-                    {confirmAction === "reject" &&
-                      "This cancels the subscription request and notifies the customer."}
-                    {confirmAction === "pause" &&
-                      "Deliveries will stop during the selected period."}
-                    {confirmAction === "resume" &&
-                      "Deliveries will continue as scheduled and any scheduled pauses will be cancelled."}
-                  </p>
+
+                  {confirmAction === "approve" ? (
+                    <div className="space-y-4 mb-5">
+                      <p className="text-sm font-semibold text-text">
+                        Has the customer paid?
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActivationChoice("paid");
+                            if (pendingPayments.length > 0 && !selectedPaymentId) {
+                              const matched = pendingPayments.find((p) => p.subscriptionId === subscription.id) || pendingPayments[0];
+                              setSelectedPaymentId(matched.id);
+                            }
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            activationChoice === "paid"
+                              ? "border-emerald-600 bg-emerald-100/60 text-emerald-950 ring-2 ring-emerald-500 font-medium"
+                              : "border-border hover:border-emerald-300 bg-surface-1 text-text"
+                          }`}
+                        >
+                          <div className="font-bold text-sm">Yes, customer has paid</div>
+                          <div className="text-xs text-text-muted mt-1">Verify matching pending payment</div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setActivationChoice("unpaid")}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            activationChoice === "unpaid"
+                              ? "border-amber-600 bg-amber-100/60 text-amber-950 ring-2 ring-amber-500 font-medium"
+                              : "border-border hover:border-amber-300 bg-surface-1 text-text"
+                          }`}
+                        >
+                          <div className="font-bold text-sm">No, customer has not paid</div>
+                          <div className="text-xs text-text-muted mt-1">Unpaid activation with audit log</div>
+                        </button>
+                      </div>
+
+                      {activationChoice === "paid" && (
+                        <div className="p-3 bg-white/80 rounded-xl border border-emerald-200 space-y-2">
+                          <label className="block text-xs font-bold text-emerald-900">
+                            Select Payment to Verify / Link (Pending or Verified):
+                          </label>
+                          {pendingPayments.length === 0 ? (
+                            <p className="text-xs text-red-600 font-medium">
+                              No pending payments found for this customer/subscription. Please record payment first or select "No, customer has not paid".
+                            </p>
+                          ) : (
+                            <select
+                              value={selectedPaymentId}
+                              onChange={(e) => setSelectedPaymentId(e.target.value)}
+                              className="w-full border border-emerald-300 rounded-lg p-2 text-sm bg-white text-emerald-950 font-medium focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="">-- Choose payment --</option>
+                              {pendingPayments.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  ₹{p.amount} ({p.paymentMethod || "manual"}) - {p.purpose || "deposit"} - Ref: {p.referenceNumber || p.id.slice(0, 8)}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
+
+                      {activationChoice === "unpaid" && (
+                        <div className="p-3 bg-white/80 rounded-xl border border-amber-200 space-y-2">
+                          <label className="flex items-start gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={confirmedUnpaid}
+                              onChange={(e) => setConfirmedUnpaid(e.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                            />
+                            <span className="text-xs font-bold text-amber-950 leading-snug">
+                              I confirm that I am activating this subscription without receiving payment.
+                            </span>
+                          </label>
+                          <p className="text-[11px] text-amber-800">
+                            An immutable audit event (admin_subscription_unpaid_activation) will be atomically recorded in Firestore.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-sm font-sans mb-5 font-medium ${confirmAction === "resume" ? "text-emerald-800" : confirmAction === "reject" ? "text-red-800" : "text-amber-800"}`}
+                    >
+                      {confirmAction === "reject" &&
+                        "This cancels the subscription request and notifies the customer."}
+                      {confirmAction === "pause" &&
+                        "Deliveries will stop during the selected period."}
+                      {confirmAction === "resume" &&
+                        "Deliveries will continue as scheduled and any scheduled pauses will be cancelled."}
+                    </p>
+                  )}
 
                   {confirmAction === "pause" && (
                     <div className="flex gap-4 mb-5 text-left bg-white/50 p-4 rounded-lg border border-amber-200/50">
@@ -664,7 +794,12 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
                     <Button
                       variant="secondary"
                       className="flex-1 font-sans font-bold bg-white/50"
-                      onClick={() => setConfirmAction(null)}
+                      onClick={() => {
+                        setConfirmAction(null);
+                        setActivationChoice(null);
+                        setSelectedPaymentId("");
+                        setConfirmedUnpaid(false);
+                      }}
                     >
                       Back
                     </Button>
@@ -672,9 +807,16 @@ const [showNegotiatedEditor, setShowNegotiatedEditor] = useState(false);
                       variant="primary"
                       className={`flex-1 font-sans font-bold capitalize ${confirmAction === "reject" ? "!bg-red-600 hover:!bg-red-700" : ""}`}
                       onClick={handleConfirm}
+                      disabled={
+                        isLoading ||
+                        (confirmAction === "approve" &&
+                          (activationChoice === null ||
+                            (activationChoice === "paid" && (!selectedPaymentId || pendingPayments.length === 0)) ||
+                            (activationChoice === "unpaid" && !confirmedUnpaid)))
+                      }
                       isLoading={isLoading}
                     >
-                      Confirm {confirmAction}
+                      {confirmAction === "approve" ? "Confirm Activation" : `Confirm ${confirmAction}`}
                     </Button>
                   </div>
                 </div>

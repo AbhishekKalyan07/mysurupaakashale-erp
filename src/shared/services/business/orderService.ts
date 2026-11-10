@@ -45,6 +45,11 @@ import { formatAllottedId, isFormattedDisplayId } from "@/shared/utils/displayId
 import { resolveOperationalZoneAndKitchen } from "./operationalRouter";
 import { pricingService } from "./pricingService";
 import { operationalSettingsService } from "./operationalSettingsService";
+import {
+  OrderDataIntegrityError,
+  isOrderDataIntegrityError,
+  type SubscriptionIntegrityIssue,
+} from "./orderErrors";
 
 export interface RemoveTodayMealResult {
   success: boolean;
@@ -449,6 +454,40 @@ class OrderService {
 
       const ordersToCreate: Partial<Order>[] = [];
 
+      // Preflight validation to detect data-integrity issues early without mutating DB
+      const preflightIssues: SubscriptionIntegrityIssue[] = [];
+      for (const sub of allSubscriptions) {
+        try {
+          const issue = this.validateSubscriptionPreflight(
+            sub,
+            customerMap,
+            allZones,
+          );
+          if (issue) {
+            preflightIssues.push(issue);
+          }
+        } catch (err) {
+          console.error(
+            `[orderService] Unexpected error during preflight validation for subscription ${sub?.id}:`,
+            err,
+          );
+          preflightIssues.push({
+            subscriptionId: sub?.id || "unknown",
+            issueCode: "PREFLIGHT_VALIDATION_EXCEPTION" as any,
+            details: `Preflight validation threw an unexpected exception: ${err instanceof Error ? err.message : String(err)}`,
+            isFatal: false,
+          });
+        }
+      }
+      if (preflightIssues.length > 0) {
+        console.warn(
+          `[orderService] Preflight detected ${preflightIssues.length} subscription integrity issue(s) before generating ${mealType} orders:`,
+          preflightIssues
+            .map((i) => `Sub ${i.subscriptionId}: ${i.details}`)
+            .join("; "),
+        );
+      }
+
       for (const sub of allSubscriptions) {
         if (sub.endDate && sub.endDate < today) {
           ordersSkipped++;
@@ -647,9 +686,13 @@ class OrderService {
             }
           } catch (err) {
             attempts++;
-            if (attempts >= 3) {
+            const isPermanent = isOrderDataIntegrityError(err);
+            if (isPermanent || attempts >= 3) {
+              const attemptSuffix = isPermanent
+                ? " (permanent data integrity failure — skipping redundant retries)"
+                : ` after ${attempts} attempts`;
               console.error(
-                `[orderService] Failed generating ${mealType} for customer ${sub.customerId} after 3 attempts:`,
+                `[orderService] Failed generating ${mealType} for customer ${sub.customerId}${attemptSuffix}:`,
                 err,
               );
               ordersFailed++;
@@ -672,7 +715,7 @@ class OrderService {
                   ),
               );
 
-              // Admin Alert
+              // Admin Alert (Sanitized: does not expose customer personal data)
               backgroundTasks.push(
                 userRepository
                   .list(where("role", "==", "admin"))
@@ -680,15 +723,17 @@ class OrderService {
                     notifyAdminAlert(
                       admins.map((a) => a.id),
                       "Order Generation Failed",
-                      `Failed to generate ${mealType} order for customer ${sub.customerId} after 3 attempts.`,
+                      `Failed to generate ${mealType} order for subscription ${sub.id}: ${err instanceof Error ? err.message : String(err)}`,
                     ),
                   )
                   .catch((nErr) =>
                     console.error("[orderService] Admin alert failed:", nErr),
                   ),
               );
+
+              break; // Deterministic data-integrity failures are not needlessly retried
             } else {
-              // Wait a bit before retrying
+              // Wait a bit before retrying transient failures
               await new Promise((resolve) => setTimeout(resolve, 500));
             }
           }
@@ -2897,6 +2942,98 @@ class OrderService {
     }
   }
 
+  /**
+   * Preflight integrity check for a subscription without generating an order or mutating data.
+   * Reports missing customer profiles, missing addresses, or delivery zone routing problems.
+   */
+  validateSubscriptionPreflight(
+    sub: Subscription,
+    customerMap: Map<string, CustomerProfile>,
+    allZones: any[],
+  ): SubscriptionIntegrityIssue | null {
+    const customer = customerMap.get(sub.customerId);
+    if (!customer) {
+      return {
+        subscriptionId: sub.id,
+        issueCode: "CUSTOMER_PROFILE_NOT_FOUND",
+        details: "Referenced customer profile not found in database.",
+        isFatal: true,
+      };
+    }
+
+    const addr =
+      customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
+      customer?.addresses?.find((a: any) => a.isDefault) ||
+      customer?.addresses?.[0];
+
+    const manualZoneId = sub.zoneId || customer?.zoneId;
+    if (manualZoneId) {
+      const manualZone = allZones.find(
+        (z) => z.id === manualZoneId && z.isActive !== false,
+      );
+      if (manualZone) {
+        if (!manualZone.kitchenId) {
+          return {
+            subscriptionId: sub.id,
+            issueCode: "ZONE_KITCHEN_NOT_CONFIGURED",
+            details: `Assigned delivery zone (${manualZone.name || manualZone.id}) has no assigned kitchen configuration.`,
+            isFatal: true,
+          };
+        }
+        return null;
+      }
+    }
+
+    if (!addr) {
+      return {
+        subscriptionId: sub.id,
+        issueCode: "DELIVERY_ADDRESS_NOT_FOUND",
+        details: "Customer delivery address not found.",
+        isFatal: true,
+      };
+    }
+
+    if (!addr.pincode || !addr.pincode.trim()) {
+      return {
+        subscriptionId: sub.id,
+        issueCode: "INVALID_PINCODE",
+        details: "Customer delivery address lacks a valid pincode.",
+        isFatal: true,
+      };
+    }
+
+    if (!allZones || allZones.length === 0) {
+      return {
+        subscriptionId: sub.id,
+        issueCode: "NO_ACTIVE_ZONES",
+        details: "No active delivery zones configured in the system.",
+        isFatal: true,
+      };
+    }
+
+    try {
+      resolveOperationalZoneAndKitchen(addr, allZones);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes("has no assigned kitchen")) {
+        return {
+          subscriptionId: sub.id,
+          issueCode: "ZONE_KITCHEN_NOT_CONFIGURED",
+          details: msg,
+          isFatal: true,
+        };
+      }
+      return {
+        subscriptionId: sub.id,
+        issueCode: "ZONE_ROUTING_FAILED",
+        details: msg,
+        isFatal: true,
+      };
+    }
+
+    return null;
+  }
+
   private buildOrderSnapshot(
     sub: Subscription,
     pref: any,
@@ -2912,6 +3049,17 @@ class OrderService {
     publishedMenu?: DailyMenu | null,
   ): Partial<Order> {
     const customer = customerMap.get(sub.customerId);
+    if (!customer) {
+      throw new OrderDataIntegrityError(
+        `Subscription ${sub.id} (${mealType.toUpperCase()}): Referenced customer profile not found in database.`,
+        {
+          code: "CUSTOMER_PROFILE_NOT_FOUND",
+          subscriptionId: sub.id,
+          mealType,
+          customerId: sub.customerId,
+        },
+      );
+    }
 
     const addr =
       customer?.addresses?.find((a: any) => a.id === sub.deliveryAddressId) ||
@@ -2926,25 +3074,59 @@ class OrderService {
       const manualZone = allZones.find(
         (z) => z.id === manualZoneId && z.isActive !== false,
       );
-      if (manualZone?.kitchenId) {
+      if (manualZone) {
+        if (!manualZone.kitchenId) {
+          throw new OrderDataIntegrityError(
+            `Subscription ${sub.id} (${mealType.toUpperCase()}): Assigned delivery zone (${manualZone.name || manualZone.id}) has no assigned kitchen configuration.`,
+            {
+              code: "ZONE_KITCHEN_NOT_CONFIGURED",
+              subscriptionId: sub.id,
+              mealType,
+            },
+          );
+        }
         zoneId = manualZone.id;
         kitchenId = manualZone.kitchenId;
       }
     }
 
     if (!zoneId || !kitchenId) {
+      if (!addr) {
+        throw new OrderDataIntegrityError(
+          `Subscription ${sub.id} (${mealType.toUpperCase()}): Customer delivery address not found.`,
+          {
+            code: "DELIVERY_ADDRESS_NOT_FOUND",
+            subscriptionId: sub.id,
+            mealType,
+          },
+        );
+      }
+
       try {
         const resolved = resolveOperationalZoneAndKitchen(addr, allZones);
         zoneId = resolved.zoneId;
         kitchenId = resolved.kitchenId;
-      } catch {
-        // Missing kitchen/zone will be caught by the check below
+      } catch (routingErr: any) {
+        throw new OrderDataIntegrityError(
+          `Subscription ${sub.id} (${mealType.toUpperCase()}): ${routingErr?.message || String(routingErr)}`,
+          {
+            code: "ZONE_ROUTING_FAILED",
+            subscriptionId: sub.id,
+            mealType,
+            cause: routingErr,
+          },
+        );
       }
     }
 
     if (!kitchenId || !zoneId) {
-      throw new Error(
-        `Subscription ${sub.id}\nMeal: ${mealType.toUpperCase()}\nMissing kitchen configuration`,
+      throw new OrderDataIntegrityError(
+        `Subscription ${sub.id} (${mealType.toUpperCase()}): Missing kitchen configuration for resolved zone.`,
+        {
+          code: "MISSING_KITCHEN_CONFIG",
+          subscriptionId: sub.id,
+          mealType,
+        },
       );
     }
 
