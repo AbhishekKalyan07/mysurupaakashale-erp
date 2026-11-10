@@ -395,7 +395,7 @@ service cloud.firestore {
         return snapshot is map &&
                exists(planPath) &&
                get(planPath).data.get('pricingMatrix', null) != null &&
-               (snapshot == get(planPath).data.pricingMatrix || snapshot.get(comboKey, -1) == pricePerDaySnapshot) &&
+               snapshot == get(planPath).data.pricingMatrix &&
                pricePerDaySnapshot == snapshot.get(comboKey, -1);
       }
 
