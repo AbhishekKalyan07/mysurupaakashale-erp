@@ -188,22 +188,51 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined
-          // @sentry must be checked BEFORE react — @sentry/react contains
-          // 'react' in its path and would otherwise match the vendor-react rule.
-          if (id.includes('@sentry')) return 'vendor-sentry'
-          if (/[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return 'vendor-react'
-          if (/[\\/](recharts|@reduxjs[\\/]toolkit)[\\/]/.test(id)) return 'vendor-charts'
-          if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps'
-          if (/[\\/](exceljs|jspdf|jspdf-autotable)[\\/]/.test(id)) return 'vendor-reports'
+          // Keep Vite and CommonJS runtime helpers in the main vendor-react chunk
+          if (
+            id.includes('vite/preload-helper') ||
+            id.includes('commonjsHelpers')
+          ) {
+            return 'vendor-react';
+          }
+
+          // @sentry must be checked BEFORE react
+          if (id.includes('@sentry')) return 'vendor-sentry';
+
+          // React, ReactDOM, Scheduler, React Router, and React runtime shims
+          if (
+            id === 'react' ||
+            id === 'react-dom' ||
+            id === 'react-is' ||
+            id === 'react/jsx-runtime' ||
+            id === 'react/jsx-dev-runtime' ||
+            id === 'scheduler' ||
+            id === 'use-sync-external-store' ||
+            id === 'react-router' ||
+            id === 'react-router-dom' ||
+            /[\\/](react|react-dom|react-is|react-router|react-router-dom|scheduler|use-sync-external-store)[\\/]/.test(id)
+          ) {
+            return 'vendor-react';
+          }
+
+          if (!id.includes('node_modules')) return undefined;
           
-          // Surgical chunks to shrink index.esm
-          if (/[\\/](firebase|@firebase)[\\/]/.test(id)) return 'vendor-firebase'
-          if (/[\\/]lucide-react[\\/]/.test(id)) return 'vendor-icons'
-          if (/[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) return 'vendor-query'
-          if (/[\\/](react-hook-form|@hookform[\\/]resolvers)[\\/]/.test(id)) return 'vendor-forms'
+          // Core UI styling utilities used application-wide
+          if (/[\\/](clsx|tailwind-merge|class-variance-authority)[\\/]/.test(id)) {
+            return 'vendor-ui';
+          }
           
-          return undefined
+          if (/[\\/](leaflet|react-leaflet)[\\/]/.test(id)) return 'vendor-maps';
+          if (/[\\/](exceljs|jspdf|jspdf-autotable|fast-png|pako|fflate|iobuffer)[\\/]/.test(id)) return 'vendor-reports';
+          
+          // Surgical vendor chunks
+          if (/[\\/](firebase|@firebase)[\\/]/.test(id)) return 'vendor-firebase';
+          if (/[\\/]lucide-react[\\/]/.test(id)) return 'vendor-icons';
+          if (/[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) return 'vendor-query';
+          if (/[\\/](react-hook-form|@hookform[\\/]resolvers)[\\/]/.test(id)) return 'vendor-forms';
+          if (/[\\/]@babel[\\/]runtime[\\/]/.test(id)) return 'vendor-helpers';
+          
+          return undefined;
         },
       },
     },
