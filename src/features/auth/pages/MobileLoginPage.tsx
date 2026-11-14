@@ -163,10 +163,10 @@ export function MobileLoginPage() {
 
             <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-[#6e584f] space-y-1 mt-1 text-left">
               <p className="font-semibold text-[#4a2618]">
-                Staff &amp; Delivery Partners Notice:
+                Delivery Partners Notice:
               </p>
               <p>
-                Email reset links only reach accessible email inboxes. If your staff login email does not have an external inbox, contact your administrator for assisted password recovery.
+                Email reset links only reach accessible email inboxes. If your delivery partner login email does not have an external inbox, contact your administrator for assisted password recovery.
               </p>
             </div>
 

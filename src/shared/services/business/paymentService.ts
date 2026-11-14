@@ -17,7 +17,7 @@ import {
   notifyInvoiceGenerated,
 } from "../firestore/notificationService";
 import { auditRepository } from "../firestore/auditRepository";
-import { type InvoiceData } from "@/shared/utils/generateInvoicePdf";
+import type { InvoiceData } from "@/shared/utils/generateInvoicePdf";
 import { formatAllottedId } from "@/shared/utils/displayId";
 import { sendInvoiceEmail } from "@/shared/services/email/sendInvoiceEmail";
 
