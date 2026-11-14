@@ -17,11 +17,7 @@ import {
   notifyInvoiceGenerated,
 } from "../firestore/notificationService";
 import { auditRepository } from "../firestore/auditRepository";
-import {
-  generateInvoicePdf,
-  formatInvoicePdfFilename,
-  type InvoiceData,
-} from "@/shared/utils/generateInvoicePdf";
+import { type InvoiceData } from "@/shared/utils/generateInvoicePdf";
 import { formatAllottedId } from "@/shared/utils/displayId";
 import { sendInvoiceEmail } from "@/shared/services/email/sendInvoiceEmail";
 
@@ -478,9 +474,13 @@ class PaymentService {
           approvedDate: today,
         };
 
-        const { settingsRepository } = await import(
-          "../firestore/settingsRepository"
-        );
+        const [
+          { settingsRepository },
+          { generateInvoicePdf, formatInvoicePdfFilename },
+        ] = await Promise.all([
+          import("../firestore/settingsRepository"),
+          import("@/shared/utils/generateInvoicePdf"),
+        ]);
         const businessSettings = await settingsRepository
           .getBusinessSettings()
           .catch(() => null);

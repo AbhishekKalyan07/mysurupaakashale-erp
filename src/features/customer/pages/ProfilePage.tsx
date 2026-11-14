@@ -224,20 +224,14 @@ export function ProfilePage() {
             )}
           </div>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-ink-700 mb-1">
-                Email
-              </label>
-              <input
-                type="text"
-                value={profile?.email || ""}
-                disabled
-                className="w-full rounded-md border border-rice-300 bg-rice-50 px-3 py-2 text-sm text-ink-500 cursor-not-allowed"
-              />
-              <p className="text-xs text-ink-500 mt-1">
-                Email cannot be changed.
-              </p>
-            </div>
+            <Input
+              id="profile-email"
+              label="Email"
+              type="email"
+              value={profile?.email || ""}
+              disabled
+              helperText="Email cannot be changed."
+            />
 
             <Input
               label="Full Name"

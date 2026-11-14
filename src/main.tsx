@@ -69,6 +69,7 @@ function renderApplication() {
 }
 
 async function initSentryLazy() {
+  if (!import.meta.env.VITE_SENTRY_DSN) return;
   try {
     const Sentry = await import("@sentry/react");
     const { useEffect } = await import("react");
