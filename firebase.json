@@ -9,7 +9,9 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "**/*.map"
+      "**/*.map",
+      "**/bug_report/**",
+      "**/favicon-preview.html"
     ],
     "headers": [
       {
