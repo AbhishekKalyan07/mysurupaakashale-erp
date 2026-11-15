@@ -25,6 +25,18 @@ import {
   QueryConstraint,
 } from "firebase/firestore";
 /**
+ * Persistence schema for documents stored under `orders/{orderId}/workflowHistory`.
+ * In Firestore persistence, status transition fields are stored as `fromStatus` and `toStatus`.
+ */
+interface PersistedWorkflowHistoryDoc {
+  fromStatus: OrderStatus;
+  toStatus: OrderStatus;
+  changedBy: string;
+  changedAt: Timestamp;
+  notes?: string | null;
+}
+
+/**
  * Client-side repository for the `orders` collection.
  *
  * Kitchen operations read ONLY from this repository — never from `subscriptions`.
@@ -281,10 +293,20 @@ class OrderRepository extends BaseRepository<Order> {
     const historyRef = collection(db, "orders", orderId, "workflowHistory");
     const q = query(historyRef, orderBy("changedAt", "desc"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    })) as OrderWorkflowHistory[];
+    return snapshot.docs.map((docSnap): OrderWorkflowHistory => {
+      const data = docSnap.data() as PersistedWorkflowHistoryDoc;
+      const historyEntry: OrderWorkflowHistory = {
+        id: docSnap.id,
+        previousStatus: data.fromStatus,
+        newStatus: data.toStatus,
+        changedBy: data.changedBy,
+        changedAt: data.changedAt,
+      };
+      if (data.notes) {
+        historyEntry.notes = data.notes;
+      }
+      return historyEntry;
+    });
   }
 
   /**
