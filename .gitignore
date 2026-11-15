@@ -36,6 +36,7 @@ bundle-stats.html
 desktop.json
 mobile.json
 npm-audit-report.json
+.lighthouseci/
 
 # Scratch Files
 fix_ts*.cjs
