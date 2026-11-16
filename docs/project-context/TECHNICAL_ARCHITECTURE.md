@@ -226,8 +226,7 @@ A critical design pattern enforced in the repository layer (as refined in PR #16
     notes?: string; // Optional string, never null
   }
   ```
-- **Mapper Guarantee in `orderRepository.getWorkflowHistory()`:** Canonicalizes `fromStatus` → `previousStatus` and `toStatus` → `newStatus`. It normalizes stored `notes: null` to `undefined`, preventing internal database property names from leaking into domain interfaces.
-- **Known Asymmetry in `subscribeWorkflowHistory()`:** Real-time snapshot listener `orderRepository.subscribeWorkflowHistory()` currently passes raw document snapshots without the mapper. Aligning the subscription mapper is an active backlog refactoring item.
+- **Mapper Guarantee in `orderRepository.getWorkflowHistory()` and `orderRepository.subscribeWorkflowHistory()`:** Shared mapper `mapWorkflowHistoryDoc` canonicalizes `fromStatus` → `previousStatus` and `toStatus` → `newStatus`. It normalizes stored `notes: null` to `undefined`, preventing internal database property names from leaking into domain interfaces for both one-time fetches and real-time snapshot subscriptions.
 
 ---
 

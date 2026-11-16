@@ -89,7 +89,7 @@ This document records the foundational architectural, technical, and business de
   - Clean TypeScript domain contracts for UI consumers.
   - Full backward compatibility with existing stored Firestore documents.
   - Independent unit and integration assertions for both public and persistence schemas.
-  - *Open Backlog Item:* `subscribeWorkflowHistory()` real-time listener will be aligned to use the same mapping logic.
+  - *Resolved Item:* `subscribeWorkflowHistory()` real-time listener was harmonized via `mapWorkflowHistoryDoc` to ensure consistent mapping and null-to-undefined notes normalization.
 
 ---
 
