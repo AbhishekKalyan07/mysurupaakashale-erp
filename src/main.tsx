@@ -92,7 +92,31 @@ async function initSentryLazy() {
         /IndexedDbTransactionError/i,
         /Cannot read properties of undefined \(reading 'startTime'\)/i,
         /Cannot read properties of undefined \(reading 'install'\)/i,
+        // Firestore internal watch-stream fallback noise (benign SDK behavior)
+        /BloomFilter/i,
+        /BloomFilterError/i,
       ],
+      beforeBreadcrumb(breadcrumb) {
+        if (
+          breadcrumb.category === "console" &&
+          typeof breadcrumb.message === "string" &&
+          /BloomFilter/i.test(breadcrumb.message)
+        ) {
+          return null;
+        }
+        return breadcrumb;
+      },
+      beforeSend(event, hint) {
+        const error = hint?.originalException;
+        const msg =
+          typeof error === "string"
+            ? error
+            : (error as any)?.message || event.message || "";
+        if (/BloomFilter/i.test(msg)) {
+          return null;
+        }
+        return event;
+      },
       integrations: [
         Sentry.reactRouterV6BrowserTracingIntegration({
           useEffect,
