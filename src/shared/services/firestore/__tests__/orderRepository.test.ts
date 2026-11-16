@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { orderRepository } from "../orderRepository";
+import { orderRepository, mapWorkflowHistoryDoc } from "../orderRepository";
 import {
   getDocs,
   onSnapshot,
@@ -163,32 +163,186 @@ describe("orderRepository", () => {
   });
 
   describe("Workflow History", () => {
-    it("getWorkflowHistory", async () => {
+    const mockTimestamp = { seconds: 1722510000, nanoseconds: 0 } as any;
+
+    it("mapWorkflowHistoryDoc maps Firestore document fields to OrderWorkflowHistory", () => {
+      const mockDoc = {
+        id: "wf-doc-1",
+        data: () => ({
+          fromStatus: "scheduled",
+          toStatus: "preparing",
+          changedBy: "user-kitchen-1",
+          changedAt: mockTimestamp,
+          notes: "Kitchen started preparation",
+        }),
+      } as any;
+
+      const result = mapWorkflowHistoryDoc(mockDoc);
+      expect(result).toEqual({
+        id: "wf-doc-1",
+        previousStatus: "scheduled",
+        newStatus: "preparing",
+        changedBy: "user-kitchen-1",
+        changedAt: mockTimestamp,
+        notes: "Kitchen started preparation",
+      });
+    });
+
+    it("mapWorkflowHistoryDoc normalizes null and omitted notes to undefined", () => {
+      const mockDocNullNotes = {
+        id: "wf-doc-2",
+        data: () => ({
+          fromStatus: "preparing",
+          toStatus: "packing",
+          changedBy: "user-kitchen-2",
+          changedAt: mockTimestamp,
+          notes: null,
+        }),
+      } as any;
+
+      const resultNull = mapWorkflowHistoryDoc(mockDocNullNotes);
+      expect(resultNull.notes).toBeUndefined();
+      expect(resultNull).toEqual({
+        id: "wf-doc-2",
+        previousStatus: "preparing",
+        newStatus: "packing",
+        changedBy: "user-kitchen-2",
+        changedAt: mockTimestamp,
+      });
+
+      const mockDocOmittedNotes = {
+        id: "wf-doc-3",
+        data: () => ({
+          fromStatus: "packing",
+          toStatus: "ready_for_pickup",
+          changedBy: "user-kitchen-3",
+          changedAt: mockTimestamp,
+        }),
+      } as any;
+
+      const resultOmitted = mapWorkflowHistoryDoc(mockDocOmittedNotes);
+      expect(resultOmitted.notes).toBeUndefined();
+    });
+
+    it("getWorkflowHistory returns mapped workflow history items", async () => {
       vi.mocked(getDocs).mockResolvedValueOnce({
         docs: [
-          { id: "w1", data: () => ({ notes: "test1" }) },
-          { id: "w2", data: () => ({ notes: "test2" }) },
+          {
+            id: "wf-1",
+            data: () => ({
+              fromStatus: "scheduled",
+              toStatus: "preparing",
+              changedBy: "user-1",
+              changedAt: mockTimestamp,
+              notes: "First note",
+            }),
+          },
+          {
+            id: "wf-2",
+            data: () => ({
+              fromStatus: "preparing",
+              toStatus: "packing",
+              changedBy: "user-2",
+              changedAt: mockTimestamp,
+              notes: null,
+            }),
+          },
         ],
       } as any);
 
       const res = await orderRepository.getWorkflowHistory("ord-1");
       expect(getDocs).toHaveBeenCalled();
       expect(res).toHaveLength(2);
-      expect(res[0].id).toBe("w1");
+      expect(res[0]).toEqual({
+        id: "wf-1",
+        previousStatus: "scheduled",
+        newStatus: "preparing",
+        changedBy: "user-1",
+        changedAt: mockTimestamp,
+        notes: "First note",
+      });
+      expect(res[1]).toEqual({
+        id: "wf-2",
+        previousStatus: "preparing",
+        newStatus: "packing",
+        changedBy: "user-2",
+        changedAt: mockTimestamp,
+      });
+      expect(res[1].notes).toBeUndefined();
     });
 
-    it("subscribeWorkflowHistory", () => {
+    it("subscribeWorkflowHistory streams mapped OrderWorkflowHistory entries with normalized notes", () => {
       vi.mocked(onSnapshot).mockImplementationOnce((_query, onNext: any) => {
         onNext({
-          docs: [{ id: "w1", data: () => ({ notes: "test1" }) }],
+          docs: [
+            {
+              id: "wf-sub-1",
+              data: () => ({
+                fromStatus: "out_for_delivery",
+                toStatus: "delivered",
+                changedBy: "driver-1",
+                changedAt: mockTimestamp,
+                notes: "Delivered to reception",
+              }),
+            },
+            {
+              id: "wf-sub-2",
+              data: () => ({
+                fromStatus: "ready_for_pickup",
+                toStatus: "out_for_delivery",
+                changedBy: "driver-1",
+                changedAt: mockTimestamp,
+                notes: null,
+              }),
+            },
+          ],
         });
         return vi.fn();
       });
 
       const onNext = vi.fn();
-      orderRepository.subscribeWorkflowHistory("ord-1", onNext);
+      const onError = vi.fn();
+      const unsubscribe = orderRepository.subscribeWorkflowHistory(
+        "ord-1",
+        onNext,
+        onError,
+      );
+
       expect(onSnapshot).toHaveBeenCalled();
-      expect(onNext).toHaveBeenCalledWith([{ id: "w1", notes: "test1" }]);
+      expect(typeof unsubscribe).toBe("function");
+      expect(onNext).toHaveBeenCalledWith([
+        {
+          id: "wf-sub-1",
+          previousStatus: "out_for_delivery",
+          newStatus: "delivered",
+          changedBy: "driver-1",
+          changedAt: mockTimestamp,
+          notes: "Delivered to reception",
+        },
+        {
+          id: "wf-sub-2",
+          previousStatus: "ready_for_pickup",
+          newStatus: "out_for_delivery",
+          changedBy: "driver-1",
+          changedAt: mockTimestamp,
+        },
+      ]);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it("subscribeWorkflowHistory propagates errors to onError callback", () => {
+      const mockError = new Error("Firestore permission denied");
+      vi.mocked(onSnapshot).mockImplementationOnce((_query, _onNext: any, onError: any) => {
+        onError(mockError);
+        return vi.fn();
+      });
+
+      const onNext = vi.fn();
+      const onError = vi.fn();
+      orderRepository.subscribeWorkflowHistory("ord-1", onNext, onError);
+
+      expect(onError).toHaveBeenCalledWith(mockError);
+      expect(onNext).not.toHaveBeenCalled();
     });
   });
 

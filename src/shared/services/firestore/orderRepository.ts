@@ -37,6 +37,27 @@ interface PersistedWorkflowHistoryDoc {
 }
 
 /**
+ * Maps a Firestore document snapshot from `orders/{orderId}/workflowHistory`
+ * to an `OrderWorkflowHistory` domain object.
+ */
+export function mapWorkflowHistoryDoc(
+  docSnap: QueryDocumentSnapshot,
+): OrderWorkflowHistory {
+  const data = docSnap.data() as PersistedWorkflowHistoryDoc;
+  const historyEntry: OrderWorkflowHistory = {
+    id: docSnap.id,
+    previousStatus: data.fromStatus,
+    newStatus: data.toStatus,
+    changedBy: data.changedBy,
+    changedAt: data.changedAt,
+  };
+  if (data.notes) {
+    historyEntry.notes = data.notes;
+  }
+  return historyEntry;
+}
+
+/**
  * Client-side repository for the `orders` collection.
  *
  * Kitchen operations read ONLY from this repository — never from `subscriptions`.
@@ -293,20 +314,7 @@ class OrderRepository extends BaseRepository<Order> {
     const historyRef = collection(db, "orders", orderId, "workflowHistory");
     const q = query(historyRef, orderBy("changedAt", "desc"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap): OrderWorkflowHistory => {
-      const data = docSnap.data() as PersistedWorkflowHistoryDoc;
-      const historyEntry: OrderWorkflowHistory = {
-        id: docSnap.id,
-        previousStatus: data.fromStatus,
-        newStatus: data.toStatus,
-        changedBy: data.changedBy,
-        changedAt: data.changedAt,
-      };
-      if (data.notes) {
-        historyEntry.notes = data.notes;
-      }
-      return historyEntry;
-    });
+    return snapshot.docs.map(mapWorkflowHistoryDoc);
   }
 
   /**
@@ -322,11 +330,7 @@ class OrderRepository extends BaseRepository<Order> {
     return onSnapshot(
       q,
       (snapshot) => {
-        const history = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        })) as OrderWorkflowHistory[];
-        onNext(history);
+        onNext(snapshot.docs.map(mapWorkflowHistoryDoc));
       },
       onError,
     );

@@ -69,9 +69,9 @@ Pull Request **#165** was verified and merged into `main` on 2026-11-15:
 
 ## 4. Open, Ongoing & Explicitly Documented Items
 
-1. **`subscribeWorkflowHistory()` Real-Time Mapping Debt:**
-   - *Status:* While `getWorkflowHistory()` strictly maps `PersistedWorkflowHistoryDoc` to `OrderWorkflowHistory`, the real-time snapshot listener `orderRepository.subscribeWorkflowHistory()` currently passes raw document data. Harmonizing this subscription mapper is an active backlog refactoring item.
+1. **`subscribeWorkflowHistory()` Real-Time Mapping:**
+   - *Status:* Resolved. Harmonized `orderRepository.subscribeWorkflowHistory()` with `mapWorkflowHistoryDoc` shared mapper, aligning real-time snapshot emissions with `getWorkflowHistory()` public contracts and normalizing `notes?: string`.
 2. **Dashboard CSP / PWA / BloomFilter Workstream:**
-   - *Status:* A separate branch/workstream is addressing Content Security Policy (CSP) headers, Progressive Web App (PWA) offline service workers, and client-side BloomFilter optimizations (probabilistic membership checks for offline sync and deduping order queries).
+   - *Status:* Content Security Policy (CSP) inline script hash and Firestore BloomFilter noise filter merged into `main` in PR #167.
 3. **Live Driver GPS Tracking:**
    - *Status:* The schema includes `currentLocation: { lat, lng, updatedAt }` for delivery partners, but continuous high-frequency GPS streaming is deferred to prevent exceeding Firebase Spark Plan write quotas ([TECHNICAL_ARCHITECTURE.md#12-infrastructure-economics--quota-modeling](TECHNICAL_ARCHITECTURE.md#12-infrastructure-economics--quota-modeling)).
