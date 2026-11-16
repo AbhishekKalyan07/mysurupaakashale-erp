@@ -85,6 +85,12 @@ export const logger = {
   error: (error: Error | string, context?: LogContext) => {
     const sanitized = sanitizeContext(context);
     const message = typeof error === "string" ? error : error.message;
+
+    // Suppress benign Firestore internal watch-stream fallback noise
+    if (typeof message === "string" && /BloomFilter/i.test(message)) {
+      return;
+    }
+
     console.error(formatLogMessage("error", message, sanitized), error);
 
     if (!isDev) {

@@ -291,6 +291,28 @@ if (useEmulators) {
   setLogLevel("debug");
 }
 
+// Demote benign Firestore internal watch-stream BloomFilter retry logs to debug
+// so they do not pollute browser developer consoles with spurious red errors
+if (typeof globalThis.window !== "undefined") {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const firstArg = args[0];
+    if (
+      typeof firstArg === "string" &&
+      firstArg.includes("@firebase/firestore") &&
+      args.some(
+        (arg) =>
+          (typeof arg === "string" && arg.includes("BloomFilter")) ||
+          arg?.name === "BloomFilterError",
+      )
+    ) {
+      console.debug("[firestore-internal-fallback]", ...args);
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+}
+
 // On the Firebase Spark plan, Firebase Cloud Storage is disabled.
 // Null stub exported to prevent runtime initialization crashes while preserving type contracts.
 export const storage: FirebaseStorage = null as unknown as FirebaseStorage;
