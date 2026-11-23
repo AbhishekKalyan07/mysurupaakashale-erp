@@ -2,8 +2,20 @@ import { test, expect } from './shared/fixtures';
 import { execSync } from 'child_process';
 import path from 'path';
 
+function getFutureWorkingDate(daysAhead = 3): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  if (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1); // skip Sunday
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 test.describe('PHASE E1 — Owner Daily Menu -> Order Integration Flow', () => {
-  const FUTURE_DATE = '2026-11-20'; // Distinct future working day
+  const FUTURE_DATE = getFutureWorkingDate(3); // Dynamic future working day relative to current test run
 
   test('admin creates, edits, publishes future menu and connects to frozen order snapshot', async ({ adminPage }) => {
     test.setTimeout(90000);

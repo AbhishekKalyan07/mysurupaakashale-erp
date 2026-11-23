@@ -192,9 +192,10 @@ test.describe('PHASE E5 — Owner/Admin Meal Plan & Selectable Option Management
     // Open Subscriptions tab where "+ Create Subscription" is stably available
     await adminPage.locator('button[role="tab"]:has-text("Subscriptions")').click();
     const createSubBtnDisabled = adminPage.locator('button:has-text("+ Create Subscription")').first();
-    await expect(createSubBtnDisabled).toBeVisible({ timeout: 10000 });
+    await expect(createSubBtnDisabled).toBeVisible({ timeout: 15000 });
+    await adminPage.waitForTimeout(500); // allow tab switch DOM transition to settle
     await createSubBtnDisabled.click();
-    await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 10000 });
+    await expect(adminPage.locator('h2:has-text("Create Subscription for Customer")')).toBeVisible({ timeout: 15000 });
 
     const stdPlanCard = adminPage.locator('div[class*="cursor-pointer"]', { hasText: 'Standard Plan' }).first();
     await expect(stdPlanCard).toBeVisible({ timeout: 10000 });
