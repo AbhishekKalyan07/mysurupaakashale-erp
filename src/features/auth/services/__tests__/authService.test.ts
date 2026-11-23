@@ -27,6 +27,7 @@ const {
 
 const mockSignInWithEmailAndPassword = vi.fn();
 const mockSignInWithPopup = vi.fn();
+const mockSignInWithRedirect = vi.fn();
 const mockSendPasswordResetEmail = vi.fn();
 const mockLinkWithCredential = vi.fn();
 
@@ -37,6 +38,7 @@ vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: (...args: any[]) =>
     mockSignInWithEmailAndPassword(...args),
   signInWithPopup: (...args: any[]) => mockSignInWithPopup(...args),
+  signInWithRedirect: (...args: any[]) => mockSignInWithRedirect(...args),
   GoogleAuthProvider: vi.fn(function (this: any) {
     this.setCustomParameters = vi.fn();
   }),
@@ -339,5 +341,64 @@ describe("authService - additional helper functions", () => {
     });
     await signInWithGoogle();
     expect(mockSignInWithPopup).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle falls back to signInWithRedirect when popup is blocked", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/popup-blocked",
+      message: "Popup blocked by browser",
+    });
+    mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+
+    await signInWithGoogle();
+    expect(mockSignInWithPopup).toHaveBeenCalled();
+    expect(mockSignInWithRedirect).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle falls back to signInWithRedirect when popup is not supported in environment", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/operation-not-supported-in-this-environment",
+      message: "Operation not supported",
+    });
+    mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+
+    await signInWithGoogle();
+    expect(mockSignInWithPopup).toHaveBeenCalled();
+    expect(mockSignInWithRedirect).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle calls signInWithRedirect directly in standalone PWA mode", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(display-mode: standalone)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+      await signInWithGoogle();
+      expect(mockSignInWithPopup).not.toHaveBeenCalled();
+      expect(mockSignInWithRedirect).toHaveBeenCalled();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("signInWithGoogle re-throws unexpected popup errors", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/network-request-failed",
+      message: "Network error",
+    });
+
+    await expect(signInWithGoogle()).rejects.toEqual(
+      expect.objectContaining({ code: "auth/network-request-failed" }),
+    );
+    expect(mockSignInWithRedirect).not.toHaveBeenCalled();
   });
 });

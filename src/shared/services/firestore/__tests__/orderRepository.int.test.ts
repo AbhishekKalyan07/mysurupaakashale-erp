@@ -169,7 +169,7 @@ describe("orderRepository (Integration)", () => {
     expect(fetched?.id).toBe(orderId);
   });
 
-  it("supports queries with filtering and sorting", async () => {
+  it("supports queries with filtering and in-memory route sequencing", async () => {
     await orderRepository.batchCreate([
       createMockOrder({ date: testDate, mealType: "lunch", routeSequence: 2 }),
       createMockOrder({ date: testDate, mealType: "lunch", routeSequence: 1 }),
@@ -181,9 +181,21 @@ describe("orderRepository (Integration)", () => {
       "lunch",
     );
     expect(lunchOrders.length).toBeGreaterThanOrEqual(2);
-    // Sequence sorting verification
-    const seq1 = lunchOrders.findIndex((o) => o.routeSequence === 1);
-    const seq2 = lunchOrders.findIndex((o) => o.routeSequence === 2);
+    // Verify date and mealType filtering (dinner orders excluded)
+    expect(
+      lunchOrders.every((o) => o.date === testDate && o.mealType === "lunch"),
+    ).toBe(true);
+
+    // Per orderRepository.ts and commit ff0d032, getByDateAndMealType intentionally
+    // omits Firestore-level orderBy("routeSequence") because routeSequence is optional
+    // and would exclude orders without sequences. Sorting is performed in-memory by dashboards.
+    const sortedLunchOrders = [...lunchOrders].sort(
+      (a, b) => (a.routeSequence ?? 0) - (b.routeSequence ?? 0),
+    );
+    const seq1 = sortedLunchOrders.findIndex((o) => o.routeSequence === 1);
+    const seq2 = sortedLunchOrders.findIndex((o) => o.routeSequence === 2);
+    expect(seq1).toBeGreaterThanOrEqual(0);
+    expect(seq2).toBeGreaterThanOrEqual(0);
     expect(seq1).toBeLessThan(seq2);
   });
 
