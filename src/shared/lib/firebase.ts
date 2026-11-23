@@ -64,6 +64,62 @@ const isTestOrEmulator =
     (process.env.NODE_ENV === "test" ||
       process.env.VITE_USE_FIREBASE_EMULATORS === "true"));
 
+/**
+ * Resolves the appropriate Firebase authDomain.
+ *
+ * Firebase Hosting automatically reverse-proxies /__/auth/* on every domain it serves,
+ * including custom domains (e.g. app.mysurupaakashale.in) and the project's default
+ * Firebase Hosting domains (<projectId>.web.app and <projectId>.firebaseapp.com).
+ * When authDomain equals window.location.hostname, all auth cookie writes are first-party,
+ * which eliminates third-party cookie blocking (ITP/CHIPS/DIPS) for signInWithRedirect.
+ * getRedirectResult() on boot then retrieves the credential successfully.
+ *
+ * Only explicitly provisioned hostnames are allowed to prevent redirect_uri_mismatch
+ * from unregistered or foreign-project domains being selected by a suffix check alone.
+ */
+export function resolveAuthDomain(): string {
+  const configured = getEnv(
+    "VITE_FIREBASE_AUTH_DOMAIN",
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    !isTestOrEmulator,
+  );
+
+  if (isTestOrEmulator) {
+    return configured || "demo-test.firebaseapp.com";
+  }
+
+  if (
+    import.meta.env.PROD &&
+    typeof window !== "undefined" &&
+    window.location.hostname
+  ) {
+    const hostname = window.location.hostname;
+
+    // Derive the project's own .web.app domain from the configured authDomain.
+    // e.g. configured = "my-project.firebaseapp.com" → webAppDomain = "my-project.web.app"
+    // Both are auto-registered OAuth callback origins for the same Firebase project.
+    let projectWebAppDomain: string | null = null;
+    if (configured && configured.endsWith(".firebaseapp.com")) {
+      const projectId = configured.slice(0, -".firebaseapp.com".length);
+      projectWebAppDomain = `${projectId}.web.app`;
+    }
+
+    // Allow only explicitly provisioned hostnames whose OAuth redirect URIs
+    // are registered in the Firebase / Google Cloud console for this project.
+    const isRegisteredProductionHost =
+      hostname === "app.mysurupaakashale.in" ||
+      hostname === "mysurupaakashale.in" ||
+      (configured && hostname === configured) ||
+      (projectWebAppDomain !== null && hostname === projectWebAppDomain);
+
+    if (isRegisteredProductionHost) {
+      return hostname;
+    }
+  }
+
+  return configured || "demo-test.firebaseapp.com";
+}
+
 const firebaseConfig = {
   apiKey:
     getEnv(
@@ -71,12 +127,7 @@ const firebaseConfig = {
       import.meta.env.VITE_FIREBASE_API_KEY,
       !isTestOrEmulator,
     ) || "fake-api-key",
-  authDomain:
-    getEnv(
-      "VITE_FIREBASE_AUTH_DOMAIN",
-      import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      !isTestOrEmulator,
-    ) || "demo-test.firebaseapp.com",
+  authDomain: resolveAuthDomain(),
   projectId:
     getEnv(
       "VITE_FIREBASE_PROJECT_ID",

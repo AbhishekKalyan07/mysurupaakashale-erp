@@ -27,6 +27,8 @@ const {
 
 const mockSignInWithEmailAndPassword = vi.fn();
 const mockSignInWithPopup = vi.fn();
+const mockSignInWithRedirect = vi.fn();
+const mockGetRedirectResult = vi.fn();
 const mockSendPasswordResetEmail = vi.fn();
 const mockLinkWithCredential = vi.fn();
 
@@ -37,6 +39,8 @@ vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: (...args: any[]) =>
     mockSignInWithEmailAndPassword(...args),
   signInWithPopup: (...args: any[]) => mockSignInWithPopup(...args),
+  signInWithRedirect: (...args: any[]) => mockSignInWithRedirect(...args),
+  getRedirectResult: (...args: any[]) => mockGetRedirectResult(...args),
   GoogleAuthProvider: vi.fn(function (this: any) {
     this.setCustomParameters = vi.fn();
   }),
@@ -88,6 +92,7 @@ import {
   authenticateWithGoogleForSignup,
   signUpWithGoogle,
   cancelGoogleSignup,
+  handleGoogleRedirectResult,
 } from "../authService";
 
 describe("authService - signUpCustomer Failure Injections", () => {
@@ -339,5 +344,112 @@ describe("authService - additional helper functions", () => {
     });
     await signInWithGoogle();
     expect(mockSignInWithPopup).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle falls back to signInWithRedirect when popup is blocked", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/popup-blocked",
+      message: "Popup blocked by browser",
+    });
+    mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+
+    await signInWithGoogle();
+    expect(mockSignInWithPopup).toHaveBeenCalled();
+    expect(mockSignInWithRedirect).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle falls back to signInWithRedirect when popup is not supported in environment", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/operation-not-supported-in-this-environment",
+      message: "Operation not supported",
+    });
+    mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+
+    await signInWithGoogle();
+    expect(mockSignInWithPopup).toHaveBeenCalled();
+    expect(mockSignInWithRedirect).toHaveBeenCalled();
+  });
+
+  it("signInWithGoogle calls signInWithRedirect directly in standalone PWA mode", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(display-mode: standalone)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      mockSignInWithRedirect.mockResolvedValueOnce(undefined);
+      await signInWithGoogle();
+      expect(mockSignInWithPopup).not.toHaveBeenCalled();
+      expect(mockSignInWithRedirect).toHaveBeenCalled();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("signInWithGoogle re-throws unexpected popup errors", async () => {
+    mockSignInWithPopup.mockRejectedValueOnce({
+      code: "auth/network-request-failed",
+      message: "Network error",
+    });
+
+    await expect(signInWithGoogle()).rejects.toEqual(
+      expect.objectContaining({ code: "auth/network-request-failed" }),
+    );
+    expect(mockSignInWithRedirect).not.toHaveBeenCalled();
+  });
+
+  it("handleGoogleRedirectResult returns null when getRedirectResult returns null (no redirect occurred)", async () => {
+    mockGetRedirectResult.mockResolvedValueOnce(null);
+    const result = await handleGoogleRedirectResult();
+    expect(result).toBeNull();
+    expect(mockGetRedirectResult).toHaveBeenCalled();
+  });
+
+  it("handleGoogleRedirectResult returns credential and completes finishGoogleLogin when redirect succeeds", async () => {
+    const mockUser = {
+      uid: "redir-123",
+      email: "redir@test.com",
+      displayName: "Redirect User",
+    };
+    const mockCred = { user: mockUser };
+    mockGetRedirectResult.mockResolvedValueOnce(mockCred);
+    vi.mocked(userRepository.getById).mockResolvedValueOnce(null);
+    vi.mocked(userRepository.generateNextDisplayId).mockResolvedValueOnce("MP-099");
+    vi.mocked(userRepository.create).mockResolvedValueOnce(undefined as any);
+
+    const result = await handleGoogleRedirectResult();
+    expect(result).toEqual(mockCred);
+    expect(userRepository.getById).toHaveBeenCalledWith("redir-123");
+    expect(userRepository.create).toHaveBeenCalled();
+  });
+
+  it("handleGoogleRedirectResult updates profile if existing and returns credential", async () => {
+    const mockUser = {
+      uid: "redir-existing",
+      email: "redir@test.com",
+      displayName: "Existing User",
+    };
+    const mockCred = { user: mockUser };
+    mockGetRedirectResult.mockResolvedValueOnce(mockCred);
+    vi.mocked(userRepository.getById).mockResolvedValueOnce({
+      id: "redir-existing",
+      displayId: "MP-010",
+      role: "customer",
+      googleConnected: false,
+    } as any);
+    vi.mocked(userRepository.update).mockResolvedValueOnce(undefined as any);
+
+    const result = await handleGoogleRedirectResult();
+    expect(result).toEqual(mockCred);
+    expect(userRepository.update).toHaveBeenCalledWith("redir-existing", expect.objectContaining({
+      googleConnected: true,
+    }));
   });
 });

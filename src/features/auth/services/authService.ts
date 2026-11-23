@@ -74,20 +74,40 @@ export async function signInWithGoogle(): Promise<UserCredential | void> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters?.({ prompt: "select_account" });
 
-  // If running as an installed PWA or on mobile, signInWithPopup often fails
-  // or hangs. We use signInWithRedirect instead.
-  const isPWA = window.matchMedia("(display-mode: standalone)").matches;
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // Standalone installed PWAs on iOS can drop popup references, so redirect is safer there.
+  // On regular mobile and desktop browsers, signInWithPopup avoids the third-party cookie
+  // and storage partitioning restrictions that cause signInWithRedirect to drop credentials
+  // when using a custom hosting domain (e.g. app.mysurupaakashale.in).
+  const isPWA =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(display-mode: standalone)").matches;
 
-  if (isPWA || isMobile) {
+  if (isPWA) {
     await signInWithRedirect(auth, provider);
-    // The page will navigate away, so this promise never really resolves here.
     return;
   }
 
-  const credential = await signInWithPopup(auth, provider);
-  await finishGoogleLogin(credential.user);
-  return credential;
+  try {
+    const credential = await signInWithPopup(auth, provider);
+    await finishGoogleLogin(credential.user);
+    return credential;
+  } catch (error: any) {
+    // If popup was blocked by browser policy or unsupported in the current context,
+    // gracefully fall back to redirect.
+    if (
+      error?.code === "auth/popup-blocked" ||
+      error?.code === "auth/operation-not-supported-in-this-environment"
+    ) {
+      console.warn(
+        "[auth] signInWithPopup blocked or unsupported, falling back to redirect:",
+        error,
+      );
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+    throw error;
+  }
 }
 
 /** Processes a completed Google Sign In (from either popup or redirect). */
@@ -140,13 +160,16 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
 
 /**
  * Call this exactly once on app boot to handle the case where a user
- * was redirected back to the app from Google Sign-In.
+ * was redirected back to the app from Google Sign-In (e.g. standalone PWA or
+ * popup-blocked redirect fallback).
+ * Returns the resolved UserCredential if a redirect was completed, or null otherwise.
  */
-export async function handleGoogleRedirectResult(): Promise<void> {
+export async function handleGoogleRedirectResult(): Promise<UserCredential | null> {
   const credential = await getRedirectResult(auth);
   if (credential?.user) {
     await finishGoogleLogin(credential.user);
   }
+  return credential;
 }
 
 /**
