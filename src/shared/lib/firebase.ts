@@ -66,10 +66,16 @@ const isTestOrEmulator =
 
 /**
  * Resolves the appropriate Firebase authDomain.
- * When deployed on a custom domain (e.g. app.mysurupaakashale.in) via Firebase Hosting,
- * Firebase Hosting automatically reverse-proxies /__/auth/* endpoints on the custom domain.
- * Setting authDomain to window.location.hostname in production creates a first-party context,
- * eliminating third-party cookie blocking and storage partitioning (ITP/CHIPS) during signInWithRedirect.
+ *
+ * Firebase Hosting automatically reverse-proxies /__/auth/* on every domain it serves,
+ * including custom domains (e.g. app.mysurupaakashale.in) and the project's default
+ * Firebase Hosting domains (<projectId>.web.app and <projectId>.firebaseapp.com).
+ * When authDomain equals window.location.hostname, all auth cookie writes are first-party,
+ * which eliminates third-party cookie blocking (ITP/CHIPS/DIPS) for signInWithRedirect.
+ * getRedirectResult() on boot then retrieves the credential successfully.
+ *
+ * Only explicitly provisioned hostnames are allowed to prevent redirect_uri_mismatch
+ * from unregistered or foreign-project domains being selected by a suffix check alone.
  */
 export function resolveAuthDomain(): string {
   const configured = getEnv(
@@ -85,13 +91,30 @@ export function resolveAuthDomain(): string {
   if (
     import.meta.env.PROD &&
     typeof window !== "undefined" &&
-    window.location.hostname &&
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1" &&
-    !window.location.hostname.endsWith(".firebaseapp.com") &&
-    !window.location.hostname.endsWith(".web.app")
+    window.location.hostname
   ) {
-    return window.location.hostname;
+    const hostname = window.location.hostname;
+
+    // Derive the project's own .web.app domain from the configured authDomain.
+    // e.g. configured = "my-project.firebaseapp.com" → webAppDomain = "my-project.web.app"
+    // Both are auto-registered OAuth callback origins for the same Firebase project.
+    let projectWebAppDomain: string | null = null;
+    if (configured && configured.endsWith(".firebaseapp.com")) {
+      const projectId = configured.slice(0, -".firebaseapp.com".length);
+      projectWebAppDomain = `${projectId}.web.app`;
+    }
+
+    // Allow only explicitly provisioned hostnames whose OAuth redirect URIs
+    // are registered in the Firebase / Google Cloud console for this project.
+    const isRegisteredProductionHost =
+      hostname === "app.mysurupaakashale.in" ||
+      hostname === "mysurupaakashale.in" ||
+      (configured && hostname === configured) ||
+      (projectWebAppDomain !== null && hostname === projectWebAppDomain);
+
+    if (isRegisteredProductionHost) {
+      return hostname;
+    }
   }
 
   return configured || "demo-test.firebaseapp.com";

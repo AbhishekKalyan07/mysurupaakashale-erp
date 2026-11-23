@@ -5,8 +5,11 @@ import path from 'path';
 function getFutureWorkingDate(daysAhead = 3): string {
   const d = new Date();
   d.setDate(d.getDate() + daysAhead);
-  if (d.getDay() === 0) {
-    d.setDate(d.getDate() + 1); // skip Sunday
+  // Avoid weekend dates (Sunday is holiday; Saturday pushed to Monday to ensure active weekday ordering)
+  if (d.getDay() === 6) {
+    d.setDate(d.getDate() + 2); // Saturday -> Monday
+  } else if (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1); // Sunday -> Monday
   }
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
