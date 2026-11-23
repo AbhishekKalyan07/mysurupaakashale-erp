@@ -64,6 +64,39 @@ const isTestOrEmulator =
     (process.env.NODE_ENV === "test" ||
       process.env.VITE_USE_FIREBASE_EMULATORS === "true"));
 
+/**
+ * Resolves the appropriate Firebase authDomain.
+ * When deployed on a custom domain (e.g. app.mysurupaakashale.in) via Firebase Hosting,
+ * Firebase Hosting automatically reverse-proxies /__/auth/* endpoints on the custom domain.
+ * Setting authDomain to window.location.hostname in production creates a first-party context,
+ * eliminating third-party cookie blocking and storage partitioning (ITP/CHIPS) during signInWithRedirect.
+ */
+export function resolveAuthDomain(): string {
+  const configured = getEnv(
+    "VITE_FIREBASE_AUTH_DOMAIN",
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    !isTestOrEmulator,
+  );
+
+  if (isTestOrEmulator) {
+    return configured || "demo-test.firebaseapp.com";
+  }
+
+  if (
+    import.meta.env.PROD &&
+    typeof window !== "undefined" &&
+    window.location.hostname &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1" &&
+    !window.location.hostname.endsWith(".firebaseapp.com") &&
+    !window.location.hostname.endsWith(".web.app")
+  ) {
+    return window.location.hostname;
+  }
+
+  return configured || "demo-test.firebaseapp.com";
+}
+
 const firebaseConfig = {
   apiKey:
     getEnv(
@@ -71,12 +104,7 @@ const firebaseConfig = {
       import.meta.env.VITE_FIREBASE_API_KEY,
       !isTestOrEmulator,
     ) || "fake-api-key",
-  authDomain:
-    getEnv(
-      "VITE_FIREBASE_AUTH_DOMAIN",
-      import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      !isTestOrEmulator,
-    ) || "demo-test.firebaseapp.com",
+  authDomain: resolveAuthDomain(),
   projectId:
     getEnv(
       "VITE_FIREBASE_PROJECT_ID",

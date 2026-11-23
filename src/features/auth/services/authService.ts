@@ -160,13 +160,16 @@ async function finishGoogleLogin(user: import("firebase/auth").User) {
 
 /**
  * Call this exactly once on app boot to handle the case where a user
- * was redirected back to the app from Google Sign-In.
+ * was redirected back to the app from Google Sign-In (e.g. standalone PWA or
+ * popup-blocked redirect fallback).
+ * Returns the resolved UserCredential if a redirect was completed, or null otherwise.
  */
-export async function handleGoogleRedirectResult(): Promise<void> {
+export async function handleGoogleRedirectResult(): Promise<UserCredential | null> {
   const credential = await getRedirectResult(auth);
   if (credential?.user) {
     await finishGoogleLogin(credential.user);
   }
+  return credential;
 }
 
 /**
