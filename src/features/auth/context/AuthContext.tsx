@@ -189,7 +189,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Automatic backfill: if the user document lacks a displayId, generate and persist it
           if (
             !data.displayId &&
-            data.role &&
+            data.role === "customer" &&
             typeof userRepository.generateNextDisplayId === "function" &&
             typeof userRepository.update === "function" &&
             !backfillingDisplayIdRef.current.has(uid)

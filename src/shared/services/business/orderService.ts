@@ -1513,7 +1513,7 @@ class OrderService {
       } else {
         const invPayload = {
           id: targetInvoiceId!,
-          invoiceNumber: `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+          invoiceNumber: `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`,
           customerId: subscription.customerId,
           subscriptionId: subscription.id,
           lineItems: [newLineItem],
@@ -2323,7 +2323,9 @@ class OrderService {
       "out_for_delivery",
     ];
     const ordersToSync = activeOrders.filter(
-      (o) => !TERMINAL_AND_LOCKED_STATUSES.includes(o.status) && (!targetMealType || targetMealType === "all" || o.mealType === targetMealType),
+      (o) =>
+        !TERMINAL_AND_LOCKED_STATUSES.includes(o.status) &&
+        (!targetMealType || targetMealType === "all" || o.mealType === targetMealType),
     );
 
     if (ordersToSync.length === 0) return;

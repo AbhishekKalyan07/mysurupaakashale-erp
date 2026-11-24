@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/firebase";
 import { orderRepository } from "../firestore/orderRepository";
 import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { holidayRepository } from "../firestore/holidayRepository";
+import { dailyMenuRepository } from "../firestore/dailyMenuRepository";
 import {
   getTodayInTimezone,
   getDayOfWeekInTimezone,
@@ -128,6 +129,9 @@ export class OrderVerificationService {
       mealType: MealType;
     }
     const expectedTargets: ExpectedMealTarget[] = [];
+    const publishedDailyMenu = await dailyMenuRepository
+      .getPublishedByDate(businessDate)
+      .catch(() => null);
 
     if (!isHoliday) {
       for (const sub of eligibleSubs) {
@@ -145,6 +149,14 @@ export class OrderVerificationService {
         for (const pref of sub.mealPreferences || []) {
           if (skippedMeals.includes(pref.mealType)) {
             continue; // Skipped by customer
+          }
+
+          if (
+            publishedDailyMenu &&
+            publishedDailyMenu[pref.mealType] &&
+            publishedDailyMenu[pref.mealType].isAvailable === false
+          ) {
+            continue; // Meal slot marked unavailable in published daily menu
           }
 
           expectedTargets.push({

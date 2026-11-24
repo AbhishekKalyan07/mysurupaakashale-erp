@@ -51,6 +51,7 @@ export async function sendInvoiceEmail(
       total_amount: `₹${payload.totalAmount.toLocaleString("en-IN")}`,
       invoice_number: payload.invoiceNumber,
       payment_method: payload.paymentMethod,
+      pdf_attachment: payload.pdfBase64,
     },
     { publicKey: PUBLIC_KEY },
   );

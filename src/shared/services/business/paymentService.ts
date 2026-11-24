@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/shared/lib/firebase";
 import type { ManualPayment, SubmitPaymentInput } from "@/shared/types";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 import { paymentRepository } from "../firestore/paymentRepository";
 import { getTodayInTimezone } from "@/shared/lib/date";
 import { userRepository } from "../firestore/userRepository";
@@ -346,6 +347,7 @@ class PaymentService {
         });
 
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
+        (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
       } else if (
         matchingInvoiceSnap?.exists() &&
         matchingInvoiceSnap.data().status === "paid"
@@ -372,11 +374,12 @@ class PaymentService {
           updatedAt: serverTimestamp() as unknown as Timestamp,
         });
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
+        (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
       } else if (!matchingInvoiceSnap?.exists()) {
         // Only create receipt invoice if no matching invoice exists and it's not a security deposit
         const invoiceId = crypto.randomUUID();
         const invoiceRef = doc(db, "invoices", invoiceId);
-        const invoiceNumber = `INV-${payment.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const invoiceNumber = `INV-${payment.customerId.substring(0, 4).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
 
         t.set(invoiceRef, {
           id: invoiceId,
@@ -411,6 +414,7 @@ class PaymentService {
           createdAt: serverTimestamp() as unknown as Timestamp,
         });
         (payment as any)._invoiceIdForLogging = invoiceId;
+        (payment as any)._persistedInvoiceNumber = invoiceNumber;
       }
 
       capturedPayment = payment;
@@ -453,7 +457,9 @@ class PaymentService {
     // ── PDF + Email (fire-and-forget, non-blocking) ──────────────────────────
     if (resolvedMeta) {
       try {
-        const invoiceNumber = `INV-${Date.now()}`;
+        const invoiceNumber =
+          (capturedPayment as any)._persistedInvoiceNumber ||
+          `INV-${Date.now()}`;
         const today = getTodayInTimezone();
         const billingMonth = capturedPayment.billingMonth ?? today.slice(0, 7);
 
@@ -638,7 +644,9 @@ class PaymentService {
     const today = new Date();
 
     for (const payment of payments) {
-      const dueDate = new Date(payment.createdAt.toMillis());
+      const parsedDate = parseFirestoreDate(payment.createdAt);
+      if (!parsedDate) continue;
+      const dueDate = new Date(parsedDate);
       dueDate.setDate(dueDate.getDate() + 3); // Grace period
 
       // If overdue or near due

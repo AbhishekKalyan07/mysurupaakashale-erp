@@ -541,7 +541,7 @@ export class AutomationService {
     users.forEach((u: any) =>
       customersSheet.addRow({
         id: u.id,
-        name: sanitizeSpreadsheetValue(`${u.firstName || u.name} ${u.lastName || ""}`.trim()),
+        name: sanitizeSpreadsheetValue(u.fullName || "Customer"),
         email: u.email,
         phone: u.phone,
       }),
@@ -615,7 +615,12 @@ export class AutomationService {
         customerId: p.customerId,
         amount: p.amount,
         status: p.status,
-        date: p.createdAt,
+        date:
+          p.createdAt && typeof (p.createdAt as any).toDate === "function"
+            ? (p.createdAt as any).toDate().toISOString().split("T")[0]
+            : p.createdAt
+              ? String(p.createdAt)
+              : "",
       }),
     );
 

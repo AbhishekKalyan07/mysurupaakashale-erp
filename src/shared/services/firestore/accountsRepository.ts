@@ -16,6 +16,7 @@ import {
   doc,
   setDoc,
   serverTimestamp,
+  runTransaction,
 } from "firebase/firestore";
 
 export class AccountsRepository {
@@ -459,6 +460,52 @@ export class AccountsRepository {
   }
 
   /**
+   * Generates the next sequential invoice number using an atomic transaction on settings/invoiceCounters.
+   * Format: `${prefix}-${year}-${padZero(count, 5)}` (e.g. `INV-2026-00001`).
+   */
+  async generateNextInvoiceNumber(customPrefix = "INV"): Promise<string> {
+    const year = new Date().getFullYear().toString();
+    const counterRef = doc(db, "settings", "invoiceCounters");
+    const maxRetries = 5;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await runTransaction(db, async (transaction) => {
+          const counterDoc = await transaction.get(counterRef);
+          let count = 0;
+          if (counterDoc.exists()) {
+            const data = counterDoc.data();
+            if (
+              typeof data[year] === "number" &&
+              Number.isInteger(data[year]) &&
+              data[year] >= 0
+            ) {
+              count = data[year];
+            }
+          }
+          const newCount = count + 1;
+          transaction.set(counterRef, { [year]: newCount }, { merge: true });
+          const padded = String(newCount).padStart(5, "0");
+          return `${customPrefix}-${year}-${padded}`;
+        });
+      } catch (err) {
+        if (attempt < maxRetries) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, attempt * 60 + Math.random() * 40),
+          );
+          continue;
+        }
+        console.error(
+          "[AccountsRepository] Failed to allocate sequential invoice number, falling back:",
+          err,
+        );
+        return `${customPrefix}-${year}-${Date.now().toString().slice(-6)}`;
+      }
+    }
+    return `${customPrefix}-${year}-${Date.now().toString().slice(-6)}`;
+  }
+
+  /**
    * Generate a manual invoice (e.g. for one-time catering or adjustments).
    */
   async generateInvoice(payload: {
@@ -467,9 +514,10 @@ export class AccountsRepository {
     description: string;
   }): Promise<void> {
     const invoiceId = crypto.randomUUID();
+    const invoiceNumber = await this.generateNextInvoiceNumber("INV");
     await setDoc(doc(db, "invoices", invoiceId), {
       id: invoiceId,
-      invoiceNumber: `INV-${Date.now()}`,
+      invoiceNumber,
       customerId: payload.customerId,
       subscriptionId: null,
       lineItems: [

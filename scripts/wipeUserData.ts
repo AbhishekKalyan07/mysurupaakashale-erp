@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 // 2. Point at local emulators BEFORE the guard check
 process.env.FIRESTORE_EMULATOR_HOST =
-  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8085';
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
   process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
 
