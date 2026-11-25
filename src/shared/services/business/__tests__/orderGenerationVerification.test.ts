@@ -8,6 +8,7 @@ import { userRepository } from "../../firestore/userRepository";
 import { deliveryZoneRepository } from "../../firestore/deliveryZoneRepository";
 import { mealPlanRepository } from "../../firestore/mealPlanRepository";
 import { orderGenerationRunRepository } from "../../firestore/analyticsRepository";
+import { dailyMenuRepository } from "../../firestore/dailyMenuRepository";
 
 vi.mock("@/shared/lib/firebase", () => ({
   db: {},
@@ -619,5 +620,96 @@ describe("Order Generation & Verification Comprehensive Test Suite", () => {
     expect(report).toContain("Generated Total: 24");
     expect(report).toContain("Verification:\nPASS");
     expect(report).toContain("Final Result:\nSUCCESS");
+  });
+
+  it("21. propagates error when published daily menu lookup rejects", async () => {
+    vi.spyOn(subscriptionRepository, "list").mockResolvedValue([
+      {
+        id: "sub_menu_err",
+        customerId: "cust1",
+        planId: "plan1",
+        status: "active",
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+        mealPreferences: [{ mealType: "lunch" }],
+      } as any,
+    ]);
+    vi.spyOn(dailyMenuRepository, "getPublishedByDate").mockRejectedValueOnce(
+      new Error("Firestore menu read failed"),
+    );
+
+    await expect(
+      orderVerificationService.verifyDailyOrders("2026-09-22"),
+    ).rejects.toThrow("Firestore menu read failed");
+  });
+
+  it("22. fails verification when an active order exists for an explicitly unavailable meal slot", async () => {
+    vi.spyOn(subscriptionRepository, "list").mockResolvedValue([
+      {
+        id: "sub_unavail",
+        customerId: "cust1",
+        planId: "plan1",
+        status: "active",
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+        mealPreferences: [{ mealType: "lunch" }, { mealType: "dinner" }],
+      } as any,
+    ]);
+    vi.spyOn(dailyMenuRepository, "getPublishedByDate").mockResolvedValueOnce({
+      lunch: { isAvailable: true },
+      dinner: { isAvailable: false },
+    } as any);
+    vi.spyOn(orderRepository, "list").mockResolvedValueOnce([
+      {
+        id: "ord_lunch",
+        subscriptionId: "sub_unavail",
+        mealType: "lunch",
+        status: "scheduled",
+      },
+      {
+        id: "ord_dinner",
+        subscriptionId: "sub_unavail",
+        mealType: "dinner",
+        status: "scheduled",
+      },
+    ] as any);
+
+    const res = await orderVerificationService.verifyDailyOrders("2026-09-22");
+    expect(res.verification).toBe("FAIL");
+    expect(
+      res.failureReasons.some((r) =>
+        r.includes("UNEXPECTED ORDERS FOR UNAVAILABLE SLOTS"),
+      ),
+    ).toBe(true);
+  });
+
+  it("23. passes verification when available lunch order exists and unavailable dinner has no order", async () => {
+    vi.spyOn(subscriptionRepository, "list").mockResolvedValue([
+      {
+        id: "sub_ok",
+        customerId: "cust1",
+        planId: "plan1",
+        status: "active",
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+        mealPreferences: [{ mealType: "lunch" }, { mealType: "dinner" }],
+      } as any,
+    ]);
+    vi.spyOn(dailyMenuRepository, "getPublishedByDate").mockResolvedValueOnce({
+      lunch: { isAvailable: true },
+      dinner: { isAvailable: false },
+    } as any);
+    vi.spyOn(orderRepository, "list").mockResolvedValueOnce([
+      {
+        id: "ord_lunch",
+        subscriptionId: "sub_ok",
+        mealType: "lunch",
+        status: "scheduled",
+      },
+    ] as any);
+
+    const res = await orderVerificationService.verifyDailyOrders("2026-09-22");
+    expect(res.verification).toBe("PASS");
+    expect(res.failureReasons).toEqual([]);
   });
 });

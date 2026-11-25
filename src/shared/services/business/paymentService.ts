@@ -349,6 +349,8 @@ class PaymentService {
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
         (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
         (payment as any)._invoiceTotalAmount = invTotal;
+        (payment as any)._invoicePaidAmount = newPaidAmount;
+        (payment as any)._invoiceRemainingBalance = Math.max(0, invTotal - newPaidAmount);
       } else if (
         matchingInvoiceSnap?.exists() &&
         matchingInvoiceSnap.data().status === "paid"
@@ -377,6 +379,8 @@ class PaymentService {
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
         (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
         (payment as any)._invoiceTotalAmount = invTotal;
+        (payment as any)._invoicePaidAmount = newPaidAmount;
+        (payment as any)._invoiceRemainingBalance = Math.max(0, invTotal - newPaidAmount);
       } else if (!matchingInvoiceSnap?.exists()) {
         // Only create receipt invoice if no matching invoice exists and it's not a security deposit
         const invoiceId = crypto.randomUUID();
@@ -469,6 +473,14 @@ class PaymentService {
           typeof (capturedPayment as any)._invoiceTotalAmount === "number"
             ? (capturedPayment as any)._invoiceTotalAmount
             : capturedPayment.amount;
+        const invoicePaidAmount =
+          typeof (capturedPayment as any)._invoicePaidAmount === "number"
+            ? (capturedPayment as any)._invoicePaidAmount
+            : capturedPayment.amount;
+        const invoiceRemainingBalance =
+          typeof (capturedPayment as any)._invoiceRemainingBalance === "number"
+            ? (capturedPayment as any)._invoiceRemainingBalance
+            : 0;
 
         const invoiceData: InvoiceData = {
           invoiceNumber,
@@ -481,6 +493,8 @@ class PaymentService {
           pricePerDay: resolvedMeta.pricePerDay,
           quantity: resolvedMeta.quantity || 1,
           totalAmount: invoiceTotal,
+          amountPaid: invoicePaidAmount,
+          remainingBalance: invoiceRemainingBalance,
           paymentMethod: capturedPayment.paymentMethod,
           referenceNumber: capturedPayment.referenceNumber,
           paymentDate: capturedPayment.paymentDate,

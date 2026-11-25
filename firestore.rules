@@ -1130,7 +1130,8 @@ service cloud.firestore {
     }
 
     match /settings/invoiceCounters {
-      allow read, write: if isAdmin() || isAccounts();
+      allow read, create, update: if isAdmin() || isAccounts();
+      allow delete: if false;
     }
 
     match /settings/{settingId} {

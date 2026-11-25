@@ -129,9 +129,8 @@ export class OrderVerificationService {
       mealType: MealType;
     }
     const expectedTargets: ExpectedMealTarget[] = [];
-    const publishedDailyMenu = await dailyMenuRepository
-      .getPublishedByDate(businessDate)
-      .catch(() => null);
+    const publishedDailyMenu =
+      await dailyMenuRepository.getPublishedByDate(businessDate);
 
     if (!isHoliday) {
       for (const sub of eligibleSubs) {
@@ -231,6 +230,15 @@ export class OrderVerificationService {
       }
     }
 
+    const unavailableSlotOrders = publishedDailyMenu
+      ? activeOrders.filter(
+          (o) =>
+            o.mealType &&
+            publishedDailyMenu[o.mealType] &&
+            publishedDailyMenu[o.mealType].isAvailable === false,
+        )
+      : [];
+
     // 7. Evaluate Verification Result
     let verification: "PASS" | "FAIL" = "PASS";
     let isExpectedZero = false;
@@ -271,6 +279,13 @@ export class OrderVerificationService {
         verification = "FAIL";
         failureReasons.push(
           `DUPLICATES DETECTED: Found ${duplicates.length} duplicate order key(s) in Firestore.`,
+        );
+      }
+
+      if (unavailableSlotOrders.length > 0) {
+        verification = "FAIL";
+        failureReasons.push(
+          `UNEXPECTED ORDERS FOR UNAVAILABLE SLOTS: Found ${unavailableSlotOrders.length} active order(s) for meal slot(s) marked unavailable.`,
         );
       }
     }

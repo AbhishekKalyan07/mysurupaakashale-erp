@@ -106,6 +106,29 @@ describe("generateInvoicePdf", () => {
       30,
     );
   });
+
+  it("distinguishes Invoice Total, Amount Paid, and Balance Due for partial payments", () => {
+    const doc = generateInvoicePdf({
+      ...mockData,
+      totalAmount: 3000,
+      amountPaid: 1500,
+      remainingBalance: 1500,
+    });
+    expect(doc.text).toHaveBeenCalledWith("Invoice Total:", 140, expect.any(Number));
+    expect(doc.text).toHaveBeenCalledWith("Amount Paid:", 140, expect.any(Number));
+    expect(doc.text).toHaveBeenCalledWith("Balance Due:", 140, expect.any(Number));
+  });
+
+  it("displays Total Paid for full payments", () => {
+    const doc = generateInvoicePdf({
+      ...mockData,
+      totalAmount: 3000,
+      amountPaid: 3000,
+      remainingBalance: 0,
+    });
+    expect(doc.text).toHaveBeenCalledWith("Subtotal:", 140, expect.any(Number));
+    expect(doc.text).toHaveBeenCalledWith("Total Paid:", 140, expect.any(Number));
+  });
 });
 
 describe("formatInvoicePdfFilename", () => {
