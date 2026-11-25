@@ -2458,21 +2458,29 @@ class OrderService {
         ? `${addr.line1} ${addr.line2 || ""}, ${addr.city}, ${addr.pincode}`.trim()
         : undefined;
 
+      const isSelfCustomer = auth?.currentUser?.uid === customerId;
       const ref = doc(db, "orders", order.id!);
-      const updatePayload: any = {
-        deliveryPartnerId: partnerId ?? null,
-        zoneId,
-        kitchenId,
-        driverName: driver?.fullName ?? null,
-        driverPhone: driver?.phone ?? null,
-        zoneName: zoneName ?? null,
-        customerName: custProfile.fullName || "Unknown Customer",
-        customerCode: custProfile.displayId ?? null,
-        customerPhone: custProfile.phone ?? null,
-        address: addressStr ?? null,
-        addressCoords: sanitizeCoordinates(addr),
-        updatedAt: serverTimestamp() as unknown as Timestamp,
-      };
+      const updatePayload: any = isSelfCustomer
+        ? {
+            deliveryPartnerId: partnerId ?? null,
+            zoneId,
+            kitchenId,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          }
+        : {
+            deliveryPartnerId: partnerId ?? null,
+            zoneId,
+            kitchenId,
+            driverName: driver?.fullName ?? null,
+            driverPhone: driver?.phone ?? null,
+            zoneName: zoneName ?? null,
+            customerName: custProfile.fullName || "Unknown Customer",
+            customerCode: custProfile.displayId ?? null,
+            customerPhone: custProfile.phone ?? null,
+            address: addressStr ?? null,
+            addressCoords: sanitizeCoordinates(addr),
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          };
 
       Object.keys(updatePayload).forEach((key) => {
         if (updatePayload[key] === undefined) {

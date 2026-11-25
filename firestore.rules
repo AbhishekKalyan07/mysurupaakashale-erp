@@ -855,7 +855,7 @@ service cloud.firestore {
                          request.resource.data.selectedOptionId is string) ||
                         (resource.data.status == 'scheduled' && request.resource.data.status == 'scheduled' &&
                          resource.data.get('kitchenStatus', 'scheduled') == 'scheduled' &&
-                         onlyChangedFields(['deliveryAddressId', 'zoneId', 'kitchenId', 'deliveryPartnerId', 'customerName', 'customerCode', 'customerPhone', 'address', 'addressCoords', 'driverName', 'driverPhone', 'zoneName', 'updatedAt'])))) ||
+                         onlyChangedFields(['deliveryAddressId', 'zoneId', 'kitchenId', 'deliveryPartnerId', 'updatedAt'])))) ||
                       (isAuthorizedKitchen(resource.data.get('kitchenId', null)) && onlyChangedFields(['status', 'kitchenStatus', 'updatedAt', 'packingAt', 'packedAt', 'readyAt', 'preparingAt']) &&
                        isValidKitchenTransition(resource.data.status, request.resource.data.status) &&
                        getDayStatus(resource.data.date) == 'open') ||
