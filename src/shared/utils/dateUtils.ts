@@ -30,6 +30,22 @@ export function parseFirestoreDate(ts: unknown): Date | null {
     return isNaN(ts.getTime()) ? null : ts;
   }
 
+  // Handle plain serialized Firestore Timestamp ({ seconds, nanoseconds })
+  if (
+    typeof ts === "object" &&
+    ts !== null &&
+    "seconds" in tsObj &&
+    typeof tsObj.seconds === "number" &&
+    Number.isFinite(tsObj.seconds)
+  ) {
+    const nanos =
+      typeof tsObj.nanoseconds === "number" && Number.isFinite(tsObj.nanoseconds)
+        ? tsObj.nanoseconds
+        : 0;
+    const d = new Date(tsObj.seconds * 1000 + Math.floor(nanos / 1e6));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   // Handle ISO string or number (milliseconds)
   if (typeof ts === "string" || typeof ts === "number") {
     const d = new Date(ts);

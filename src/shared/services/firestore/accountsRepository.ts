@@ -499,10 +499,16 @@ export class AccountsRepository {
           "[AccountsRepository] Failed to allocate sequential invoice number, falling back:",
           err,
         );
-        return `${customPrefix}-${year}-${Date.now().toString().slice(-6)}`;
+        const rand3 = Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, "0");
+        return `${customPrefix}-${year}-${Date.now()}-${rand3}`;
       }
     }
-    return `${customPrefix}-${year}-${Date.now().toString().slice(-6)}`;
+    const rand3 = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    return `${customPrefix}-${year}-${Date.now()}-${rand3}`;
   }
 
   /**

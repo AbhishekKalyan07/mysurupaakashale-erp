@@ -348,6 +348,7 @@ class PaymentService {
 
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
         (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
+        (payment as any)._invoiceTotalAmount = invTotal;
       } else if (
         matchingInvoiceSnap?.exists() &&
         matchingInvoiceSnap.data().status === "paid"
@@ -375,6 +376,7 @@ class PaymentService {
         });
         (payment as any)._invoiceIdForLogging = targetInvoiceId;
         (payment as any)._persistedInvoiceNumber = invData.invoiceNumber;
+        (payment as any)._invoiceTotalAmount = invTotal;
       } else if (!matchingInvoiceSnap?.exists()) {
         // Only create receipt invoice if no matching invoice exists and it's not a security deposit
         const invoiceId = crypto.randomUUID();
@@ -463,6 +465,11 @@ class PaymentService {
         const today = getTodayInTimezone();
         const billingMonth = capturedPayment.billingMonth ?? today.slice(0, 7);
 
+        const invoiceTotal =
+          typeof (capturedPayment as any)._invoiceTotalAmount === "number"
+            ? (capturedPayment as any)._invoiceTotalAmount
+            : capturedPayment.amount;
+
         const invoiceData: InvoiceData = {
           invoiceNumber,
           billingMonth,
@@ -473,7 +480,7 @@ class PaymentService {
           planTier: resolvedMeta.planTier,
           pricePerDay: resolvedMeta.pricePerDay,
           quantity: resolvedMeta.quantity || 1,
-          totalAmount: capturedPayment.amount,
+          totalAmount: invoiceTotal,
           paymentMethod: capturedPayment.paymentMethod,
           referenceNumber: capturedPayment.referenceNumber,
           paymentDate: capturedPayment.paymentDate,
@@ -512,7 +519,7 @@ class PaymentService {
           toName: resolvedMeta.customerName || capturedPayment.customerName,
           planName: resolvedMeta.planName,
           billingMonth: formatBillingMonthLong(billingMonth),
-          totalAmount: capturedPayment.amount,
+          totalAmount: invoiceTotal,
           invoiceNumber,
           paymentMethod: capturedPayment.paymentMethod.replace("_", " "),
           pdfBase64: pdf.output("datauristring").split(",")[1],

@@ -724,7 +724,8 @@ service cloud.firestore {
 
 
       allow read: if isSignedIn() &&
-                      (resource.data.customerId == request.auth.uid ||
+                      (resource == null ||
+                       resource.data.customerId == request.auth.uid ||
                        resource.data.deliveryPartnerId == request.auth.uid ||
                       isAdmin() || isAccounts() || isAuthorizedKitchen(resource.data.kitchenId));
 
@@ -955,7 +956,7 @@ service cloud.firestore {
 
     // ---------- payments/{paymentId} ----------
     match /payments/{paymentId} {
-      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow read: if isSignedIn() && (resource == null || resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
       // Security hardening: require createdAt (queries use orderBy('createdAt'))
       // and enforce a strict field allowlist to prevent unauthorized fields.
       allow create: if isAdmin() ||
@@ -998,7 +999,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     match /invoices/{invoiceId} {
-      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
+      allow read: if isSignedIn() && (resource == null || resource.data.customerId == request.auth.uid || isAdmin() || isAccounts());
       allow create: if ((isAdmin() || isAccounts()) && request.resource.data.totalAmount is number && request.resource.data.totalAmount >= 0) ||
                        (isSignedIn() &&
                         request.resource.data.customerId == request.auth.uid &&

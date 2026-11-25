@@ -24,6 +24,7 @@ import {
 import type { DailySummary, ManualPayment } from "@/shared/types";
 import { addDays, subDays, format } from "date-fns";
 import { getTodayInTimezone, getHourInTimezone } from "@/shared/lib/date";
+import { parseFirestoreDate } from "@/shared/utils/dateUtils";
 
 export interface DatabaseBackupResult {
   timestamp: string;
@@ -538,14 +539,19 @@ export class AutomationService {
       { header: "Phone", key: "phone", width: 15 },
     ];
     const users = await userRepository.list(where("role", "==", "customer"));
-    users.forEach((u: any) =>
+    users.forEach((u: any) => {
+      const resolvedName =
+        u.fullName ||
+        [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+        u.name ||
+        "Customer";
       customersSheet.addRow({
         id: u.id,
-        name: sanitizeSpreadsheetValue(u.fullName || "Customer"),
+        name: sanitizeSpreadsheetValue(resolvedName),
         email: u.email,
         phone: u.phone,
-      }),
-    );
+      });
+    });
 
     // Orders sheet - scoped strictly to target month
     const ordersSheet = workbook.addWorksheet("Orders");
@@ -615,12 +621,11 @@ export class AutomationService {
         customerId: p.customerId,
         amount: p.amount,
         status: p.status,
-        date:
-          p.createdAt && typeof (p.createdAt as any).toDate === "function"
-            ? (p.createdAt as any).toDate().toISOString().split("T")[0]
-            : p.createdAt
-              ? String(p.createdAt)
-              : "",
+        date: (() => {
+          const parsed = parseFirestoreDate(p.createdAt);
+          if (parsed) return getTodayInTimezone("Asia/Kolkata", parsed);
+          return p.paymentDate || (p.createdAt ? String(p.createdAt) : "");
+        })(),
       }),
     );
 
