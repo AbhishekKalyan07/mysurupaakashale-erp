@@ -87,10 +87,10 @@ export function DeliverySummaryCards({ summary }: Props) {
       </Card>
 
       <Card className="p-4 flex flex-col items-center justify-center text-center bg-gold/10 border-gold/30">
-        <span className="text-3xl font-bold font-display text-gold">
+        <span className="text-3xl font-bold font-display text-gold-dark">
           {summary.completionPercentage}%
         </span>
-        <span className="text-xs text-gold/80 font-medium uppercase tracking-wider mt-1">
+        <span className="text-xs text-gold-dark font-medium uppercase tracking-wider mt-1">
           Completion
         </span>
       </Card>

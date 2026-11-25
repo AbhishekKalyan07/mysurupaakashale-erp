@@ -321,7 +321,7 @@ export function AdminSendNotificationModal({ isOpen, onClose }: Props) {
                   </span>
                 )}
                 {priority === "high" && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider bg-gold/10 text-gold border border-gold/30 shrink-0">
+                  <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider bg-gold/10 text-gold-dark border border-gold/30 shrink-0">
                     High
                   </span>
                 )}

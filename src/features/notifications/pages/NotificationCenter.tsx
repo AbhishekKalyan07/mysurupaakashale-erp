@@ -64,7 +64,7 @@ function priorityBadge(priority: string) {
       );
     case "high":
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-gold/10 text-gold border border-gold/30">
+        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-gold/10 text-gold-dark border border-gold/30">
           High
         </span>
       );

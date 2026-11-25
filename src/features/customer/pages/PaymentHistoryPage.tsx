@@ -279,7 +279,7 @@ function PaymentRow({ payment }: { payment: ManualPayment }) {
             {methodLabel(payment.paymentMethod)}
           </div>
           {payment.referenceNumber && (
-            <div className="text-gold text-xs font-data mt-1 truncate max-w-[150px]">
+            <div className="text-gold-dark text-xs font-data mt-1 truncate max-w-[150px]">
               {payment.referenceNumber}
             </div>
           )}

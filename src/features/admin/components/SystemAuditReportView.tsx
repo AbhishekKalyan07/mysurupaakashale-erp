@@ -344,7 +344,7 @@ export function SystemAuditReportView({
               </span>
             )}
             {purposeText && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gold/15 text-gold-darker border border-gold/30">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gold/15 text-gold-dark border border-gold/30">
                 {purposeText}
               </span>
             )}
