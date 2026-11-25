@@ -215,7 +215,7 @@ describe('authenticateForAutomation()', () => {
     expect(mocks.mockInitializeApp).toHaveBeenCalledWith({ projectId: 'demo-test' });
     expect(mocks.mockCreateCustomToken).toHaveBeenCalled();
     expect(process.env.FIREBASE_AUTH_EMULATOR_HOST).toBe('127.0.0.1:9099');
-    expect(process.env.FIRESTORE_EMULATOR_HOST).toBe('127.0.0.1:8080');
+    expect(process.env.FIRESTORE_EMULATOR_HOST).toBe('127.0.0.1:8085');
   });
 
   // ── 6. Skips re-initializing Admin when already initialized ───────────────

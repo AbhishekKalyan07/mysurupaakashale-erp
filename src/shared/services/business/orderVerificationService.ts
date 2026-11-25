@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/firebase";
 import { orderRepository } from "../firestore/orderRepository";
 import { subscriptionRepository } from "../firestore/subscriptionRepository";
 import { holidayRepository } from "../firestore/holidayRepository";
+import { dailyMenuRepository } from "../firestore/dailyMenuRepository";
 import {
   getTodayInTimezone,
   getDayOfWeekInTimezone,
@@ -128,6 +129,8 @@ export class OrderVerificationService {
       mealType: MealType;
     }
     const expectedTargets: ExpectedMealTarget[] = [];
+    const publishedDailyMenu =
+      await dailyMenuRepository.getPublishedByDate(businessDate);
 
     if (!isHoliday) {
       for (const sub of eligibleSubs) {
@@ -145,6 +148,14 @@ export class OrderVerificationService {
         for (const pref of sub.mealPreferences || []) {
           if (skippedMeals.includes(pref.mealType)) {
             continue; // Skipped by customer
+          }
+
+          if (
+            publishedDailyMenu &&
+            publishedDailyMenu[pref.mealType] &&
+            publishedDailyMenu[pref.mealType].isAvailable === false
+          ) {
+            continue; // Meal slot marked unavailable in published daily menu
           }
 
           expectedTargets.push({
@@ -219,6 +230,15 @@ export class OrderVerificationService {
       }
     }
 
+    const unavailableSlotOrders = publishedDailyMenu
+      ? activeOrders.filter(
+          (o) =>
+            o.mealType &&
+            publishedDailyMenu[o.mealType] &&
+            publishedDailyMenu[o.mealType].isAvailable === false,
+        )
+      : [];
+
     // 7. Evaluate Verification Result
     let verification: "PASS" | "FAIL" = "PASS";
     let isExpectedZero = false;
@@ -259,6 +279,13 @@ export class OrderVerificationService {
         verification = "FAIL";
         failureReasons.push(
           `DUPLICATES DETECTED: Found ${duplicates.length} duplicate order key(s) in Firestore.`,
+        );
+      }
+
+      if (unavailableSlotOrders.length > 0) {
+        verification = "FAIL";
+        failureReasons.push(
+          `UNEXPECTED ORDERS FOR UNAVAILABLE SLOTS: Found ${unavailableSlotOrders.length} active order(s) for meal slot(s) marked unavailable.`,
         );
       }
     }

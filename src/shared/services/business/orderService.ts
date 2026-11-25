@@ -1513,7 +1513,7 @@ class OrderService {
       } else {
         const invPayload = {
           id: targetInvoiceId!,
-          invoiceNumber: `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+          invoiceNumber: `INV-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`,
           customerId: subscription.customerId,
           subscriptionId: subscription.id,
           lineItems: [newLineItem],
@@ -2323,7 +2323,9 @@ class OrderService {
       "out_for_delivery",
     ];
     const ordersToSync = activeOrders.filter(
-      (o) => !TERMINAL_AND_LOCKED_STATUSES.includes(o.status) && (!targetMealType || targetMealType === "all" || o.mealType === targetMealType),
+      (o) =>
+        !TERMINAL_AND_LOCKED_STATUSES.includes(o.status) &&
+        (!targetMealType || targetMealType === "all" || o.mealType === targetMealType),
     );
 
     if (ordersToSync.length === 0) return;
@@ -2456,21 +2458,29 @@ class OrderService {
         ? `${addr.line1} ${addr.line2 || ""}, ${addr.city}, ${addr.pincode}`.trim()
         : undefined;
 
+      const isSelfCustomer = auth?.currentUser?.uid === customerId;
       const ref = doc(db, "orders", order.id!);
-      const updatePayload: any = {
-        deliveryPartnerId: partnerId ?? null,
-        zoneId,
-        kitchenId,
-        driverName: driver?.fullName ?? null,
-        driverPhone: driver?.phone ?? null,
-        zoneName: zoneName ?? null,
-        customerName: custProfile.fullName || "Unknown Customer",
-        customerCode: custProfile.displayId ?? null,
-        customerPhone: custProfile.phone ?? null,
-        address: addressStr ?? null,
-        addressCoords: sanitizeCoordinates(addr),
-        updatedAt: serverTimestamp() as unknown as Timestamp,
-      };
+      const updatePayload: any = isSelfCustomer
+        ? {
+            deliveryPartnerId: partnerId ?? null,
+            zoneId,
+            kitchenId,
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          }
+        : {
+            deliveryPartnerId: partnerId ?? null,
+            zoneId,
+            kitchenId,
+            driverName: driver?.fullName ?? null,
+            driverPhone: driver?.phone ?? null,
+            zoneName: zoneName ?? null,
+            customerName: custProfile.fullName || "Unknown Customer",
+            customerCode: custProfile.displayId ?? null,
+            customerPhone: custProfile.phone ?? null,
+            address: addressStr ?? null,
+            addressCoords: sanitizeCoordinates(addr),
+            updatedAt: serverTimestamp() as unknown as Timestamp,
+          };
 
       Object.keys(updatePayload).forEach((key) => {
         if (updatePayload[key] === undefined) {

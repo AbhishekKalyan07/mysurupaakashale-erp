@@ -579,7 +579,7 @@ function CustomerSubscriptionsTab({
                           toast.error(err?.message || "Failed to update pause state.");
                         }
                       }}
-                      className="mt-2 text-xs border border-gold/40 text-gold hover:bg-gold/10 justify-center"
+                      className="mt-2 text-xs border border-gold/40 text-gold-dark hover:bg-gold/10 justify-center"
                     >
                       {sub.status === "paused" ? "Resume Subscription" : "Pause Subscription"}
                     </Button>
@@ -1229,7 +1229,7 @@ function CustomerDetailDialog({
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsEditingZone(true)}
-                      className="text-xs text-gold hover:bg-gold/10 px-2 py-1 h-auto"
+                      className="text-xs text-gold-dark hover:bg-gold/10 px-2 py-1 h-auto"
                     >
                       Change Zone
                     </Button>
@@ -1307,7 +1307,7 @@ function CustomerDetailDialog({
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsEditingPartner(true)}
-                      className="text-xs text-gold hover:bg-gold/10 px-2 py-1 h-auto"
+                      className="text-xs text-gold-dark hover:bg-gold/10 px-2 py-1 h-auto"
                     >
                       Change Assignment
                     </Button>

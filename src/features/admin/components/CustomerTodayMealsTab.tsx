@@ -389,7 +389,7 @@ export function CustomerTodayMealsTab({ customer }: CustomerTodayMealsTabProps) 
                               order,
                             })
                           }
-                          className="w-full text-xs text-gold border border-gold/30 hover:bg-gold/10 min-h-[32px] justify-center"
+                          className="w-full text-xs text-gold-dark border border-gold/30 hover:bg-gold/10 min-h-[32px] justify-center"
                         >
                           <Sliders size={13} className="mr-1" /> Change Option
                         </Button>

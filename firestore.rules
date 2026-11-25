@@ -63,7 +63,7 @@ service cloud.firestore {
     
     function isAuthorizedKitchen(kitchenId) {
       // Check isKitchen() first so non-kitchen callers exit immediately without reading kitchenId
-      return isKitchen() && (callerKitchenId() == null || (kitchenId != null && kitchenId == callerKitchenId()));
+      return isKitchen() && callerKitchenId() != null && kitchenId != null && kitchenId == callerKitchenId();
     }
 
     function isOwner(userId) {
@@ -309,7 +309,7 @@ service cloud.firestore {
       // Kitchen can create and edit draft menus directly.
       // Publishing/archiving goes through the manageDailyMenu Cloud Function.
       allow create: if isAdmin() || (isAuthorizedKitchen(request.resource.data.kitchenId) && request.resource.data.status == 'draft');
-      allow update: if isAdmin() || (isAuthorizedKitchen(resource.data.kitchenId) && isAuthorizedKitchen(request.resource.data.kitchenId) && resource.data.status == 'draft' && request.resource.data.status == 'draft');
+      allow update: if isAdmin() || (isAuthorizedKitchen(resource.data.kitchenId) && isAuthorizedKitchen(request.resource.data.kitchenId) && ((resource.data.status == 'draft' && request.resource.data.status == 'draft') || (resource.data.status == 'published' && request.resource.data.status == 'published')));
       allow delete: if isAdmin() || (isAuthorizedKitchen(resource.data.kitchenId) && resource.data.status == 'draft');
     }
 
@@ -653,7 +653,7 @@ service cloud.firestore {
         (isOwnSubscription() && onlyChangedFields(['status', 'updatedAt', 'pauseStartDate', 'pauseEndDate', 'quantity', 'mealPreferences', 'autoRenew', 'cancellationDate']) &&
          request.resource.data.get('quantity', 1) > 0 &&
          (isAllowedCustomerTransition() ||
-          ((resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
+          (unchanged('status') && (resource.data.status == 'pending_payment' || resource.data.status == 'active' || resource.data.status == 'paused') &&
            request.resource.data.diff(resource.data).affectedKeys().hasAny(['quantity', 'mealPreferences', 'pauseStartDate', 'pauseEndDate', 'autoRenew', 'cancellationDate']))));
 
       allow delete: if false; // cancel via status update — preserves billing history
@@ -1129,11 +1129,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /settings/invoiceCounters {
+      allow read, create, update: if isAdmin() || isAccounts();
+      allow delete: if false;
+    }
+
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin() && settingId != 'userCounters'; // Phase 1: Settings updated by admin
+      allow read: if isSignedIn() && settingId != 'invoiceCounters';
+      allow create, update: if isAdmin() && settingId != 'userCounters' && settingId != 'invoiceCounters'; // Phase 1: Settings updated by admin
       allow delete: if false; // Settings cannot be deleted
     }
 
@@ -1204,7 +1209,9 @@ service cloud.firestore {
     // ---------- feedback/{feedbackId} ----------
     match /feedback/{feedbackId} {
       allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid &&
+                       request.resource.data.keys().hasOnly(['id', 'customerId', 'orderId', 'rating', 'category', 'comment', 'createdAt']) &&
+                       (!('comment' in request.resource.data) || (request.resource.data.comment is string && request.resource.data.comment.size() <= 2000));
       allow update, delete: if isAdmin();
     }
 

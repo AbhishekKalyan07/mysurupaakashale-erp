@@ -474,7 +474,7 @@ class BillingService {
       }
     } catch {}
 
-    const invoiceNumber = `${prefix}-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    const invoiceNumber = `${prefix}-${subscription.customerId.substring(0, 4).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
 
     // Start Transaction for Idempotency
     await runTransaction(db, async (txn) => {
@@ -535,7 +535,7 @@ class BillingService {
         billingPeriodStart: cycleStartDate,
         billingPeriodEnd: effectiveEndDate,
         dueDate: today, // due immediately on generation
-        paidAt: isSettled ? today : null,
+        paidAt: isSettled ? (serverTimestamp() as unknown as Timestamp) : null,
         paymentId: isSettled && verifiedUsagePayments.length > 0 ? verifiedUsagePayments[0].id : null,
         createdAt: serverTimestamp() as unknown as Timestamp,
       });

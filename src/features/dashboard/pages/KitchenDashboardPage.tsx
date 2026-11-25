@@ -101,7 +101,7 @@ export function KitchenDashboardPage() {
             </h2>
           </div>
           <span
-            className="font-data text-sm font-bold text-gold"
+            className="font-data text-sm font-bold text-gold-dark"
             aria-label={`${progressPercent} percent complete`}
           >
             {progressPercent}%

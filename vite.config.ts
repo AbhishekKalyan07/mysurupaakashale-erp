@@ -129,17 +129,17 @@ export default defineConfig(({ mode }) => {
         ],
         shortcuts: [
           {
-            name: 'Subscriptions',
-            short_name: 'Subscriptions',
-            description: 'Manage customer subscriptions',
-            url: '/subscriptions',
+            name: 'Dashboard',
+            short_name: 'Dashboard',
+            description: 'Main operational overview and subscriptions',
+            url: '/dashboard',
             icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
           },
           {
             name: 'Kitchen Board',
             short_name: 'Kitchen',
             description: 'Production and kitchen orders',
-            url: '/kitchen',
+            url: '/kitchen/production',
             icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
           },
           {

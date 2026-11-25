@@ -194,7 +194,7 @@ function WorkflowTimeline({
             onClick={handleAction}
             isLoading={isAdvancing}
             disabled={isAdvancing}
-            className="min-h-[44px] text-xs sm:text-sm font-semibold"
+            className="min-h-[48px] px-4 text-xs sm:text-sm font-semibold"
           >
             {step.label}
           </PremiumButton>
@@ -204,7 +204,7 @@ function WorkflowTimeline({
             size="sm"
             variant="danger-tonal"
             onClick={() => setShowFail(!showFail)}
-            className="min-h-[44px] text-xs sm:text-sm font-semibold"
+            className="min-h-[48px] px-4 text-xs sm:text-sm font-semibold"
           >
             ✗ Failed
           </PremiumButton>
@@ -335,7 +335,8 @@ export function OrderCard({
   return (
     <div
       className={cn(
-        "bg-card rounded-[20px] border border-border shadow-card overflow-hidden transition-all duration-200 hover:shadow-md animate-in fade-in slide-in-from-bottom-2",
+        "bg-card rounded-[20px] border shadow-card overflow-hidden transition-all duration-200 hover:shadow-md animate-in fade-in slide-in-from-bottom-2",
+        variant === "kitchen" ? "border-border-strong" : "border-border",
         isTerminal && "opacity-70",
         className,
       )}

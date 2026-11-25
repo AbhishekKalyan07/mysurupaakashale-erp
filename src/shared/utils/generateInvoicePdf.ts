@@ -12,6 +12,8 @@ export interface InvoiceData {
   pricePerDay: number;
   quantity: number;
   totalAmount: number;
+  amountPaid?: number;
+  remainingBalance?: number;
   paymentMethod: string;
   referenceNumber: string | null;
   paymentDate: string;
@@ -246,14 +248,23 @@ export function generateInvoicePdf(
 
   // ── Totals block ─────────────────────────────────────────────────────────────
   const totalsX = 140;
+  const isPartialPayment =
+    typeof data.remainingBalance === "number" && data.remainingBalance > 0;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(80, 80, 80);
-  doc.text("Subtotal:", totalsX, y);
+  doc.text(isPartialPayment ? "Invoice Total:" : "Subtotal:", totalsX, y);
   doc.text(`₹${data.totalAmount.toLocaleString("en-IN")}`, W - margin, y, {
     align: "right",
   });
   y += 5;
+  if (isPartialPayment && typeof data.amountPaid === "number") {
+    doc.text("Amount Paid:", totalsX, y);
+    doc.text(`₹${data.amountPaid.toLocaleString("en-IN")}`, W - margin, y, {
+      align: "right",
+    });
+    y += 5;
+  }
   doc.text("Tax (GST):", totalsX, y);
   doc.text("Included", W - margin, y, { align: "right" });
   y += 6;
@@ -263,9 +274,12 @@ export function generateInvoicePdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(255, 243, 220);
-  doc.text("Total Paid:", totalsX, y + 5.5);
+  doc.text(isPartialPayment ? "Balance Due:" : "Total Paid:", totalsX, y + 5.5);
+  const highlightAmount = isPartialPayment
+    ? data.remainingBalance!
+    : data.totalAmount;
   doc.text(
-    `₹${data.totalAmount.toLocaleString("en-IN")}`,
+    `₹${highlightAmount.toLocaleString("en-IN")}`,
     W - margin - 2,
     y + 5.5,
     { align: "right" },
