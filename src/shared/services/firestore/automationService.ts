@@ -542,8 +542,7 @@ export class AutomationService {
     users.forEach((u: any) => {
       const resolvedName =
         u.fullName ||
-        [u.firstName, u.lastName].filter(Boolean).join(" ") ||
-        u.name ||
+        [u.firstName || u.name, u.lastName].filter(Boolean).join(" ") ||
         "Customer";
       customersSheet.addRow({
         id: u.id,

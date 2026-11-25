@@ -1137,7 +1137,7 @@ service cloud.firestore {
     match /settings/{settingId} {
       // Settings may contain internal configuration (pricing, cutoff times,
       // zone config).
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && settingId != 'invoiceCounters';
       allow create, update: if isAdmin() && settingId != 'userCounters' && settingId != 'invoiceCounters'; // Phase 1: Settings updated by admin
       allow delete: if false; // Settings cannot be deleted
     }
